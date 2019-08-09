@@ -1,4 +1,4 @@
-package thread
+package threadstore
 
 import (
 	"github.com/ipfs/go-ipld-format"
