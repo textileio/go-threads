@@ -7,7 +7,7 @@
 [![CircleCI branch](https://img.shields.io/circleci/project/github/textileio/go-textile-threads/master.svg?style=popout-square)](https://circleci.com/gh/textileio/go-textile-threads)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=popout-square)](https://github.com/RichardLitt/standard-readme)
 
-> Textile's thread implementation in Go
+> Textile's threads implementation in Go
 
 Go to [the docs](https://docs.textile.io/) for more about Textile.
 

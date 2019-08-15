@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
@@ -13,17 +13,19 @@ type threadstore struct {
 	tstore.LogKeyBook
 	tstore.LogAddrBook
 	tstore.ThreadMetadata
+	tstore.LogHeadBook
 }
 
-func NewThreadstore(kb tstore.LogKeyBook, ab tstore.LogAddrBook, md tstore.ThreadMetadata) tstore.Threadstore {
+func NewThreadstore(kb tstore.LogKeyBook, ab tstore.LogAddrBook, hb tstore.LogHeadBook, md tstore.ThreadMetadata) tstore.Threadstore {
 	return &threadstore{
 		LogKeyBook:     kb,
 		LogAddrBook:    ab,
+		LogHeadBook:    hb,
 		ThreadMetadata: md,
 	}
 }
 
-func (ts *threadstore) Close() (err error) {
+func (ts *threadstore) Shutdown() (err error) {
 	var errs []error
 	weakClose := func(name string, c interface{}) {
 		if cl, ok := c.(io.Closer); ok {
@@ -44,12 +46,24 @@ func (ts *threadstore) Close() (err error) {
 }
 
 func (ts *threadstore) Threads() thread.IDSlice {
-	// @todo
-	return nil
+	set := map[thread.ID]struct{}{}
+	for _, t := range ts.ThreadsFromKeys() {
+		set[t] = struct{}{}
+	}
+	for _, t := range ts.ThreadsFromAddrs() {
+		set[t] = struct{}{}
+	}
+
+	ids := make(thread.IDSlice, 0, len(set))
+	for t := range set {
+		ids = append(ids, t)
+	}
+
+	return ids
 }
 
 func (ts *threadstore) ThreadInfo(t thread.ID) thread.Info {
-	set := map[ic.PubKey]struct{}{}
+	set := map[peer.ID]struct{}{}
 	for _, l := range ts.LogsWithKeys(t) {
 		set[l] = struct{}{}
 	}
@@ -57,13 +71,13 @@ func (ts *threadstore) ThreadInfo(t thread.ID) thread.Info {
 		set[l] = struct{}{}
 	}
 
-	//logs := make([]interface{}, 0, len(set))
-	//for l := range set {
-	//	logs = append(logs, l)
-	//}
+	ids := make(peer.IDSlice, 0, len(set))
+	for l := range set {
+		ids = append(ids, l)
+	}
 
 	return thread.Info{
 		ID:   t,
-		Logs: ts.LogsWithKeys(t),
+		Logs: ids,
 	}
 }
