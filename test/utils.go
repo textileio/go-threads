@@ -18,12 +18,12 @@ func Multiaddr(m string) ma.Multiaddr {
 	return maddr
 }
 
-type peerpair struct {
+type logpair struct {
 	ID   peer.ID
 	Addr []ma.Multiaddr
 }
 
-func RandomPeer(b *testing.B, addrCount int) *peerpair {
+func RandomPeer(b *testing.B, addrCount int) *logpair {
 	var (
 		pid   peer.ID
 		err   error
@@ -41,10 +41,10 @@ func RandomPeer(b *testing.B, addrCount int) *peerpair {
 			b.Fatal(err)
 		}
 	}
-	return &peerpair{pid, addrs}
+	return &logpair{pid, addrs}
 }
 
-func AddressProducer(ctx context.Context, b *testing.B, addrs chan *peerpair, addrsPerPeer int) {
+func AddressProducer(ctx context.Context, b *testing.B, addrs chan *logpair, addrsPerPeer int) {
 	b.Helper()
 	defer close(addrs)
 	for {

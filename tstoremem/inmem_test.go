@@ -7,17 +7,17 @@ import (
 	tt "github.com/textileio/go-textile-threads/test"
 )
 
-//func TestInMemoryThreadstore(t *testing.T) {
-//	tt.ThreadstoreTest(t, func() (tstore.Threadstore, func()) {
-//		return NewThreadstore(), nil
-//	})
-//}
-//
-//func TestInMemoryLogAddrBook(t *testing.T) {
-//	tt.LogAddrBookTest(t, func() (tstore.LogAddrBook, func()) {
-//		return NewLogAddrBook(), nil
-//	})
-//}
+func TestInMemoryThreadstore(t *testing.T) {
+	tt.ThreadstoreTest(t, func() (tstore.Threadstore, func()) {
+		return NewThreadstore(), nil
+	})
+}
+
+func TestInMemoryLogAddrBook(t *testing.T) {
+	tt.LogAddrBookTest(t, func() (tstore.LogAddrBook, func()) {
+		return NewLogAddrBook(), nil
+	})
+}
 
 func TestInMemoryLogKeyBook(t *testing.T) {
 	tt.LogKeyBookTest(t, func() (tstore.LogKeyBook, func()) {
@@ -25,11 +25,11 @@ func TestInMemoryLogKeyBook(t *testing.T) {
 	})
 }
 
-//func BenchmarkInMemoryThreadstore(b *testing.B) {
-//	tt.BenchmarkThreadstore(b, func() (tstore.Threadstore, func()) {
-//		return NewThreadstore(), nil
-//	}, "InMem")
-//}
+func BenchmarkInMemoryThreadstore(b *testing.B) {
+	tt.BenchmarkThreadstore(b, func() (tstore.Threadstore, func()) {
+		return NewThreadstore(), nil
+	}, "InMem")
+}
 
 func BenchmarkInMemoryLogKeyBook(b *testing.B) {
 	tt.BenchmarkLogKeyBook(b, func() (tstore.LogKeyBook, func()) {

@@ -4,30 +4,28 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"reflect"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	ma "github.com/multiformats/go-multiaddr"
-
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-textile-core/thread"
+	tstore "github.com/textileio/go-textile-core/threadstore"
 )
 
-var peerstoreSuite = map[string]func(pstore.Peerstore) func(*testing.T){
-	"AddrStream":               testAddrStream,
-	"GetStreamBeforePeerAdded": testGetStreamBeforePeerAdded,
-	"AddStreamDuplicates":      testAddrStreamDuplicates,
-	"PeerstoreProtoStore":      testPeerstoreProtoStore,
-	"BasicPeerstore":           testBasicPeerstore,
-	"Metadata":                 testMetadata,
+var peerstoreSuite = map[string]func(tstore.Threadstore) func(*testing.T){
+	"AddrStream":              testAddrStream,
+	"GetStreamBeforeLogAdded": testGetStreamBeforeLogAdded,
+	"AddStreamDuplicates":     testAddrStreamDuplicates,
+	"BasicThreadstore":        testBasicThreadstore,
+	"Metadata":                testMetadata,
 }
 
-type PeerstoreFactory func() (pstore.Peerstore, func())
+type ThreadstoreFactory func() (tstore.Threadstore, func())
 
-func TestPeerstore(t *testing.T, factory PeerstoreFactory) {
+func ThreadstoreTest(t *testing.T, factory ThreadstoreFactory) {
 	for name, test := range peerstoreSuite {
 		// Create a new peerstore.
 		ps, closeFunc := factory()
@@ -42,18 +40,20 @@ func TestPeerstore(t *testing.T, factory PeerstoreFactory) {
 	}
 }
 
-func testAddrStream(ps pstore.Peerstore) func(t *testing.T) {
+func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		addrs, pid := getAddrs(t, 100), peer.ID("testpeer")
-		ps.AddAddrs(pid, addrs[:10], time.Hour)
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		addrs, pid := getAddrs(t, 100), peer.ID("testlog")
+		ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		addrch := ps.AddrStream(ctx, pid)
+		addrch := ts.AddrStream(ctx, tid, pid)
 
 		// while that subscription is active, publish ten more addrs
 		// this tests that it doesnt hang
 		for i := 10; i < 20; i++ {
-			ps.AddAddr(pid, addrs[i], time.Hour)
+			ts.AddAddr(tid, pid, addrs[i], time.Hour)
 		}
 
 		// now receive them (without hanging)
@@ -68,14 +68,14 @@ func testAddrStream(ps pstore.Peerstore) func(t *testing.T) {
 
 		// start a second stream
 		ctx2, cancel2 := context.WithCancel(context.Background())
-		addrch2 := ps.AddrStream(ctx2, pid)
+		addrch2 := ts.AddrStream(ctx2, tid, pid)
 
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
 			// now send the rest of the addresses
 			for _, a := range addrs[20:80] {
-				ps.AddAddr(pid, a, time.Hour)
+				ts.AddAddr(tid, pid, a, time.Hour)
 			}
 		}()
 
@@ -111,21 +111,23 @@ func testAddrStream(ps pstore.Peerstore) func(t *testing.T) {
 
 		// and add a few more addresses it doesnt hang afterwards
 		for _, a := range addrs[80:] {
-			ps.AddAddr(pid, a, time.Hour)
+			ts.AddAddr(tid, pid, a, time.Hour)
 		}
 	}
 }
 
-func testGetStreamBeforePeerAdded(ps pstore.Peerstore) func(t *testing.T) {
+func testGetStreamBeforeLogAdded(ts tstore.Threadstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		addrs, pid := getAddrs(t, 10), peer.ID("testpeer")
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		addrs, pid := getAddrs(t, 10), peer.ID("testlog")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach := ps.AddrStream(ctx, pid)
+		ach := ts.AddrStream(ctx, tid, pid)
 		for i := 0; i < 10; i++ {
-			ps.AddAddr(pid, addrs[i], time.Hour)
+			ts.AddAddr(tid, pid, addrs[i], time.Hour)
 		}
 
 		received := make(map[string]bool)
@@ -165,18 +167,20 @@ func testGetStreamBeforePeerAdded(ps pstore.Peerstore) func(t *testing.T) {
 	}
 }
 
-func testAddrStreamDuplicates(ps pstore.Peerstore) func(t *testing.T) {
+func testAddrStreamDuplicates(ts tstore.Threadstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		addrs, pid := getAddrs(t, 10), peer.ID("testpeer")
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		addrs, pid := getAddrs(t, 10), peer.ID("testlog")
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach := ps.AddrStream(ctx, pid)
+		ach := ts.AddrStream(ctx, tid, pid)
 		go func() {
 			for i := 0; i < 10; i++ {
-				ps.AddAddr(pid, addrs[i], time.Hour)
-				ps.AddAddr(pid, addrs[rand.Intn(10)], time.Hour)
+				ts.AddAddr(tid, pid, addrs[i], time.Hour)
+				ts.AddAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
 			}
 
 			// make sure that all addresses get processed before context is cancelled
@@ -203,126 +207,48 @@ func testAddrStreamDuplicates(ps pstore.Peerstore) func(t *testing.T) {
 	}
 }
 
-func testPeerstoreProtoStore(ps pstore.Peerstore) func(t *testing.T) {
+func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		p1, protos := peer.ID("TESTPEER"), []string{"a", "b", "c", "d"}
-
-		err := ps.AddProtocols(p1, protos...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		out, err := ps.GetProtocols(p1)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(out) != len(protos) {
-			t.Fatal("got wrong number of protocols back")
-		}
-
-		sort.Strings(out)
-		for i, p := range protos {
-			if out[i] != p {
-				t.Fatal("got wrong protocol")
-			}
-		}
-
-		supported, err := ps.SupportsProtocols(p1, "q", "w", "a", "y", "b")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(supported) != 2 {
-			t.Fatal("only expected 2 supported")
-		}
-
-		if supported[0] != "a" || supported[1] != "b" {
-			t.Fatal("got wrong supported array: ", supported)
-		}
-
-		protos = []string{"other", "yet another", "one more"}
-		err = ps.SetProtocols(p1, protos...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		supported, err = ps.SupportsProtocols(p1, "q", "w", "a", "y", "b")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(supported) != 0 {
-			t.Fatal("none of those protocols should have been supported")
-		}
-
-		supported, err = ps.GetProtocols(p1)
-		if err != nil {
-			t.Fatal(err)
-		}
-		sort.Strings(supported)
-		sort.Strings(protos)
-		if !reflect.DeepEqual(supported, protos) {
-			t.Fatalf("expected previously set protos; expected: %v, have: %v", protos, supported)
-		}
-
-		err = ps.RemoveProtocols(p1, protos[:2]...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		supported, err = ps.GetProtocols(p1)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(supported, protos[2:]) {
-			t.Fatal("expected only one protocol to remain")
-		}
-	}
-}
-
-func testBasicPeerstore(ps pstore.Peerstore) func(t *testing.T) {
-	return func(t *testing.T) {
-		var pids []peer.ID
+		tids := make([]thread.ID, 0)
 		addrs := getAddrs(t, 10)
 
 		for _, a := range addrs {
+			tid := thread.NewIDV1(thread.Raw, 24)
+			tids = append(tids, tid)
 			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, 512)
 			p, _ := peer.IDFromPrivateKey(priv)
-			pids = append(pids, p)
-			ps.AddAddr(p, a, pstore.PermanentAddrTTL)
+			ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
 		}
 
-		peers := ps.Peers()
-		if len(peers) != 10 {
-			t.Fatal("expected ten peers, got", len(peers))
+		threads := ts.Threads()
+		if len(threads) != 10 {
+			t.Fatal("expected ten threads, got", len(threads))
 		}
 
-		pinfo := ps.PeerInfo(pids[0])
-		if !pinfo.Addrs[0].Equal(addrs[0]) {
+		info := ts.ThreadInfo(tids[0])
+		tsAddrs := ts.Addrs(info.ID, info.Logs[0])
+		if !tsAddrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
 		}
 	}
 }
 
-func testMetadata(ps pstore.Peerstore) func(t *testing.T) {
+func testMetadata(ts tstore.Threadstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		pids := make([]peer.ID, 10)
-		for i := range pids {
-			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, 512)
-			p, _ := peer.IDFromPrivateKey(priv)
-			pids[i] = p
+		tids := make([]thread.ID, 10)
+		for i := range tids {
+			tids[i] = thread.NewIDV1(thread.Raw, 24)
 		}
-		for _, p := range pids {
-			if err := ps.Put(p, "AgentVersion", "string"); err != nil {
+		for _, p := range tids {
+			if err := ts.Put(p, "AgentVersion", "string"); err != nil {
 				t.Errorf("failed to put %q: %s", "AgentVersion", err)
 			}
-			if err := ps.Put(p, "bar", 1); err != nil {
+			if err := ts.Put(p, "bar", 1); err != nil {
 				t.Errorf("failed to put %q: %s", "bar", err)
 			}
 		}
-		for _, p := range pids {
-			v, err := ps.Get(p, "AgentVersion")
+		for _, p := range tids {
+			v, err := ts.Get(p, "AgentVersion")
 			if err != nil {
 				t.Errorf("failed to find %q: %s", "AgentVersion", err)
 				continue
@@ -332,7 +258,7 @@ func testMetadata(ps pstore.Peerstore) func(t *testing.T) {
 				continue
 			}
 
-			v, err = ps.Get(p, "bar")
+			v, err = ts.Get(p, "bar")
 			if err != nil {
 				t.Errorf("failed to find %q: %s", "bar", err)
 				continue
