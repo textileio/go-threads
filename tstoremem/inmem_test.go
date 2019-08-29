@@ -3,36 +3,36 @@ package tstoremem
 import (
 	"testing"
 
-	pstore "github.com/libp2p/go-libp2p-core/peerstore"
-	pt "github.com/libp2p/go-libp2p-peerstore/test"
+	tstore "github.com/textileio/go-textile-core/threadstore"
+	tt "github.com/textileio/go-textile-threads/test"
 )
 
-func TestInMemoryPeerstore(t *testing.T) {
-	pt.TestPeerstore(t, func() (pstore.Peerstore, func()) {
-		return NewPeerstore(), nil
+//func TestInMemoryThreadstore(t *testing.T) {
+//	tt.ThreadstoreTest(t, func() (tstore.Threadstore, func()) {
+//		return NewThreadstore(), nil
+//	})
+//}
+//
+//func TestInMemoryLogAddrBook(t *testing.T) {
+//	tt.LogAddrBookTest(t, func() (tstore.LogAddrBook, func()) {
+//		return NewLogAddrBook(), nil
+//	})
+//}
+
+func TestInMemoryLogKeyBook(t *testing.T) {
+	tt.LogKeyBookTest(t, func() (tstore.LogKeyBook, func()) {
+		return NewLogKeyBook(), nil
 	})
 }
 
-func TestInMemoryAddrBook(t *testing.T) {
-	pt.TestAddrBook(t, func() (pstore.AddrBook, func()) {
-		return NewAddrBook(), nil
-	})
-}
+//func BenchmarkInMemoryThreadstore(b *testing.B) {
+//	tt.BenchmarkThreadstore(b, func() (tstore.Threadstore, func()) {
+//		return NewThreadstore(), nil
+//	}, "InMem")
+//}
 
-func TestInMemoryKeyBook(t *testing.T) {
-	pt.TestKeyBook(t, func() (pstore.KeyBook, func()) {
-		return NewKeyBook(), nil
-	})
-}
-
-func BenchmarkInMemoryPeerstore(b *testing.B) {
-	pt.BenchmarkPeerstore(b, func() (pstore.Peerstore, func()) {
-		return NewPeerstore(), nil
-	}, "InMem")
-}
-
-func BenchmarkInMemoryKeyBook(b *testing.B) {
-	pt.BenchmarkKeyBook(b, func() (pstore.KeyBook, func()) {
-		return NewKeyBook(), nil
+func BenchmarkInMemoryLogKeyBook(b *testing.B) {
+	tt.BenchmarkLogKeyBook(b, func() (tstore.LogKeyBook, func()) {
+		return NewLogKeyBook(), nil
 	})
 }
