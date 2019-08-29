@@ -37,6 +37,7 @@ func (ts *threadstore) Shutdown() (err error) {
 
 	weakClose("logkeybook", ts.LogKeyBook)
 	weakClose("logaddressbook", ts.LogAddrBook)
+	weakClose("logheadbook", ts.LogHeadBook)
 	weakClose("threadmetadata", ts.ThreadMetadata)
 
 	if len(errs) > 0 {

@@ -10,5 +10,6 @@ func NewThreadstore() iface.Threadstore {
 	return tstore.NewThreadstore(
 		NewLogKeyBook(),
 		NewLogAddrBook(),
+		NewLogHeadBook(),
 		NewThreadMetadata())
 }
