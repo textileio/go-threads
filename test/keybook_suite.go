@@ -60,16 +60,16 @@ func testKeyBookPrivKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.PrivKey(tid, id); res != nil {
+		if res := kb.LogPrivKey(tid, id); res != nil {
 			t.Error("retrieving private key should have failed")
 		}
 
-		err = kb.AddPrivKey(tid, id, priv)
+		err = kb.AddLogPrivKey(tid, id, priv)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.PrivKey(tid, id); !priv.Equals(res) {
+		if res := kb.LogPrivKey(tid, id); !priv.Equals(res) {
 			t.Error("retrieved private key did not match stored private key")
 		}
 
@@ -97,16 +97,16 @@ func testKeyBookPubKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.PubKey(tid, id); res != nil {
+		if res := kb.LogPubKey(tid, id); res != nil {
 			t.Error("retrieving public key should have failed")
 		}
 
-		err = kb.AddPubKey(tid, id, pub)
+		err = kb.AddLogPubKey(tid, id, pub)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.PubKey(tid, id); !pub.Equals(res) {
+		if res := kb.LogPubKey(tid, id); !pub.Equals(res) {
 			t.Error("retrieved public key did not match stored public key")
 		}
 
@@ -139,12 +139,12 @@ func testKeyBookReadKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddReadKey(tid, id, key)
+		err = kb.AddLogReadKey(tid, id, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.ReadKey(tid, id); !bytes.Equal(res, key) {
+		if res := kb.LogReadKey(tid, id); !bytes.Equal(res, key) {
 			t.Error("retrieved read key did not match stored read key")
 		}
 	}
@@ -173,12 +173,12 @@ func testKeyBookFollowKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddFollowKey(tid, id, key)
+		err = kb.AddLogFollowKey(tid, id, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.FollowKey(tid, id); !bytes.Equal(res, key) {
+		if res := kb.LogFollowKey(tid, id); !bytes.Equal(res, key) {
 			t.Error("retrieved read key did not match stored read key")
 		}
 	}
@@ -197,12 +197,12 @@ func testKeyBookLogs(kb tstore.LogKeyBook) func(t *testing.T) {
 			// Add a public key.
 			_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p1, _ := peer.IDFromPublicKey(pub)
-			_ = kb.AddPubKey(tid, p1, pub)
+			_ = kb.AddLogPubKey(tid, p1, pub)
 
 			// Add a private key.
 			priv, _, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p2, _ := peer.IDFromPrivateKey(priv)
-			_ = kb.AddPrivKey(tid, p2, priv)
+			_ = kb.AddLogPrivKey(tid, p2, priv)
 
 			logs = append(logs, []peer.ID{p1, p2}...)
 		}
@@ -237,12 +237,12 @@ func testKeyBookThreads(kb tstore.LogKeyBook) func(t *testing.T) {
 			// Add a public key.
 			_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p1, _ := peer.IDFromPublicKey(pub)
-			_ = kb.AddPubKey(tid, p1, pub)
+			_ = kb.AddLogPubKey(tid, p1, pub)
 
 			// Add a private key.
 			priv, _, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p2, _ := peer.IDFromPrivateKey(priv)
-			_ = kb.AddPrivKey(tid, p2, priv)
+			_ = kb.AddLogPrivKey(tid, p2, priv)
 		}
 
 		kbThreads := kb.ThreadsFromKeys()
@@ -278,7 +278,7 @@ func testInlinedPubKeyAddedOnRetrieve(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		pubKey := kb.PubKey(tid, id)
+		pubKey := kb.LogPubKey(tid, id)
 		if !pubKey.Equals(pub) {
 			t.Error("mismatch between original public key and keybook-calculated one")
 		}
@@ -286,11 +286,11 @@ func testInlinedPubKeyAddedOnRetrieve(kb tstore.LogKeyBook) func(t *testing.T) {
 }
 
 var logKeybookBenchmarkSuite = map[string]func(kb tstore.LogKeyBook) func(*testing.B){
-	"PubKey":       benchmarkPubKey,
-	"AddPubKey":    benchmarkAddPubKey,
-	"PrivKey":      benchmarkPrivKey,
-	"AddPrivKey":   benchmarkAddPrivKey,
-	"LogsWithKeys": benchmarkLogsWithKeys,
+	"LogPubKey":     benchmarkPubKey,
+	"AddLogPubKey":  benchmarkAddPubKey,
+	"LogPrivKey":    benchmarkPrivKey,
+	"AddLogPrivKey": benchmarkAddPrivKey,
+	"LogsWithKeys":  benchmarkLogsWithKeys,
 }
 
 func BenchmarkLogKeyBook(b *testing.B, factory LogKeyBookFactory) {
@@ -325,14 +325,14 @@ func benchmarkPubKey(kb tstore.LogKeyBook) func(*testing.B) {
 			b.Error(err)
 		}
 
-		err = kb.AddPubKey(tid, id, pub)
+		err = kb.AddLogPubKey(tid, id, pub)
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.PubKey(tid, id)
+			kb.LogPubKey(tid, id)
 		}
 	}
 }
@@ -353,7 +353,7 @@ func benchmarkAddPubKey(kb tstore.LogKeyBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = kb.AddPubKey(tid, id, pub)
+			_ = kb.AddLogPubKey(tid, id, pub)
 		}
 	}
 }
@@ -372,14 +372,14 @@ func benchmarkPrivKey(kb tstore.LogKeyBook) func(*testing.B) {
 			b.Error(err)
 		}
 
-		err = kb.AddPrivKey(tid, id, priv)
+		err = kb.AddLogPrivKey(tid, id, priv)
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.PrivKey(tid, id)
+			kb.LogPrivKey(tid, id)
 		}
 	}
 }
@@ -400,7 +400,7 @@ func benchmarkAddPrivKey(kb tstore.LogKeyBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = kb.AddPrivKey(tid, id, priv)
+			_ = kb.AddLogPrivKey(tid, id, priv)
 		}
 	}
 }
@@ -419,11 +419,11 @@ func benchmarkLogsWithKeys(kb tstore.LogKeyBook) func(*testing.B) {
 				b.Error(err)
 			}
 
-			err = kb.AddPubKey(tid, id, pub)
+			err = kb.AddLogPubKey(tid, id, pub)
 			if err != nil {
 				b.Fatal(err)
 			}
-			err = kb.AddPrivKey(tid, id, priv)
+			err = kb.AddLogPrivKey(tid, id, priv)
 			if err != nil {
 				b.Fatal(err)
 			}

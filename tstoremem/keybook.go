@@ -93,7 +93,7 @@ func (mkb *memoryKeyBook) ThreadsFromKeys() thread.IDSlice {
 	return tids
 }
 
-func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) ic.PubKey {
+func (mkb *memoryKeyBook) LogPubKey(t thread.ID, p peer.ID) ic.PubKey {
 	mkb.RLock()
 	pk, _ := mkb.getPubKey(t, p)
 	mkb.RUnlock()
@@ -112,7 +112,7 @@ func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) ic.PubKey {
 	return pk
 }
 
-func (mkb *memoryKeyBook) AddPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error {
+func (mkb *memoryKeyBook) AddLogPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error {
 	// check it's correct first
 	if !p.MatchesPublicKey(pk) {
 		return errors.New("ID does not match PublicKey")
@@ -127,14 +127,14 @@ func (mkb *memoryKeyBook) AddPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error 
 	return nil
 }
 
-func (mkb *memoryKeyBook) PrivKey(t thread.ID, p peer.ID) ic.PrivKey {
+func (mkb *memoryKeyBook) LogPrivKey(t thread.ID, p peer.ID) ic.PrivKey {
 	mkb.RLock()
 	sk, _ := mkb.getPrivKey(t, p)
 	mkb.RUnlock()
 	return sk
 }
 
-func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) error {
+func (mkb *memoryKeyBook) AddLogPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) error {
 	if sk == nil {
 		return errors.New("sk is nil (PrivKey)")
 	}
@@ -153,14 +153,14 @@ func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) erro
 	return nil
 }
 
-func (mkb *memoryKeyBook) ReadKey(t thread.ID, p peer.ID) []byte {
+func (mkb *memoryKeyBook) LogReadKey(t thread.ID, p peer.ID) []byte {
 	mkb.RLock()
 	key, _ := getKey(mkb.rks, t, p)
 	mkb.RUnlock()
 	return key
 }
 
-func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key []byte) error {
+func (mkb *memoryKeyBook) AddLogReadKey(t thread.ID, p peer.ID, key []byte) error {
 	if key == nil {
 		return errors.New("key is nil (ReadKey)")
 	}
@@ -174,14 +174,14 @@ func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key []byte) error {
 	return nil
 }
 
-func (mkb *memoryKeyBook) FollowKey(t thread.ID, p peer.ID) []byte {
+func (mkb *memoryKeyBook) LogFollowKey(t thread.ID, p peer.ID) []byte {
 	mkb.RLock()
 	key, _ := getKey(mkb.fks, t, p)
 	mkb.RUnlock()
 	return key
 }
 
-func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, p peer.ID, key []byte) error {
+func (mkb *memoryKeyBook) AddLogFollowKey(t thread.ID, p peer.ID, key []byte) error {
 	if key == nil {
 		return errors.New("key is nil (FollowKey)")
 	}

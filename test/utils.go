@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pt "github.com/libp2p/go-libp2p-core/test"
 	ma "github.com/multiformats/go-multiaddr"
 )

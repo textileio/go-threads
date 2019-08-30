@@ -44,7 +44,7 @@ func testHeadBookAddHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 		_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 		p, _ := peer.IDFromPublicKey(pub)
 
-		if heads := hb.Heads(tid, p); len(heads) > 0 {
+		if heads := hb.LogHeads(tid, p); len(heads) > 0 {
 			t.Error("expected heads to be empty on init")
 		}
 
@@ -53,11 +53,11 @@ func testHeadBookAddHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
 			head := cid.NewCidV1(cid.DagCBOR, hash)
 
-			hb.AddHeads(tid, p, []cid.Cid{head})
+			hb.AddLogHeads(tid, p, []cid.Cid{head})
 			heads = append(heads, head)
 		}
 
-		hbHeads := hb.Heads(tid, p)
+		hbHeads := hb.LogHeads(tid, p)
 		for _, h := range heads {
 			var found bool
 			for _, b := range hbHeads {
@@ -80,7 +80,7 @@ func testHeadBookSetHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 		_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 		p, _ := peer.IDFromPublicKey(pub)
 
-		if heads := hb.Heads(tid, p); len(heads) > 0 {
+		if heads := hb.LogHeads(tid, p); len(heads) > 0 {
 			t.Error("expected heads to be empty on init")
 		}
 
@@ -90,9 +90,9 @@ func testHeadBookSetHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 			head := cid.NewCidV1(cid.DagCBOR, hash)
 			heads = append(heads, head)
 		}
-		hb.SetHeads(tid, p, heads)
+		hb.SetLogHeads(tid, p, heads)
 
-		hbHeads := hb.Heads(tid, p)
+		hbHeads := hb.LogHeads(tid, p)
 		for _, h := range heads {
 			var found bool
 			for _, b := range hbHeads {
@@ -115,7 +115,7 @@ func testHeadBookClearHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 		_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 		p, _ := peer.IDFromPublicKey(pub)
 
-		if heads := hb.Heads(tid, p); len(heads) > 0 {
+		if heads := hb.LogHeads(tid, p); len(heads) > 0 {
 			t.Error("expected heads to be empty on init")
 		}
 
@@ -124,18 +124,18 @@ func testHeadBookClearHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
 			head := cid.NewCidV1(cid.DagCBOR, hash)
 
-			hb.AddHead(tid, p, head)
+			hb.AddLogHead(tid, p, head)
 			heads = append(heads, head)
 		}
 
-		len1 := len(hb.Heads(tid, p))
+		len1 := len(hb.LogHeads(tid, p))
 		if len1 != 2 {
 			t.Errorf("incorrect heads length %d", len1)
 		}
 
-		hb.ClearHeads(tid, p)
+		hb.ClearLogHeads(tid, p)
 
-		len2 := len(hb.Heads(tid, p))
+		len2 := len(hb.LogHeads(tid, p))
 		if len2 != 0 {
 			t.Errorf("incorrect heads length %d", len2)
 		}
@@ -143,10 +143,10 @@ func testHeadBookClearHeads(hb tstore.LogHeadBook) func(t *testing.T) {
 }
 
 var logHeadbookBenchmarkSuite = map[string]func(hb tstore.LogHeadBook) func(*testing.B){
-	"Heads":      benchmarkHeads,
-	"AddHeads":   benchmarkAddHeads,
-	"SetHeads":   benchmarkSetHeads,
-	"ClearHeads": benchmarkClearHeads,
+	"LogHeads":      benchmarkHeads,
+	"AddLogHeads":   benchmarkAddHeads,
+	"SetLogHeads":   benchmarkSetHeads,
+	"ClearLogHeads": benchmarkClearHeads,
 }
 
 func BenchmarkLogHeadBook(b *testing.B, factory LogHeadBookFactory) {
@@ -184,11 +184,11 @@ func benchmarkHeads(hb tstore.LogHeadBook) func(*testing.B) {
 		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
 		head := cid.NewCidV1(cid.DagCBOR, hash)
 
-		hb.AddHead(tid, id, head)
+		hb.AddLogHead(tid, id, head)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.Heads(tid, id)
+			hb.LogHeads(tid, id)
 		}
 	}
 }
@@ -212,7 +212,7 @@ func benchmarkAddHeads(hb tstore.LogHeadBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.AddHeads(tid, id, []cid.Cid{head})
+			hb.AddLogHeads(tid, id, []cid.Cid{head})
 		}
 	}
 }
@@ -236,7 +236,7 @@ func benchmarkSetHeads(hb tstore.LogHeadBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.SetHeads(tid, id, []cid.Cid{head})
+			hb.SetLogHeads(tid, id, []cid.Cid{head})
 		}
 	}
 }
@@ -257,11 +257,11 @@ func benchmarkClearHeads(hb tstore.LogHeadBook) func(*testing.B) {
 
 		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
 		head := cid.NewCidV1(cid.DagCBOR, hash)
-		hb.SetHeads(tid, id, []cid.Cid{head})
+		hb.SetLogHeads(tid, id, []cid.Cid{head})
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.ClearHeads(tid, id)
+			hb.ClearLogHeads(tid, id)
 		}
 	}
 }

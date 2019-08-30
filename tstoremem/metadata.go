@@ -29,7 +29,7 @@ func NewThreadMetadata() tstore.ThreadMetadata {
 	}
 }
 
-func (ts *memoryThreadMetadata) Put(t thread.ID, key string, val interface{}) error {
+func (ts *memoryThreadMetadata) PutMeta(t thread.ID, key string, val interface{}) error {
 	ts.dslock.Lock()
 	defer ts.dslock.Unlock()
 	if vals, ok := val.(string); ok && internKeys[key] {
@@ -43,7 +43,7 @@ func (ts *memoryThreadMetadata) Put(t thread.ID, key string, val interface{}) er
 	return nil
 }
 
-func (ts *memoryThreadMetadata) Get(t thread.ID, key string) (interface{}, error) {
+func (ts *memoryThreadMetadata) GetMeta(t thread.ID, key string) (interface{}, error) {
 	ts.dslock.RLock()
 	defer ts.dslock.RUnlock()
 	i, ok := ts.ds[metakey{t, key}]

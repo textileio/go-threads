@@ -30,11 +30,11 @@ func NewLogHeadBook() tstore.LogHeadBook {
 	}
 }
 
-func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) {
-	mhb.AddHeads(t, p, []cid.Cid{head})
+func (mhb *memoryHeadBook) AddLogHead(t thread.ID, p peer.ID, head cid.Cid) {
+	mhb.AddLogHeads(t, p, []cid.Cid{head})
 }
 
-func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
+func (mhb *memoryHeadBook) AddLogHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -56,11 +56,11 @@ func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
 	}
 }
 
-func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head cid.Cid) {
-	mhb.SetHeads(t, p, []cid.Cid{head})
+func (mhb *memoryHeadBook) SetLogHead(t thread.ID, p peer.ID, head cid.Cid) {
+	mhb.SetLogHeads(t, p, []cid.Cid{head})
 }
 
-func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
+func (mhb *memoryHeadBook) SetLogHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -82,7 +82,7 @@ func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
 	}
 }
 
-func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) []cid.Cid {
+func (mhb *memoryHeadBook) LogHeads(t thread.ID, p peer.ID) []cid.Cid {
 	mhb.RLock()
 	defer mhb.RUnlock()
 
@@ -97,7 +97,7 @@ func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) []cid.Cid {
 	return heads
 }
 
-func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) {
+func (mhb *memoryHeadBook) ClearLogHeads(t thread.ID, p peer.ID) {
 	mhb.Lock()
 	defer mhb.Unlock()
 

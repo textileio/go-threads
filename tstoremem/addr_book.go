@@ -153,15 +153,15 @@ func (mab *memoryAddrBook) ThreadsFromAddrs() thread.IDSlice {
 	return tids
 }
 
-// AddAddr calls AddAddrs(t, p, []ma.Multiaddr{addr}, ttl)
-func (mab *memoryAddrBook) AddAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
-	mab.AddAddrs(t, p, []ma.Multiaddr{addr}, ttl)
+// AddLogAddr calls AddLogAddrs(t, p, []ma.Multiaddr{addr}, ttl)
+func (mab *memoryAddrBook) AddLogAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
+	mab.AddLogAddrs(t, p, []ma.Multiaddr{addr}, ttl)
 }
 
-// AddAddrs gives memoryAddrBook addresses to use, with a given ttl
+// AddLogAddrs gives memoryAddrBook addresses to use, with a given ttl
 // (time-to-live), after which the address is no longer valid.
 // This function never reduces the TTL or expiration of an address.
-func (mab *memoryAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) {
+func (mab *memoryAddrBook) AddLogAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) {
 	// if ttl is zero, exit. nothing to do.
 	if ttl <= 0 {
 		return
@@ -204,14 +204,14 @@ func (mab *memoryAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr
 	}
 }
 
-// SetAddr calls mgr.SetAddrs(t, p, addr, ttl)
-func (mab *memoryAddrBook) SetAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
-	mab.SetAddrs(t, p, []ma.Multiaddr{addr}, ttl)
+// SetLogAddr calls mgr.SetLogAddrs(t, p, addr, ttl)
+func (mab *memoryAddrBook) SetLogAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
+	mab.SetLogAddrs(t, p, []ma.Multiaddr{addr}, ttl)
 }
 
-// SetAddrs sets the ttl on addresses. This clears any TTL there previously.
+// SetLogAddrs sets the ttl on addresses. This clears any TTL there previously.
 // This is used when we receive the best estimate of the validity of an address.
-func (mab *memoryAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) {
+func (mab *memoryAddrBook) SetLogAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) {
 	s := mab.segments.get(p)
 	s.Lock()
 	defer s.Unlock()
@@ -243,9 +243,9 @@ func (mab *memoryAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr
 	}
 }
 
-// UpdateAddrs updates the addresses associated with the given peer that have
+// UpdateLogAddrs updates the addresses associated with the given peer that have
 // the given oldTTL to have the given newTTL.
-func (mab *memoryAddrBook) UpdateAddrs(t thread.ID, p peer.ID, oldTTL time.Duration, newTTL time.Duration) {
+func (mab *memoryAddrBook) UpdateLogAddrs(t thread.ID, p peer.ID, oldTTL time.Duration, newTTL time.Duration) {
 	s := mab.segments.get(p)
 	s.Lock()
 	defer s.Unlock()
@@ -265,8 +265,8 @@ func (mab *memoryAddrBook) UpdateAddrs(t thread.ID, p peer.ID, oldTTL time.Durat
 	}
 }
 
-// Addrs returns all known (and valid) addresses for a given log
-func (mab *memoryAddrBook) Addrs(t thread.ID, p peer.ID) []ma.Multiaddr {
+// LogAddrs returns all known (and valid) addresses for a given log
+func (mab *memoryAddrBook) LogAddrs(t thread.ID, p peer.ID) []ma.Multiaddr {
 	s := mab.segments.get(p)
 	s.RLock()
 	defer s.RUnlock()
@@ -287,8 +287,8 @@ func (mab *memoryAddrBook) Addrs(t thread.ID, p peer.ID) []ma.Multiaddr {
 	return good
 }
 
-// ClearAddrs removes all previously stored addresses
-func (mab *memoryAddrBook) ClearAddrs(t thread.ID, p peer.ID) {
+// ClearLogAddrs removes all previously stored addresses
+func (mab *memoryAddrBook) ClearLogAddrs(t thread.ID, p peer.ID) {
 	s := mab.segments.get(p)
 	s.Lock()
 	defer s.Unlock()
@@ -302,9 +302,9 @@ func (mab *memoryAddrBook) ClearAddrs(t thread.ID, p peer.ID) {
 	}
 }
 
-// AddrStream returns a channel on which all new addresses discovered for a
+// LogAddrStream returns a channel on which all new addresses discovered for a
 // given peer ID will be published.
-func (mab *memoryAddrBook) AddrStream(ctx context.Context, t thread.ID, p peer.ID) <-chan ma.Multiaddr {
+func (mab *memoryAddrBook) LogAddrStream(ctx context.Context, t thread.ID, p peer.ID) <-chan ma.Multiaddr {
 	s := mab.segments.get(p)
 	s.RLock()
 	defer s.RUnlock()

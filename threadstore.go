@@ -1,4 +1,4 @@
-package threadstore
+package threads
 
 import (
 	"fmt"
