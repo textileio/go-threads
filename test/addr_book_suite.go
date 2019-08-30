@@ -24,7 +24,7 @@ type LogAddrBookFactory func() (tstore.LogAddrBook, func())
 
 func LogAddrBookTest(t *testing.T, factory LogAddrBookFactory) {
 	for name, test := range logAddressBookSuite {
-		// Create a new peerstore.
+		// Create a new book.
 		ab, closeFunc := factory()
 
 		// Run the test.

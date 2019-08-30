@@ -25,6 +25,12 @@ func TestInMemoryLogKeyBook(t *testing.T) {
 	})
 }
 
+func TestInMemoryLogHeadBook(t *testing.T) {
+	tt.LogHeadBookTest(t, func() (tstore.LogHeadBook, func()) {
+		return NewLogHeadBook(), nil
+	})
+}
+
 func BenchmarkInMemoryThreadstore(b *testing.B) {
 	tt.BenchmarkThreadstore(b, func() (tstore.Threadstore, func()) {
 		return NewThreadstore(), nil
@@ -34,5 +40,11 @@ func BenchmarkInMemoryThreadstore(b *testing.B) {
 func BenchmarkInMemoryLogKeyBook(b *testing.B) {
 	tt.BenchmarkLogKeyBook(b, func() (tstore.LogKeyBook, func()) {
 		return NewLogKeyBook(), nil
+	})
+}
+
+func BenchmarkInMemoryLogHeadBook(b *testing.B) {
+	tt.BenchmarkLogHeadBook(b, func() (tstore.LogHeadBook, func()) {
+		return NewLogHeadBook(), nil
 	})
 }

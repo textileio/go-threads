@@ -15,7 +15,7 @@ import (
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
 
-var peerstoreSuite = map[string]func(tstore.Threadstore) func(*testing.T){
+var threadstoreSuite = map[string]func(tstore.Threadstore) func(*testing.T){
 	"AddrStream":              testAddrStream,
 	"GetStreamBeforeLogAdded": testGetStreamBeforeLogAdded,
 	"AddStreamDuplicates":     testAddrStreamDuplicates,
@@ -26,8 +26,8 @@ var peerstoreSuite = map[string]func(tstore.Threadstore) func(*testing.T){
 type ThreadstoreFactory func() (tstore.Threadstore, func())
 
 func ThreadstoreTest(t *testing.T, factory ThreadstoreFactory) {
-	for name, test := range peerstoreSuite {
-		// Create a new peerstore.
+	for name, test := range threadstoreSuite {
+		// Create a new threadstore.
 		ps, closeFunc := factory()
 
 		// Run the test.

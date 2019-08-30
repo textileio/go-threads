@@ -29,7 +29,7 @@ type LogKeyBookFactory func() (tstore.LogKeyBook, func())
 
 func LogKeyBookTest(t *testing.T, factory LogKeyBookFactory) {
 	for name, test := range logKeyBookSuite {
-		// Create a new threadstore.
+		// Create a new book.
 		kb, closeFunc := factory()
 
 		// Run the test.
