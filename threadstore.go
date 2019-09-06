@@ -25,7 +25,7 @@ func NewThreadstore(kb tstore.LogKeyBook, ab tstore.LogAddrBook, hb tstore.LogHe
 	}
 }
 
-func (ts *threadstore) Shutdown() (err error) {
+func (ts *threadstore) Close() (err error) {
 	var errs []error
 	weakClose := func(name string, c interface{}) {
 		if cl, ok := c.(io.Closer); ok {
