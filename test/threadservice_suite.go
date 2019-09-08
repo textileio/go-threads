@@ -19,9 +19,9 @@ import (
 )
 
 var threadserviceSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
-	"API":   testAPI,
-	"Put":   testPut,
-	"Close": testClose,
+	"API":     testAPI,
+	"PutPull": testPutPull,
+	"Close":   testClose,
 }
 
 func ThreadserviceTest(t *testing.T) {
@@ -77,25 +77,39 @@ func testAPI(ts1, ts2 tserv.Threadservice) func(*testing.T) {
 	}
 }
 
-func testPut(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
-		body := map[string]interface{}{
+		body, err := cbornode.WrapObject(map[string]interface{}{
 			"foo": "bar",
 			"baz": []byte("howdy"),
-		}
-		nbody, err := cbornode.WrapObject(body, mh.SHA2_256, -1)
+		}, mh.SHA2_256, -1)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		tid := thread.NewIDV1(thread.Raw, 32)
-		events, err := ts1.Put(context.Background(), nbody, tid)
+		nodes, err := ts1.Put(context.Background(), body, tid)
 		if err != nil {
 			t.Fatal(err)
 		}
+		if len(nodes) != 1 {
+			t.Errorf("expected 1 node got %d", len(nodes))
+		}
 
+		events, err := ts1.Pull(context.Background(), "", 0, tid)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if len(events) != 1 {
 			t.Errorf("expected 1 event got %d", len(events))
+		}
+
+		back, err := events[0].Decrypt()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body.String() != back.String() {
+			t.Errorf("retrieved body does not equal input body")
 		}
 	}
 }

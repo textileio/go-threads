@@ -7,10 +7,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"time"
 
-	p2phttp "github.com/libp2p/go-libp2p-http"
-
-	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -18,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	gostream "github.com/libp2p/go-libp2p-gostream"
+	p2phttp "github.com/libp2p/go-libp2p-http"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -27,11 +27,6 @@ import (
 
 const (
 	LogProtocol protocol.ID = "/log/1.0.0"
-)
-
-var (
-	ErrFollowKeyNotFound = fmt.Errorf("follow key not found")
-	ErrReadKeyNotFound   = fmt.Errorf("read key not found")
 )
 
 type threadservice struct {
@@ -117,19 +112,19 @@ func (ts *threadservice) Client() *http.Client {
 	6. append event to last head
 	7. save to dag service
 */
-func (ts *threadservice) Put(ctx context.Context, body format.Node, threads ...thread.ID) ([]thread.Event, error) {
-	var events []thread.Event
+func (ts *threadservice) Put(ctx context.Context, body format.Node, threads ...thread.ID) ([]cid.Cid, error) {
+	var cids []cid.Cid
 	for _, t := range threads {
-		event, err := ts.put(ctx, body, t)
+		c, err := ts.put(ctx, body, t)
 		if err != nil {
-			return events, err
+			return cids, err
 		}
-		events = append(events, event)
+		cids = append(cids, c)
 	}
-	return events, nil
+	return cids, nil
 }
 
-func (ts *threadservice) put(ctx context.Context, body format.Node, t thread.ID) (thread.Event, error) {
+func (ts *threadservice) put(ctx context.Context, body format.Node, t thread.ID) (cid.Cid, error) {
 	var id peer.ID
 	var sk ic.PrivKey
 	for _, p := range ts.LogsWithKeys(t) {
@@ -139,24 +134,74 @@ func (ts *threadservice) put(ctx context.Context, body format.Node, t thread.ID)
 			break
 		}
 	}
-
 	if sk == nil {
 		var err error
 		id, err = ts.newLog(t)
 		if err != nil {
-			return nil, err
+			return cid.Undef, err
 		}
 		sk = ts.LogPrivKey(t, id)
 	}
 
-	//read := ts.LogReadKey(t, id)
-	//follow := ts.LogFollowKey(t, id)
+	prev := cid.Undef
+	heads := ts.LogHeads(t, id)
+	if len(heads) != 0 {
+		prev = heads[0]
+	}
 
-	return cbor.NewEvent(body)
+	event, err := cbor.NewEvent(body, time.Now())
+	if err != nil {
+		return cid.Undef, err
+	}
+	ecoded, err := cbor.EncodeEvent(event, ts.LogReadKey(t, id))
+	if err != nil {
+		return cid.Undef, err
+	}
+	node, err := cbor.NewNode(ecoded, prev, sk)
+	if err != nil {
+		return cid.Undef, err
+	}
+	coded, err := cbor.EncodeNode(node, ts.LogFollowKey(t, id))
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	err = ts.AddMany(ctx, []format.Node{event.Header(), event.Body(), ecoded, coded})
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	ts.SetLogHead(t, id, coded.Cid())
+
+	return coded.Cid(), nil
 }
 
-func (ts *threadservice) Pull(ctx context.Context, offset string, size int, t thread.ID) <-chan []thread.Event {
-	panic("implement me")
+func (ts *threadservice) Pull(ctx context.Context, offset string, size int, t thread.ID) ([]thread.Event, error) {
+	var events []thread.Event
+	for _, id := range ts.ThreadInfo(t).Logs {
+		heads := ts.LogHeads(t, id)
+		if len(heads) == 0 {
+			continue
+		}
+		fk := ts.LogFollowKey(t, id)
+		if fk == nil {
+			continue
+		}
+		node, err := cbor.DecodeNode(ctx, ts.DAGService, heads[0], fk)
+		if err != nil {
+			return nil, err
+		}
+		rk := ts.LogReadKey(t, id)
+		if rk == nil {
+			continue
+		}
+		event, err := cbor.DecodeEvent(ctx, ts.DAGService, node.Block().Cid(), rk)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return events, nil
 }
 
 func (ts *threadservice) Invite(ctx context.Context, actor peer.ID, t thread.ID) error {
@@ -211,22 +256,4 @@ func (ts *threadservice) newLog(t thread.ID) (peer.ID, error) {
 	ts.AddLogAddrs(t, id, ts.host.Addrs(), peerstore.PermanentAddrTTL)
 
 	return id, nil
-}
-
-func (ts *threadservice) followBlock(block blocks.Block, t thread.ID, l peer.ID) (format.Node, error) {
-	key := ts.LogFollowKey(t, l)
-	if key == nil {
-		return nil, ErrFollowKeyNotFound
-	}
-
-	return cbor.DecodeBlock(block, key)
-}
-
-func (ts *threadservice) readBlock(block blocks.Block, t thread.ID, l peer.ID) (format.Node, error) {
-	key := ts.LogReadKey(t, l)
-	if key == nil {
-		return nil, ErrReadKeyNotFound
-	}
-
-	return cbor.DecodeBlock(block, key)
 }

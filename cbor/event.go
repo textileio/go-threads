@@ -1,10 +1,11 @@
 package cbor
 
 import (
+	"context"
 	"time"
 
 	"github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
+	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-textile-core/crypto"
@@ -12,8 +13,8 @@ import (
 )
 
 func init() {
-	cbor.RegisterCborType(event{})
-	cbor.RegisterCborType(eventHeader{})
+	cbornode.RegisterCborType(event{})
+	cbornode.RegisterCborType(eventHeader{})
 }
 
 type event struct {
@@ -26,46 +27,85 @@ type eventHeader struct {
 	Key  []byte `refmt:",omitempty"`
 }
 
-func NewEvent(body format.Node) (thread.Event, error) {
+func NewEvent(body format.Node, time time.Time) (thread.Event, error) {
 	key, err := crypto.GenerateAESKey()
 	if err != nil {
 		return nil, err
 	}
-
-	cipherbody, err := EncodeBlock(body, key)
+	coded, err := EncodeBlock(body, key)
 	if err != nil {
 		return nil, err
 	}
-	header := &eventHeader{
-		Time: time.Now().UnixNano(),
+	eventHeader := &eventHeader{
+		Time: time.UnixNano(),
 		Key:  key,
 	}
-
-	hnode, err := cbor.WrapObject(header, mh.SHA2_256, -1)
+	header, err := cbornode.WrapObject(eventHeader, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
-	enode, err := cbor.WrapObject(&event{
-		Body:   cipherbody.Cid(),
-		Header: hnode.Cid(),
+	node, err := cbornode.WrapObject(&event{
+		Body:   coded.Cid(),
+		Header: header.Cid(),
 	}, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Event{
-		Node: *enode,
+		Node: node,
 		header: &EventHeader{
-			Node: *hnode,
-			time: int(header.Time),
-			key:  header.Key,
+			Node: header,
+			time: int(eventHeader.Time),
+			key:  eventHeader.Key,
 		},
-		body: cipherbody,
+		body: coded,
+	}, nil
+}
+
+func EncodeEvent(event thread.Event, key []byte) (format.Node, error) {
+	return EncodeBlock(event, key)
+}
+
+func DecodeEvent(ctx context.Context, dag format.DAGService, id cid.Cid, key []byte) (thread.Event, error) {
+	coded, err := dag.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	node, err := DecodeBlock(coded, key)
+	if err != nil {
+		return nil, err
+	}
+	event := new(event)
+	err = cbornode.DecodeInto(node.RawData(), event)
+	if err != nil {
+		return nil, err
+	}
+	header, err := dag.Get(ctx, event.Header)
+	if err != nil {
+		return nil, err
+	}
+	eventHeader := new(eventHeader)
+	err = cbornode.DecodeInto(header.RawData(), eventHeader)
+	if err != nil {
+		return nil, err
+	}
+	body, err := dag.Get(ctx, event.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &Event{
+		Node: node,
+		header: &EventHeader{
+			Node: header,
+			time: int(eventHeader.Time),
+			key:  eventHeader.Key,
+		},
+		body: body,
 	}, nil
 }
 
 type Event struct {
-	cbor.Node
+	format.Node
 
 	header *EventHeader
 	body   format.Node
@@ -79,17 +119,21 @@ func (e *Event) Body() format.Node {
 	return e.body
 }
 
+func (e *Event) Decrypt() (format.Node, error) {
+	return DecodeBlock(e.body, e.header.key)
+}
+
 type EventHeader struct {
-	cbor.Node
+	format.Node
 
 	time int
 	key  []byte
 }
 
-func (e *EventHeader) Time() int {
-	return e.time
+func (h *EventHeader) Time() int {
+	return h.time
 }
 
-func (e *EventHeader) Key() []byte {
-	return e.key
+func (h *EventHeader) Key() []byte {
+	return h.key
 }
