@@ -9,7 +9,7 @@ import (
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
 
-var logAddressBookSuite = map[string]func(book tstore.LogAddrBook) func(*testing.T){
+var addressBookSuite = map[string]func(book tstore.AddrBook) func(*testing.T){
 	"AddAddress":           testAddAddress,
 	"Clear":                testClearWorks,
 	"SetNegativeTTLClears": testSetNegativeTTLClears,
@@ -20,10 +20,10 @@ var logAddressBookSuite = map[string]func(book tstore.LogAddrBook) func(*testing
 	"LogsWithAddresses":    testLogsWithAddrs,
 }
 
-type LogAddrBookFactory func() (tstore.LogAddrBook, func())
+type AddrBookFactory func() (tstore.AddrBook, func())
 
-func LogAddrBookTest(t *testing.T, factory LogAddrBookFactory) {
-	for name, test := range logAddressBookSuite {
+func AddrBookTest(t *testing.T, factory AddrBookFactory) {
+	for name, test := range addressBookSuite {
 		// Create a new book.
 		ab, closeFunc := factory()
 
@@ -37,7 +37,7 @@ func LogAddrBookTest(t *testing.T, factory LogAddrBookFactory) {
 	}
 }
 
-func testAddAddress(ab tstore.LogAddrBook) func(*testing.T) {
+func testAddAddress(ab tstore.AddrBook) func(*testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -45,141 +45,141 @@ func testAddAddress(ab tstore.LogAddrBook) func(*testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(1)
 
-			ab.AddLogAddr(tid, id, addrs[0], time.Hour)
+			ab.AddAddr(tid, id, addrs[0], time.Hour)
 
-			AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+			AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 		})
 
 		t.Run("idempotent add single address", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(1)
 
-			ab.AddLogAddr(tid, id, addrs[0], time.Hour)
-			ab.AddLogAddr(tid, id, addrs[0], time.Hour)
+			ab.AddAddr(tid, id, addrs[0], time.Hour)
+			ab.AddAddr(tid, id, addrs[0], time.Hour)
 
-			AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+			AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 		})
 
 		t.Run("add multiple addresses", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(3)
 
-			ab.AddLogAddrs(tid, id, addrs, time.Hour)
-			AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+			ab.AddAddrs(tid, id, addrs, time.Hour)
+			AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 		})
 
 		t.Run("idempotent add multiple addresses", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(3)
 
-			ab.AddLogAddrs(tid, id, addrs, time.Hour)
-			ab.AddLogAddrs(tid, id, addrs, time.Hour)
+			ab.AddAddrs(tid, id, addrs, time.Hour)
+			ab.AddAddrs(tid, id, addrs, time.Hour)
 
-			AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+			AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 		})
 
 		t.Run("adding an existing address with a later expiration extends its ttl", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(3)
 
-			ab.AddLogAddrs(tid, id, addrs, time.Second)
+			ab.AddAddrs(tid, id, addrs, time.Second)
 
 			// same address as before but with a higher TTL
-			ab.AddLogAddrs(tid, id, addrs[2:], time.Hour)
+			ab.AddAddrs(tid, id, addrs[2:], time.Hour)
 
 			// after the initial TTL has expired, check that only the third address is present.
 			time.Sleep(1200 * time.Millisecond)
-			AssertAddressesEqual(t, addrs[2:], ab.LogAddrs(tid, id))
+			AssertAddressesEqual(t, addrs[2:], ab.Addrs(tid, id))
 
 			// make sure we actually set the TTL
-			ab.UpdateLogAddrs(tid, id, time.Hour, 0)
-			AssertAddressesEqual(t, nil, ab.LogAddrs(tid, id))
+			ab.UpdateAddrs(tid, id, time.Hour, 0)
+			AssertAddressesEqual(t, nil, ab.Addrs(tid, id))
 		})
 
 		t.Run("adding an existing address with an earlier expiration never reduces the expiration", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(3)
 
-			ab.AddLogAddrs(tid, id, addrs, time.Hour)
+			ab.AddAddrs(tid, id, addrs, time.Hour)
 
 			// same address as before but with a lower TTL
-			ab.AddLogAddrs(tid, id, addrs[2:], time.Second)
+			ab.AddAddrs(tid, id, addrs[2:], time.Second)
 
 			// after the initial TTL has expired, check that all three addresses are still present (i.e. the TTL on
 			// the modified one was not shortened).
 			time.Sleep(2100 * time.Millisecond)
-			AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+			AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 		})
 
 		t.Run("adding an existing address with an earlier expiration never reduces the TTL", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 			addrs := GenerateAddrs(1)
 
-			ab.AddLogAddrs(tid, id, addrs, 4*time.Second)
+			ab.AddAddrs(tid, id, addrs, 4*time.Second)
 			// 4 seconds left
 			time.Sleep(3 * time.Second)
 			// 1 second left
-			ab.AddLogAddrs(tid, id, addrs, 3*time.Second)
+			ab.AddAddrs(tid, id, addrs, 3*time.Second)
 			// 3 seconds left
 			time.Sleep(2)
 			// 1 seconds left.
 
 			// We still have the address.
-			AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+			AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 
 			// The TTL wasn't reduced
-			ab.UpdateLogAddrs(tid, id, 4*time.Second, 0)
-			AssertAddressesEqual(t, nil, ab.LogAddrs(tid, id))
+			ab.UpdateAddrs(tid, id, 4*time.Second, 0)
+			AssertAddressesEqual(t, nil, ab.Addrs(tid, id))
 		})
 	}
 }
 
-func testClearWorks(ab tstore.LogAddrBook) func(t *testing.T) {
+func testClearWorks(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs := GenerateAddrs(5)
 
-		ab.AddLogAddrs(tid, ids[0], addrs[0:3], time.Hour)
-		ab.AddLogAddrs(tid, ids[1], addrs[3:], time.Hour)
+		ab.AddAddrs(tid, ids[0], addrs[0:3], time.Hour)
+		ab.AddAddrs(tid, ids[1], addrs[3:], time.Hour)
 
-		AssertAddressesEqual(t, addrs[0:3], ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs[3:], ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs[0:3], ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs[3:], ab.Addrs(tid, ids[1]))
 
-		ab.ClearLogAddrs(tid, ids[0])
-		AssertAddressesEqual(t, nil, ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs[3:], ab.LogAddrs(tid, ids[1]))
+		ab.ClearAddrs(tid, ids[0])
+		AssertAddressesEqual(t, nil, ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs[3:], ab.Addrs(tid, ids[1]))
 
-		ab.ClearLogAddrs(tid, ids[1])
-		AssertAddressesEqual(t, nil, ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, nil, ab.LogAddrs(tid, ids[1]))
+		ab.ClearAddrs(tid, ids[1])
+		AssertAddressesEqual(t, nil, ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, nil, ab.Addrs(tid, ids[1]))
 	}
 }
 
-func testSetNegativeTTLClears(ab tstore.LogAddrBook) func(t *testing.T) {
+func testSetNegativeTTLClears(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
 		id := GeneratePeerIDs(1)[0]
 		addrs := GenerateAddrs(100)
 
-		ab.SetLogAddrs(tid, id, addrs, time.Hour)
-		AssertAddressesEqual(t, addrs, ab.LogAddrs(tid, id))
+		ab.SetAddrs(tid, id, addrs, time.Hour)
+		AssertAddressesEqual(t, addrs, ab.Addrs(tid, id))
 
 		// remove two addresses.
-		ab.SetLogAddr(tid, id, addrs[50], -1)
-		ab.SetLogAddr(tid, id, addrs[75], -1)
+		ab.SetAddr(tid, id, addrs[50], -1)
+		ab.SetAddr(tid, id, addrs[75], -1)
 
 		// calculate the survivors
 		survivors := append(addrs[0:50], addrs[51:]...)
 		survivors = append(survivors[0:74], survivors[75:]...)
 
-		AssertAddressesEqual(t, survivors, ab.LogAddrs(tid, id))
+		AssertAddressesEqual(t, survivors, ab.Addrs(tid, id))
 	}
 }
 
-func testUpdateTTLs(ab tstore.LogAddrBook) func(t *testing.T) {
+func testUpdateTTLs(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -187,7 +187,7 @@ func testUpdateTTLs(ab tstore.LogAddrBook) func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
 
 			// Shouldn't panic.
-			ab.UpdateLogAddrs(tid, id, time.Hour, time.Minute)
+			ab.UpdateAddrs(tid, id, time.Hour, time.Minute)
 		})
 
 		t.Run("update ttls successfully", func(t *testing.T) {
@@ -195,58 +195,58 @@ func testUpdateTTLs(ab tstore.LogAddrBook) func(t *testing.T) {
 			addrs1, addrs2 := GenerateAddrs(2), GenerateAddrs(2)
 
 			// set two keys with different ttls for each log.
-			ab.SetLogAddr(tid, ids[0], addrs1[0], time.Hour)
-			ab.SetLogAddr(tid, ids[0], addrs1[1], time.Minute)
-			ab.SetLogAddr(tid, ids[1], addrs2[0], time.Hour)
-			ab.SetLogAddr(tid, ids[1], addrs2[1], time.Minute)
+			ab.SetAddr(tid, ids[0], addrs1[0], time.Hour)
+			ab.SetAddr(tid, ids[0], addrs1[1], time.Minute)
+			ab.SetAddr(tid, ids[1], addrs2[0], time.Hour)
+			ab.SetAddr(tid, ids[1], addrs2[1], time.Minute)
 
 			// Sanity check.
-			AssertAddressesEqual(t, addrs1, ab.LogAddrs(tid, ids[0]))
-			AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+			AssertAddressesEqual(t, addrs1, ab.Addrs(tid, ids[0]))
+			AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
 			// Will only affect addrs1[0].
 			// Badger does not support subsecond TTLs.
 			// https://github.com/dgraph-io/badger/issues/339
-			ab.UpdateLogAddrs(tid, ids[0], time.Hour, 1*time.Second)
+			ab.UpdateAddrs(tid, ids[0], time.Hour, 1*time.Second)
 
 			// No immediate effect.
-			AssertAddressesEqual(t, addrs1, ab.LogAddrs(tid, ids[0]))
-			AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+			AssertAddressesEqual(t, addrs1, ab.Addrs(tid, ids[0]))
+			AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
 			// After a wait, addrs[0] is gone.
 			time.Sleep(1500 * time.Millisecond)
-			AssertAddressesEqual(t, addrs1[1:2], ab.LogAddrs(tid, ids[0]))
-			AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+			AssertAddressesEqual(t, addrs1[1:2], ab.Addrs(tid, ids[0]))
+			AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
 			// Will only affect addrs2[0].
-			ab.UpdateLogAddrs(tid, ids[1], time.Hour, 1*time.Second)
+			ab.UpdateAddrs(tid, ids[1], time.Hour, 1*time.Second)
 
 			// No immediate effect.
-			AssertAddressesEqual(t, addrs1[1:2], ab.LogAddrs(tid, ids[0]))
-			AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+			AssertAddressesEqual(t, addrs1[1:2], ab.Addrs(tid, ids[0]))
+			AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
 			time.Sleep(1500 * time.Millisecond)
 
 			// First addrs is gone in both.
-			AssertAddressesEqual(t, addrs1[1:], ab.LogAddrs(tid, ids[0]))
-			AssertAddressesEqual(t, addrs2[1:], ab.LogAddrs(tid, ids[1]))
+			AssertAddressesEqual(t, addrs1[1:], ab.Addrs(tid, ids[0]))
+			AssertAddressesEqual(t, addrs2[1:], ab.Addrs(tid, ids[1]))
 		})
 
 	}
 }
 
-func testNilAddrsDontBreak(ab tstore.LogAddrBook) func(t *testing.T) {
+func testNilAddrsDontBreak(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
 		id := GeneratePeerIDs(1)[0]
 
-		ab.SetLogAddr(tid, id, nil, time.Hour)
-		ab.AddLogAddr(tid, id, nil, time.Hour)
+		ab.SetAddr(tid, id, nil, time.Hour)
+		ab.AddAddr(tid, id, nil, time.Hour)
 	}
 }
 
-func testAddressesExpire(ab tstore.LogAddrBook) func(t *testing.T) {
+func testAddressesExpire(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -254,46 +254,46 @@ func testAddressesExpire(ab tstore.LogAddrBook) func(t *testing.T) {
 		addrs1 := GenerateAddrs(3)
 		addrs2 := GenerateAddrs(2)
 
-		ab.AddLogAddrs(tid, ids[0], addrs1, time.Hour)
-		ab.AddLogAddrs(tid, ids[1], addrs2, time.Hour)
+		ab.AddAddrs(tid, ids[0], addrs1, time.Hour)
+		ab.AddAddrs(tid, ids[1], addrs2, time.Hour)
 
-		AssertAddressesEqual(t, addrs1, ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs1, ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
-		ab.AddLogAddrs(tid, ids[0], addrs1, 2*time.Hour)
-		ab.AddLogAddrs(tid, ids[1], addrs2, 2*time.Hour)
+		ab.AddAddrs(tid, ids[0], addrs1, 2*time.Hour)
+		ab.AddAddrs(tid, ids[1], addrs2, 2*time.Hour)
 
-		AssertAddressesEqual(t, addrs1, ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs1, ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
-		ab.SetLogAddr(tid, ids[0], addrs1[0], 100*time.Microsecond)
+		ab.SetAddr(tid, ids[0], addrs1[0], 100*time.Microsecond)
 		<-time.After(100 * time.Millisecond)
-		AssertAddressesEqual(t, addrs1[1:3], ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs1[1:3], ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
-		ab.SetLogAddr(tid, ids[0], addrs1[2], 100*time.Microsecond)
+		ab.SetAddr(tid, ids[0], addrs1[2], 100*time.Microsecond)
 		<-time.After(100 * time.Millisecond)
-		AssertAddressesEqual(t, addrs1[1:2], ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs2, ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs1[1:2], ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs2, ab.Addrs(tid, ids[1]))
 
-		ab.SetLogAddr(tid, ids[1], addrs2[0], 100*time.Microsecond)
+		ab.SetAddr(tid, ids[1], addrs2[0], 100*time.Microsecond)
 		<-time.After(100 * time.Millisecond)
-		AssertAddressesEqual(t, addrs1[1:2], ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, addrs2[1:], ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs1[1:2], ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, addrs2[1:], ab.Addrs(tid, ids[1]))
 
-		ab.SetLogAddr(tid, ids[1], addrs2[1], 100*time.Microsecond)
+		ab.SetAddr(tid, ids[1], addrs2[1], 100*time.Microsecond)
 		<-time.After(100 * time.Millisecond)
-		AssertAddressesEqual(t, addrs1[1:2], ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, nil, ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, addrs1[1:2], ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, nil, ab.Addrs(tid, ids[1]))
 
-		ab.SetLogAddr(tid, ids[0], addrs1[1], 100*time.Microsecond)
+		ab.SetAddr(tid, ids[0], addrs1[1], 100*time.Microsecond)
 		<-time.After(100 * time.Millisecond)
-		AssertAddressesEqual(t, nil, ab.LogAddrs(tid, ids[0]))
-		AssertAddressesEqual(t, nil, ab.LogAddrs(tid, ids[1]))
+		AssertAddressesEqual(t, nil, ab.Addrs(tid, ids[0]))
+		AssertAddressesEqual(t, nil, ab.Addrs(tid, ids[1]))
 	}
 }
 
-func testClearWithIterator(ab tstore.LogAddrBook) func(t *testing.T) {
+func testClearWithIterator(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -301,28 +301,28 @@ func testClearWithIterator(ab tstore.LogAddrBook) func(t *testing.T) {
 		addrs := GenerateAddrs(100)
 
 		// Add the logs with 50 addresses each.
-		ab.AddLogAddrs(tid, ids[0], addrs[:50], pstore.PermanentAddrTTL)
-		ab.AddLogAddrs(tid, ids[1], addrs[50:], pstore.PermanentAddrTTL)
+		ab.AddAddrs(tid, ids[0], addrs[:50], pstore.PermanentAddrTTL)
+		ab.AddAddrs(tid, ids[1], addrs[50:], pstore.PermanentAddrTTL)
 
-		if all := append(ab.LogAddrs(tid, ids[0]), ab.LogAddrs(tid, ids[1])...); len(all) != 100 {
+		if all := append(ab.Addrs(tid, ids[0]), ab.Addrs(tid, ids[1])...); len(all) != 100 {
 			t.Fatal("expected tstore to contain both logs with all their maddrs")
 		}
 
 		// Since we don't fetch these logs, they won't be present in cache.
 
-		ab.ClearLogAddrs(tid, ids[0])
-		if all := append(ab.LogAddrs(tid, ids[0]), ab.LogAddrs(tid, ids[1])...); len(all) != 50 {
+		ab.ClearAddrs(tid, ids[0])
+		if all := append(ab.Addrs(tid, ids[0]), ab.Addrs(tid, ids[1])...); len(all) != 50 {
 			t.Fatal("expected tstore to contain only addrs of log 2")
 		}
 
-		ab.ClearLogAddrs(tid, ids[1])
-		if all := append(ab.LogAddrs(tid, ids[0]), ab.LogAddrs(tid, ids[1])...); len(all) != 0 {
+		ab.ClearAddrs(tid, ids[1])
+		if all := append(ab.Addrs(tid, ids[0]), ab.Addrs(tid, ids[1])...); len(all) != 0 {
 			t.Fatal("expected tstore to contain no addresses")
 		}
 	}
 }
 
-func testLogsWithAddrs(ab tstore.LogAddrBook) func(t *testing.T) {
+func testLogsWithAddrs(ab tstore.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -340,8 +340,8 @@ func testLogsWithAddrs(ab tstore.LogAddrBook) func(t *testing.T) {
 			ids := GeneratePeerIDs(2)
 			addrs := GenerateAddrs(10)
 
-			ab.AddLogAddrs(tid, ids[0], addrs[:5], pstore.PermanentAddrTTL)
-			ab.AddLogAddrs(tid, ids[1], addrs[5:], pstore.PermanentAddrTTL)
+			ab.AddAddrs(tid, ids[0], addrs[:5], pstore.PermanentAddrTTL)
+			ab.AddAddrs(tid, ids[1], addrs[5:], pstore.PermanentAddrTTL)
 
 			if logs := ab.LogsWithAddrs(tid); len(logs) != 2 {
 				t.Fatal("expected to find 2 logs")

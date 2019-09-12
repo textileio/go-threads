@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs/dagutils"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/libp2p/go-libp2p"
@@ -88,20 +89,32 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		}
 
 		tid := thread.NewIDV1(thread.Raw, 32)
-		nodes, err := ts1.Put(context.Background(), body, tid)
+		lid1, nid1, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(nodes) != 1 {
-			t.Errorf("expected 1 node got %d", len(nodes))
+		if !nid1.Defined() {
+			t.Errorf("expected node id to be defined")
 		}
 
-		events, err := ts1.Pull(context.Background(), "", 0, tid)
+		lid2, nid2, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(events) != 1 {
-			t.Errorf("expected 1 event got %d", len(events))
+		if !nid2.Defined() {
+			t.Errorf("expected node id to be defined")
+		}
+
+		if lid2.String() != lid2.String() {
+			t.Errorf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
+		}
+
+		events, err := ts1.Pull(context.Background(), cid.Undef, 2, tid, lid1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(events) != 2 {
+			t.Errorf("expected 2 event got %d", len(events))
 		}
 
 		back, err := events[0].Decrypt()

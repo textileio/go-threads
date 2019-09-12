@@ -45,15 +45,15 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
 		addrs, pid := getAddrs(t, 100), peer.ID("testlog")
-		ts.AddLogAddrs(tid, pid, addrs[:10], time.Hour)
+		ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		addrch := ts.LogAddrStream(ctx, tid, pid)
+		addrch := ts.AddrStream(ctx, tid, pid)
 
 		// while that subscription is active, publish ten more addrs
 		// this tests that it doesnt hang
 		for i := 10; i < 20; i++ {
-			ts.AddLogAddr(tid, pid, addrs[i], time.Hour)
+			ts.AddAddr(tid, pid, addrs[i], time.Hour)
 		}
 
 		// now receive them (without hanging)
@@ -68,14 +68,14 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 
 		// start a second stream
 		ctx2, cancel2 := context.WithCancel(context.Background())
-		addrch2 := ts.LogAddrStream(ctx2, tid, pid)
+		addrch2 := ts.AddrStream(ctx2, tid, pid)
 
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
 			// now send the rest of the addresses
 			for _, a := range addrs[20:80] {
-				ts.AddLogAddr(tid, pid, a, time.Hour)
+				ts.AddAddr(tid, pid, a, time.Hour)
 			}
 		}()
 
@@ -111,7 +111,7 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 
 		// and add a few more addresses it doesnt hang afterwards
 		for _, a := range addrs[80:] {
-			ts.AddLogAddr(tid, pid, a, time.Hour)
+			ts.AddAddr(tid, pid, a, time.Hour)
 		}
 	}
 }
@@ -125,9 +125,9 @@ func testGetStreamBeforeLogAdded(ts tstore.Threadstore) func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach := ts.LogAddrStream(ctx, tid, pid)
+		ach := ts.AddrStream(ctx, tid, pid)
 		for i := 0; i < 10; i++ {
-			ts.AddLogAddr(tid, pid, addrs[i], time.Hour)
+			ts.AddAddr(tid, pid, addrs[i], time.Hour)
 		}
 
 		received := make(map[string]bool)
@@ -176,11 +176,11 @@ func testAddrStreamDuplicates(ts tstore.Threadstore) func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach := ts.LogAddrStream(ctx, tid, pid)
+		ach := ts.AddrStream(ctx, tid, pid)
 		go func() {
 			for i := 0; i < 10; i++ {
-				ts.AddLogAddr(tid, pid, addrs[i], time.Hour)
-				ts.AddLogAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
+				ts.AddAddr(tid, pid, addrs[i], time.Hour)
+				ts.AddAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
 			}
 
 			// make sure that all addresses get processed before context is cancelled
@@ -217,7 +217,7 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 			tids = append(tids, tid)
 			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, 512)
 			p, _ := peer.IDFromPrivateKey(priv)
-			ts.AddLogAddr(tid, p, a, pstore.PermanentAddrTTL)
+			ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
 		}
 
 		threads := ts.Threads()
@@ -226,7 +226,7 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 		}
 
 		info := ts.ThreadInfo(tids[0])
-		tsAddrs := ts.LogAddrs(info.ID, info.Logs[0])
+		tsAddrs := ts.Addrs(info.ID, info.Logs[0])
 		if !tsAddrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
 		}

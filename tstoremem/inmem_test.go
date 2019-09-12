@@ -14,21 +14,21 @@ func TestInMemoryThreadstore(t *testing.T) {
 	})
 }
 
-func TestInMemoryLogAddrBook(t *testing.T) {
-	tt.LogAddrBookTest(t, func() (tstore.LogAddrBook, func()) {
-		return m.NewLogAddrBook(), nil
+func TestInMemoryAddrBook(t *testing.T) {
+	tt.AddrBookTest(t, func() (tstore.AddrBook, func()) {
+		return m.NewAddrBook(), nil
 	})
 }
 
-func TestInMemoryLogKeyBook(t *testing.T) {
-	tt.LogKeyBookTest(t, func() (tstore.LogKeyBook, func()) {
-		return m.NewLogKeyBook(), nil
+func TestInMemoryKeyBook(t *testing.T) {
+	tt.KeyBookTest(t, func() (tstore.KeyBook, func()) {
+		return m.NewKeyBook(), nil
 	})
 }
 
-func TestInMemoryLogHeadBook(t *testing.T) {
-	tt.LogHeadBookTest(t, func() (tstore.LogHeadBook, func()) {
-		return m.NewLogHeadBook(), nil
+func TestInMemoryHeadBook(t *testing.T) {
+	tt.HeadBookTest(t, func() (tstore.HeadBook, func()) {
+		return m.NewHeadBook(), nil
 	})
 }
 
@@ -38,14 +38,14 @@ func BenchmarkInMemoryThreadstore(b *testing.B) {
 	}, "InMem")
 }
 
-func BenchmarkInMemoryLogKeyBook(b *testing.B) {
-	tt.BenchmarkLogKeyBook(b, func() (tstore.LogKeyBook, func()) {
-		return m.NewLogKeyBook(), nil
+func BenchmarkInMemoryKeyBook(b *testing.B) {
+	tt.BenchmarkKeyBook(b, func() (tstore.KeyBook, func()) {
+		return m.NewKeyBook(), nil
 	})
 }
 
-func BenchmarkInMemoryLogHeadBook(b *testing.B) {
-	tt.BenchmarkLogHeadBook(b, func() (tstore.LogHeadBook, func()) {
-		return m.NewLogHeadBook(), nil
+func BenchmarkInMemoryHeadBook(b *testing.B) {
+	tt.BenchmarkHeadBook(b, func() (tstore.HeadBook, func()) {
+		return m.NewHeadBook(), nil
 	})
 }

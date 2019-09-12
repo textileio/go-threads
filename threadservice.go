@@ -30,10 +30,10 @@ const (
 )
 
 type threadservice struct {
-	host     host.Host
-	listener net.Listener
-	client   *http.Client
-	format.DAGService
+	host       host.Host
+	listener   net.Listener
+	client     *http.Client
+	dagService format.DAGService
 	tstore.Threadstore
 }
 
@@ -65,7 +65,7 @@ func NewThreadservice(h host.Host, ds format.DAGService, ts tstore.Threadstore) 
 		listener:    listener,
 		host:        h,
 		client:      &http.Client{Transport: tr},
-		DAGService:  ds,
+		dagService:  ds,
 		Threadstore: ts,
 	}, nil
 }
@@ -82,7 +82,7 @@ func (ts *threadservice) Close() (err error) {
 
 	//weakClose("host", ts.host)
 	weakClose("listener", ts.listener)
-	weakClose("dagservice", ts.DAGService)
+	weakClose("dagservice", ts.dagService)
 	weakClose("threadstore", ts.Threadstore)
 
 	if len(errs) > 0 {
@@ -95,6 +95,10 @@ func (ts *threadservice) Host() host.Host {
 	return ts.host
 }
 
+func (ts *threadservice) DAGService() format.DAGService {
+	return ts.dagService
+}
+
 func (ts *threadservice) Listener() net.Listener {
 	return ts.listener
 }
@@ -103,104 +107,87 @@ func (ts *threadservice) Client() *http.Client {
 	return ts.client
 }
 
-/*
-	1. do we have a thread? if not, create one
-	2. check ACL to see if we can even write to this thread
-	3. if no log for us, create one
-	4. create event: encrypt body with a new key, save key in header, encrypt the whole thing with read key
-	5. get latest head for this log
-	6. append event to last head
-	7. save to dag service
-*/
-func (ts *threadservice) Put(ctx context.Context, body format.Node, threads ...thread.ID) ([]cid.Cid, error) {
-	var cids []cid.Cid
-	for _, t := range threads {
-		c, err := ts.put(ctx, body, t)
-		if err != nil {
-			return cids, err
-		}
-		cids = append(cids, c)
-	}
-	return cids, nil
-}
+func (ts *threadservice) Put(ctx context.Context, body format.Node, opts ...tserv.PutOption) (peer.ID, cid.Cid, error) {
+	settings := tserv.PutOptions(opts...)
 
-func (ts *threadservice) put(ctx context.Context, body format.Node, t thread.ID) (cid.Cid, error) {
-	var id peer.ID
-	var sk ic.PrivKey
-	for _, p := range ts.LogsWithKeys(t) {
-		sk = ts.LogPrivKey(t, p)
-		if sk != nil {
-			id = p
-			break
-		}
-	}
+	id, sk := ts.getOwnLog(settings.Thread)
 	if sk == nil {
 		var err error
-		id, err = ts.newLog(t)
+		id, sk, err = ts.addOwnLog(settings.Thread)
 		if err != nil {
-			return cid.Undef, err
+			return "", cid.Undef, err
 		}
-		sk = ts.LogPrivKey(t, id)
 	}
 
 	prev := cid.Undef
-	heads := ts.LogHeads(t, id)
+	heads := ts.Heads(settings.Thread, id)
 	if len(heads) != 0 {
 		prev = heads[0]
 	}
 
 	event, err := cbor.NewEvent(body, time.Now())
 	if err != nil {
-		return cid.Undef, err
+		return "", cid.Undef, err
 	}
-	ecoded, err := cbor.EncodeEvent(event, ts.LogReadKey(t, id))
+	ecoded, err := cbor.EncodeEvent(event, ts.ReadKey(settings.Thread, id))
 	if err != nil {
-		return cid.Undef, err
+		return "", cid.Undef, err
 	}
 	node, err := cbor.NewNode(ecoded, prev, sk)
 	if err != nil {
-		return cid.Undef, err
+		return "", cid.Undef, err
 	}
-	coded, err := cbor.EncodeNode(node, ts.LogFollowKey(t, id))
+	coded, err := cbor.EncodeNode(node, ts.FollowKey(settings.Thread, id))
 	if err != nil {
-		return cid.Undef, err
+		return "", cid.Undef, err
 	}
 
-	err = ts.AddMany(ctx, []format.Node{event.Header(), event.Body(), ecoded, coded})
+	err = ts.dagService.AddMany(ctx, []format.Node{event.Header(), event.Body(), ecoded, coded})
 	if err != nil {
-		return cid.Undef, err
+		return "", cid.Undef, err
 	}
 
-	ts.SetLogHead(t, id, coded.Cid())
+	ts.SetHead(settings.Thread, id, coded.Cid())
 
-	return coded.Cid(), nil
+	return id, coded.Cid(), nil
 }
 
-func (ts *threadservice) Pull(ctx context.Context, offset string, size int, t thread.ID) ([]thread.Event, error) {
-	var events []thread.Event
-	for _, id := range ts.ThreadInfo(t).Logs {
-		heads := ts.LogHeads(t, id)
+func (ts *threadservice) Pull(ctx context.Context, offset cid.Cid, limit int, t thread.ID, id peer.ID) ([]thread.Event, error) {
+	fk := ts.FollowKey(t, id)
+	if fk == nil {
+		return nil, nil
+	}
+
+	if !offset.Defined() {
+		heads := ts.Heads(t, id)
 		if len(heads) == 0 {
-			continue
+			return nil, nil
 		}
-		fk := ts.LogFollowKey(t, id)
-		if fk == nil {
-			continue
-		}
-		node, err := cbor.DecodeNode(ctx, ts.DAGService, heads[0], fk)
+		offset = heads[0]
+	}
+
+	var events []thread.Event
+	for i := 0; i < limit; i++ {
+		node, err := cbor.DecodeNode(ctx, ts.dagService, offset, fk)
 		if err != nil {
 			return nil, err
 		}
-		rk := ts.LogReadKey(t, id)
+		rk := ts.ReadKey(t, id)
 		if rk == nil {
-			continue
+			return events, nil
 		}
-		event, err := cbor.DecodeEvent(ctx, ts.DAGService, node.Block().Cid(), rk)
+		event, err := cbor.DecodeEvent(ctx, ts.dagService, node.Block().Cid(), rk)
 		if err != nil {
 			return nil, err
 		}
 		events = append(events, event)
+
+		offset = node.Prev()
+		if !offset.Defined() {
+			break
+		}
 	}
+
 	return events, nil
 }
 
@@ -216,44 +203,54 @@ func (ts *threadservice) Delete(ctx context.Context, t thread.ID) error {
 	panic("implement me")
 }
 
-func (ts *threadservice) newLog(t thread.ID) (peer.ID, error) {
+func (ts *threadservice) getOwnLog(t thread.ID) (peer.ID, ic.PrivKey) {
+	for _, log := range ts.LogsWithKeys(t) {
+		sk := ts.PrivKey(t, log)
+		if sk != nil {
+			return log, sk
+		}
+	}
+	return "", nil
+}
+
+func (ts *threadservice) addOwnLog(t thread.ID) (peer.ID, ic.PrivKey, error) {
 	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	id, err := peer.IDFromPublicKey(pk)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	err = ts.AddLogPrivKey(t, id, sk)
+	err = ts.AddPrivKey(t, id, sk)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	err = ts.AddLogPubKey(t, id, pk)
+	err = ts.AddPubKey(t, id, pk)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	read, err := crypto.GenerateAESKey()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	err = ts.AddLogReadKey(t, id, read)
+	err = ts.AddReadKey(t, id, read)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	follow, err := crypto.GenerateAESKey()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	err = ts.AddLogFollowKey(t, id, follow)
+	err = ts.AddFollowKey(t, id, follow)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	ts.AddLogAddrs(t, id, ts.host.Addrs(), peerstore.PermanentAddrTTL)
+	ts.AddAddrs(t, id, ts.host.Addrs(), peerstore.PermanentAddrTTL)
 
-	return id, nil
+	return id, sk, nil
 }

@@ -8,8 +8,8 @@ import (
 // NewThreadstore creates an in-memory threadsafe collection of peers.
 func NewThreadstore() iface.Threadstore {
 	return threads.NewThreadstore(
-		NewLogKeyBook(),
-		NewLogAddrBook(),
-		NewLogHeadBook(),
+		NewKeyBook(),
+		NewAddrBook(),
+		NewHeadBook(),
 		NewThreadMetadata())
 }

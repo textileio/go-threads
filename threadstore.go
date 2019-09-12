@@ -10,17 +10,17 @@ import (
 )
 
 type threadstore struct {
-	tstore.LogKeyBook
-	tstore.LogAddrBook
+	tstore.KeyBook
+	tstore.AddrBook
 	tstore.ThreadMetadata
-	tstore.LogHeadBook
+	tstore.HeadBook
 }
 
-func NewThreadstore(kb tstore.LogKeyBook, ab tstore.LogAddrBook, hb tstore.LogHeadBook, md tstore.ThreadMetadata) tstore.Threadstore {
+func NewThreadstore(kb tstore.KeyBook, ab tstore.AddrBook, hb tstore.HeadBook, md tstore.ThreadMetadata) tstore.Threadstore {
 	return &threadstore{
-		LogKeyBook:     kb,
-		LogAddrBook:    ab,
-		LogHeadBook:    hb,
+		KeyBook:        kb,
+		AddrBook:       ab,
+		HeadBook:       hb,
 		ThreadMetadata: md,
 	}
 }
@@ -35,9 +35,9 @@ func (ts *threadstore) Close() (err error) {
 		}
 	}
 
-	weakClose("logkeybook", ts.LogKeyBook)
-	weakClose("logaddressbook", ts.LogAddrBook)
-	weakClose("logheadbook", ts.LogHeadBook)
+	weakClose("keybook", ts.KeyBook)
+	weakClose("addressbook", ts.AddrBook)
+	weakClose("headbook", ts.HeadBook)
 	weakClose("threadmetadata", ts.ThreadMetadata)
 
 	if len(errs) > 0 {

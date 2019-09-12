@@ -40,6 +40,7 @@ func NewEvent(body format.Node, time time.Time) (thread.Event, error) {
 		Time: time.UnixNano(),
 		Key:  key,
 	}
+	// @todo: header needs to be encrypted with a read key
 	header, err := cbornode.WrapObject(eventHeader, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err

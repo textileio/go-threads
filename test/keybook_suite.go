@@ -15,7 +15,7 @@ import (
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
 
-var logKeyBookSuite = map[string]func(kb tstore.LogKeyBook) func(*testing.T){
+var keyBookSuite = map[string]func(kb tstore.KeyBook) func(*testing.T){
 	"AddGetPrivKey":         testKeyBookPrivKey,
 	"AddGetPubKey":          testKeyBookPubKey,
 	"AddGetReadKey":         testKeyBookReadKey,
@@ -25,10 +25,10 @@ var logKeyBookSuite = map[string]func(kb tstore.LogKeyBook) func(*testing.T){
 	"PubKeyAddedOnRetrieve": testInlinedPubKeyAddedOnRetrieve,
 }
 
-type LogKeyBookFactory func() (tstore.LogKeyBook, func())
+type KeyBookFactory func() (tstore.KeyBook, func())
 
-func LogKeyBookTest(t *testing.T, factory LogKeyBookFactory) {
-	for name, test := range logKeyBookSuite {
+func KeyBookTest(t *testing.T, factory KeyBookFactory) {
+	for name, test := range keyBookSuite {
 		// Create a new book.
 		kb, closeFunc := factory()
 
@@ -42,7 +42,7 @@ func LogKeyBookTest(t *testing.T, factory LogKeyBookFactory) {
 	}
 }
 
-func testKeyBookPrivKey(kb tstore.LogKeyBook) func(t *testing.T) {
+func testKeyBookPrivKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -60,16 +60,16 @@ func testKeyBookPrivKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.LogPrivKey(tid, id); res != nil {
+		if res := kb.PrivKey(tid, id); res != nil {
 			t.Error("retrieving private key should have failed")
 		}
 
-		err = kb.AddLogPrivKey(tid, id, priv)
+		err = kb.AddPrivKey(tid, id, priv)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.LogPrivKey(tid, id); !priv.Equals(res) {
+		if res := kb.PrivKey(tid, id); !priv.Equals(res) {
 			t.Error("retrieved private key did not match stored private key")
 		}
 
@@ -79,7 +79,7 @@ func testKeyBookPrivKey(kb tstore.LogKeyBook) func(t *testing.T) {
 	}
 }
 
-func testKeyBookPubKey(kb tstore.LogKeyBook) func(t *testing.T) {
+func testKeyBookPubKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -97,16 +97,16 @@ func testKeyBookPubKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.LogPubKey(tid, id); res != nil {
+		if res := kb.PubKey(tid, id); res != nil {
 			t.Error("retrieving public key should have failed")
 		}
 
-		err = kb.AddLogPubKey(tid, id, pub)
+		err = kb.AddPubKey(tid, id, pub)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.LogPubKey(tid, id); !pub.Equals(res) {
+		if res := kb.PubKey(tid, id); !pub.Equals(res) {
 			t.Error("retrieved public key did not match stored public key")
 		}
 
@@ -116,7 +116,7 @@ func testKeyBookPubKey(kb tstore.LogKeyBook) func(t *testing.T) {
 	}
 }
 
-func testKeyBookReadKey(kb tstore.LogKeyBook) func(t *testing.T) {
+func testKeyBookReadKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -139,18 +139,18 @@ func testKeyBookReadKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddLogReadKey(tid, id, key)
+		err = kb.AddReadKey(tid, id, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.LogReadKey(tid, id); !bytes.Equal(res, key) {
+		if res := kb.ReadKey(tid, id); !bytes.Equal(res, key) {
 			t.Error("retrieved read key did not match stored read key")
 		}
 	}
 }
 
-func testKeyBookFollowKey(kb tstore.LogKeyBook) func(t *testing.T) {
+func testKeyBookFollowKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -173,18 +173,18 @@ func testKeyBookFollowKey(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddLogFollowKey(tid, id, key)
+		err = kb.AddFollowKey(tid, id, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.LogFollowKey(tid, id); !bytes.Equal(res, key) {
+		if res := kb.FollowKey(tid, id); !bytes.Equal(res, key) {
 			t.Error("retrieved read key did not match stored read key")
 		}
 	}
 }
 
-func testKeyBookLogs(kb tstore.LogKeyBook) func(t *testing.T) {
+func testKeyBookLogs(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -197,12 +197,12 @@ func testKeyBookLogs(kb tstore.LogKeyBook) func(t *testing.T) {
 			// Add a public key.
 			_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p1, _ := peer.IDFromPublicKey(pub)
-			_ = kb.AddLogPubKey(tid, p1, pub)
+			_ = kb.AddPubKey(tid, p1, pub)
 
 			// Add a private key.
 			priv, _, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p2, _ := peer.IDFromPrivateKey(priv)
-			_ = kb.AddLogPrivKey(tid, p2, priv)
+			_ = kb.AddPrivKey(tid, p2, priv)
 
 			logs = append(logs, []peer.ID{p1, p2}...)
 		}
@@ -219,7 +219,7 @@ func testKeyBookLogs(kb tstore.LogKeyBook) func(t *testing.T) {
 	}
 }
 
-func testKeyBookThreads(kb tstore.LogKeyBook) func(t *testing.T) {
+func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		if threads := kb.ThreadsFromKeys(); len(threads) > 0 {
 			t.Error("expected threads to be empty on init")
@@ -228,7 +228,7 @@ func testKeyBookThreads(kb tstore.LogKeyBook) func(t *testing.T) {
 		threads := thread.IDSlice{
 			thread.NewIDV1(thread.Raw, 16),
 			thread.NewIDV1(thread.Raw, 24),
-			thread.NewIDV1(thread.Textile, 32),
+			thread.NewIDV1(thread.AccessControlled, 32),
 		}
 		rand.Seed(time.Now().Unix())
 		for i := 0; i < 10; i++ {
@@ -237,12 +237,12 @@ func testKeyBookThreads(kb tstore.LogKeyBook) func(t *testing.T) {
 			// Add a public key.
 			_, pub, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p1, _ := peer.IDFromPublicKey(pub)
-			_ = kb.AddLogPubKey(tid, p1, pub)
+			_ = kb.AddPubKey(tid, p1, pub)
 
 			// Add a private key.
 			priv, _, _ := pt.RandTestKeyPair(ic.RSA, 512)
 			p2, _ := peer.IDFromPrivateKey(priv)
-			_ = kb.AddLogPrivKey(tid, p2, priv)
+			_ = kb.AddPrivKey(tid, p2, priv)
 		}
 
 		kbThreads := kb.ThreadsFromKeys()
@@ -257,7 +257,7 @@ func testKeyBookThreads(kb tstore.LogKeyBook) func(t *testing.T) {
 	}
 }
 
-func testInlinedPubKeyAddedOnRetrieve(kb tstore.LogKeyBook) func(t *testing.T) {
+func testInlinedPubKeyAddedOnRetrieve(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Skip("key inlining disabled for now: see libp2p/specs#111")
 
@@ -278,22 +278,22 @@ func testInlinedPubKeyAddedOnRetrieve(kb tstore.LogKeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		pubKey := kb.LogPubKey(tid, id)
+		pubKey := kb.PubKey(tid, id)
 		if !pubKey.Equals(pub) {
 			t.Error("mismatch between original public key and keybook-calculated one")
 		}
 	}
 }
 
-var logKeybookBenchmarkSuite = map[string]func(kb tstore.LogKeyBook) func(*testing.B){
-	"LogPubKey":     benchmarkPubKey,
-	"AddLogPubKey":  benchmarkAddPubKey,
-	"LogPrivKey":    benchmarkPrivKey,
-	"AddLogPrivKey": benchmarkAddPrivKey,
-	"LogsWithKeys":  benchmarkLogsWithKeys,
+var logKeybookBenchmarkSuite = map[string]func(kb tstore.KeyBook) func(*testing.B){
+	"PubKey":       benchmarkPubKey,
+	"AddPubKey":    benchmarkAddPubKey,
+	"PrivKey":      benchmarkPrivKey,
+	"AddPrivKey":   benchmarkAddPrivKey,
+	"LogsWithKeys": benchmarkLogsWithKeys,
 }
 
-func BenchmarkLogKeyBook(b *testing.B, factory LogKeyBookFactory) {
+func BenchmarkKeyBook(b *testing.B, factory KeyBookFactory) {
 	ordernames := make([]string, 0, len(logKeybookBenchmarkSuite))
 	for name := range logKeybookBenchmarkSuite {
 		ordernames = append(ordernames, name)
@@ -311,7 +311,7 @@ func BenchmarkLogKeyBook(b *testing.B, factory LogKeyBookFactory) {
 	}
 }
 
-func benchmarkPubKey(kb tstore.LogKeyBook) func(*testing.B) {
+func benchmarkPubKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -325,19 +325,19 @@ func benchmarkPubKey(kb tstore.LogKeyBook) func(*testing.B) {
 			b.Error(err)
 		}
 
-		err = kb.AddLogPubKey(tid, id, pub)
+		err = kb.AddPubKey(tid, id, pub)
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.LogPubKey(tid, id)
+			kb.PubKey(tid, id)
 		}
 	}
 }
 
-func benchmarkAddPubKey(kb tstore.LogKeyBook) func(*testing.B) {
+func benchmarkAddPubKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -353,12 +353,12 @@ func benchmarkAddPubKey(kb tstore.LogKeyBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = kb.AddLogPubKey(tid, id, pub)
+			_ = kb.AddPubKey(tid, id, pub)
 		}
 	}
 }
 
-func benchmarkPrivKey(kb tstore.LogKeyBook) func(*testing.B) {
+func benchmarkPrivKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -372,19 +372,19 @@ func benchmarkPrivKey(kb tstore.LogKeyBook) func(*testing.B) {
 			b.Error(err)
 		}
 
-		err = kb.AddLogPrivKey(tid, id, priv)
+		err = kb.AddPrivKey(tid, id, priv)
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.LogPrivKey(tid, id)
+			kb.PrivKey(tid, id)
 		}
 	}
 }
 
-func benchmarkAddPrivKey(kb tstore.LogKeyBook) func(*testing.B) {
+func benchmarkAddPrivKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -400,12 +400,12 @@ func benchmarkAddPrivKey(kb tstore.LogKeyBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = kb.AddLogPrivKey(tid, id, priv)
+			_ = kb.AddPrivKey(tid, id, priv)
 		}
 	}
 }
 
-func benchmarkLogsWithKeys(kb tstore.LogKeyBook) func(*testing.B) {
+func benchmarkLogsWithKeys(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		for i := 0; i < 10; i++ {
@@ -419,11 +419,11 @@ func benchmarkLogsWithKeys(kb tstore.LogKeyBook) func(*testing.B) {
 				b.Error(err)
 			}
 
-			err = kb.AddLogPubKey(tid, id, pub)
+			err = kb.AddPubKey(tid, id, pub)
 			if err != nil {
 				b.Fatal(err)
 			}
-			err = kb.AddLogPrivKey(tid, id, priv)
+			err = kb.AddPrivKey(tid, id, priv)
 			if err != nil {
 				b.Fatal(err)
 			}
