@@ -230,6 +230,13 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 		if !tsAddrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
 		}
+
+		log := ts.LogInfo(info.ID, info.Logs[0])
+		if !log.Addrs[0].Equal(addrs[0]) {
+			t.Fatal("stored wrong address")
+		}
+
+		// @todo Test AddLog
 	}
 }
 

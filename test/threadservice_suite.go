@@ -2,17 +2,17 @@ package test
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipfs/dagutils"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/libp2p/go-libp2p"
+	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-textile-core/crypto/asymmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	threads "github.com/textileio/go-textile-threads"
@@ -20,9 +20,9 @@ import (
 )
 
 var threadserviceSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
-	"API":     testAPI,
-	"PutPull": testPutPull,
-	"Close":   testClose,
+	"PutPull":   testPutPull,
+	"PutInvite": testPutInvite,
+	"Close":     testClose,
 }
 
 func ThreadserviceTest(t *testing.T) {
@@ -56,30 +56,10 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	return ts
 }
 
-func testAPI(ts1, ts2 tserv.Threadservice) func(*testing.T) {
-	return func(t *testing.T) {
-
-		t.Run("get head", func(t *testing.T) {
-			addr := fmt.Sprintf("libp2p://%s/hello", ts2.Host().ID().Pretty())
-			res, err := ts1.Client().Get(addr)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer res.Body.Close()
-			text, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(text) != "Hi!" {
-				t.Errorf("expected Hi! but got %s", text)
-			}
-		})
-
-	}
-}
-
 func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 32)
+
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"foo": "bar",
 			"baz": []byte("howdy"),
@@ -88,7 +68,6 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		tid := thread.NewIDV1(thread.Raw, 32)
 		lid1, nid1, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
@@ -109,7 +88,7 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Errorf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
 		}
 
-		events, err := ts1.Pull(context.Background(), cid.Undef, 2, tid, lid1)
+		events, err := ts1.Pull(context.Background(), cid.Undef, 2, ts1.LogInfo(tid, lid1))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -126,6 +105,86 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		}
 	}
 }
+
+func testPutInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 32)
+		opts := tserv.PutOpt.Thread(tid)
+
+		invite, err := ts1.NewInvite(tid, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		pk := ts2.Host().Peerstore().PubKey(ts2.Host().ID())
+		if pk == nil {
+			t.Fatal("public key not found")
+		}
+		pkb, err := ic.MarshalPublicKey(pk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ek, err := asymmetric.NewEncryptionKey(pkb)
+		if err != nil {
+			t.Fatal(err)
+		}
+		opts = opts.Key(ek)
+
+		a, err := ma.NewMultiaddr("/p2p/" + ts2.Host().ID().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		opts = opts.Addrs([]ma.Multiaddr{a})
+
+		_, _, err = ts1.Put(context.Background(), invite, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+	}
+}
+
+//func testAPI(ts1, ts2 tserv.Threadservice) func(*testing.T) {
+//	return func(t *testing.T) {
+//
+//		body, err := cbornode.WrapObject(map[string]interface{}{
+//			"foo": "bar",
+//			"baz": []byte("howdy"),
+//		}, mh.SHA2_256, -1)
+//		if err != nil {
+//			t.Fatal(err)
+//		}
+//
+//		tid := thread.NewIDV1(thread.Raw, 32)
+//		lid1, nid1, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
+//		if err != nil {
+//			t.Fatal(err)
+//		}
+//
+//		// invite other peer
+//		// get head on either peer
+//
+//		t.Run("get head", func(t *testing.T) {
+//			addr := fmt.Sprintf("ipel://%s/%s", ts2.Host().ID().Pretty(), "pull/foo")
+//
+//			// ts.Pull()
+//
+//			res, err := ts1.Client().Get(addr)
+//			if err != nil {
+//				t.Fatal(err)
+//			}
+//			defer res.Body.Close()
+//			text, err := ioutil.ReadAll(res.Body)
+//			if err != nil {
+//				t.Fatal(err)
+//			}
+//			if string(text) != "Hi!" {
+//				//t.Errorf("expected Hi! but got %s", string(text))
+//			}
+//		})
+//
+//	}
+//}
 
 func testClose(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {

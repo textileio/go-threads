@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html/template"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/gin-gonic/gin/render"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/prometheus/common/log"
 	cors "github.com/rs/cors/wrapper/gin"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -23,21 +23,20 @@ import (
 )
 
 const (
-	defaultNodeLimit = 1
+	defaultPullLimit = 1
 )
 
-type threadserver struct {
-	service tserv.Threadservice
+type Threadserver struct {
+	service func() tserv.Threadservice
 	server  *http.Server
 }
 
-func NewThreadserver(addr string, service tserv.Threadservice) *threadserver {
+func NewThreadserver(service func() tserv.Threadservice) *Threadserver {
 	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
-	server := &threadserver{
+	server := &Threadserver{
 		server: &http.Server{
-			Addr:    addr,
 			Handler: router,
 		},
 		service: service,
@@ -68,15 +67,23 @@ func NewThreadserver(addr string, service tserv.Threadservice) *threadserver {
 		g.String(http.StatusOK, css.Style)
 	})
 
-	router.GET("/threads/:thread/logs/:log", server.nodeHandler)
+	v0 := router.Group("/threads/v0")
+	{
+		v0.GET("/:thread/:id", server.pullHandler)
+		v0.POST("/:thread/:id", server.eventHandler)
+	}
 
 	router.NoRoute(func(g *gin.Context) {
 		server.render404(g)
 	})
 
+	return server
+}
+
+func (s *Threadserver) Open(listener net.Listener) {
 	errc := make(chan error)
 	go func() {
-		errc <- server.server.ListenAndServe()
+		errc <- s.server.Serve(listener)
 		close(errc)
 	}()
 	go func() {
@@ -84,47 +91,45 @@ func NewThreadserver(addr string, service tserv.Threadservice) *threadserver {
 			select {
 			case err, ok := <-errc:
 				if err != nil && err != http.ErrServerClosed {
-					//log.Errorf("threadserver error: %s", err)
+					//log.Errorf("Threadserver error: %s", err)
 				}
 				if !ok {
-					//log.Info("threadserver was shutdown")
+					//log.Info("Threadserver was shutdown")
 					return
 				}
 			}
 		}
 	}()
-	//log.Infof("threadserver listening at %s", server.Addr)
-
-	return server
+	//log.Infof("Threadserver listening at %s", server.Addr)
 }
 
-func (s *threadserver) Stop() error {
+func (s *Threadserver) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if err := s.server.Shutdown(ctx); err != nil {
-		log.Errorf("error shutting down gateway: %s", err)
-		return err
-	}
-	return nil
+	return s.server.Shutdown(ctx)
 }
 
-func (s *threadserver) Addr() string {
-	return s.server.Addr
-}
-
-func (s *threadserver) nodeHandler(g *gin.Context) {
+func (s *Threadserver) pullHandler(g *gin.Context) {
 	tid, err := thread.Decode(g.Param("thread"))
 	if err != nil {
 		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Errorf("invalid thread id: %s", err.Error()),
+			"error": fmt.Sprintf("invalid thread id: %s", err.Error()),
 		})
 		return
 	}
 
-	id, err := peer.IDB58Decode(g.Param("log"))
+	id, err := peer.IDB58Decode(g.Param("id"))
 	if err != nil {
 		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Errorf("invalid log id: %s", err.Error()),
+			"error": fmt.Sprintf("invalid log id: %s", err.Error()),
+		})
+		return
+	}
+
+	log := s.service().LogInfo(tid, id)
+	if log.PubKey == nil {
+		g.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"error": fmt.Sprintf("log not found"),
 		})
 		return
 	}
@@ -135,12 +140,12 @@ func (s *threadserver) nodeHandler(g *gin.Context) {
 		limit, err = strconv.Atoi(limitq)
 	}
 	if !found || err != nil {
-		limit = defaultNodeLimit
+		limit = defaultPullLimit
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	events, err := s.service.Pull(ctx, cid.Undef, limit, tid, id)
+	events, err := s.service().Pull(ctx, cid.Undef, limit, log)
 	if err != nil {
 		g.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -151,7 +156,87 @@ func (s *threadserver) nodeHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, events)
 }
 
-func (s *threadserver) render404(g *gin.Context) {
+func (s *Threadserver) eventHandler(g *gin.Context) {
+	tid, err := thread.Decode(g.Param("thread"))
+	if err != nil {
+		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("invalid thread id: %s", err.Error()),
+		})
+		return
+	}
+
+	id, err := peer.IDB58Decode(g.Param("id"))
+	if err != nil {
+		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("invalid log id: %s", err.Error()),
+		})
+		return
+	}
+
+	// validate node w/ sig and sender key in header
+
+	// do we have this log?
+	//   if yes, update it
+	//   if no, is this an invite? (decode with follow key in header)
+	//     if yes and read key is present, create own log
+	//     if yes and no read key is present, add it, don't create own log
+	//     if no, ignore it
+
+	g.Status(http.StatusCreated)
+
+	//var logs []thread.LogInfo
+	//err = g.BindJSON(&logs)
+	//if err != nil {
+	//	g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
+	//
+	//for _, log := range logs {
+	//	err = s.service().AddLog(tid, log)
+	//	if err != nil {
+	//		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+	//			"error": err.Error(),
+	//		})
+	//		return
+	//	}
+	//}
+	//
+	//body, err := cbornode.WrapObject(map[string]interface{}{
+	//	"_type": "JOIN",
+	//}, mh.SHA2_256, -1)
+	//if err != nil {
+	//	g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
+	//
+	//ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	//defer cancel()
+	//id, _, err := s.service().Put(ctx, body, tserv.PutOpt.Thread(tid))
+	//if err != nil {
+	//	g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
+	//
+	//events, err := s.service().Pull(ctx, cid.Undef, 1, s.service().LogInfo(tid, id))
+	//if err != nil {
+	//	g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+	//		"error": err.Error(),
+	//	})
+	//	return
+	//}
+	//
+	//g.JSON(http.StatusOK, gin.H{
+	//	"event": events[0],
+	//})
+}
+
+func (s *Threadserver) render404(g *gin.Context) {
 	g.HTML(http.StatusNotFound, "404", nil)
 }
 

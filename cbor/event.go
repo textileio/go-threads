@@ -2,14 +2,15 @@ package cbor
 
 import (
 	"context"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-textile-core/crypto"
+	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
+	tserv "github.com/textileio/go-textile-core/threadservice"
 )
 
 func init() {
@@ -27,8 +28,8 @@ type eventHeader struct {
 	Key  []byte `refmt:",omitempty"`
 }
 
-func NewEvent(body format.Node, time time.Time) (thread.Event, error) {
-	key, err := crypto.GenerateAESKey()
+func NewEvent(body format.Node, settings *tserv.PutSettings) (thread.Event, error) {
+	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err
 	}
@@ -36,18 +37,25 @@ func NewEvent(body format.Node, time time.Time) (thread.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	eventHeader := &eventHeader{
-		Time: time.UnixNano(),
-		Key:  key,
+	keyb, err := key.Marshal()
+	if err != nil {
+		return nil, err
 	}
-	// @todo: header needs to be encrypted with a read key
+	eventHeader := &eventHeader{
+		Time: settings.Time.Unix(),
+		Key:  keyb,
+	}
 	header, err := cbornode.WrapObject(eventHeader, mh.SHA2_256, -1)
+	if err != nil {
+		return nil, err
+	}
+	codedHeader, err := EncodeBlock(header, settings.Key)
 	if err != nil {
 		return nil, err
 	}
 	node, err := cbornode.WrapObject(&event{
 		Body:   coded.Cid(),
-		Header: header.Cid(),
+		Header: codedHeader.Cid(),
 	}, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
@@ -55,7 +63,7 @@ func NewEvent(body format.Node, time time.Time) (thread.Event, error) {
 	return &Event{
 		Node: node,
 		header: &EventHeader{
-			Node: header,
+			Node: codedHeader,
 			time: int(eventHeader.Time),
 			key:  eventHeader.Key,
 		},
@@ -63,11 +71,11 @@ func NewEvent(body format.Node, time time.Time) (thread.Event, error) {
 	}, nil
 }
 
-func EncodeEvent(event thread.Event, key []byte) (format.Node, error) {
+func EncodeEvent(event thread.Event, key crypto.EncryptionKey) (format.Node, error) {
 	return EncodeBlock(event, key)
 }
 
-func DecodeEvent(ctx context.Context, dag format.DAGService, id cid.Cid, key []byte) (thread.Event, error) {
+func DecodeEvent(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Event, error) {
 	coded, err := dag.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -81,7 +89,11 @@ func DecodeEvent(ctx context.Context, dag format.DAGService, id cid.Cid, key []b
 	if err != nil {
 		return nil, err
 	}
-	header, err := dag.Get(ctx, event.Header)
+	codedHeader, err := dag.Get(ctx, event.Header)
+	if err != nil {
+		return nil, err
+	}
+	header, err := DecodeBlock(codedHeader, key)
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +107,9 @@ func DecodeEvent(ctx context.Context, dag format.DAGService, id cid.Cid, key []b
 		return nil, err
 	}
 	return &Event{
-		Node: node,
+		Node: coded,
 		header: &EventHeader{
-			Node: header,
+			Node: codedHeader,
 			time: int(eventHeader.Time),
 			key:  eventHeader.Key,
 		},
@@ -121,7 +133,11 @@ func (e *Event) Body() format.Node {
 }
 
 func (e *Event) Decrypt() (format.Node, error) {
-	return DecodeBlock(e.body, e.header.key)
+	key, err := crypto.ParseDecryptionKey(e.header.key)
+	if err != nil {
+		return nil, err
+	}
+	return DecodeBlock(e.body, key)
 }
 
 type EventHeader struct {

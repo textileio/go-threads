@@ -9,8 +9,8 @@ import (
 )
 
 // EncodeBlock returns a node by encrypting the block's raw bytes with key.
-func EncodeBlock(block blocks.Block, key []byte) (format.Node, error) {
-	coded, err := crypto.EncryptAES(block.RawData(), key)
+func EncodeBlock(block blocks.Block, key crypto.EncryptionKey) (format.Node, error) {
+	coded, err := key.Encrypt(block.RawData())
 	if err != nil {
 		return nil, err
 	}
@@ -18,13 +18,13 @@ func EncodeBlock(block blocks.Block, key []byte) (format.Node, error) {
 }
 
 // DecodeBlock returns a node by decrypting the block's raw bytes with key.
-func DecodeBlock(block blocks.Block, key []byte) (format.Node, error) {
+func DecodeBlock(block blocks.Block, key crypto.DecryptionKey) (format.Node, error) {
 	var raw []byte
 	err := cbornode.DecodeInto(block.RawData(), &raw)
 	if err != nil {
 		return nil, err
 	}
-	decoded, err := crypto.DecryptAES(raw, key)
+	decoded, err := key.Decrypt(raw)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pt "github.com/libp2p/go-libp2p-core/test"
-	"github.com/textileio/go-textile-core/crypto"
+	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
@@ -134,17 +134,17 @@ func testKeyBookReadKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		key, err := crypto.GenerateAESKey()
+		key, err := symmetric.CreateKey()
 		if err != nil {
 			t.Error(err)
 		}
 
-		err = kb.AddReadKey(tid, id, key)
+		err = kb.AddReadKey(tid, id, key.Bytes())
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.ReadKey(tid, id); !bytes.Equal(res, key) {
+		if res := kb.ReadKey(tid, id); !bytes.Equal(res, key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key")
 		}
 	}
@@ -168,17 +168,17 @@ func testKeyBookFollowKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		key, err := crypto.GenerateAESKey()
+		key, err := symmetric.CreateKey()
 		if err != nil {
 			t.Error(err)
 		}
 
-		err = kb.AddFollowKey(tid, id, key)
+		err = kb.AddFollowKey(tid, id, key.Bytes())
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res := kb.FollowKey(tid, id); !bytes.Equal(res, key) {
+		if res := kb.FollowKey(tid, id); !bytes.Equal(res, key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key")
 		}
 	}

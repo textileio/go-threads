@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/libp2p/go-libp2p-core/peer"
+	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
@@ -80,5 +81,48 @@ func (ts *threadstore) ThreadInfo(t thread.ID) thread.Info {
 	return thread.Info{
 		ID:   t,
 		Logs: ids,
+	}
+}
+
+func (ts *threadstore) AddLog(t thread.ID, log thread.LogInfo) error {
+	err := ts.AddPubKey(t, log.ID, log.PubKey)
+	if err != nil {
+		return err
+	}
+
+	if log.PrivKey != nil {
+		err = ts.AddPrivKey(t, log.ID, log.PrivKey)
+		if err != nil {
+			return err
+		}
+	}
+	if log.FollowKey != nil {
+		err = ts.AddFollowKey(t, log.ID, log.FollowKey)
+		if err != nil {
+			return err
+		}
+	}
+	if log.ReadKey != nil {
+		err = ts.AddReadKey(t, log.ID, log.ReadKey)
+		if err != nil {
+			return err
+		}
+	}
+
+	ts.SetAddrs(t, log.ID, log.Addrs, pstore.PermanentAddrTTL)
+	ts.SetHeads(t, log.ID, log.Heads)
+
+	return nil
+}
+
+func (ts *threadstore) LogInfo(t thread.ID, id peer.ID) thread.LogInfo {
+	return thread.LogInfo{
+		ID:        id,
+		PubKey:    ts.PubKey(t, id),
+		PrivKey:   ts.PrivKey(t, id),
+		FollowKey: ts.FollowKey(t, id),
+		ReadKey:   ts.ReadKey(t, id),
+		Addrs:     ts.Addrs(t, id),
+		Heads:     ts.Heads(t, id),
 	}
 }

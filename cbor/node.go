@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/go-ipld-format"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
 )
 
@@ -39,11 +40,11 @@ func NewNode(block format.Node, prev cid.Cid, sk ic.PrivKey) (thread.Node, error
 	return tnode, nil
 }
 
-func EncodeNode(node format.Node, key []byte) (format.Node, error) {
+func EncodeNode(node format.Node, key crypto.EncryptionKey) (format.Node, error) {
 	return EncodeBlock(node, key)
 }
 
-func DecodeNode(ctx context.Context, dag format.DAGService, id cid.Cid, key []byte) (thread.Node, error) {
+func DecodeNode(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Node, error) {
 	coded, err := dag.Get(ctx, id)
 	if err != nil {
 		return nil, err
