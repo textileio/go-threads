@@ -71,32 +71,32 @@ func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		lid1, nid1, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		lid1, n1, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !nid1.Defined() {
-			t.Errorf("expected node id to be defined")
+		if n1 == nil {
+			t.Fatalf("expected node to not be nil")
 		}
 
-		lid2, nid2, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		lid2, n2, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !nid2.Defined() {
-			t.Errorf("expected node id to be defined")
+		if n2 == nil {
+			t.Fatalf("expected node to not be nil")
 		}
 
 		if lid2.String() != lid2.String() {
-			t.Errorf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
+			t.Fatalf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
 		}
 
-		nodes, err := ts1.Pull(ctx, tid, lid1)
+		nodes, err := ts1.Pull(ctx, tid, lid1, tserv.PullOpt.Limit(2))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(nodes) != 2 {
-			t.Errorf("expected 2 nodes got %d", len(nodes))
+			t.Fatalf("expected 2 nodes got %d", len(nodes))
 		}
 
 		event, err := cbor.GetEvent(ctx, ts1.DAGService(), nodes[0].Block().Cid())
@@ -113,7 +113,7 @@ func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 		if body.String() != back.String() {
-			t.Errorf("retrieved body does not equal input body")
+			t.Fatalf("retrieved body does not equal input body")
 		}
 	}
 }
@@ -123,7 +123,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 32)
 		opts := tserv.AddOpt.Thread(tid)
 
-		invite, err := ts1.NewInvite(tid, true)
+		invite, err := cbor.NewInvite(ts1.Logs(tid), true)
 		if err != nil {
 			t.Fatal(err)
 		}

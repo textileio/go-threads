@@ -3,7 +3,6 @@ package threads
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -21,12 +19,12 @@ import (
 	p2phttp "github.com/libp2p/go-libp2p-http"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 	"github.com/textileio/go-textile-threads/cbor"
 	tserver "github.com/textileio/go-textile-threads/threadserver"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 const (
@@ -114,7 +112,7 @@ func (ts *threadservice) DAGService() format.DAGService {
 	return ts.dagService
 }
 
-func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, c cid.Cid, err error) {
+func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, n thread.Node, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
 	log, err := ts.getOrCreateOwnLog(settings.Thread)
@@ -129,11 +127,11 @@ func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tser
 	}
 
 	// Send log to known writers
-	for _, l := range ts.ThreadInfo(settings.Thread).Logs {
-		if l.String() == log.ID.String() {
+	for _, i := range ts.ThreadInfo(settings.Thread).Logs {
+		if i.String() == log.ID.String() {
 			continue
 		}
-		for _, a := range ts.Addrs(settings.Thread, l) {
+		for _, a := range ts.Addrs(settings.Thread, i) {
 			err = ts.send(ctx, coded, settings.Thread, log.ID, a)
 			if err != nil {
 				return
@@ -152,7 +150,7 @@ func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tser
 	// Publish to network
 	// @todo
 
-	return log.ID, coded.Cid(), nil
+	return log.ID, coded, nil
 }
 
 func (ts *threadservice) Put(ctx context.Context, node thread.Node, opts ...tserv.PutOption) error {
@@ -207,19 +205,13 @@ func (ts *threadservice) Pull(ctx context.Context, t thread.ID, l peer.ID, opts 
 	return nodes, nil
 }
 
-func (ts *threadservice) NewInvite(t thread.ID, reader bool) (format.Node, error) {
-	invite := cbor.Invite{
-		Logs: make(map[string]thread.LogInfo),
-	}
+func (ts *threadservice) Logs(t thread.ID) []thread.LogInfo {
+	logs := make([]thread.LogInfo, 0)
 	for _, l := range ts.ThreadInfo(t).Logs {
 		log := ts.LogInfo(t, l)
-		log.PrivKey = nil
-		if !reader {
-			log.ReadKey = nil
-		}
-		invite.Logs[l.String()] = log
+		logs = append(logs, log)
 	}
-	return cbor.NewInvite(invite)
+	return logs
 }
 
 func (ts *threadservice) Delete(ctx context.Context, t thread.ID) error {
@@ -227,34 +219,7 @@ func (ts *threadservice) Delete(ctx context.Context, t thread.ID) error {
 }
 
 func (ts *threadservice) createLog() (info thread.LogInfo, err error) {
-	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return
-	}
-	id, err := peer.IDFromPublicKey(pk)
-	if err != nil {
-		return
-	}
-	rk, err := symmetric.CreateKey()
-	if err != nil {
-		return
-	}
-	fk, err := symmetric.CreateKey()
-	if err != nil {
-		return
-	}
-	addr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", ts.host.ID().String()))
-	if err != nil {
-		return
-	}
-	return thread.LogInfo{
-		ID:        id,
-		PubKey:    pk,
-		PrivKey:   sk,
-		ReadKey:   rk.Bytes(),
-		FollowKey: fk.Bytes(),
-		Addrs:     []ma.Multiaddr{addr},
-	}, nil
+	return util.CreateLog(ts.host.ID())
 }
 
 func (ts *threadservice) getOrCreateLog(t thread.ID, l peer.ID) (info thread.LogInfo, err error) {
@@ -285,7 +250,7 @@ func (ts *threadservice) getOrCreateOwnLog(t thread.ID) (info thread.LogInfo, er
 	return
 }
 
-func (ts *threadservice) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (format.Node, error) {
+func (ts *threadservice) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (thread.Node, error) {
 	if settings.Key == nil {
 		var err error
 		settings.Key, err = crypto.ParseEncryptionKey(log.ReadKey)
@@ -328,7 +293,7 @@ func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Type", "application/cbor")
 
 	sk := ts.Host().Peerstore().PrivKey(ts.Host().ID())
 	if sk == nil {
@@ -338,18 +303,18 @@ func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Identity", base64.StdEncoding.EncodeToString(pk))
+	req.Header.Set("X-Identity", base64.StdEncoding.EncodeToString(pk))
 	sig, err := sk.Sign(node.RawData())
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Signature", base64.StdEncoding.EncodeToString(sig))
+	req.Header.Set("X-Signature", base64.StdEncoding.EncodeToString(sig))
 
 	fk := ts.FollowKey(t, l)
 	if fk == nil {
 		return fmt.Errorf("could not find follow key")
 	}
-	req.Header.Set("Authorization", base64.StdEncoding.EncodeToString(fk))
+	req.Header.Set("X-FollowKey", base64.StdEncoding.EncodeToString(fk))
 
 	res, err := ts.client.Do(req)
 	if err != nil {
@@ -364,7 +329,7 @@ func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID
 		}
 		fmt.Println("created!")
 		fmt.Println(string(body))
-	case http.StatusOK:
+	case http.StatusNoContent:
 		fmt.Println("ok!")
 	}
 	return nil

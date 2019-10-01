@@ -2,6 +2,7 @@ package cbor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipld-cbor"
@@ -103,4 +104,16 @@ func (n *Node) Sig() []byte {
 
 func (n *Node) Prev() cid.Cid {
 	return n.n.Prev
+}
+
+func (n *Node) Verify(pk ic.PubKey) error {
+	payload := n.block.RawData()
+	if n.Prev().Defined() {
+		payload = append(payload, n.Prev().Bytes()...)
+	}
+	ok, err := pk.Verify(payload, n.Sig())
+	if !ok || err != nil {
+		return fmt.Errorf("bad signature")
+	}
+	return nil
 }

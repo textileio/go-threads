@@ -16,6 +16,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.0.9
 	github.com/libp2p/go-libp2p-gostream v0.1.2
 	github.com/libp2p/go-libp2p-http v0.1.3
+	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/multiformats/go-multiaddr v0.0.4
 	github.com/multiformats/go-multihash v0.0.6

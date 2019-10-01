@@ -25,6 +25,7 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 	"github.com/textileio/go-textile-threads/threadserver/static/css"
 	"github.com/textileio/go-textile-threads/threadserver/templates"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 const (
@@ -117,17 +118,13 @@ func (s *Threadserver) Close() error {
 func (s *Threadserver) pullHandler(g *gin.Context) {
 	tid, err := thread.Decode(g.Param("thread"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("invalid thread id: %s", err.Error()),
-		})
+		s.error(g, http.StatusBadRequest, "invalid thread id", err)
 		return
 	}
 
 	id, err := peer.IDB58Decode(g.Param("id"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("invalid log id: %s", err.Error()),
-		})
+		s.error(g, http.StatusBadRequest, "invalid log id", err)
 		return
 	}
 
@@ -144,9 +141,7 @@ func (s *Threadserver) pullHandler(g *gin.Context) {
 	defer cancel()
 	events, err := s.service().Pull(ctx, tid, id, tserv.PullOpt.Limit(limit))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		s.error(g, http.StatusInternalServerError, "oops", err)
 		return
 	}
 
@@ -156,84 +151,98 @@ func (s *Threadserver) pullHandler(g *gin.Context) {
 func (s *Threadserver) eventHandler(g *gin.Context) {
 	tid, err := thread.Decode(g.Param("thread"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("invalid thread id: %s", err.Error()),
-		})
+		s.error(g, http.StatusBadRequest, "invalid thread id", err)
 		return
 	}
 	id, err := peer.IDB58Decode(g.Param("id"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("invalid log id: %s", err.Error()),
-		})
+		s.error(g, http.StatusBadRequest, "invalid log id", err)
 		return
 	}
-	pkb, err := base64.StdEncoding.DecodeString(g.Request.Header.Get("Identity"))
+	pkb, err := base64.StdEncoding.DecodeString(g.Request.Header.Get("X-Identity"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid identity",
-		})
+		s.error(g, http.StatusBadRequest, "invalid identity", err)
 		return
 	}
 	pk, err := ic.UnmarshalPublicKey(pkb)
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid identity",
-		})
+		s.error(g, http.StatusBadRequest, "invalid identity", err)
 		return
 	}
-	sig, err := base64.StdEncoding.DecodeString(g.Request.Header.Get("Signature"))
+	sig, err := base64.StdEncoding.DecodeString(g.Request.Header.Get("X-Signature"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid signature",
-		})
+		s.error(g, http.StatusBadRequest, "invalid signature", err)
 		return
 	}
-	fk, err := base64.StdEncoding.DecodeString(g.Request.Header.Get("Authorization"))
+	fk, err := base64.StdEncoding.DecodeString(g.Request.Header.Get("X-FollowKey"))
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid authorization",
-		})
+		s.error(g, http.StatusBadRequest, "invalid key", err)
 		return
 	}
 
 	body, err := ioutil.ReadAll(g.Request.Body)
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid event",
-		})
+		s.error(g, http.StatusBadRequest, "invalid event", err)
 		return
 	}
 	defer g.Request.Body.Close()
+
+	// Verify sender
+	ok, err := pk.Verify(body, sig)
+	if !ok || err != nil {
+		s.error(g, http.StatusBadRequest, "invalid event", fmt.Errorf("bad signature"))
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	node, err := s.decodeBody(ctx, body, fk)
 	if err != nil {
-		g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "invalid event",
-		})
+		s.error(g, http.StatusBadRequest, "invalid event", err)
 		return
 	}
 
-	// @todo: validate node w/ sig and sender pk
-
-	log := s.service().LogInfo(tid, id)
-	if log.PubKey == nil {
-		// This is a new log
-		// @todo: parse as invite (decyrpt w/ own sk)
-		// @todo: add log
-		// @todo: if read key present, create own log
-		// @todo: if read key present, respond w/ new invite
+	event, err := cbor.DecodeEvent(node.Block())
+	if err != nil {
+		s.error(g, http.StatusBadRequest, "invalid event", err)
+		return
 	}
 
-	// @todo: put node (add local, update head)
+	var res thread.Node
+	lpk := s.service().PubKey(tid, id)
+	if lpk == nil {
+		// This is a new log
+		res, err = s.handleInvite(ctx, tid, id, event)
+		if err != nil {
+			s.error(g, http.StatusBadRequest, "invalid event", err)
+			return
+		}
+		lpk = s.service().PubKey(tid, id)
+		if lpk == nil || !id.MatchesPublicKey(lpk) {
+			s.error(g, http.StatusBadRequest, "invalid event", fmt.Errorf("bad pubkey"))
+			return
+		}
+	}
 
-	g.Status(http.StatusCreated)
-}
+	// Verify node
+	err = node.Verify(lpk)
+	if err != nil {
+		s.error(g, http.StatusBadRequest, "invalid event", err)
+		return
+	}
 
-func (s *Threadserver) render404(g *gin.Context) {
-	g.HTML(http.StatusNotFound, "404", nil)
+	err = s.service().Put(ctx, node, tserv.PutOpt.Thread(tid).Log(id))
+	if err != nil {
+		s.error(g, http.StatusBadRequest, "invalid event", err)
+		return
+	}
+
+	if res != nil {
+		g.Writer.Header().Set("X-FollowKey", base64.StdEncoding.EncodeToString(fk))
+		g.JSON(http.StatusCreated, res.RawData())
+	} else {
+		g.Status(http.StatusNoContent)
+	}
 }
 
 func (s *Threadserver) decodeBody(ctx context.Context, body []byte, fk []byte) (thread.Node, error) {
@@ -246,6 +255,75 @@ func (s *Threadserver) decodeBody(ctx context.Context, body []byte, fk []byte) (
 		return nil, err
 	}
 	return cbor.DecodeNode(ctx, s.service().DAGService(), node, followKey)
+}
+
+func (s *Threadserver) handleInvite(ctx context.Context, t thread.ID, l peer.ID, event thread.Event) (thread.Node, error) {
+	sk := s.service().Host().Peerstore().PrivKey(s.service().Host().ID())
+	if sk == nil {
+		return nil, fmt.Errorf("private key not found")
+	}
+	skb, err := ic.MarshalPrivateKey(sk)
+	if err != nil {
+		return nil, err
+	}
+	key, err := crypto.ParseDecryptionKey(skb)
+	if err != nil {
+		return nil, err
+	}
+	body, err := event.Body(ctx, s.service().DAGService(), key)
+	if err != nil {
+		return nil, err
+	}
+	logs, reader, err := cbor.DecodeInvite(body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add own log first because Add will attempt to notify the other logs,
+	// which is not needed here.
+	var node thread.Node
+	if reader {
+		log, err := util.CreateLog(s.service().Host().ID())
+		if err != nil {
+			return nil, err
+		}
+		err = s.service().AddLog(t, log)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create an invite for the response
+		invite, err := cbor.NewInvite([]thread.LogInfo{log}, true)
+		if err != nil {
+			return nil, err
+		}
+		_, node, err = s.service().Add(ctx, invite, tserv.AddOpt.Thread(t))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Add additional logs
+	for _, log := range logs {
+		err = s.service().AddLog(t, log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return node, nil
+}
+
+func (s *Threadserver) error(g *gin.Context, status int, prefix string, err error) {
+	msg := err.Error()
+	if prefix != "" {
+		msg = prefix + ": " + msg
+	}
+	g.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": msg})
+}
+
+func (s *Threadserver) render404(g *gin.Context) {
+	g.HTML(http.StatusNotFound, "404", nil)
 }
 
 func parseTemplates() *template.Template {
