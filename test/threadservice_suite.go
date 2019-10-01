@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-cid"
+	"github.com/textileio/go-textile-core/crypto"
+	"github.com/textileio/go-textile-threads/cbor"
+
 	"github.com/ipfs/go-ipfs/dagutils"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/libp2p/go-libp2p"
@@ -20,8 +22,8 @@ import (
 )
 
 var threadserviceSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
-	"PutPull":   testPutPull,
-	"PutInvite": testPutInvite,
+	"AddPull":   testAddPull,
+	"AddInvite": testAddInvite,
 	"Close":     testClose,
 }
 
@@ -56,8 +58,9 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	return ts
 }
 
-func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
+		ctx := context.Background()
 		tid := thread.NewIDV1(thread.Raw, 32)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
@@ -68,7 +71,7 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		lid1, nid1, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
+		lid1, nid1, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +79,7 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Errorf("expected node id to be defined")
 		}
 
-		lid2, nid2, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
+		lid2, nid2, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -88,15 +91,24 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Errorf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
 		}
 
-		events, err := ts1.Pull(context.Background(), cid.Undef, 2, ts1.LogInfo(tid, lid1))
+		nodes, err := ts1.Pull(ctx, tid, lid1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(events) != 2 {
-			t.Errorf("expected 2 event got %d", len(events))
+		if len(nodes) != 2 {
+			t.Errorf("expected 2 nodes got %d", len(nodes))
 		}
 
-		back, err := events[0].Decrypt()
+		event, err := cbor.GetEvent(ctx, ts1.DAGService(), nodes[0].Block().Cid())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		readKey, err := crypto.ParseDecryptionKey(ts1.ReadKey(tid, lid1))
+		if err != nil {
+			t.Fatal(err)
+		}
+		back, err := event.Body(ctx, ts1.DAGService(), readKey)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -106,10 +118,10 @@ func testPutPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	}
 }
 
-func testPutInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 32)
-		opts := tserv.PutOpt.Thread(tid)
+		opts := tserv.AddOpt.Thread(tid)
 
 		invite, err := ts1.NewInvite(tid, true)
 		if err != nil {
@@ -136,55 +148,12 @@ func testPutInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		}
 		opts = opts.Addrs([]ma.Multiaddr{a})
 
-		_, _, err = ts1.Put(context.Background(), invite, opts)
+		_, _, err = ts1.Add(context.Background(), invite, opts)
 		if err != nil {
 			t.Fatal(err)
 		}
-
 	}
 }
-
-//func testAPI(ts1, ts2 tserv.Threadservice) func(*testing.T) {
-//	return func(t *testing.T) {
-//
-//		body, err := cbornode.WrapObject(map[string]interface{}{
-//			"foo": "bar",
-//			"baz": []byte("howdy"),
-//		}, mh.SHA2_256, -1)
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//
-//		tid := thread.NewIDV1(thread.Raw, 32)
-//		lid1, nid1, err := ts1.Put(context.Background(), body, tserv.PutOpt.Thread(tid))
-//		if err != nil {
-//			t.Fatal(err)
-//		}
-//
-//		// invite other peer
-//		// get head on either peer
-//
-//		t.Run("get head", func(t *testing.T) {
-//			addr := fmt.Sprintf("ipel://%s/%s", ts2.Host().ID().Pretty(), "pull/foo")
-//
-//			// ts.Pull()
-//
-//			res, err := ts1.Client().Get(addr)
-//			if err != nil {
-//				t.Fatal(err)
-//			}
-//			defer res.Body.Close()
-//			text, err := ioutil.ReadAll(res.Body)
-//			if err != nil {
-//				t.Fatal(err)
-//			}
-//			if string(text) != "Hi!" {
-//				//t.Errorf("expected Hi! but got %s", string(text))
-//			}
-//		})
-//
-//	}
-//}
 
 func testClose(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {

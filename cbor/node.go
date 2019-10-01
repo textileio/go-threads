@@ -16,39 +16,42 @@ func init() {
 	cbornode.RegisterCborType(node{})
 }
 
-func NewNode(block format.Node, prev cid.Cid, sk ic.PrivKey) (thread.Node, error) {
-	tnode := &Node{block: block}
-	n := &node{
-		Block: tnode.block.Cid(),
-	}
-	payload := tnode.block.RawData()
+func NewNode(ctx context.Context, dag format.DAGService, block format.Node, prev cid.Cid, sk ic.PrivKey, fk crypto.EncryptionKey) (thread.Node, error) {
+	payload := block.RawData()
 	if prev.Defined() {
-		n.Prev = prev
-		payload = append(payload, n.Prev.Bytes()...)
+		payload = append(payload, prev.Bytes()...)
 	}
-	var err error
-	n.Sig, err = sk.Sign(payload)
+	sig, err := sk.Sign(payload)
 	if err != nil {
 		return nil, err
 	}
-	tnode.Node, err = cbornode.WrapObject(n, mh.SHA2_256, -1)
+	n := &node{
+		Block: block.Cid(),
+		Sig:   sig,
+		Prev:  prev,
+	}
+	node, err := cbornode.WrapObject(n, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
-	tnode.sig = n.Sig
-	tnode.prev = n.Prev
-	return tnode, nil
+	coded, err := EncodeBlock(node, fk)
+	if err != nil {
+		return nil, err
+	}
+
+	err = dag.AddMany(ctx, []format.Node{coded})
+	if err != nil {
+		return nil, err
+	}
+
+	return &Node{
+		Node:  coded,
+		n:     n,
+		block: block,
+	}, nil
 }
 
-func EncodeNode(node format.Node, key crypto.EncryptionKey) (format.Node, error) {
-	return EncodeBlock(node, key)
-}
-
-func DecodeNode(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Node, error) {
-	coded, err := dag.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+func DecodeNode(ctx context.Context, dag format.DAGService, coded format.Node, key crypto.DecryptionKey) (thread.Node, error) {
 	decoded, err := DecodeBlock(coded, key)
 	if err != nil {
 		return nil, err
@@ -63,11 +66,18 @@ func DecodeNode(ctx context.Context, dag format.DAGService, id cid.Cid, key cryp
 		return nil, err
 	}
 	return &Node{
-		Node:  decoded,
+		Node:  coded,
+		n:     n,
 		block: block,
-		sig:   n.Sig,
-		prev:  n.Prev,
 	}, nil
+}
+
+func GetNode(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Node, error) {
+	coded, err := dag.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return DecodeNode(ctx, dag, coded, key)
 }
 
 type node struct {
@@ -79,9 +89,8 @@ type node struct {
 type Node struct {
 	format.Node
 
+	n     *node
 	block format.Node
-	sig   []byte
-	prev  cid.Cid
 }
 
 func (n *Node) Block() format.Node {
@@ -89,9 +98,9 @@ func (n *Node) Block() format.Node {
 }
 
 func (n *Node) Sig() []byte {
-	return n.sig
+	return n.n.Sig
 }
 
 func (n *Node) Prev() cid.Cid {
-	return n.prev
+	return n.n.Prev
 }

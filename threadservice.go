@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -113,26 +114,18 @@ func (ts *threadservice) DAGService() format.DAGService {
 	return ts.dagService
 }
 
-func (ts *threadservice) Put(ctx context.Context, body format.Node, opts ...tserv.PutOption) (peer.ID, cid.Cid, error) {
-	// Get or create a log for the new event
-	settings := tserv.PutOptions(opts...)
-	log := ts.getOwnLog(settings.Thread)
-	if log == nil {
-		var err error
-		log, err = ts.generateLog()
-		if err != nil {
-			return "", cid.Undef, err
-		}
-		err = ts.AddLog(settings.Thread, *log)
-		if err != nil {
-			return "", cid.Undef, err
-		}
+func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, c cid.Cid, err error) {
+	// Get or create a log for the new node
+	settings := tserv.AddOptions(opts...)
+	log, err := ts.getOrCreateOwnLog(settings.Thread)
+	if err != nil {
+		return
 	}
 
-	// Write the event locally
-	coded, err := ts.writeEvent(ctx, body, log, settings)
+	// Write a node locally
+	coded, err := ts.createNode(ctx, body, log, settings)
 	if err != nil {
-		return "", cid.Undef, err
+		return
 	}
 
 	// Send log to known writers
@@ -143,7 +136,7 @@ func (ts *threadservice) Put(ctx context.Context, body format.Node, opts ...tser
 		for _, a := range ts.Addrs(settings.Thread, l) {
 			err = ts.send(ctx, coded, settings.Thread, log.ID, a)
 			if err != nil {
-				return "", cid.Undef, err
+				return
 			}
 		}
 	}
@@ -152,7 +145,7 @@ func (ts *threadservice) Put(ctx context.Context, body format.Node, opts ...tser
 	for _, a := range settings.Addrs {
 		err = ts.send(ctx, coded, settings.Thread, log.ID, a)
 		if err != nil {
-			return "", cid.Undef, err
+			return
 		}
 	}
 
@@ -162,44 +155,56 @@ func (ts *threadservice) Put(ctx context.Context, body format.Node, opts ...tser
 	return log.ID, coded.Cid(), nil
 }
 
+func (ts *threadservice) Put(ctx context.Context, node thread.Node, opts ...tserv.PutOption) error {
+	// Get or create a log for the new node
+	settings := tserv.PutOptions(opts...)
+	log, err := ts.getOrCreateLog(settings.Thread, settings.Log)
+	if err != nil {
+		return err
+	}
+
+	// Save the node locally
+	err = ts.dagService.AddMany(ctx, []format.Node{node, node.Block()})
+	if err != nil {
+		return err
+	}
+
+	ts.SetHead(settings.Thread, log.ID, node.Cid())
+	return nil
+}
+
 // if own log, return local values
 // if not, call addresses
-func (ts *threadservice) Pull(ctx context.Context, offset cid.Cid, limit int, log thread.LogInfo) ([]thread.Event, error) {
-	if !offset.Defined() {
+func (ts *threadservice) Pull(ctx context.Context, t thread.ID, l peer.ID, opts ...tserv.PullOption) ([]thread.Node, error) {
+	log := ts.LogInfo(t, l)
+
+	settings := tserv.PullOptions(opts...)
+	if !settings.Offset.Defined() {
 		if len(log.Heads) == 0 {
 			return nil, nil
 		}
-		offset = log.Heads[0]
+		settings.Offset = log.Heads[0]
 	}
 
 	followKey, err := crypto.ParseDecryptionKey(log.FollowKey)
 	if err != nil {
 		return nil, err
 	}
-	readKey, err := crypto.ParseDecryptionKey(log.ReadKey)
-	if err != nil {
-		return nil, err
-	}
 
-	var events []thread.Event
-	for i := 0; i < limit; i++ {
-		node, err := cbor.DecodeNode(ctx, ts.dagService, offset, followKey)
+	var nodes []thread.Node
+	for i := 0; i < settings.Limit; i++ {
+		node, err := cbor.GetNode(ctx, ts.dagService, settings.Offset, followKey)
 		if err != nil {
 			return nil, err
 		}
+		nodes = append(nodes, node)
 
-		event, err := cbor.DecodeEvent(ctx, ts.dagService, node.Block().Cid(), readKey)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, event)
-
-		offset = node.Prev()
-		if !offset.Defined() {
+		settings.Offset = node.Prev()
+		if !settings.Offset.Defined() {
 			break
 		}
 	}
-	return events, nil
+	return nodes, nil
 }
 
 func (ts *threadservice) NewInvite(t thread.ID, reader bool) (format.Node, error) {
@@ -217,13 +222,136 @@ func (ts *threadservice) NewInvite(t thread.ID, reader bool) (format.Node, error
 	return cbor.NewInvite(invite)
 }
 
+func (ts *threadservice) Delete(ctx context.Context, t thread.ID) error {
+	panic("implement me")
+}
+
+func (ts *threadservice) createLog() (info thread.LogInfo, err error) {
+	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		return
+	}
+	id, err := peer.IDFromPublicKey(pk)
+	if err != nil {
+		return
+	}
+	rk, err := symmetric.CreateKey()
+	if err != nil {
+		return
+	}
+	fk, err := symmetric.CreateKey()
+	if err != nil {
+		return
+	}
+	addr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", ts.host.ID().String()))
+	if err != nil {
+		return
+	}
+	return thread.LogInfo{
+		ID:        id,
+		PubKey:    pk,
+		PrivKey:   sk,
+		ReadKey:   rk.Bytes(),
+		FollowKey: fk.Bytes(),
+		Addrs:     []ma.Multiaddr{addr},
+	}, nil
+}
+
+func (ts *threadservice) getOrCreateLog(t thread.ID, l peer.ID) (info thread.LogInfo, err error) {
+	info = ts.LogInfo(t, l)
+	if info.PubKey != nil {
+		return
+	}
+	info, err = ts.createLog()
+	if err != nil {
+		return
+	}
+	err = ts.AddLog(t, info)
+	return
+}
+
+func (ts *threadservice) getOrCreateOwnLog(t thread.ID) (info thread.LogInfo, err error) {
+	for _, id := range ts.LogsWithKeys(t) {
+		if ts.PrivKey(t, id) != nil {
+			info = ts.LogInfo(t, id)
+			return
+		}
+	}
+	info, err = ts.createLog()
+	if err != nil {
+		return
+	}
+	err = ts.AddLog(t, info)
+	return
+}
+
+func (ts *threadservice) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (format.Node, error) {
+	if settings.Key == nil {
+		var err error
+		settings.Key, err = crypto.ParseEncryptionKey(log.ReadKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+	event, err := cbor.NewEvent(ctx, ts.dagService, body, settings)
+	if err != nil {
+		return nil, err
+	}
+
+	prev := cid.Undef
+	if len(log.Heads) != 0 {
+		prev = log.Heads[0]
+	}
+	followKey, err := crypto.ParseEncryptionKey(log.FollowKey)
+	if err != nil {
+		return nil, err
+	}
+	node, err := cbor.NewNode(ctx, ts.dagService, event, prev, log.PrivKey, followKey)
+	if err != nil {
+		return nil, err
+	}
+
+	ts.SetHead(settings.Thread, log.ID, node.Cid())
+
+	return node, nil
+}
+
 func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID, l peer.ID, addr ma.Multiaddr) error {
 	p, err := addr.ValueForProtocol(ma.P_P2P)
 	if err != nil {
 		return err
 	}
 	uri := fmt.Sprintf("%s://%s/threads/v0/%s/%s", IPEL, p, t.String(), l.String())
-	res, err := ts.client.Post(uri, "application/octet-stream", bytes.NewReader(node.RawData()))
+	reader := bytes.NewReader(node.RawData())
+
+	req, err := http.NewRequest(http.MethodPost, uri, reader)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+
+	sk := ts.Host().Peerstore().PrivKey(ts.Host().ID())
+	if sk == nil {
+		return fmt.Errorf("could not find key for host")
+	}
+	pk, err := sk.GetPublic().Bytes()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Identity", base64.StdEncoding.EncodeToString(pk))
+	sig, err := sk.Sign(node.RawData())
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Signature", base64.StdEncoding.EncodeToString(sig))
+
+	fk := ts.FollowKey(t, l)
+	if fk == nil {
+		return fmt.Errorf("could not find follow key")
+	}
+	req.Header.Set("Authorization", base64.StdEncoding.EncodeToString(fk))
+
+	res, err := ts.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -240,94 +368,4 @@ func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID
 		fmt.Println("ok!")
 	}
 	return nil
-}
-
-func (ts *threadservice) Delete(ctx context.Context, t thread.ID) error {
-	panic("implement me")
-}
-
-func (ts *threadservice) generateLog() (*thread.LogInfo, error) {
-	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-	id, err := peer.IDFromPublicKey(pk)
-	if err != nil {
-		return nil, err
-	}
-	rk, err := symmetric.CreateKey()
-	if err != nil {
-		return nil, err
-	}
-	fk, err := symmetric.CreateKey()
-	if err != nil {
-		return nil, err
-	}
-	addr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", ts.host.ID().String()))
-	if err != nil {
-		return nil, err
-	}
-	return &thread.LogInfo{
-		ID:        id,
-		PubKey:    pk,
-		PrivKey:   sk,
-		ReadKey:   rk.Bytes(),
-		FollowKey: fk.Bytes(),
-		Addrs:     []ma.Multiaddr{addr},
-	}, nil
-}
-
-func (ts *threadservice) getOwnLog(t thread.ID) *thread.LogInfo {
-	for _, id := range ts.LogsWithKeys(t) {
-		sk := ts.PrivKey(t, id)
-		if sk != nil {
-			log := ts.LogInfo(t, id)
-			return &log
-		}
-	}
-	return nil
-}
-
-func (ts *threadservice) writeEvent(ctx context.Context, body format.Node, log *thread.LogInfo, settings *tserv.PutSettings) (format.Node, error) {
-	if settings.Key == nil {
-		var err error
-		settings.Key, err = crypto.ParseEncryptionKey(log.ReadKey)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	event, err := cbor.NewEvent(body, settings)
-	if err != nil {
-		return nil, err
-	}
-	ecoded, err := cbor.EncodeEvent(event, settings.Key)
-	if err != nil {
-		return nil, err
-	}
-	prev := cid.Undef
-	if len(log.Heads) != 0 {
-		prev = log.Heads[0]
-	}
-	node, err := cbor.NewNode(ecoded, prev, log.PrivKey)
-	if err != nil {
-		return nil, err
-	}
-	followKey, err := crypto.ParseEncryptionKey(log.FollowKey)
-	if err != nil {
-		return nil, err
-	}
-	coded, err := cbor.EncodeNode(node, followKey)
-	if err != nil {
-		return nil, err
-	}
-
-	err = ts.dagService.AddMany(ctx, []format.Node{event.Header(), event.Body(), ecoded, coded})
-	if err != nil {
-		return nil, err
-	}
-
-	ts.SetHead(settings.Thread, log.ID, coded.Cid())
-
-	return coded, nil
 }
