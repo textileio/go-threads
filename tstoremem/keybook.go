@@ -97,18 +97,6 @@ func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) ic.PubKey {
 	mkb.RLock()
 	pk, _ := mkb.getPubKey(t, p)
 	mkb.RUnlock()
-	if pk != nil {
-		return pk
-	}
-	pk, err := p.ExtractPublicKey()
-	if err == nil {
-		mkb.Lock()
-		if mkb.pks[t] == nil {
-			mkb.pks[t] = make(map[peer.ID]ic.PubKey, 1)
-		}
-		mkb.pks[t][p] = pk
-		mkb.Unlock()
-	}
 	return pk
 }
 

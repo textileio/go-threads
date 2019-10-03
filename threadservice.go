@@ -139,7 +139,7 @@ func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tser
 		}
 	}
 
-	// Send to options addresses
+	// Send to additional addresses
 	for _, a := range settings.Addrs {
 		err = ts.send(ctx, coded, settings.Thread, log.ID, a)
 		if err != nil {
@@ -162,7 +162,24 @@ func (ts *threadservice) Put(ctx context.Context, node thread.Node, opts ...tser
 	}
 
 	// Save the node locally
-	err = ts.dagService.AddMany(ctx, []format.Node{node, node.Block()})
+	// Note: These get methods will return cached nodes.
+	block, err := node.GetBlock(ctx, ts.dagService)
+	if err != nil {
+		return err
+	}
+	event, ok := block.(*cbor.Event)
+	if !ok {
+		return fmt.Errorf("invalid event")
+	}
+	header, err := event.GetHeader(ctx, ts.dagService, nil)
+	if err != nil {
+		return err
+	}
+	body, err := event.GetBody(ctx, ts.dagService, nil)
+	if err != nil {
+		return err
+	}
+	err = ts.dagService.AddMany(ctx, []format.Node{node, event, header, body})
 	if err != nil {
 		return err
 	}
@@ -197,7 +214,7 @@ func (ts *threadservice) Pull(ctx context.Context, t thread.ID, l peer.ID, opts 
 		}
 		nodes = append(nodes, node)
 
-		settings.Offset = node.Prev()
+		settings.Offset = node.PrevID()
 		if !settings.Offset.Defined() {
 			break
 		}
@@ -281,15 +298,18 @@ func (ts *threadservice) createNode(ctx context.Context, body format.Node, log t
 	return node, nil
 }
 
-func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID, l peer.ID, addr ma.Multiaddr) error {
+func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID, l peer.ID, addr ma.Multiaddr) error {
 	p, err := addr.ValueForProtocol(ma.P_P2P)
 	if err != nil {
 		return err
 	}
 	uri := fmt.Sprintf("%s://%s/threads/v0/%s/%s", IPEL, p, t.String(), l.String())
-	reader := bytes.NewReader(node.RawData())
+	payload, err := cbor.Marshal(ctx, ts.dagService, node)
+	if err != nil {
+		return err
+	}
 
-	req, err := http.NewRequest(http.MethodPost, uri, reader)
+	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -304,7 +324,7 @@ func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID
 		return err
 	}
 	req.Header.Set("X-Identity", base64.StdEncoding.EncodeToString(pk))
-	sig, err := sk.Sign(node.RawData())
+	sig, err := sk.Sign(payload)
 	if err != nil {
 		return err
 	}
@@ -320,17 +340,17 @@ func (ts *threadservice) send(ctx context.Context, node format.Node, t thread.ID
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
 	switch res.StatusCode {
 	case http.StatusCreated:
-		defer res.Body.Close()
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return err
-		}
-		fmt.Println("created!")
 		fmt.Println(string(body))
 	case http.StatusNoContent:
-		fmt.Println("ok!")
+	default:
+		fmt.Println(string(body))
 	}
 	return nil
 }

@@ -14,12 +14,11 @@ import (
 	"github.com/gin-contrib/location"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
-	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	mh "github.com/multiformats/go-multihash"
 	cors "github.com/rs/cors/wrapper/gin"
 	"github.com/textileio/go-textile-core/crypto"
+	"github.com/textileio/go-textile-core/crypto/asymmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	"github.com/textileio/go-textile-threads/cbor"
@@ -194,24 +193,25 @@ func (s *Threadserver) eventHandler(g *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	node, err := s.decodeBody(ctx, body, fk)
+	node, err := decodeBody(body, fk)
 	if err != nil {
 		s.error(g, http.StatusBadRequest, "invalid event", err)
 		return
 	}
 
-	event, err := cbor.DecodeEvent(node.Block())
-	if err != nil {
-		s.error(g, http.StatusBadRequest, "invalid event", err)
-		return
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	var res thread.Node
 	lpk := s.service().PubKey(tid, id)
 	if lpk == nil {
 		// This is a new log
+		event, err := s.getEvent(ctx, node)
+		if err != nil {
+			s.error(g, http.StatusBadRequest, "invalid event", err)
+			return
+		}
+
 		res, err = s.handleInvite(ctx, tid, id, event)
 		if err != nil {
 			s.error(g, http.StatusBadRequest, "invalid event", err)
@@ -231,7 +231,7 @@ func (s *Threadserver) eventHandler(g *gin.Context) {
 		return
 	}
 
-	err = s.service().Put(ctx, node, tserv.PutOpt.Thread(tid).Log(id))
+	err = s.service().Put(ctx, node, tserv.PutOpt.Thread(tid), tserv.PutOpt.Log(id))
 	if err != nil {
 		s.error(g, http.StatusBadRequest, "invalid event", err)
 		return
@@ -245,32 +245,16 @@ func (s *Threadserver) eventHandler(g *gin.Context) {
 	}
 }
 
-func (s *Threadserver) decodeBody(ctx context.Context, body []byte, fk []byte) (thread.Node, error) {
-	node, err := cbornode.Decode(body, mh.SHA2_256, -1)
-	if err != nil {
-		return nil, err
-	}
-	followKey, err := crypto.ParseDecryptionKey(fk)
-	if err != nil {
-		return nil, err
-	}
-	return cbor.DecodeNode(ctx, s.service().DAGService(), node, followKey)
-}
-
 func (s *Threadserver) handleInvite(ctx context.Context, t thread.ID, l peer.ID, event thread.Event) (thread.Node, error) {
 	sk := s.service().Host().Peerstore().PrivKey(s.service().Host().ID())
 	if sk == nil {
 		return nil, fmt.Errorf("private key not found")
 	}
-	skb, err := ic.MarshalPrivateKey(sk)
+	key, err := asymmetric.NewDecryptionKey(sk)
 	if err != nil {
 		return nil, err
 	}
-	key, err := crypto.ParseDecryptionKey(skb)
-	if err != nil {
-		return nil, err
-	}
-	body, err := event.Body(ctx, s.service().DAGService(), key)
+	body, err := event.GetBody(ctx, s.service().DAGService(), key)
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +298,19 @@ func (s *Threadserver) handleInvite(ctx context.Context, t thread.ID, l peer.ID,
 	return node, nil
 }
 
+func (s *Threadserver) getEvent(ctx context.Context, node thread.Node) (thread.Event, error) {
+	block, err := node.GetBlock(ctx, s.service().DAGService())
+	if err != nil {
+		return nil, err
+	}
+
+	event, ok := block.(*cbor.Event)
+	if !ok {
+		return nil, fmt.Errorf("invalid event")
+	}
+	return event, nil
+}
+
 func (s *Threadserver) error(g *gin.Context, status int, prefix string, err error) {
 	msg := err.Error()
 	if prefix != "" {
@@ -324,6 +321,14 @@ func (s *Threadserver) error(g *gin.Context, status int, prefix string, err erro
 
 func (s *Threadserver) render404(g *gin.Context) {
 	g.HTML(http.StatusNotFound, "404", nil)
+}
+
+func decodeBody(body []byte, fk []byte) (thread.Node, error) {
+	followKey, err := crypto.ParseDecryptionKey(fk)
+	if err != nil {
+		return nil, err
+	}
+	return cbor.Unmarshal(body, followKey)
 }
 
 func parseTemplates() *template.Template {

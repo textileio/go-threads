@@ -17,7 +17,13 @@ func init() {
 	cbornode.RegisterCborType(node{})
 }
 
-func NewNode(ctx context.Context, dag format.DAGService, block format.Node, prev cid.Cid, sk ic.PrivKey, fk crypto.EncryptionKey) (thread.Node, error) {
+type node struct {
+	Block cid.Cid
+	Sig   []byte
+	Prev  cid.Cid `refmt:",omitempty"`
+}
+
+func NewNode(ctx context.Context, dag format.DAGService, block format.Node, prev cid.Cid, sk ic.PrivKey, key crypto.EncryptionKey) (thread.Node, error) {
 	payload := block.RawData()
 	if prev.Defined() {
 		payload = append(payload, prev.Bytes()...)
@@ -26,16 +32,16 @@ func NewNode(ctx context.Context, dag format.DAGService, block format.Node, prev
 	if err != nil {
 		return nil, err
 	}
-	n := &node{
+	obj := &node{
 		Block: block.Cid(),
 		Sig:   sig,
 		Prev:  prev,
 	}
-	node, err := cbornode.WrapObject(n, mh.SHA2_256, -1)
+	node, err := cbornode.WrapObject(obj, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
-	coded, err := EncodeBlock(node, fk)
+	coded, err := EncodeBlock(node, key)
 	if err != nil {
 		return nil, err
 	}
@@ -47,29 +53,24 @@ func NewNode(ctx context.Context, dag format.DAGService, block format.Node, prev
 
 	return &Node{
 		Node:  coded,
-		n:     n,
+		obj:   obj,
 		block: block,
 	}, nil
 }
 
-func DecodeNode(ctx context.Context, dag format.DAGService, coded format.Node, key crypto.DecryptionKey) (thread.Node, error) {
-	decoded, err := DecodeBlock(coded, key)
+func DecodeNode(coded format.Node, key crypto.DecryptionKey) (thread.Node, error) {
+	obj := new(node)
+	node, err := DecodeBlock(coded, key)
 	if err != nil {
 		return nil, err
 	}
-	n := new(node)
-	err = cbornode.DecodeInto(decoded.RawData(), n)
-	if err != nil {
-		return nil, err
-	}
-	block, err := dag.Get(ctx, n.Block)
+	err = cbornode.DecodeInto(node.RawData(), obj)
 	if err != nil {
 		return nil, err
 	}
 	return &Node{
-		Node:  coded,
-		n:     n,
-		block: block,
+		Node: coded,
+		obj:  obj,
 	}, nil
 }
 
@@ -78,38 +79,48 @@ func GetNode(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.
 	if err != nil {
 		return nil, err
 	}
-	return DecodeNode(ctx, dag, coded, key)
-}
-
-type node struct {
-	Block cid.Cid
-	Sig   []byte
-	Prev  cid.Cid `refmt:",omitempty"`
+	return DecodeNode(coded, key)
 }
 
 type Node struct {
 	format.Node
 
-	n     *node
+	obj   *node
 	block format.Node
 }
 
-func (n *Node) Block() format.Node {
-	return n.block
+func (n *Node) BlockID() cid.Cid {
+	return n.obj.Block
+}
+
+func (n *Node) GetBlock(ctx context.Context, dag format.DAGService) (format.Node, error) {
+	if n.block != nil {
+		return n.block, nil
+	}
+
+	var err error
+	n.block, err = dag.Get(ctx, n.obj.Block)
+	if err != nil {
+		return nil, err
+	}
+	return n.block, nil
+}
+
+func (n *Node) PrevID() cid.Cid {
+	return n.obj.Prev
 }
 
 func (n *Node) Sig() []byte {
-	return n.n.Sig
-}
-
-func (n *Node) Prev() cid.Cid {
-	return n.n.Prev
+	return n.obj.Sig
 }
 
 func (n *Node) Verify(pk ic.PubKey) error {
+	if n.block == nil {
+		return fmt.Errorf("block not loaded")
+	}
 	payload := n.block.RawData()
-	if n.Prev().Defined() {
-		payload = append(payload, n.Prev().Bytes()...)
+	if n.PrevID().Defined() {
+		payload = append(payload, n.PrevID().Bytes()...)
 	}
 	ok, err := pk.Verify(payload, n.Sig())
 	if !ok || err != nil {

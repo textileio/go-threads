@@ -2,6 +2,7 @@ package cbor
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -54,10 +55,11 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, sett
 	if err != nil {
 		return nil, err
 	}
-	node, err := cbornode.WrapObject(&event{
+	obj := &event{
 		Body:   codedBody.Cid(),
 		Header: codedHeader.Cid(),
-	}, mh.SHA2_256, -1)
+	}
+	node, err := cbornode.WrapObject(obj, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -69,24 +71,23 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, sett
 
 	return &Event{
 		Node: node,
+		obj:  obj,
 		header: &EventHeader{
 			Node: codedHeader,
-			n:    eventHeader,
-			time: int(eventHeader.Time),
-			key:  eventHeader.Key,
+			obj:  eventHeader,
 		},
 	}, nil
 }
 
 func DecodeEvent(node format.Node) (thread.Event, error) {
-	event := new(event)
-	err := cbornode.DecodeInto(node.RawData(), event)
+	obj := new(event)
+	err := cbornode.DecodeInto(node.RawData(), obj)
 	if err != nil {
 		return nil, err
 	}
 	return &Event{
 		Node: node,
-		n:    event,
+		obj:  obj,
 	}, nil
 }
 
@@ -101,63 +102,90 @@ func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Ev
 type Event struct {
 	format.Node
 
-	n      *event
+	obj    *event
 	header *EventHeader
+	body   format.Node
 }
 
-func (e *Event) Header(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (thread.EventHeader, error) {
-	if e.header != nil {
-		return e.header, nil
+func (e *Event) HeaderID() cid.Cid {
+	return e.obj.Header
+}
+
+func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (thread.EventHeader, error) {
+	if e.header == nil {
+		coded, err := dag.Get(ctx, e.obj.Header)
+		if err != nil {
+			return nil, err
+		}
+		e.header = &EventHeader{
+			Node: coded,
+		}
 	}
-	coded, err := dag.Get(ctx, e.n.Header)
-	if err != nil {
-		return nil, err
-	}
-	node, err := DecodeBlock(coded, key)
-	if err != nil {
-		return nil, err
-	}
+
 	header := new(eventHeader)
-	err = cbornode.DecodeInto(node.RawData(), header)
-	if err != nil {
-		return nil, err
-	}
-	e.header = &EventHeader{
-		Node: coded,
-		time: int(header.Time),
-		key:  header.Key,
+	if key != nil {
+		node, err := DecodeBlock(e.header, key)
+		if err != nil {
+			return nil, err
+		}
+		err = cbornode.DecodeInto(node.RawData(), header)
+		if err != nil {
+			return nil, err
+		}
+		e.header.obj = header
 	}
 	return e.header, nil
 }
 
-func (e *Event) Body(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (format.Node, error) {
-	header, err := e.Header(ctx, dag, key)
-	if err != nil {
-		return nil, err
+func (e *Event) BodyID() cid.Cid {
+	return e.obj.Body
+}
+
+func (e *Event) GetBody(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (format.Node, error) {
+	var k crypto.DecryptionKey
+	if key != nil {
+		header, err := e.GetHeader(ctx, dag, key)
+		if err != nil {
+			return nil, err
+		}
+		k, err = header.Key()
+		if err != nil {
+			return nil, err
+		}
 	}
-	coded, err := dag.Get(ctx, e.n.Body)
-	if err != nil {
-		return nil, err
+
+	var err error
+	if e.body == nil {
+		e.body, err = dag.Get(ctx, e.obj.Body)
+		if err != nil {
+			return nil, err
+		}
 	}
-	k, err := header.Key()
-	if err != nil {
-		return nil, err
+
+	if k == nil {
+		return e.body, nil
+	} else {
+		return DecodeBlock(e.body, k)
 	}
-	return DecodeBlock(coded, k)
 }
 
 type EventHeader struct {
 	format.Node
 
-	n    *eventHeader
-	time int
-	key  []byte
+	obj *eventHeader
 }
 
-func (h *EventHeader) Time() time.Time {
-	return time.Unix(int64(h.time), 0)
+func (h *EventHeader) Time() (*time.Time, error) {
+	if h.obj == nil {
+		return nil, fmt.Errorf("obj not loaded")
+	}
+	t := time.Unix(h.obj.Time, 0)
+	return &t, nil
 }
 
 func (h *EventHeader) Key() (crypto.DecryptionKey, error) {
-	return crypto.ParseDecryptionKey(h.key)
+	if h.obj == nil {
+		return nil, fmt.Errorf("obj not loaded")
+	}
+	return crypto.ParseDecryptionKey(h.obj.Key)
 }

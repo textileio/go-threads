@@ -4,9 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/textileio/go-textile-core/crypto"
-	"github.com/textileio/go-textile-threads/cbor"
-
 	"github.com/ipfs/go-ipfs/dagutils"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/libp2p/go-libp2p"
@@ -14,10 +11,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/asymmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	threads "github.com/textileio/go-textile-threads"
+	"github.com/textileio/go-textile-threads/cbor"
 	tstore "github.com/textileio/go-textile-threads/tstoremem"
 )
 
@@ -44,9 +43,14 @@ func ThreadserviceTest(t *testing.T) {
 }
 
 func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
+	sk, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
 	host, err := libp2p.New(
 		context.Background(),
 		libp2p.ListenAddrs(listen),
+		libp2p.Identity(sk),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +62,7 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	return ts
 }
 
-func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
 		tid := thread.NewIDV1(thread.Raw, 32)
@@ -99,7 +103,7 @@ func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatalf("expected 2 nodes got %d", len(nodes))
 		}
 
-		event, err := cbor.GetEvent(ctx, ts1.DAGService(), nodes[0].Block().Cid())
+		event, err := cbor.GetEvent(ctx, ts1.DAGService(), nodes[0].BlockID())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,7 +112,7 @@ func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		back, err := event.Body(ctx, ts1.DAGService(), readKey)
+		back, err := event.GetBody(ctx, ts1.DAGService(), readKey)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,8 +124,19 @@ func testAddPull(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 
 func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
+		ctx := context.Background()
 		tid := thread.NewIDV1(thread.Raw, 32)
-		opts := tserv.AddOpt.Thread(tid)
+
+		body, err := cbornode.WrapObject(map[string]interface{}{
+			"msg": "yo!",
+		}, mh.SHA2_256, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		invite, err := cbor.NewInvite(ts1.Logs(tid), true)
 		if err != nil {
@@ -132,23 +147,22 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if pk == nil {
 			t.Fatal("public key not found")
 		}
-		pkb, err := ic.MarshalPublicKey(pk)
+		ek, err := asymmetric.NewEncryptionKey(pk)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ek, err := asymmetric.NewEncryptionKey(pkb)
-		if err != nil {
-			t.Fatal(err)
-		}
-		opts = opts.Key(ek)
 
 		a, err := ma.NewMultiaddr("/p2p/" + ts2.Host().ID().String())
 		if err != nil {
 			t.Fatal(err)
 		}
-		opts = opts.Addrs([]ma.Multiaddr{a})
 
-		_, _, err = ts1.Add(context.Background(), invite, opts)
+		_, _, err = ts1.Add(
+			context.Background(),
+			invite,
+			tserv.AddOpt.Thread(tid),
+			tserv.AddOpt.Key(ek),
+			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
 		if err != nil {
 			t.Fatal(err)
 		}
