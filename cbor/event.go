@@ -99,6 +99,19 @@ func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Ev
 	return DecodeEvent(node)
 }
 
+func GetEventFromNode(ctx context.Context, dag format.DAGService, node thread.Node) (thread.Event, error) {
+	block, err := node.GetBlock(ctx, dag)
+	if err != nil {
+		return nil, err
+	}
+
+	event, ok := block.(*Event)
+	if !ok {
+		return nil, fmt.Errorf("invalid event")
+	}
+	return event, nil
+}
+
 type Event struct {
 	format.Node
 

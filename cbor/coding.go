@@ -45,6 +45,7 @@ func DecodeBlock(block blocks.Block, key crypto.DecryptionKey) (format.Node, err
 	return cbornode.Decode(decoded, mh.SHA2_256, -1)
 }
 
+// Marshal creates a serialized version of node that includes link data.
 func Marshal(ctx context.Context, dag format.DAGService, node thread.Node) ([]byte, error) {
 	block, err := node.GetBlock(ctx, dag)
 	if err != nil {
@@ -75,6 +76,7 @@ func Marshal(ctx context.Context, dag format.DAGService, node thread.Node) ([]by
 	return env.RawData(), nil
 }
 
+// Unmarshal returns a node from a serialized version that contains link data.
 func Unmarshal(data []byte, key crypto.DecryptionKey) (thread.Node, error) {
 	env := new(env)
 	err := cbornode.DecodeInto(data, env)

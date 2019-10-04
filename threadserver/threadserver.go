@@ -11,13 +11,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/textileio/go-textile-core/crypto"
+
 	"github.com/gin-contrib/location"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	cors "github.com/rs/cors/wrapper/gin"
-	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/asymmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -193,7 +194,12 @@ func (s *Threadserver) eventHandler(g *gin.Context) {
 		return
 	}
 
-	node, err := decodeBody(body, fk)
+	followKey, err := crypto.ParseDecryptionKey(fk)
+	if err != nil {
+		s.error(g, http.StatusBadRequest, "invalid event", err)
+		return
+	}
+	node, err := cbor.Unmarshal(body, followKey)
 	if err != nil {
 		s.error(g, http.StatusBadRequest, "invalid event", err)
 		return
@@ -203,21 +209,22 @@ func (s *Threadserver) eventHandler(g *gin.Context) {
 	defer cancel()
 
 	var res thread.Node
+	var nlog *thread.LogInfo
 	lpk := s.service().PubKey(tid, id)
 	if lpk == nil {
 		// This is a new log
-		event, err := s.getEvent(ctx, node)
+		event, err := cbor.GetEventFromNode(ctx, s.service().DAGService(), node)
 		if err != nil {
 			s.error(g, http.StatusBadRequest, "invalid event", err)
 			return
 		}
 
-		res, err = s.handleInvite(ctx, tid, id, event)
+		res, nlog, err = s.handleInvite(ctx, tid, id, event)
 		if err != nil {
 			s.error(g, http.StatusBadRequest, "invalid event", err)
 			return
 		}
-		lpk = s.service().PubKey(tid, id)
+		lpk = s.service().PubKey(tid, id) // @todo: This should happen before handling the invite
 		if lpk == nil || !id.MatchesPublicKey(lpk) {
 			s.error(g, http.StatusBadRequest, "invalid event", fmt.Errorf("bad pubkey"))
 			return
@@ -238,52 +245,60 @@ func (s *Threadserver) eventHandler(g *gin.Context) {
 	}
 
 	if res != nil {
-		g.Writer.Header().Set("X-FollowKey", base64.StdEncoding.EncodeToString(fk))
-		g.JSON(http.StatusCreated, res.RawData())
+		payload, err := cbor.Marshal(ctx, s.service().DAGService(), res)
+		if err != nil {
+			s.error(g, http.StatusInternalServerError, "oops", err)
+			return
+		}
+		g.Writer.Header().Set("X-FollowKey", base64.StdEncoding.EncodeToString(nlog.FollowKey))
+		g.Writer.Header().Set("X-ReadKey", base64.StdEncoding.EncodeToString(nlog.ReadKey))
+
+		g.Data(http.StatusCreated, "application/cbor", payload)
 	} else {
 		g.Status(http.StatusNoContent)
 	}
 }
 
-func (s *Threadserver) handleInvite(ctx context.Context, t thread.ID, l peer.ID, event thread.Event) (thread.Node, error) {
+func (s *Threadserver) handleInvite(ctx context.Context, t thread.ID, l peer.ID, event thread.Event) (thread.Node, *thread.LogInfo, error) {
 	sk := s.service().Host().Peerstore().PrivKey(s.service().Host().ID())
 	if sk == nil {
-		return nil, fmt.Errorf("private key not found")
+		return nil, nil, fmt.Errorf("private key not found")
 	}
 	key, err := asymmetric.NewDecryptionKey(sk)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	body, err := event.GetBody(ctx, s.service().DAGService(), key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	logs, reader, err := cbor.DecodeInvite(body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Add own log first because Add will attempt to notify the other logs,
 	// which is not needed here.
 	var node thread.Node
+	var nlog thread.LogInfo
 	if reader {
-		log, err := util.CreateLog(s.service().Host().ID())
+		nlog, err = util.CreateLog(s.service().Host().ID())
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		err = s.service().AddLog(t, log)
+		err = s.service().AddLog(t, nlog)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// Create an invite for the response
-		invite, err := cbor.NewInvite([]thread.LogInfo{log}, true)
+		invite, err := cbor.NewInvite([]thread.LogInfo{nlog}, true)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		_, node, err = s.service().Add(ctx, invite, tserv.AddOpt.Thread(t))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -291,24 +306,11 @@ func (s *Threadserver) handleInvite(ctx context.Context, t thread.ID, l peer.ID,
 	for _, log := range logs {
 		err = s.service().AddLog(t, log)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return node, nil
-}
-
-func (s *Threadserver) getEvent(ctx context.Context, node thread.Node) (thread.Event, error) {
-	block, err := node.GetBlock(ctx, s.service().DAGService())
-	if err != nil {
-		return nil, err
-	}
-
-	event, ok := block.(*cbor.Event)
-	if !ok {
-		return nil, fmt.Errorf("invalid event")
-	}
-	return event, nil
+	return node, &nlog, nil
 }
 
 func (s *Threadserver) error(g *gin.Context, status int, prefix string, err error) {
@@ -321,14 +323,6 @@ func (s *Threadserver) error(g *gin.Context, status int, prefix string, err erro
 
 func (s *Threadserver) render404(g *gin.Context) {
 	g.HTML(http.StatusNotFound, "404", nil)
-}
-
-func decodeBody(body []byte, fk []byte) (thread.Node, error) {
-	followKey, err := crypto.ParseDecryptionKey(fk)
-	if err != nil {
-		return nil, err
-	}
-	return cbor.Unmarshal(body, followKey)
 }
 
 func parseTemplates() *template.Template {

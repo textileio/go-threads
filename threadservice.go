@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,6 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	p2phttp "github.com/libp2p/go-libp2p-http"
+	"github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
@@ -54,10 +56,13 @@ type threadservice struct {
 	server     *tserver.Threadserver
 	client     *http.Client
 	dagService format.DAGService
+	pubsub     *pubsub.PubSub
+	ctx        context.Context
+	cancel     context.CancelFunc
 	tstore.Threadstore
 }
 
-func NewThreadservice(h host.Host, ds format.DAGService, ts tstore.Threadstore) (tserv.Threadservice, error) {
+func NewThreadservice(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore) (tserv.Threadservice, error) {
 	listener, err := gostream.Listen(h, IPELProtocol)
 	if err != nil {
 		return nil, err
@@ -78,6 +83,13 @@ func NewThreadservice(h host.Host, ds format.DAGService, ts tstore.Threadstore) 
 		return service
 	})
 	service.server.Open(listener)
+
+	service.ctx, service.cancel = context.WithCancel(ctx)
+	service.pubsub, err = pubsub.NewGossipSub(service.ctx, service.host)
+	if err != nil {
+		return nil, err
+	}
+	// @todo: ts.pubsub.RegisterTopicValidator()
 
 	return service, nil
 }
@@ -146,9 +158,6 @@ func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tser
 			return
 		}
 	}
-
-	// Publish to network
-	// @todo
 
 	return log.ID, coded, nil
 }
@@ -347,10 +356,53 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 	}
 	switch res.StatusCode {
 	case http.StatusCreated:
-		fmt.Println(string(body))
+		fk, err := base64.StdEncoding.DecodeString(res.Header.Get("X-FollowKey"))
+		if err != nil {
+			return err
+		}
+		followKey, err := crypto.ParseDecryptionKey(fk)
+		if err != nil {
+			return err
+		}
+		rnode, err := cbor.Unmarshal(body, followKey)
+		if err != nil {
+			return err
+		}
+		event, err := cbor.GetEventFromNode(ctx, ts.dagService, rnode)
+		if err != nil {
+			return err
+		}
+
+		rk, err := base64.StdEncoding.DecodeString(res.Header.Get("X-ReadKey"))
+		if err != nil {
+			return err
+		}
+		readKey, err := crypto.ParseDecryptionKey(rk)
+		if err != nil {
+			return err
+		}
+		body, err := event.GetBody(ctx, ts.dagService, readKey)
+		if err != nil {
+			return err
+		}
+		logs, _, err := cbor.DecodeInvite(body)
+		if err != nil {
+			return err
+		}
+		for _, log := range logs {
+			err = ts.AddLog(t, log)
+			if err != nil {
+				return err
+			}
+		}
 	case http.StatusNoContent:
 	default:
-		fmt.Println(string(body))
+		var msg map[string]string
+		err = json.Unmarshal(body, &msg)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf(msg["error"])
 	}
 	return nil
 }
