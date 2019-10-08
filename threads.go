@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	gostream "github.com/libp2p/go-libp2p-gostream"
-	p2phttp "github.com/libp2p/go-libp2p-http"
 	"github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
@@ -25,8 +24,9 @@ import (
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 	"github.com/textileio/go-textile-threads/cbor"
-	tserver "github.com/textileio/go-textile-threads/threadserver"
+	pb "github.com/textileio/go-textile-threads/pb"
 	"github.com/textileio/go-textile-threads/util"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -50,51 +50,45 @@ func init() {
 	}
 }
 
-type threadservice struct {
+type threads struct {
 	host       host.Host
-	listener   net.Listener
-	server     *tserver.Threadserver
-	client     *http.Client
-	dagService format.DAGService
+	rpc        *grpc.Server
 	pubsub     *pubsub.PubSub
+	dagService format.DAGService
 	ctx        context.Context
 	cancel     context.CancelFunc
 	tstore.Threadstore
 }
 
 func NewThreadservice(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore) (tserv.Threadservice, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	t := &threads{
+		host:        h,
+		rpc:         grpc.NewServer(),
+		dagService:  ds,
+		ctx:         ctx,
+		cancel:      cancel,
+		Threadstore: ts,
+	}
+
 	listener, err := gostream.Listen(h, IPELProtocol)
 	if err != nil {
 		return nil, err
 	}
+	go t.rpc.Serve(listener)
+	pb.RegisterThreadsServer(t.rpc, &service{PeerID: t.host.ID()})
 
-	tr := &http.Transport{}
-	tr.RegisterProtocol(IPEL, p2phttp.NewTransport(h, p2phttp.ProtocolOption(IPELProtocol)))
+	//service.pubsub, err = pubsub.NewGossipSub(service.ctx, service.host)
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	service := &threadservice{
-		host:        h,
-		listener:    listener,
-		client:      &http.Client{Transport: tr},
-		dagService:  ds,
-		Threadstore: ts,
-	}
-
-	service.server = tserver.NewThreadserver(func() tserv.Threadservice {
-		return service
-	})
-	service.server.Open(listener)
-
-	service.ctx, service.cancel = context.WithCancel(ctx)
-	service.pubsub, err = pubsub.NewGossipSub(service.ctx, service.host)
-	if err != nil {
-		return nil, err
-	}
 	// @todo: ts.pubsub.RegisterTopicValidator()
 
-	return service, nil
+	return t, nil
 }
 
-func (ts *threadservice) Close() (err error) {
+func (t *threads) Close() (err error) {
 	var errs []error
 	weakClose := func(name string, c interface{}) {
 		if cl, ok := c.(io.Closer); ok {
@@ -104,47 +98,48 @@ func (ts *threadservice) Close() (err error) {
 		}
 	}
 
-	weakClose("server", ts.server)
-	//weakClose("host", ts.host)
-	weakClose("listener", ts.listener)
-	weakClose("dagservice", ts.dagService)
-	weakClose("threadstore", ts.Threadstore)
+	t.cancel()
+
+	//weakClose("server", t.server)
+	//weakClose("host", t.host)
+	weakClose("dagservice", t.dagService)
+	weakClose("threadstore", t.Threadstore)
 
 	if len(errs) > 0 {
-		return fmt.Errorf("failed while closing threadservice; err(s): %q", errs)
+		return fmt.Errorf("failed while closing threads; err(s): %q", errs)
 	}
 	return nil
 }
 
-func (ts *threadservice) Host() host.Host {
-	return ts.host
+func (t *threads) Host() host.Host {
+	return t.host
 }
 
-func (ts *threadservice) DAGService() format.DAGService {
-	return ts.dagService
+func (t *threads) DAGService() format.DAGService {
+	return t.dagService
 }
 
-func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, n thread.Node, err error) {
+func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, r thread.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
-	log, err := ts.getOrCreateOwnLog(settings.Thread)
+	log, err := t.getOrCreateOwnLog(settings.Thread)
 	if err != nil {
 		return
 	}
 
 	// Write a node locally
-	coded, err := ts.createNode(ctx, body, log, settings)
+	coded, err := t.createNode(ctx, body, log, settings)
 	if err != nil {
 		return
 	}
 
 	// Send log to known writers
-	for _, i := range ts.ThreadInfo(settings.Thread).Logs {
+	for _, i := range t.ThreadInfo(settings.Thread).Logs {
 		if i.String() == log.ID.String() {
 			continue
 		}
-		for _, a := range ts.Addrs(settings.Thread, i) {
-			err = ts.send(ctx, coded, settings.Thread, log.ID, a)
+		for _, a := range t.Addrs(settings.Thread, i) {
+			err = t.send(ctx, coded, settings.Thread, log.ID, a)
 			if err != nil {
 				return
 			}
@@ -153,7 +148,7 @@ func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tser
 
 	// Send to additional addresses
 	for _, a := range settings.Addrs {
-		err = ts.send(ctx, coded, settings.Thread, log.ID, a)
+		err = t.send(ctx, coded, settings.Thread, log.ID, a)
 		if err != nil {
 			return
 		}
@@ -162,17 +157,17 @@ func (ts *threadservice) Add(ctx context.Context, body format.Node, opts ...tser
 	return log.ID, coded, nil
 }
 
-func (ts *threadservice) Put(ctx context.Context, node thread.Node, opts ...tserv.PutOption) error {
-	// Get or create a log for the new node
+func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
+	// Get or create a log for the new rec
 	settings := tserv.PutOptions(opts...)
-	log, err := ts.getOrCreateLog(settings.Thread, settings.Log)
+	log, err := t.getOrCreateLog(settings.Thread, settings.Log)
 	if err != nil {
 		return err
 	}
 
-	// Save the node locally
+	// Save the rec locally
 	// Note: These get methods will return cached nodes.
-	block, err := node.GetBlock(ctx, ts.dagService)
+	block, err := rec.GetBlock(ctx, t.dagService)
 	if err != nil {
 		return err
 	}
@@ -180,27 +175,27 @@ func (ts *threadservice) Put(ctx context.Context, node thread.Node, opts ...tser
 	if !ok {
 		return fmt.Errorf("invalid event")
 	}
-	header, err := event.GetHeader(ctx, ts.dagService, nil)
+	header, err := event.GetHeader(ctx, t.dagService, nil)
 	if err != nil {
 		return err
 	}
-	body, err := event.GetBody(ctx, ts.dagService, nil)
+	body, err := event.GetBody(ctx, t.dagService, nil)
 	if err != nil {
 		return err
 	}
-	err = ts.dagService.AddMany(ctx, []format.Node{node, event, header, body})
+	err = t.dagService.AddMany(ctx, []format.Node{rec, event, header, body})
 	if err != nil {
 		return err
 	}
 
-	ts.SetHead(settings.Thread, log.ID, node.Cid())
+	t.SetHead(settings.Thread, log.ID, rec.Cid())
 	return nil
 }
 
 // if own log, return local values
 // if not, call addresses
-func (ts *threadservice) Pull(ctx context.Context, t thread.ID, l peer.ID, opts ...tserv.PullOption) ([]thread.Node, error) {
-	log := ts.LogInfo(t, l)
+func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, opts ...tserv.PullOption) ([]thread.Record, error) {
+	log := t.LogInfo(id, lid)
 
 	settings := tserv.PullOptions(opts...)
 	if !settings.Offset.Defined() {
@@ -215,68 +210,68 @@ func (ts *threadservice) Pull(ctx context.Context, t thread.ID, l peer.ID, opts 
 		return nil, err
 	}
 
-	var nodes []thread.Node
+	var recs []thread.Record
 	for i := 0; i < settings.Limit; i++ {
-		node, err := cbor.GetNode(ctx, ts.dagService, settings.Offset, followKey)
+		node, err := cbor.GetRecord(ctx, t.dagService, settings.Offset, followKey)
 		if err != nil {
 			return nil, err
 		}
-		nodes = append(nodes, node)
+		recs = append(recs, node)
 
 		settings.Offset = node.PrevID()
 		if !settings.Offset.Defined() {
 			break
 		}
 	}
-	return nodes, nil
+	return recs, nil
 }
 
-func (ts *threadservice) Logs(t thread.ID) []thread.LogInfo {
+func (t *threads) Logs(id thread.ID) []thread.LogInfo {
 	logs := make([]thread.LogInfo, 0)
-	for _, l := range ts.ThreadInfo(t).Logs {
-		log := ts.LogInfo(t, l)
+	for _, l := range t.ThreadInfo(id).Logs {
+		log := t.LogInfo(id, l)
 		logs = append(logs, log)
 	}
 	return logs
 }
 
-func (ts *threadservice) Delete(ctx context.Context, t thread.ID) error {
+func (t *threads) Delete(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
-func (ts *threadservice) createLog() (info thread.LogInfo, err error) {
-	return util.CreateLog(ts.host.ID())
+func (t *threads) createLog() (info thread.LogInfo, err error) {
+	return util.CreateLog(t.host.ID())
 }
 
-func (ts *threadservice) getOrCreateLog(t thread.ID, l peer.ID) (info thread.LogInfo, err error) {
-	info = ts.LogInfo(t, l)
+func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+	info = t.LogInfo(id, lid)
 	if info.PubKey != nil {
 		return
 	}
-	info, err = ts.createLog()
+	info, err = t.createLog()
 	if err != nil {
 		return
 	}
-	err = ts.AddLog(t, info)
+	err = t.AddLog(id, info)
 	return
 }
 
-func (ts *threadservice) getOrCreateOwnLog(t thread.ID) (info thread.LogInfo, err error) {
-	for _, id := range ts.LogsWithKeys(t) {
-		if ts.PrivKey(t, id) != nil {
-			info = ts.LogInfo(t, id)
+func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	for _, lid := range t.LogsWithKeys(id) {
+		if t.PrivKey(id, lid) != nil {
+			info = t.LogInfo(id, lid)
 			return
 		}
 	}
-	info, err = ts.createLog()
+	info, err = t.createLog()
 	if err != nil {
 		return
 	}
-	err = ts.AddLog(t, info)
+	err = t.AddLog(id, info)
 	return
 }
 
-func (ts *threadservice) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (thread.Node, error) {
+func (t *threads) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
 	if settings.Key == nil {
 		var err error
 		settings.Key, err = crypto.ParseEncryptionKey(log.ReadKey)
@@ -284,7 +279,7 @@ func (ts *threadservice) createNode(ctx context.Context, body format.Node, log t
 			return nil, err
 		}
 	}
-	event, err := cbor.NewEvent(ctx, ts.dagService, body, settings)
+	event, err := cbor.NewEvent(ctx, t.dagService, body, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -297,26 +292,39 @@ func (ts *threadservice) createNode(ctx context.Context, body format.Node, log t
 	if err != nil {
 		return nil, err
 	}
-	node, err := cbor.NewNode(ctx, ts.dagService, event, prev, log.PrivKey, followKey)
+	rec, err := cbor.NewRecord(ctx, t.dagService, event, prev, log.PrivKey, followKey)
 	if err != nil {
 		return nil, err
 	}
 
-	ts.SetHead(settings.Thread, log.ID, node.Cid())
+	t.SetHead(settings.Thread, log.ID, rec.Cid())
 
-	return node, nil
+	return rec, nil
 }
 
-func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID, l peer.ID, addr ma.Multiaddr) error {
+func (t *threads) send(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, addr ma.Multiaddr) error {
 	p, err := addr.ValueForProtocol(ma.P_P2P)
 	if err != nil {
 		return err
 	}
-	uri := fmt.Sprintf("%s://%s/threads/v0/%s/%s", IPEL, p, t.String(), l.String())
-	payload, err := cbor.Marshal(ctx, ts.dagService, node)
+	uri := fmt.Sprintf("%s://%s/threads/v0/%s/%s", IPEL, p, id.String(), lid.String())
+	payload, err := cbor.Marshal(ctx, t.dagService, rec)
 	if err != nil {
 		return err
 	}
+
+	pid, err := peer.IDB58Decode(p)
+	if err != nil {
+		return err
+	}
+	conn, err := t.dial(ctx, pid, grpc.WithInsecure(), grpc.WithBlock())
+	client := pb.NewThreadsClient(conn)
+
+	reply, err := client.Push(ctx, &pb.EchoRequest{Message: "hey"})
+	if err != nil {
+		return err
+	}
+	fmt.Println(reply.String())
 
 	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewReader(payload))
 	if err != nil {
@@ -324,7 +332,7 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 	}
 	req.Header.Set("Content-Type", "application/cbor")
 
-	sk := ts.Host().Peerstore().PrivKey(ts.Host().ID())
+	sk := t.Host().Peerstore().PrivKey(t.Host().ID())
 	if sk == nil {
 		return fmt.Errorf("could not find key for host")
 	}
@@ -339,13 +347,13 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 	}
 	req.Header.Set("X-Signature", base64.StdEncoding.EncodeToString(sig))
 
-	fk := ts.FollowKey(t, l)
+	fk := t.FollowKey(t, lid)
 	if fk == nil {
 		return fmt.Errorf("could not find follow key")
 	}
 	req.Header.Set("X-FollowKey", base64.StdEncoding.EncodeToString(fk))
 
-	res, err := ts.client.Do(req)
+	res, err := t.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -368,7 +376,7 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 		if err != nil {
 			return err
 		}
-		event, err := cbor.GetEventFromNode(ctx, ts.dagService, rnode)
+		event, err := cbor.GetEventFromNode(ctx, t.dagService, rnode)
 		if err != nil {
 			return err
 		}
@@ -381,7 +389,7 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 		if err != nil {
 			return err
 		}
-		body, err := event.GetBody(ctx, ts.dagService, readKey)
+		body, err := event.GetBody(ctx, t.dagService, readKey)
 		if err != nil {
 			return err
 		}
@@ -390,7 +398,7 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 			return err
 		}
 		for _, log := range logs {
-			err = ts.AddLog(t, log)
+			err = t.AddLog(t, log)
 			if err != nil {
 				return err
 			}
@@ -405,4 +413,38 @@ func (ts *threadservice) send(ctx context.Context, node thread.Node, t thread.ID
 		return fmt.Errorf(msg["error"])
 	}
 	return nil
+}
+
+// getDialOption returns the WithDialer option to dial via libp2p.
+func (t *threads) getDialOption() grpc.DialOption {
+	return grpc.WithContextDialer(func(ctx context.Context, peerIdStr string) (net.Conn, error) {
+		id, err := peer.IDB58Decode(peerIdStr)
+		if err != nil {
+			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
+		}
+		c, err := gostream.Dial(ctx, t.host, id, IPELProtocol)
+		return c, err
+	})
+}
+
+// dial attempts to open a GRPC connection over libp2p to a peer.
+func (t *threads) dial(
+	ctx context.Context,
+	peerID peer.ID,
+	dialOpts ...grpc.DialOption,
+) (*grpc.ClientConn, error) {
+	dialOpsPrepended := append([]grpc.DialOption{t.getDialOption()}, dialOpts...)
+	return grpc.DialContext(ctx, peerID.Pretty(), dialOpsPrepended...)
+}
+
+// service implements the Threads RPC service.
+type service struct {
+	PeerID peer.ID
+}
+
+// Echo asks a node to respond with a message.
+func (s *service) Push(ctx context.Context, req *pb.RecordRequest) (*pb.RecordReply, error) {
+	return &pb.RecordReply{
+		Ok: true,
+	}, nil
 }

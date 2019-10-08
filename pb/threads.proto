@@ -1,0 +1,60 @@
+syntax = "proto3";
+package threads.pb;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/textileio/go-textile-core/crypto/pb/crypto.proto";
+
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.populate_all) = true;
+
+message RecordRequest {
+    bytes node = 1;
+
+	bytes event_node = 2;
+
+	bytes header_node = 3;
+
+	bytes body_node = 4;
+
+    crypto.pb.PublicKey public_key = 10;
+
+    bytes signature = 11;
+}
+
+message RecordReply {
+    bool ok = 1;
+}
+
+message LogInfo {
+    bytes id = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    crypto.pb.PublicKey public_key = 2;
+
+    crypto.pb.PrivateKey private_key = 3;
+
+    bytes follow_key = 4;
+
+    bytes read_key = 5;
+
+    // The multiaddresses. This is a sorted list where element 0 expires the soonest.
+    repeated AddrEntry addrs = 6;
+
+    // AddrEntry represents a single multiaddress.
+    message AddrEntry {
+        bytes addr = 1 [(gogoproto.customtype) = "ProtoAddr"];
+
+        // The point in time when this address expires.
+        int64 expiry = 2;
+
+        // The original TTL of this address.
+        int64 ttl = 3;
+    }
+
+    // The multiaddresses. This is a sorted list where element 0 expires the soonest.
+    repeated bytes heads = 7 [(gogoproto.customtype) = "ProtoCid"];
+}
+
+service Threads {
+    rpc Push(RecordRequest) returns (RecordReply) {}
+    //rpc Pull(FetchRequest) returns (FetchReply) {}
+}

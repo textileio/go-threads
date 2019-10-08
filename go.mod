@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/gin-contrib/location v0.0.0-20190301062650-0462caccbb9c
-	github.com/gin-contrib/sse v0.0.0-20190301062529-5545eab6dad3 // indirect
 	github.com/gin-gonic/gin v1.3.0
 	github.com/gogo/protobuf v1.3.0
 	github.com/hashicorp/golang-lru v0.5.3
@@ -20,7 +19,6 @@ require (
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-core v0.2.3
 	github.com/libp2p/go-libp2p-gostream v0.2.0
-	github.com/libp2p/go-libp2p-http v0.1.4
 	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
@@ -30,6 +28,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/textileio/go-textile-core v0.0.1
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
+	google.golang.org/grpc v1.20.1
 )
 
 replace github.com/textileio/go-textile-core v0.0.1 => ../go-textile-core/
