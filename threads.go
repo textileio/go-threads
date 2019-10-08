@@ -7,6 +7,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
+	logging "github.com/ipfs/go-log"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -21,8 +22,11 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
 	"github.com/textileio/go-textile-threads/util"
+	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
 )
+
+var log = logging.Logger("threads")
 
 const (
 	IPEL                     = "ipel"
@@ -55,7 +59,14 @@ type threads struct {
 	tstore.Threadstore
 }
 
-func NewThreadservice(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore) (tserv.Threadservice, error) {
+func NewThreads(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore, debug bool) (tserv.Threadservice, error) {
+	if debug {
+		err := setLogLevels(getDebugLevels(), true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	rpc := grpc.NewServer()
 	t := &threads{
@@ -298,4 +309,39 @@ func (t *threads) createNode(ctx context.Context, body format.Node, log thread.L
 	t.SetHead(settings.Thread, log.ID, rec.Cid())
 
 	return rec, nil
+}
+
+func setLogLevels(systems map[string]logger.Level, color bool) error {
+	var form string
+	if color {
+		form = logging.LogFormats["color"]
+	} else {
+		form = logging.LogFormats["nocolor"]
+	}
+	logger.SetFormatter(logger.MustStringFormatter(form))
+	logging.SetAllLoggers(logger.ERROR)
+
+	var err error
+	for sys, level := range systems {
+		if sys == "*" {
+			for _, s := range logging.GetSubsystems() {
+				err = logging.SetLogLevel(s, level.String())
+				if err != nil {
+					return err
+				}
+			}
+		}
+		err = logging.SetLogLevel(sys, level.String())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getDebugLevels() map[string]logger.Level {
+	return map[string]logger.Level{
+		"threads":     logger.DEBUG,
+		"threadstore": logger.DEBUG,
+	}
 }

@@ -55,7 +55,12 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts, err := threads.NewThreadservice(context.Background(), host, dagutils.NewMemoryDagService(), tstore.NewThreadstore())
+	ts, err := threads.NewThreads(
+		context.Background(),
+		host,
+		dagutils.NewMemoryDagService(),
+		tstore.NewThreadstore(),
+		true)
 	if err != nil {
 		t.Fatal(err)
 	}

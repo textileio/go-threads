@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	gostream "github.com/libp2p/go-libp2p-gostream"
@@ -14,6 +15,10 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
 	"google.golang.org/grpc"
+)
+
+const (
+	pushTimeout = time.Second * 5
 )
 
 // service implements the Threads RPC service.
@@ -83,26 +88,32 @@ func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID
 		go func(addr ma.Multiaddr) {
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
-				// @todo: log errors
+				log.Error(err)
 				return
 			}
 			pid, err := peer.IDB58Decode(p)
 			if err != nil {
-				// @todo: log errors
+				log.Error(err)
 				return
 			}
-			conn, err := s.dial(ctx, pid, grpc.WithInsecure(), grpc.WithBlock())
+
+			log.Debugf("pushing request to %s...", p)
+
+			cctx, _ := context.WithTimeout(ctx, pushTimeout)
+			conn, err := s.dial(cctx, pid, grpc.WithInsecure()) //, grpc.WithBlock())
 			if err != nil {
-				// @todo: log errors
+				log.Error(err)
 				return
 			}
 			client := pb.NewThreadsClient(conn)
-			reply, err := client.Push(ctx, req)
+			reply, err := client.Push(cctx, req)
 			if err != nil {
-				// @todo: log errors
+				log.Error(err)
 				return
 			}
-			fmt.Println(reply.String())
+
+			log.Debugf("reply from %s: %s", p, reply.String())
+
 			wg.Done()
 		}(addr)
 	}
@@ -153,6 +164,12 @@ func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID
 	//	}
 }
 
+// dial attempts to open a GRPC connection over libp2p to a peer.
+func (s *service) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
+	return grpc.DialContext(ctx, peerID.Pretty(), opts...)
+}
+
 // getDialOption returns the WithDialer option to dial via libp2p.
 func (s *service) getDialOption() grpc.DialOption {
 	return grpc.WithContextDialer(func(ctx context.Context, peerIdStr string) (net.Conn, error) {
@@ -163,14 +180,4 @@ func (s *service) getDialOption() grpc.DialOption {
 		c, err := gostream.Dial(ctx, s.threads.host, id, IPELProtocol)
 		return c, err
 	})
-}
-
-// dial attempts to open a GRPC connection over libp2p to a peer.
-func (s *service) dial(
-	ctx context.Context,
-	peerID peer.ID,
-	dialOpts ...grpc.DialOption,
-) (*grpc.ClientConn, error) {
-	dialOpsPrepended := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
-	return grpc.DialContext(ctx, peerID.Pretty(), dialOpsPrepended...)
 }

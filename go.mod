@@ -27,8 +27,10 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/rs/cors v1.7.0
 	github.com/textileio/go-textile-core v0.0.1
+	github.com/ugorji/go/codec v0.0.0-20190320090025-2dc34c0b8780 // indirect
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
-	google.golang.org/grpc v1.20.1
+	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
+	google.golang.org/grpc v1.21.1
 )
 
 replace github.com/textileio/go-textile-core v0.0.1 => ../go-textile-core/
