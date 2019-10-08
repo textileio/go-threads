@@ -1,18 +1,13 @@
 package threads
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net"
-	"net/http"
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
+	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
@@ -52,7 +47,7 @@ func init() {
 
 type threads struct {
 	host       host.Host
-	rpc        *grpc.Server
+	service    *service
 	pubsub     *pubsub.PubSub
 	dagService format.DAGService
 	ctx        context.Context
@@ -62,21 +57,23 @@ type threads struct {
 
 func NewThreadservice(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore) (tserv.Threadservice, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	rpc := grpc.NewServer()
 	t := &threads{
 		host:        h,
-		rpc:         grpc.NewServer(),
 		dagService:  ds,
 		ctx:         ctx,
 		cancel:      cancel,
 		Threadstore: ts,
 	}
+	t.service = &service{threads: t}
 
 	listener, err := gostream.Listen(h, IPELProtocol)
 	if err != nil {
 		return nil, err
 	}
-	go t.rpc.Serve(listener)
-	pb.RegisterThreadsServer(t.rpc, &service{PeerID: t.host.ID()})
+	go rpc.Serve(listener)
+
+	pb.RegisterThreadsServer(rpc, t.service)
 
 	//service.pubsub, err = pubsub.NewGossipSub(service.ctx, service.host)
 	//if err != nil {
@@ -98,8 +95,6 @@ func (t *threads) Close() (err error) {
 		}
 	}
 
-	t.cancel()
-
 	//weakClose("server", t.server)
 	//weakClose("host", t.host)
 	weakClose("dagservice", t.dagService)
@@ -108,6 +103,8 @@ func (t *threads) Close() (err error) {
 	if len(errs) > 0 {
 		return fmt.Errorf("failed while closing threads; err(s): %q", errs)
 	}
+
+	t.cancel()
 	return nil
 }
 
@@ -133,25 +130,22 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 		return
 	}
 
-	// Send log to known writers
-	for _, i := range t.ThreadInfo(settings.Thread).Logs {
-		if i.String() == log.ID.String() {
+	var addrs []ma.Multiaddr
+	// Collect known writers
+	for _, lid := range t.ThreadInfo(settings.Thread).Logs {
+		if lid.String() == log.ID.String() {
 			continue
 		}
-		for _, a := range t.Addrs(settings.Thread, i) {
-			err = t.send(ctx, coded, settings.Thread, log.ID, a)
-			if err != nil {
-				return
-			}
-		}
+		addrs = append(addrs, t.Addrs(settings.Thread, lid)...)
 	}
 
-	// Send to additional addresses
-	for _, a := range settings.Addrs {
-		err = t.send(ctx, coded, settings.Thread, log.ID, a)
-		if err != nil {
-			return
-		}
+	// Add additional addresses
+	addrs = append(addrs, settings.Addrs...)
+
+	// Push our the new record
+	err = t.service.pushAddrs(ctx, coded, settings.Thread, log.ID, addrs)
+	if err != nil {
+		return
 	}
 
 	return log.ID, coded, nil
@@ -239,6 +233,10 @@ func (t *threads) Delete(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
+func (t *threads) getPrivKey() ic.PrivKey {
+	return t.host.Peerstore().PrivKey(t.host.ID())
+}
+
 func (t *threads) createLog() (info thread.LogInfo, err error) {
 	return util.CreateLog(t.host.ID())
 }
@@ -300,139 +298,4 @@ func (t *threads) createNode(ctx context.Context, body format.Node, log thread.L
 	t.SetHead(settings.Thread, log.ID, rec.Cid())
 
 	return rec, nil
-}
-
-func (t *threads) send(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, addr ma.Multiaddr) error {
-	p, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		return err
-	}
-	uri := fmt.Sprintf("%s://%s/threads/v0/%s/%s", IPEL, p, id.String(), lid.String())
-	payload, err := cbor.Marshal(ctx, t.dagService, rec)
-	if err != nil {
-		return err
-	}
-
-	pid, err := peer.IDB58Decode(p)
-	if err != nil {
-		return err
-	}
-	conn, err := t.dial(ctx, pid, grpc.WithInsecure(), grpc.WithBlock())
-	client := pb.NewThreadsClient(conn)
-
-	reply, err := client.Push(ctx, &pb.EchoRequest{Message: "hey"})
-	if err != nil {
-		return err
-	}
-	fmt.Println(reply.String())
-
-	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewReader(payload))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/cbor")
-
-	sk := t.Host().Peerstore().PrivKey(t.Host().ID())
-	if sk == nil {
-		return fmt.Errorf("could not find key for host")
-	}
-	pk, err := sk.GetPublic().Bytes()
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Identity", base64.StdEncoding.EncodeToString(pk))
-	sig, err := sk.Sign(payload)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("X-Signature", base64.StdEncoding.EncodeToString(sig))
-
-	fk := t.FollowKey(t, lid)
-	if fk == nil {
-		return fmt.Errorf("could not find follow key")
-	}
-	req.Header.Set("X-FollowKey", base64.StdEncoding.EncodeToString(fk))
-
-	res, err := t.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-	switch res.StatusCode {
-	case http.StatusCreated:
-		fk, err := base64.StdEncoding.DecodeString(res.Header.Get("X-FollowKey"))
-		if err != nil {
-			return err
-		}
-		followKey, err := crypto.ParseDecryptionKey(fk)
-		if err != nil {
-			return err
-		}
-		rnode, err := cbor.Unmarshal(body, followKey)
-		if err != nil {
-			return err
-		}
-		event, err := cbor.GetEventFromNode(ctx, t.dagService, rnode)
-		if err != nil {
-			return err
-		}
-
-		rk, err := base64.StdEncoding.DecodeString(res.Header.Get("X-ReadKey"))
-		if err != nil {
-			return err
-		}
-		readKey, err := crypto.ParseDecryptionKey(rk)
-		if err != nil {
-			return err
-		}
-		body, err := event.GetBody(ctx, t.dagService, readKey)
-		if err != nil {
-			return err
-		}
-		logs, _, err := cbor.DecodeInvite(body)
-		if err != nil {
-			return err
-		}
-		for _, log := range logs {
-			err = t.AddLog(t, log)
-			if err != nil {
-				return err
-			}
-		}
-	case http.StatusNoContent:
-	default:
-		var msg map[string]string
-		err = json.Unmarshal(body, &msg)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf(msg["error"])
-	}
-	return nil
-}
-
-// getDialOption returns the WithDialer option to dial via libp2p.
-func (t *threads) getDialOption() grpc.DialOption {
-	return grpc.WithContextDialer(func(ctx context.Context, peerIdStr string) (net.Conn, error) {
-		id, err := peer.IDB58Decode(peerIdStr)
-		if err != nil {
-			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
-		}
-		c, err := gostream.Dial(ctx, t.host, id, IPELProtocol)
-		return c, err
-	})
-}
-
-// dial attempts to open a GRPC connection over libp2p to a peer.
-func (t *threads) dial(
-	ctx context.Context,
-	peerID peer.ID,
-	dialOpts ...grpc.DialOption,
-) (*grpc.ClientConn, error) {
-	dialOpsPrepended := append([]grpc.DialOption{t.getDialOption()}, dialOpts...)
-	return grpc.DialContext(ctx, peerID.Pretty(), dialOpsPrepended...)
 }

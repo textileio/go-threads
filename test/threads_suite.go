@@ -20,14 +20,14 @@ import (
 	tstore "github.com/textileio/go-textile-threads/tstoremem"
 )
 
-var threadserviceSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
+var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
 	"AddPull":   testAddPull,
 	"AddInvite": testAddInvite,
 	"Close":     testClose,
 }
 
-func ThreadserviceTest(t *testing.T) {
-	for name, test := range threadserviceSuite {
+func ThreadsTest(t *testing.T) {
+	for name, test := range threadsSuite {
 		// Create two thread services.
 		m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10000")
 		m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")

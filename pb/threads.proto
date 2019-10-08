@@ -7,30 +7,22 @@ import "github.com/textileio/go-textile-core/crypto/pb/crypto.proto";
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
-message RecordRequest {
+message Record {
     bytes node = 1;
 
-	bytes event_node = 2;
+    bytes event_node = 2;
 
-	bytes header_node = 3;
+    bytes header_node = 3;
 
-	bytes body_node = 4;
-
-    crypto.pb.PublicKey public_key = 10;
-
-    bytes signature = 11;
-}
-
-message RecordReply {
-    bool ok = 1;
+    bytes body_node = 4;
 }
 
 message LogInfo {
     bytes id = 1 [(gogoproto.customtype) = "ProtoPeerID"];
 
-    crypto.pb.PublicKey public_key = 2;
+    textile.crypto.pb.PublicKey public_key = 2;
 
-    crypto.pb.PrivateKey private_key = 3;
+    textile.crypto.pb.PrivateKey private_key = 3;
 
     bytes follow_key = 4;
 
@@ -52,6 +44,18 @@ message LogInfo {
 
     // The multiaddresses. This is a sorted list where element 0 expires the soonest.
     repeated bytes heads = 7 [(gogoproto.customtype) = "ProtoCid"];
+}
+
+message RecordRequest {
+    Record record = 1;
+
+    textile.crypto.pb.PublicKey public_key = 2;
+
+    bytes signature = 3;
+}
+
+message RecordReply {
+    bool ok = 1;
 }
 
 service Threads {
