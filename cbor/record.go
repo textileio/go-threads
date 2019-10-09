@@ -11,6 +11,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
+	pb "github.com/textileio/go-textile-threads/pb"
 )
 
 func init() {
@@ -58,7 +59,15 @@ func NewRecord(ctx context.Context, dag format.DAGService, block format.Node, pr
 	}, nil
 }
 
-func DecodeRecord(coded format.Node, key crypto.DecryptionKey) (thread.Record, error) {
+func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Record, error) {
+	coded, err := dag.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return RecordFromNode(coded, key)
+}
+
+func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (thread.Record, error) {
 	obj := new(record)
 	node, err := DecodeBlock(coded, key)
 	if err != nil {
@@ -74,12 +83,79 @@ func DecodeRecord(coded format.Node, key crypto.DecryptionKey) (thread.Record, e
 	}, nil
 }
 
-func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Record, error) {
-	coded, err := dag.Get(ctx, id)
+func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record) (*pb.Record, error) {
+	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err
 	}
-	return DecodeRecord(coded, key)
+	event, err := EventFromNode(block)
+	if err != nil {
+		return nil, err
+	}
+	header, err := event.GetHeader(ctx, dag, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := event.GetBody(ctx, dag, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Record{
+		Node:       rec.RawData(),
+		EventNode:  block.RawData(),
+		HeaderNode: header.RawData(),
+		BodyNode:   body.RawData(),
+	}, nil
+}
+
+// Unmarshal returns a node from a serialized version that contains link data.
+func RecordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, error) {
+	node, err := cbornode.Decode(rec.Node, mh.SHA2_256, -1)
+	if err != nil {
+		return nil, err
+	}
+	enode, err := cbornode.Decode(rec.EventNode, mh.SHA2_256, -1)
+	if err != nil {
+		return nil, err
+	}
+	hnode, err := cbornode.Decode(rec.HeaderNode, mh.SHA2_256, -1)
+	if err != nil {
+		return nil, err
+	}
+	body, err := cbornode.Decode(rec.BodyNode, mh.SHA2_256, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	decoded, err := DecodeBlock(node, key)
+	if err != nil {
+		return nil, err
+	}
+	robj := new(record)
+	err = cbornode.DecodeInto(decoded.RawData(), robj)
+	if err != nil {
+		return nil, err
+	}
+
+	eobj := new(event)
+	err = cbornode.DecodeInto(enode.RawData(), eobj)
+	if err != nil {
+		return nil, err
+	}
+	event := &Event{
+		Node: enode,
+		obj:  eobj,
+		header: &EventHeader{
+			Node: hnode,
+		},
+		body: body,
+	}
+	return &Record{
+		Node:  node,
+		obj:   robj,
+		block: event,
+	}, nil
 }
 
 type Record struct {

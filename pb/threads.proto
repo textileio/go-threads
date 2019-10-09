@@ -17,41 +17,24 @@ message Record {
     bytes body_node = 4;
 }
 
-message LogInfo {
-    bytes id = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-
-    textile.crypto.pb.PublicKey public_key = 2;
-
-    textile.crypto.pb.PrivateKey private_key = 3;
-
-    bytes follow_key = 4;
-
-    bytes read_key = 5;
-
-    // The multiaddresses. This is a sorted list where element 0 expires the soonest.
-    repeated AddrEntry addrs = 6;
-
-    // AddrEntry represents a single multiaddress.
-    message AddrEntry {
-        bytes addr = 1 [(gogoproto.customtype) = "ProtoAddr"];
-
-        // The point in time when this address expires.
-        int64 expiry = 2;
-
-        // The original TTL of this address.
-        int64 ttl = 3;
-    }
-
-    // The multiaddresses. This is a sorted list where element 0 expires the soonest.
-    repeated bytes heads = 7 [(gogoproto.customtype) = "ProtoCid"];
-}
-
 message RecordRequest {
-    Record record = 1;
+    Header header = 1;
 
-    textile.crypto.pb.PublicKey public_key = 2;
+    bytes thread_id = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
-    bytes signature = 3;
+    bytes log_id = 3 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    Record record = 4;
+
+    message Header {
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+        bytes signature = 2;
+
+        textile.crypto.pb.PublicKey key = 3;
+
+        bytes follow_key = 4;
+    }
 }
 
 message RecordReply {

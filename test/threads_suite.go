@@ -148,7 +148,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		pk := ts2.Host().Peerstore().PubKey(ts2.Host().ID())
+		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
 		if pk == nil {
 			t.Fatal("public key not found")
 		}

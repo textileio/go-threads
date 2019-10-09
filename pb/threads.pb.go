@@ -93,153 +93,18 @@ func (m *Record) GetBodyNode() []byte {
 	return nil
 }
 
-type LogInfo struct {
-	Id         *ProtoPeerID   `protobuf:"bytes,1,opt,name=id,proto3,customtype=ProtoPeerID" json:"id,omitempty"`
-	PublicKey  *pb.PublicKey  `protobuf:"bytes,2,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
-	PrivateKey *pb.PrivateKey `protobuf:"bytes,3,opt,name=private_key,json=privateKey,proto3" json:"private_key,omitempty"`
-	FollowKey  []byte         `protobuf:"bytes,4,opt,name=follow_key,json=followKey,proto3" json:"follow_key,omitempty"`
-	ReadKey    []byte         `protobuf:"bytes,5,opt,name=read_key,json=readKey,proto3" json:"read_key,omitempty"`
-	// The multiaddresses. This is a sorted list where element 0 expires the soonest.
-	Addrs []*LogInfo_AddrEntry `protobuf:"bytes,6,rep,name=addrs,proto3" json:"addrs,omitempty"`
-	// The multiaddresses. This is a sorted list where element 0 expires the soonest.
-	Heads []ProtoCid `protobuf:"bytes,7,rep,name=heads,proto3,customtype=ProtoCid" json:"heads,omitempty"`
-}
-
-func (m *LogInfo) Reset()         { *m = LogInfo{} }
-func (m *LogInfo) String() string { return proto.CompactTextString(m) }
-func (*LogInfo) ProtoMessage()    {}
-func (*LogInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{1}
-}
-func (m *LogInfo) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *LogInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_LogInfo.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *LogInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LogInfo.Merge(m, src)
-}
-func (m *LogInfo) XXX_Size() int {
-	return m.Size()
-}
-func (m *LogInfo) XXX_DiscardUnknown() {
-	xxx_messageInfo_LogInfo.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_LogInfo proto.InternalMessageInfo
-
-func (m *LogInfo) GetPublicKey() *pb.PublicKey {
-	if m != nil {
-		return m.PublicKey
-	}
-	return nil
-}
-
-func (m *LogInfo) GetPrivateKey() *pb.PrivateKey {
-	if m != nil {
-		return m.PrivateKey
-	}
-	return nil
-}
-
-func (m *LogInfo) GetFollowKey() []byte {
-	if m != nil {
-		return m.FollowKey
-	}
-	return nil
-}
-
-func (m *LogInfo) GetReadKey() []byte {
-	if m != nil {
-		return m.ReadKey
-	}
-	return nil
-}
-
-func (m *LogInfo) GetAddrs() []*LogInfo_AddrEntry {
-	if m != nil {
-		return m.Addrs
-	}
-	return nil
-}
-
-// AddrEntry represents a single multiaddress.
-type LogInfo_AddrEntry struct {
-	Addr *ProtoAddr `protobuf:"bytes,1,opt,name=addr,proto3,customtype=ProtoAddr" json:"addr,omitempty"`
-	// The point in time when this address expires.
-	Expiry int64 `protobuf:"varint,2,opt,name=expiry,proto3" json:"expiry,omitempty"`
-	// The original TTL of this address.
-	Ttl int64 `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
-}
-
-func (m *LogInfo_AddrEntry) Reset()         { *m = LogInfo_AddrEntry{} }
-func (m *LogInfo_AddrEntry) String() string { return proto.CompactTextString(m) }
-func (*LogInfo_AddrEntry) ProtoMessage()    {}
-func (*LogInfo_AddrEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{1, 0}
-}
-func (m *LogInfo_AddrEntry) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *LogInfo_AddrEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_LogInfo_AddrEntry.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *LogInfo_AddrEntry) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_LogInfo_AddrEntry.Merge(m, src)
-}
-func (m *LogInfo_AddrEntry) XXX_Size() int {
-	return m.Size()
-}
-func (m *LogInfo_AddrEntry) XXX_DiscardUnknown() {
-	xxx_messageInfo_LogInfo_AddrEntry.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_LogInfo_AddrEntry proto.InternalMessageInfo
-
-func (m *LogInfo_AddrEntry) GetExpiry() int64 {
-	if m != nil {
-		return m.Expiry
-	}
-	return 0
-}
-
-func (m *LogInfo_AddrEntry) GetTtl() int64 {
-	if m != nil {
-		return m.Ttl
-	}
-	return 0
-}
-
 type RecordRequest struct {
-	Record    *Record       `protobuf:"bytes,1,opt,name=record,proto3" json:"record,omitempty"`
-	PublicKey *pb.PublicKey `protobuf:"bytes,2,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
-	Signature []byte        `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
+	Header   *RecordRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	ThreadId *ProtoThreadID        `protobuf:"bytes,2,opt,name=thread_id,json=threadId,proto3,customtype=ProtoThreadID" json:"thread_id,omitempty"`
+	LogId    *ProtoPeerID          `protobuf:"bytes,3,opt,name=log_id,json=logId,proto3,customtype=ProtoPeerID" json:"log_id,omitempty"`
+	Record   *Record               `protobuf:"bytes,4,opt,name=record,proto3" json:"record,omitempty"`
 }
 
 func (m *RecordRequest) Reset()         { *m = RecordRequest{} }
 func (m *RecordRequest) String() string { return proto.CompactTextString(m) }
 func (*RecordRequest) ProtoMessage()    {}
 func (*RecordRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{2}
+	return fileDescriptor_f2ba358bb2150022, []int{1}
 }
 func (m *RecordRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -268,6 +133,13 @@ func (m *RecordRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RecordRequest proto.InternalMessageInfo
 
+func (m *RecordRequest) GetHeader() *RecordRequest_Header {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
 func (m *RecordRequest) GetRecord() *Record {
 	if m != nil {
 		return m.Record
@@ -275,16 +147,63 @@ func (m *RecordRequest) GetRecord() *Record {
 	return nil
 }
 
-func (m *RecordRequest) GetPublicKey() *pb.PublicKey {
+type RecordRequest_Header struct {
+	From      *ProtoPeerID  `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
+	Signature []byte        `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	Key       *pb.PublicKey `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	FollowKey []byte        `protobuf:"bytes,4,opt,name=follow_key,json=followKey,proto3" json:"follow_key,omitempty"`
+}
+
+func (m *RecordRequest_Header) Reset()         { *m = RecordRequest_Header{} }
+func (m *RecordRequest_Header) String() string { return proto.CompactTextString(m) }
+func (*RecordRequest_Header) ProtoMessage()    {}
+func (*RecordRequest_Header) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{1, 0}
+}
+func (m *RecordRequest_Header) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RecordRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RecordRequest_Header.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RecordRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RecordRequest_Header.Merge(m, src)
+}
+func (m *RecordRequest_Header) XXX_Size() int {
+	return m.Size()
+}
+func (m *RecordRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_RecordRequest_Header.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RecordRequest_Header proto.InternalMessageInfo
+
+func (m *RecordRequest_Header) GetSignature() []byte {
 	if m != nil {
-		return m.PublicKey
+		return m.Signature
 	}
 	return nil
 }
 
-func (m *RecordRequest) GetSignature() []byte {
+func (m *RecordRequest_Header) GetKey() *pb.PublicKey {
 	if m != nil {
-		return m.Signature
+		return m.Key
+	}
+	return nil
+}
+
+func (m *RecordRequest_Header) GetFollowKey() []byte {
+	if m != nil {
+		return m.FollowKey
 	}
 	return nil
 }
@@ -297,7 +216,7 @@ func (m *RecordReply) Reset()         { *m = RecordReply{} }
 func (m *RecordReply) String() string { return proto.CompactTextString(m) }
 func (*RecordReply) ProtoMessage()    {}
 func (*RecordReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{3}
+	return fileDescriptor_f2ba358bb2150022, []int{2}
 }
 func (m *RecordReply) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -335,51 +254,45 @@ func (m *RecordReply) GetOk() bool {
 
 func init() {
 	proto.RegisterType((*Record)(nil), "threads.pb.Record")
-	proto.RegisterType((*LogInfo)(nil), "threads.pb.LogInfo")
-	proto.RegisterType((*LogInfo_AddrEntry)(nil), "threads.pb.LogInfo.AddrEntry")
 	proto.RegisterType((*RecordRequest)(nil), "threads.pb.RecordRequest")
+	proto.RegisterType((*RecordRequest_Header)(nil), "threads.pb.RecordRequest.Header")
 	proto.RegisterType((*RecordReply)(nil), "threads.pb.RecordReply")
 }
 
 func init() { proto.RegisterFile("threads.proto", fileDescriptor_f2ba358bb2150022) }
 
 var fileDescriptor_f2ba358bb2150022 = []byte{
-	// 545 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x93, 0x4f, 0x8f, 0xd2, 0x4e,
-	0x18, 0xc7, 0x29, 0x65, 0x81, 0x3e, 0x5d, 0x7e, 0x3f, 0x33, 0x07, 0x65, 0x71, 0x29, 0xd8, 0xd3,
-	0xc6, 0x84, 0x92, 0xb0, 0xc7, 0x35, 0x26, 0xa2, 0xc6, 0x6c, 0x34, 0x86, 0x4c, 0x3c, 0x78, 0xdb,
-	0x50, 0x66, 0x80, 0x86, 0xca, 0xd4, 0xe9, 0x74, 0xdd, 0xbe, 0x0b, 0x0f, 0xc6, 0xd7, 0xe3, 0xd1,
-	0xe3, 0x1e, 0x0d, 0x07, 0xa2, 0xf0, 0x26, 0x3c, 0x9a, 0x79, 0xa6, 0xe0, 0x1e, 0xb8, 0x79, 0x7b,
-	0x9e, 0xe7, 0xf3, 0xfd, 0x66, 0x9e, 0x3f, 0x2d, 0x34, 0xd4, 0x5c, 0xf2, 0x31, 0x4b, 0x83, 0x44,
-	0x0a, 0x25, 0x08, 0xec, 0xd3, 0xb0, 0xd5, 0x9b, 0x45, 0x6a, 0x9e, 0x85, 0xc1, 0x44, 0x7c, 0xe8,
-	0xcf, 0xc4, 0x4c, 0xf4, 0x51, 0x12, 0x66, 0x53, 0xcc, 0x30, 0xc1, 0xc8, 0x58, 0x5b, 0x17, 0x77,
-	0xe4, 0x8a, 0xdf, 0xa8, 0x28, 0xe6, 0x91, 0x16, 0xf4, 0x8a, 0xa4, 0x37, 0x11, 0x92, 0xf7, 0x27,
-	0x32, 0x4f, 0x94, 0xe8, 0x27, 0x61, 0x11, 0x19, 0xb3, 0x9f, 0x43, 0x95, 0xf2, 0x89, 0x90, 0x8c,
-	0x10, 0xa8, 0x2c, 0x05, 0xe3, 0x4d, 0xab, 0x6b, 0x9d, 0x1d, 0x53, 0x8c, 0x49, 0x1b, 0x80, 0x5f,
-	0xf3, 0xa5, 0xba, 0x42, 0x52, 0x46, 0xe2, 0x60, 0xe5, 0xad, 0xc6, 0x1d, 0x70, 0xe7, 0x7c, 0xcc,
-	0xb8, 0x34, 0xdc, 0x46, 0x0e, 0xa6, 0x84, 0x82, 0x87, 0xe0, 0x84, 0x82, 0xe5, 0x06, 0x57, 0x10,
-	0xd7, 0x75, 0x41, 0x43, 0xff, 0x8b, 0x0d, 0xb5, 0x37, 0x62, 0x76, 0xb9, 0x9c, 0x0a, 0xd2, 0x81,
-	0x72, 0xc4, 0xcc, 0xd3, 0xc3, 0xff, 0x57, 0xeb, 0x8e, 0x3b, 0xd2, 0xdd, 0x8d, 0x38, 0x97, 0x97,
-	0x2f, 0x68, 0x39, 0x62, 0xe4, 0x02, 0x20, 0xc9, 0xc2, 0x38, 0x9a, 0x5c, 0x2d, 0x78, 0x8e, 0x9d,
-	0xb8, 0x83, 0xd3, 0xa0, 0x98, 0x30, 0xd8, 0x8d, 0x14, 0x06, 0x23, 0x14, 0xbd, 0xe6, 0x39, 0x75,
-	0x92, 0x5d, 0x48, 0x9e, 0x82, 0x9b, 0xc8, 0xe8, 0x7a, 0xac, 0x38, 0xba, 0x6d, 0x74, 0xb7, 0x0f,
-	0xb9, 0x8d, 0x4a, 0xdb, 0x21, 0xd9, 0xc7, 0x7a, 0x0d, 0x53, 0x11, 0xc7, 0xe2, 0x13, 0xda, 0xcd,
-	0x1c, 0x8e, 0xa9, 0x68, 0x7c, 0x02, 0x75, 0x7d, 0x3b, 0x84, 0x47, 0x08, 0x6b, 0x3a, 0xd7, 0xe8,
-	0x1c, 0x8e, 0xc6, 0x8c, 0xc9, 0xb4, 0x59, 0xed, 0xda, 0xe6, 0xcd, 0xfd, 0x99, 0x83, 0x62, 0xf6,
-	0xe0, 0x19, 0x63, 0xf2, 0xe5, 0x52, 0xc9, 0x9c, 0x1a, 0x2d, 0xf1, 0xe1, 0x48, 0xef, 0x30, 0x6d,
-	0xd6, 0xba, 0xf6, 0xd9, 0xf1, 0xf0, 0x78, 0xb5, 0xee, 0xd4, 0x71, 0x1f, 0xcf, 0x23, 0x46, 0x0d,
-	0x6a, 0xbd, 0x07, 0x67, 0xef, 0x23, 0x8f, 0xa0, 0xa2, 0x9d, 0xc5, 0xfe, 0x1a, 0xab, 0x75, 0xc7,
-	0x41, 0xbd, 0x56, 0x50, 0x44, 0xe4, 0x3e, 0x54, 0xf9, 0x4d, 0x12, 0x49, 0xb3, 0x3b, 0x9b, 0x16,
-	0x19, 0xb9, 0x07, 0xb6, 0x52, 0x31, 0xae, 0xc4, 0xa6, 0x3a, 0xf4, 0xbf, 0x5a, 0xd0, 0x30, 0x9f,
-	0x04, 0xe5, 0x1f, 0x33, 0x9e, 0x2a, 0xf2, 0x18, 0xaa, 0x12, 0x0b, 0xf8, 0x80, 0x3b, 0x20, 0x77,
-	0xa7, 0x28, 0xa4, 0x85, 0xe2, 0xdf, 0xee, 0x74, 0x0a, 0x4e, 0x1a, 0xcd, 0x96, 0x63, 0x95, 0xc9,
-	0xdd, 0xd7, 0xf4, 0xb7, 0xe0, 0xb7, 0xc1, 0xdd, 0xf5, 0x95, 0xc4, 0x39, 0xf9, 0x0f, 0xca, 0x62,
-	0x81, 0x1d, 0xd5, 0x69, 0x59, 0x2c, 0x06, 0xaf, 0xa0, 0xf6, 0xce, 0xb4, 0x45, 0x9e, 0x40, 0x65,
-	0x94, 0xa5, 0x73, 0x72, 0x72, 0xa0, 0x51, 0x33, 0x53, 0xeb, 0xc1, 0x21, 0x94, 0xc4, 0xb9, 0x5f,
-	0x1a, 0x76, 0x7f, 0xff, 0xf2, 0xac, 0x6f, 0x1b, 0xcf, 0xfa, 0xbe, 0xf1, 0xac, 0xdb, 0x8d, 0x67,
-	0xfd, 0xdc, 0x78, 0xd6, 0xe7, 0xad, 0x57, 0xba, 0xdd, 0x7a, 0xa5, 0x1f, 0x5b, 0xaf, 0x14, 0x56,
-	0xf1, 0xdf, 0x39, 0xff, 0x13, 0x00, 0x00, 0xff, 0xff, 0x1f, 0x3d, 0x0e, 0x86, 0xc4, 0x03, 0x00,
-	0x00,
+	// 466 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x92, 0x41, 0x8b, 0xd3, 0x50,
+	0x10, 0xc7, 0x9b, 0x6e, 0x8d, 0xcd, 0xc4, 0x2a, 0xbe, 0x8b, 0x5a, 0x77, 0xd3, 0x52, 0x41, 0x44,
+	0xe8, 0x2b, 0xd4, 0x8b, 0xa0, 0xa7, 0xb2, 0xa0, 0x65, 0x41, 0x4a, 0xf0, 0x5e, 0x9a, 0x64, 0x9a,
+	0x86, 0x66, 0x3b, 0xf1, 0x25, 0x51, 0xf3, 0x2d, 0x3c, 0xfb, 0x69, 0x3c, 0x7a, 0xdc, 0xa3, 0xec,
+	0x61, 0xd1, 0xf6, 0xe6, 0x27, 0xf0, 0x28, 0x6f, 0x5e, 0xb6, 0x2a, 0xee, 0xde, 0x66, 0xe6, 0xff,
+	0x9b, 0xbe, 0x7f, 0xff, 0x13, 0xe8, 0x14, 0x2b, 0x85, 0x8b, 0x28, 0x97, 0x99, 0xa2, 0x82, 0x04,
+	0xec, 0xdb, 0xa0, 0x3b, 0x8c, 0x93, 0x62, 0x55, 0x06, 0x32, 0xa4, 0xd3, 0x51, 0x4c, 0x31, 0x8d,
+	0x18, 0x09, 0xca, 0x25, 0x77, 0xdc, 0x70, 0x65, 0x56, 0xbb, 0x2f, 0xfe, 0xc2, 0x0b, 0xfc, 0x58,
+	0x24, 0x29, 0x26, 0x1a, 0x18, 0xd6, 0xcd, 0x30, 0x24, 0x85, 0xa3, 0x50, 0x55, 0x59, 0x41, 0xa3,
+	0x2c, 0xa8, 0x2b, 0xb3, 0x3c, 0xa8, 0xc0, 0xf6, 0x31, 0x24, 0x15, 0x09, 0x01, 0xad, 0x0d, 0x45,
+	0x78, 0xdf, 0xea, 0x5b, 0x4f, 0x6e, 0xf9, 0x5c, 0x8b, 0x23, 0x00, 0x7c, 0x8f, 0x9b, 0x62, 0xce,
+	0x4a, 0x93, 0x15, 0x87, 0x27, 0x6f, 0xb4, 0xdc, 0x03, 0x77, 0x85, 0x8b, 0x08, 0x95, 0xd1, 0x0f,
+	0x58, 0x07, 0x33, 0x62, 0xe0, 0x21, 0x38, 0x01, 0x45, 0x95, 0x91, 0x5b, 0x2c, 0xb7, 0xf5, 0x40,
+	0x8b, 0x83, 0x9f, 0x4d, 0xe8, 0x98, 0xb7, 0x7d, 0x7c, 0x57, 0x62, 0x5e, 0x88, 0xe7, 0x60, 0x9b,
+	0x65, 0x36, 0xe1, 0x8e, 0xfb, 0xf2, 0x4f, 0x2a, 0xf2, 0x1f, 0x54, 0xbe, 0x66, 0xce, 0xaf, 0x79,
+	0x21, 0xc1, 0x31, 0xe8, 0x3c, 0x89, 0x8c, 0xcf, 0xc9, 0xdd, 0xf3, 0x8b, 0x5e, 0x67, 0xa6, 0xff,
+	0xe4, 0x5b, 0x56, 0xa6, 0xc7, 0x7e, 0xdb, 0x30, 0xd3, 0x48, 0x3c, 0x06, 0x3b, 0xa5, 0x58, 0xc3,
+	0x6c, 0x7a, 0x72, 0xe7, 0xfc, 0xa2, 0xe7, 0x32, 0x3c, 0x43, 0x54, 0xd3, 0x63, 0xff, 0x46, 0x4a,
+	0xf1, 0x34, 0x12, 0x4f, 0xc1, 0x56, 0xfc, 0x2e, 0xbb, 0x77, 0xc7, 0xe2, 0x0a, 0x47, 0x35, 0xd1,
+	0xfd, 0x6c, 0x81, 0x6d, 0x6c, 0x89, 0x47, 0xd0, 0x5a, 0x2a, 0x3a, 0x35, 0x59, 0xfe, 0xff, 0xe3,
+	0x2c, 0x8a, 0x43, 0x70, 0xf2, 0x24, 0xde, 0x2c, 0x8a, 0x52, 0xed, 0xb3, 0xdd, 0x0f, 0x84, 0x84,
+	0x83, 0x35, 0x56, 0x6c, 0xcf, 0x1d, 0x1f, 0xca, 0xfa, 0x96, 0xf2, 0xf2, 0x78, 0x81, 0x9c, 0x95,
+	0x41, 0x9a, 0x84, 0x27, 0x58, 0xf9, 0x1a, 0xd4, 0xa7, 0x5a, 0x52, 0x9a, 0xd2, 0x87, 0xb9, 0x5e,
+	0x33, 0x59, 0x3b, 0x66, 0x72, 0x82, 0xd5, 0xe0, 0x08, 0xdc, 0xcb, 0x00, 0xb3, 0xb4, 0x12, 0xb7,
+	0xa1, 0x49, 0x6b, 0xb6, 0xd7, 0xf6, 0x9b, 0xb4, 0x1e, 0xbf, 0x82, 0x9b, 0x26, 0xa5, 0x5c, 0xbc,
+	0x84, 0xd6, 0xac, 0xcc, 0x57, 0xe2, 0xc1, 0xb5, 0xe1, 0x77, 0xef, 0x5d, 0x25, 0x65, 0x69, 0x35,
+	0x68, 0x4c, 0xfa, 0xbf, 0x7e, 0x78, 0xd6, 0x97, 0xad, 0x67, 0x7d, 0xdd, 0x7a, 0xd6, 0xd9, 0xd6,
+	0xb3, 0xbe, 0x6f, 0x3d, 0xeb, 0xd3, 0xce, 0x6b, 0x9c, 0xed, 0xbc, 0xc6, 0xb7, 0x9d, 0xd7, 0x08,
+	0x6c, 0xfe, 0xf0, 0x9e, 0xfd, 0x0e, 0x00, 0x00, 0xff, 0xff, 0xee, 0xd9, 0x08, 0x6d, 0x01, 0x03,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -496,128 +409,6 @@ func (m *Record) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *LogInfo) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *LogInfo) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Id != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Id.Size()))
-		n1, err := m.Id.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
-	}
-	if m.PublicKey != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.PublicKey.Size()))
-		n2, err := m.PublicKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
-	}
-	if m.PrivateKey != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.PrivateKey.Size()))
-		n3, err := m.PrivateKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n3
-	}
-	if len(m.FollowKey) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(len(m.FollowKey)))
-		i += copy(dAtA[i:], m.FollowKey)
-	}
-	if len(m.ReadKey) > 0 {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(len(m.ReadKey)))
-		i += copy(dAtA[i:], m.ReadKey)
-	}
-	if len(m.Addrs) > 0 {
-		for _, msg := range m.Addrs {
-			dAtA[i] = 0x32
-			i++
-			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Heads) > 0 {
-		for _, msg := range m.Heads {
-			dAtA[i] = 0x3a
-			i++
-			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	return i, nil
-}
-
-func (m *LogInfo_AddrEntry) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *LogInfo_AddrEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Addr != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Addr.Size()))
-		n4, err := m.Addr.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
-	}
-	if m.Expiry != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Expiry))
-	}
-	if m.Ttl != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Ttl))
-	}
-	return i, nil
-}
-
 func (m *RecordRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -633,31 +424,95 @@ func (m *RecordRequest) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.Record != nil {
+	if m.Header != nil {
 		dAtA[i] = 0xa
 		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Header.Size()))
+		n1, err := m.Header.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
+	if m.ThreadId != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.ThreadId.Size()))
+		n2, err := m.ThreadId.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
+	}
+	if m.LogId != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.LogId.Size()))
+		n3, err := m.LogId.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n3
+	}
+	if m.Record != nil {
+		dAtA[i] = 0x22
+		i++
 		i = encodeVarintThreads(dAtA, i, uint64(m.Record.Size()))
-		n5, err := m.Record.MarshalTo(dAtA[i:])
+		n4, err := m.Record.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n4
+	}
+	return i, nil
+}
+
+func (m *RecordRequest_Header) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RecordRequest_Header) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.From != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.From.Size()))
+		n5, err := m.From.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n5
 	}
-	if m.PublicKey != nil {
+	if len(m.Signature) > 0 {
 		dAtA[i] = 0x12
 		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.PublicKey.Size()))
-		n6, err := m.PublicKey.MarshalTo(dAtA[i:])
+		i = encodeVarintThreads(dAtA, i, uint64(len(m.Signature)))
+		i += copy(dAtA[i:], m.Signature)
+	}
+	if m.Key != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Key.Size()))
+		n6, err := m.Key.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
 		i += n6
 	}
-	if len(m.Signature) > 0 {
-		dAtA[i] = 0x1a
+	if len(m.FollowKey) > 0 {
+		dAtA[i] = 0x22
 		i++
-		i = encodeVarintThreads(dAtA, i, uint64(len(m.Signature)))
-		i += copy(dAtA[i:], m.Signature)
+		i = encodeVarintThreads(dAtA, i, uint64(len(m.FollowKey)))
+		i += copy(dAtA[i:], m.FollowKey)
 	}
 	return i, nil
 }
@@ -726,71 +581,36 @@ func NewPopulatedRecord(r randyThreads, easy bool) *Record {
 	return this
 }
 
-func NewPopulatedLogInfo(r randyThreads, easy bool) *LogInfo {
-	this := &LogInfo{}
-	this.Id = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
-		this.PublicKey = pb.NewPopulatedPublicKey(r, easy)
-	}
-	if r.Intn(10) != 0 {
-		this.PrivateKey = pb.NewPopulatedPrivateKey(r, easy)
-	}
-	v5 := r.Intn(100)
-	this.FollowKey = make([]byte, v5)
-	for i := 0; i < v5; i++ {
-		this.FollowKey[i] = byte(r.Intn(256))
-	}
-	v6 := r.Intn(100)
-	this.ReadKey = make([]byte, v6)
-	for i := 0; i < v6; i++ {
-		this.ReadKey[i] = byte(r.Intn(256))
-	}
-	if r.Intn(10) != 0 {
-		v7 := r.Intn(5)
-		this.Addrs = make([]*LogInfo_AddrEntry, v7)
-		for i := 0; i < v7; i++ {
-			this.Addrs[i] = NewPopulatedLogInfo_AddrEntry(r, easy)
-		}
-	}
-	v8 := r.Intn(10)
-	this.Heads = make([]ProtoCid, v8)
-	for i := 0; i < v8; i++ {
-		v9 := NewPopulatedProtoCid(r)
-		this.Heads[i] = *v9
-	}
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
-func NewPopulatedLogInfo_AddrEntry(r randyThreads, easy bool) *LogInfo_AddrEntry {
-	this := &LogInfo_AddrEntry{}
-	this.Addr = NewPopulatedProtoAddr(r)
-	this.Expiry = int64(r.Int63())
-	if r.Intn(2) == 0 {
-		this.Expiry *= -1
-	}
-	this.Ttl = int64(r.Int63())
-	if r.Intn(2) == 0 {
-		this.Ttl *= -1
-	}
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
 func NewPopulatedRecordRequest(r randyThreads, easy bool) *RecordRequest {
 	this := &RecordRequest{}
 	if r.Intn(10) != 0 {
+		this.Header = NewPopulatedRecordRequest_Header(r, easy)
+	}
+	this.ThreadId = NewPopulatedProtoThreadID(r)
+	this.LogId = NewPopulatedProtoPeerID(r)
+	if r.Intn(10) != 0 {
 		this.Record = NewPopulatedRecord(r, easy)
 	}
-	if r.Intn(10) != 0 {
-		this.PublicKey = pb.NewPopulatedPublicKey(r, easy)
+	if !easy && r.Intn(10) != 0 {
 	}
-	v10 := r.Intn(100)
-	this.Signature = make([]byte, v10)
-	for i := 0; i < v10; i++ {
+	return this
+}
+
+func NewPopulatedRecordRequest_Header(r randyThreads, easy bool) *RecordRequest_Header {
+	this := &RecordRequest_Header{}
+	this.From = NewPopulatedProtoPeerID(r)
+	v5 := r.Intn(100)
+	this.Signature = make([]byte, v5)
+	for i := 0; i < v5; i++ {
 		this.Signature[i] = byte(r.Intn(256))
+	}
+	if r.Intn(10) != 0 {
+		this.Key = pb.NewPopulatedPublicKey(r, easy)
+	}
+	v6 := r.Intn(100)
+	this.FollowKey = make([]byte, v6)
+	for i := 0; i < v6; i++ {
+		this.FollowKey[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
 	}
@@ -824,9 +644,9 @@ func randUTF8RuneThreads(r randyThreads) rune {
 	return rune(ru + 61)
 }
 func randStringThreads(r randyThreads) string {
-	v11 := r.Intn(100)
-	tmps := make([]rune, v11)
-	for i := 0; i < v11; i++ {
+	v7 := r.Intn(100)
+	tmps := make([]rune, v7)
+	for i := 0; i < v7; i++ {
 		tmps[i] = randUTF8RuneThreads(r)
 	}
 	return string(tmps)
@@ -848,11 +668,11 @@ func randFieldThreads(dAtA []byte, r randyThreads, fieldNumber int, wire int) []
 	switch wire {
 	case 0:
 		dAtA = encodeVarintPopulateThreads(dAtA, uint64(key))
-		v12 := r.Int63()
+		v8 := r.Int63()
 		if r.Intn(2) == 0 {
-			v12 *= -1
+			v8 *= -1
 		}
-		dAtA = encodeVarintPopulateThreads(dAtA, uint64(v12))
+		dAtA = encodeVarintPopulateThreads(dAtA, uint64(v8))
 	case 1:
 		dAtA = encodeVarintPopulateThreads(dAtA, uint64(key))
 		dAtA = append(dAtA, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -902,81 +722,50 @@ func (m *Record) Size() (n int) {
 	return n
 }
 
-func (m *LogInfo) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Id != nil {
-		l = m.Id.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.PublicKey != nil {
-		l = m.PublicKey.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.PrivateKey != nil {
-		l = m.PrivateKey.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	l = len(m.FollowKey)
-	if l > 0 {
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	l = len(m.ReadKey)
-	if l > 0 {
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if len(m.Addrs) > 0 {
-		for _, e := range m.Addrs {
-			l = e.Size()
-			n += 1 + l + sovThreads(uint64(l))
-		}
-	}
-	if len(m.Heads) > 0 {
-		for _, e := range m.Heads {
-			l = e.Size()
-			n += 1 + l + sovThreads(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *LogInfo_AddrEntry) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Addr != nil {
-		l = m.Addr.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.Expiry != 0 {
-		n += 1 + sovThreads(uint64(m.Expiry))
-	}
-	if m.Ttl != 0 {
-		n += 1 + sovThreads(uint64(m.Ttl))
-	}
-	return n
-}
-
 func (m *RecordRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.ThreadId != nil {
+		l = m.ThreadId.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.LogId != nil {
+		l = m.LogId.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
 	if m.Record != nil {
 		l = m.Record.Size()
 		n += 1 + l + sovThreads(uint64(l))
 	}
-	if m.PublicKey != nil {
-		l = m.PublicKey.Size()
+	return n
+}
+
+func (m *RecordRequest_Header) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.From != nil {
+		l = m.From.Size()
 		n += 1 + l + sovThreads(uint64(l))
 	}
 	l = len(m.Signature)
+	if l > 0 {
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.Key != nil {
+		l = m.Key.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	l = len(m.FollowKey)
 	if l > 0 {
 		n += 1 + l + sovThreads(uint64(l))
 	}
@@ -1197,429 +986,6 @@ func (m *Record) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *LogInfo) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowThreads
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: LogInfo: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: LogInfo: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoPeerID
-			m.Id = &v
-			if err := m.Id.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PublicKey", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.PublicKey == nil {
-				m.PublicKey = &pb.PublicKey{}
-			}
-			if err := m.PublicKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PrivateKey", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.PrivateKey == nil {
-				m.PrivateKey = &pb.PrivateKey{}
-			}
-			if err := m.PrivateKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FollowKey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.FollowKey = append(m.FollowKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.FollowKey == nil {
-				m.FollowKey = []byte{}
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ReadKey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ReadKey = append(m.ReadKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.ReadKey == nil {
-				m.ReadKey = []byte{}
-			}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Addrs", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Addrs = append(m.Addrs, &LogInfo_AddrEntry{})
-			if err := m.Addrs[len(m.Addrs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Heads", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoCid
-			m.Heads = append(m.Heads, v)
-			if err := m.Heads[len(m.Heads)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipThreads(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *LogInfo_AddrEntry) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowThreads
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: AddrEntry: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: AddrEntry: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Addr", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoAddr
-			m.Addr = &v
-			if err := m.Addr.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Expiry", wireType)
-			}
-			m.Expiry = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Expiry |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ttl", wireType)
-			}
-			m.Ttl = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Ttl |= int64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipThreads(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *RecordRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1650,6 +1016,112 @@ func (m *RecordRequest) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &RecordRequest_Header{}
+			}
+			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ThreadId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoThreadID
+			m.ThreadId = &v
+			if err := m.ThreadId.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LogId", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.LogId = &v
+			if err := m.LogId.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Record", wireType)
 			}
@@ -1685,11 +1157,64 @@ func (m *RecordRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PublicKey", wireType)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
 			}
-			var msglen int
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RecordRequest_Header) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Header: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Header: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
+			}
+			var byteLen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowThreads
@@ -1699,29 +1224,28 @@ func (m *RecordRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				msglen |= int(b&0x7F) << shift
+				byteLen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if msglen < 0 {
+			if byteLen < 0 {
 				return ErrInvalidLengthThreads
 			}
-			postIndex := iNdEx + msglen
+			postIndex := iNdEx + byteLen
 			if postIndex < 0 {
 				return ErrInvalidLengthThreads
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.PublicKey == nil {
-				m.PublicKey = &pb.PublicKey{}
-			}
-			if err := m.PublicKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			var v ProtoPeerID
+			m.From = &v
+			if err := m.From.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
-		case 3:
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Signature", wireType)
 			}
@@ -1753,6 +1277,76 @@ func (m *RecordRequest) Unmarshal(dAtA []byte) error {
 			m.Signature = append(m.Signature[:0], dAtA[iNdEx:postIndex]...)
 			if m.Signature == nil {
 				m.Signature = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Key", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Key == nil {
+				m.Key = &pb.PublicKey{}
+			}
+			if err := m.Key.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FollowKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.FollowKey = append(m.FollowKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.FollowKey == nil {
+				m.FollowKey = []byte{}
 			}
 			iNdEx = postIndex
 		default:

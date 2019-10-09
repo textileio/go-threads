@@ -79,7 +79,15 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, sett
 	}, nil
 }
 
-func DecodeEvent(node format.Node) (thread.Event, error) {
+func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Event, error) {
+	node, err := dag.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return EventFromNode(node)
+}
+
+func EventFromNode(node format.Node) (thread.Event, error) {
 	obj := new(event)
 	err := cbornode.DecodeInto(node.RawData(), obj)
 	if err != nil {
@@ -91,15 +99,7 @@ func DecodeEvent(node format.Node) (thread.Event, error) {
 	}, nil
 }
 
-func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Event, error) {
-	node, err := dag.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return DecodeEvent(node)
-}
-
-func GetEventFromNode(ctx context.Context, dag format.DAGService, rec thread.Record) (thread.Event, error) {
+func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Record) (thread.Event, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err

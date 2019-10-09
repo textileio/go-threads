@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -61,7 +62,10 @@ type threads struct {
 
 func NewThreads(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore, debug bool) (tserv.Threadservice, error) {
 	if debug {
-		err := setLogLevels(getDebugLevels(), true)
+		err := setLogLevels(map[string]logger.Level{
+			"threads":     logger.DEBUG,
+			"threadstore": logger.DEBUG,
+		}, true)
 		if err != nil {
 			return nil, err
 		}
@@ -86,10 +90,18 @@ func NewThreads(ctx context.Context, h host.Host, ds format.DAGService, ts tstor
 
 	pb.RegisterThreadsServer(rpc, t.service)
 
-	//service.pubsub, err = pubsub.NewGossipSub(service.ctx, service.host)
-	//if err != nil {
-	//	return nil, err
-	//}
+	t.pubsub, err = pubsub.NewGossipSub(
+		ctx,
+		h,
+		pubsub.WithMessageSigning(false),
+		pubsub.WithStrictSignatureVerification(false))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, id := range t.Threads() {
+		go t.listen(ctx, id)
+	}
 
 	// @todo: ts.pubsub.RegisterTopicValidator()
 
@@ -106,8 +118,7 @@ func (t *threads) Close() (err error) {
 		}
 	}
 
-	//weakClose("server", t.server)
-	//weakClose("host", t.host)
+	//weakClose("host", t.host) @todo: fix panic on close
 	weakClose("dagservice", t.dagService)
 	weakClose("threadstore", t.Threadstore)
 
@@ -244,6 +255,36 @@ func (t *threads) Delete(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
+func (t *threads) listen(ctx context.Context, id thread.ID) {
+	sub, err := t.pubsub.Subscribe(id.String())
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for {
+		msg, err := sub.Next(ctx)
+		if err != nil {
+			log.Error(err)
+			break
+		}
+
+		req := new(pb.RecordRequest)
+		err = proto.Unmarshal(msg.Data, req)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		reply, err := t.service.Push(ctx, req)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		log.Debugf("received multicast request (reply: %s)", reply.String())
+	}
+}
+
 func (t *threads) getPrivKey() ic.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
 }
@@ -265,12 +306,20 @@ func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo
 	return
 }
 
-func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo) {
 	for _, lid := range t.LogsWithKeys(id) {
 		if t.PrivKey(id, lid) != nil {
 			info = t.LogInfo(id, lid)
 			return
 		}
+	}
+	return
+}
+
+func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	info = t.getOwnLog(id)
+	if info.PubKey != nil {
+		return
 	}
 	info, err = t.createLog()
 	if err != nil {
@@ -337,11 +386,4 @@ func setLogLevels(systems map[string]logger.Level, color bool) error {
 		}
 	}
 	return nil
-}
-
-func getDebugLevels() map[string]logger.Level {
-	return map[string]logger.Level{
-		"threads":     logger.DEBUG,
-		"threadstore": logger.DEBUG,
-	}
 }

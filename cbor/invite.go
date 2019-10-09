@@ -24,7 +24,6 @@ type invite struct {
 type loginfo struct {
 	ID        string
 	PubKey    []byte
-	PrivKey   []byte
 	FollowKey []byte
 	ReadKey   []byte
 	Addrs     [][]byte
@@ -35,10 +34,6 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 	ls := make([]loginfo, len(logs))
 	for i, l := range logs {
 		pk, err := ic.MarshalPublicKey(l.PubKey)
-		if err != nil {
-			return nil, err
-		}
-		sk, err := ic.MarshalPrivateKey(l.PrivKey)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +48,6 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 		log := loginfo{
 			ID:        l.ID.String(),
 			PubKey:    pk,
-			PrivKey:   sk,
 			FollowKey: l.FollowKey,
 			Addrs:     addrs,
 			Heads:     heads,
@@ -69,7 +63,7 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 	}, mh.SHA2_256, -1)
 }
 
-func DecodeInvite(node format.Node) ([]thread.LogInfo, bool, error) {
+func InviteFromNode(node format.Node) ([]thread.LogInfo, bool, error) {
 	i := new(invite)
 	err := cbornode.DecodeInto(node.RawData(), i)
 	if err != nil {
@@ -83,10 +77,6 @@ func DecodeInvite(node format.Node) ([]thread.LogInfo, bool, error) {
 			return nil, false, err
 		}
 		pk, err := ic.UnmarshalPublicKey(l.PubKey)
-		if err != nil {
-			return nil, false, err
-		}
-		sk, err := ic.UnmarshalPrivateKey(l.PrivKey)
 		if err != nil {
 			return nil, false, err
 		}
@@ -107,7 +97,6 @@ func DecodeInvite(node format.Node) ([]thread.LogInfo, bool, error) {
 		log := thread.LogInfo{
 			ID:        id,
 			PubKey:    pk,
-			PrivKey:   sk,
 			FollowKey: l.FollowKey,
 			ReadKey:   l.ReadKey,
 			Addrs:     addrs,
