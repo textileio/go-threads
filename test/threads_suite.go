@@ -4,8 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-ipfs/dagutils"
+	bserv "github.com/ipfs/go-blockservice"
+	ds "github.com/ipfs/go-datastore"
+	syncds "github.com/ipfs/go-datastore/sync"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbornode "github.com/ipfs/go-ipld-cbor"
+	dag "github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -55,10 +60,14 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	bs := bstore.NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
+	bsrv := bserv.New(bs, offline.Exchange(bs))
 	ts, err := threads.NewThreads(
 		context.Background(),
 		host,
-		dagutils.NewMemoryDagService(),
+		bsrv,
+		dag.NewDAGService(bsrv),
 		tstore.NewThreadstore(),
 		true)
 	if err != nil {

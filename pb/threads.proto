@@ -34,6 +34,8 @@ message RecordRequest {
         textile.crypto.pb.PublicKey key = 3;
 
         bytes follow_key = 4;
+
+        bytes read_key_log_id = 5 [(gogoproto.customtype) = "ProtoPeerID"];
     }
 }
 

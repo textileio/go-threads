@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gogo/protobuf/proto"
+	bserv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -14,7 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	gostream "github.com/libp2p/go-libp2p-gostream"
-	"github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
@@ -52,17 +51,18 @@ func init() {
 
 type threads struct {
 	host       host.Host
+	blocks     bserv.BlockService
 	service    *service
-	pubsub     *pubsub.PubSub
 	dagService format.DAGService
 	ctx        context.Context
 	cancel     context.CancelFunc
 	tstore.Threadstore
 }
 
-func NewThreads(ctx context.Context, h host.Host, ds format.DAGService, ts tstore.Threadstore, debug bool) (tserv.Threadservice, error) {
+func NewThreads(ctx context.Context, h host.Host, bs bserv.BlockService, ds format.DAGService, ts tstore.Threadstore, debug bool) (tserv.Threadservice, error) {
+	var err error
 	if debug {
-		err := setLogLevels(map[string]logger.Level{
+		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
 		}, true)
@@ -72,38 +72,26 @@ func NewThreads(ctx context.Context, h host.Host, ds format.DAGService, ts tstor
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	rpc := grpc.NewServer()
 	t := &threads{
 		host:        h,
+		blocks:      bs,
 		dagService:  ds,
 		ctx:         ctx,
 		cancel:      cancel,
 		Threadstore: ts,
 	}
-	t.service = &service{threads: t}
+	t.service, err = newService(t)
+	if err != nil {
+		return nil, err
+	}
 
 	listener, err := gostream.Listen(h, IPELProtocol)
 	if err != nil {
 		return nil, err
 	}
+	rpc := grpc.NewServer()
 	go rpc.Serve(listener)
-
 	pb.RegisterThreadsServer(rpc, t.service)
-
-	t.pubsub, err = pubsub.NewGossipSub(
-		ctx,
-		h,
-		pubsub.WithMessageSigning(false),
-		pubsub.WithStrictSignatureVerification(false))
-	if err != nil {
-		return nil, err
-	}
-
-	for _, id := range t.Threads() {
-		go t.listen(ctx, id)
-	}
-
-	// @todo: ts.pubsub.RegisterTopicValidator()
 
 	return t, nil
 }
@@ -165,7 +153,7 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 	addrs = append(addrs, settings.Addrs...)
 
 	// Push our the new record
-	err = t.service.pushAddrs(ctx, coded, settings.Thread, log.ID, addrs)
+	err = t.service.pushAddrs(ctx, coded, settings.Thread, log.ID, settings)
 	if err != nil {
 		return
 	}
@@ -255,36 +243,6 @@ func (t *threads) Delete(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
-func (t *threads) listen(ctx context.Context, id thread.ID) {
-	sub, err := t.pubsub.Subscribe(id.String())
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	for {
-		msg, err := sub.Next(ctx)
-		if err != nil {
-			log.Error(err)
-			break
-		}
-
-		req := new(pb.RecordRequest)
-		err = proto.Unmarshal(msg.Data, req)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
-		reply, err := t.service.Push(ctx, req)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		log.Debugf("received multicast request (reply: %s)", reply.String())
-	}
-}
-
 func (t *threads) getPrivKey() ic.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
 }
@@ -331,8 +289,15 @@ func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 
 func (t *threads) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
 	if settings.Key == nil {
+		var key []byte
+		logKey := t.ReadKey(settings.Thread, settings.KeyLog)
+		if logKey != nil {
+			key = logKey
+		} else {
+			key = log.ReadKey
+		}
 		var err error
-		settings.Key, err = crypto.ParseEncryptionKey(log.ReadKey)
+		settings.Key, err = crypto.ParseEncryptionKey(key)
 		if err != nil {
 			return nil, err
 		}
