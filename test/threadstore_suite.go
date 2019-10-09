@@ -215,7 +215,7 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 		for _, a := range addrs {
 			tid := thread.NewIDV1(thread.Raw, 24)
 			tids = append(tids, tid)
-			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, 512)
+			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p, _ := peer.IDFromPrivateKey(priv)
 			ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
 		}
