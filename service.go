@@ -402,7 +402,7 @@ func (s *service) subscribe(id thread.ID) {
 			log.Error(err)
 			continue
 		}
-		log.Debugf("received multicast request (reply: %s)", reply.String())
+		log.Debugf("received multicast request (reply: %t)", reply.Ok)
 	}
 }
 

@@ -112,15 +112,15 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}
 
 		// Pull from the log origin
-		nodes, err := ts1.Pull(ctx, tid, lid1, cid.Undef)
+		recs, err := ts1.Pull(ctx, tid, lid1, cid.Undef)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(nodes) != 2 {
-			t.Fatalf("expected 2 nodes got %d", len(nodes))
+		if len(recs) != 2 {
+			t.Fatalf("expected 2 records got %d", len(recs))
 		}
 
-		event, err := cbor.GetEvent(ctx, ts1.DAGService(), nodes[0].BlockID())
+		event, err := cbor.GetEvent(ctx, ts1.DAGService(), recs[0].BlockID())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -150,7 +150,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, _, err = ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		lid1, _, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,6 +182,28 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		info := ts2.ThreadInfo(tid)
+		if len(info.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info.Logs))
+		}
+
+		for _, lid := range info.Logs {
+			// Pull from the log origin
+			recs, err := ts2.Pull(ctx, tid, lid, cid.Undef)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if lid.String() == lid1.String() {
+				if len(recs) != 2 { // ts1's log with one msg and one invite record
+					t.Fatalf("expected 2 records got %d", len(recs))
+				}
+			} else {
+				if len(recs) != 1 { // ts2's log with one invite record
+					t.Fatalf("expected 1 record got %d", len(recs))
+				}
+			}
 		}
 	}
 }
