@@ -43,6 +43,15 @@ func TestDatastoreAddrBook(t *testing.T) {
 	}
 }
 
+func TestDatastoreKeyBook(t *testing.T) {
+	for name, dsFactory := range dstores {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			pt.KeyBookTest(t, keyBookFactory(t, dsFactory))
+		})
+	}
+}
+
 func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Options) pt.AddrBookFactory {
 	return func() (tstore.AddrBook, func()) {
 		store, closeFunc := storeFactory(tb)
@@ -55,6 +64,20 @@ func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Optio
 			closeFunc()
 		}
 		return ab, closer
+	}
+}
+
+func keyBookFactory(tb testing.TB, storeFactory datastoreFactory) pt.KeyBookFactory {
+	return func() (tstore.KeyBook, func()) {
+		store, closeFunc := storeFactory(tb)
+		kb, err := NewKeyBook(store)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		closer := func() {
+			closeFunc()
+		}
+		return kb, closer
 	}
 }
 
