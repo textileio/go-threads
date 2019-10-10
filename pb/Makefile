@@ -5,8 +5,6 @@ all: $(GO)
 
 %.pb.go: %.proto
 	protoc -I=. -I=$(GOPATH)/src --gogofaster_out=\
-	Mgoogle/protobuf/struct.proto=github.com/gogo/protobuf/types,\
-	Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,\
 	plugins=grpc:\
 	. $<
 

@@ -2,7 +2,6 @@ syntax = "proto3";
 package threads.pb;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-import "github.com/textileio/go-textile-core/crypto/pb/crypto.proto";
 
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
@@ -31,7 +30,7 @@ message PushRequest {
 
         bytes signature = 2;
 
-        textile.crypto.pb.PublicKey key = 3;
+        bytes key = 3 [(gogoproto.customtype) = "ProtoPubKey"];
 
         bytes followKey = 4;
 

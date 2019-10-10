@@ -16,7 +16,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/asymmetric"
-	pbc "github.com/textileio/go-textile-core/crypto/pb"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -192,10 +191,6 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 		return err
 	}
 
-	pk, err := pbc.PublicKeyToProto(sk.GetPublic())
-	if err != nil {
-		return err
-	}
 	var keyLog *pb.ProtoPeerID
 	logKey := s.threads.ReadKey(settings.Thread, settings.KeyLog)
 	if logKey != nil {
@@ -205,7 +200,7 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 		Header: &pb.PushRequest_Header{
 			From:         &pb.ProtoPeerID{ID: s.threads.host.ID()},
 			Signature:    sig,
-			Key:          pk,
+			Key:          &pb.ProtoPubKey{PubKey: sk.GetPublic()},
 			FollowKey:    s.threads.FollowKey(id, lid),
 			ReadKeyLogID: keyLog,
 		},
@@ -514,13 +509,9 @@ func requestPubKey(r *pb.PushRequest) (ic.PubKey, error) {
 			return nil, fmt.Errorf("cannot extract signing key")
 		}
 	} else {
-		pubk, err = pbc.PublicKeyFromProto(r.Header.Key)
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal signing key: %s", err)
-		}
-
+		pubk = r.Header.Key.PubKey
 		// Verify that the source ID matches the attached key
-		if !r.Header.From.ID.MatchesPublicKey(pubk) {
+		if !r.Header.From.ID.MatchesPublicKey(r.Header.Key.PubKey) {
 			return nil, fmt.Errorf("bad signing key; source ID %s doesn't match key", r.Header.From.ID)
 		}
 	}

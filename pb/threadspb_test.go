@@ -8,7 +8,6 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 	proto "github.com/gogo/protobuf/proto"
-	_ "github.com/textileio/go-textile-core/crypto/pb"
 	math "math"
 	math_rand "math/rand"
 	testing "testing"
