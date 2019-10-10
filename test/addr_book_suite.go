@@ -18,6 +18,7 @@ var addressBookSuite = map[string]func(book tstore.AddrBook) func(*testing.T){
 	"AddressesExpire":      testAddressesExpire,
 	"ClearWithIter":        testClearWithIterator,
 	"LogsWithAddresses":    testLogsWithAddrs,
+	"ThreadsWithAddresses": testThreadsFromddrs,
 }
 
 type AddrBookFactory func() (tstore.AddrBook, func())
@@ -345,6 +346,36 @@ func testLogsWithAddrs(ab tstore.AddrBook) func(t *testing.T) {
 
 			if logs := ab.LogsWithAddrs(tid); len(logs) != 2 {
 				t.Fatal("expected to find 2 logs")
+			}
+		})
+	}
+}
+
+func testThreadsFromddrs(ab tstore.AddrBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		// cannot run in parallel as the store is modified.
+		// go runs sequentially in the specified order
+		// see https://blog.golang.org/subtests
+
+		t.Run("empty addrbook", func(t *testing.T) {
+			if logs := ab.ThreadsFromAddrs(); len(logs) != 0 {
+				t.Fatal("expected to find no threads")
+			}
+		})
+
+		t.Run("non-empty addrbook", func(t *testing.T) {
+			tids := make([]thread.ID, 3)
+			for i := range tids {
+				tids[i] = thread.NewIDV1(thread.Raw, 24)
+				ids := GeneratePeerIDs(2)
+				addrs := GenerateAddrs(4)
+
+				ab.AddAddrs(tids[i], ids[0], addrs[:2], pstore.PermanentAddrTTL)
+				ab.AddAddrs(tids[i], ids[1], addrs[2:], pstore.PermanentAddrTTL)
+			}
+
+			if threads := ab.ThreadsFromAddrs(); len(threads) != len(tids) {
+				t.Fatalf("expected to find %d threads, got %d", len(tids), len(threads))
 			}
 		})
 	}
