@@ -1,0 +1,55 @@
+version: 2.1
+
+checkout-linux: &checkout-linux
+  attach_workspace:
+    at: /root
+
+jobs:
+  persist-checkout:
+    docker:
+      - image: python
+    steps:
+      - checkout
+      - run:
+          name: clean up git
+          command: |
+            rm -rf .git
+      - persist_to_workspace:
+          root: /root
+          paths:
+            - project
+
+  unit-test:
+    docker:
+      - image: circleci/golang:1.13
+    steps:
+      - *checkout-linux
+      - restore_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}-{{ arch }}
+      - run:
+          name: cache mods
+          command: |
+            go mod download
+      - save_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}-{{ arch }}
+          paths:
+            - /go/pkg/mod
+      - run:
+          name: run tests
+          command: |
+            go test ./...
+
+workflows:
+  version: 2
+  go-textile:
+    jobs:
+      - persist-checkout:
+          filters:
+            tags:
+              only: /.*/
+      - unit-test:
+          requires:
+            - persist-checkout
+          filters:
+            tags:
+              only: /.*/
