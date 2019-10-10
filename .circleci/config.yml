@@ -21,7 +21,7 @@ jobs:
 
   unit-test:
     docker:
-      - image: circleci/golang:1.13
+      - image: textile/builder:1.13.1
     steps:
       - *checkout-linux
       - restore_cache:
