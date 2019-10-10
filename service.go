@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/ipfs/go-cid"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	gostream "github.com/libp2p/go-libp2p-gostream"
@@ -26,8 +27,8 @@ import (
 )
 
 const (
-	// pushTimeout is the duration to wait for a push to succeed.
-	pushTimeout = time.Second * 5
+	// reqTimeout is the duration to wait for a request to complete.
+	reqTimeout = time.Second * 5
 )
 
 // service implements the Threads RPC service.
@@ -62,7 +63,7 @@ func newService(t *threads) (*service, error) {
 }
 
 // Push receives a record request.
-func (s *service) Push(ctx context.Context, req *pb.RecordRequest) (*pb.RecordReply, error) {
+func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply, error) {
 	// Verify the request
 	reqpk, err := requestPubKey(req)
 	if err != nil {
@@ -73,14 +74,14 @@ func (s *service) Push(ctx context.Context, req *pb.RecordRequest) (*pb.RecordRe
 		return nil, err
 	}
 
-	reply := &pb.RecordReply{Ok: true}
+	reply := &pb.PushReply{Ok: true}
 
 	// Unpack the record
 	var fkey []byte
 	if req.Header.FollowKey != nil {
 		fkey = req.Header.FollowKey
 	} else {
-		fkey = s.threads.FollowKey(req.ThreadId.ID, req.LogId.ID)
+		fkey = s.threads.FollowKey(req.ThreadID.ID, req.LogID.ID)
 	}
 	if fkey == nil {
 		return nil, fmt.Errorf("could not find follow key")
@@ -99,28 +100,28 @@ func (s *service) Push(ctx context.Context, req *pb.RecordRequest) (*pb.RecordRe
 	}
 
 	// Check if this log already exists
-	logpk := s.threads.PubKey(req.ThreadId.ID, req.LogId.ID)
+	logpk := s.threads.PubKey(req.ThreadID.ID, req.LogID.ID)
 	if logpk == nil {
 		var kid peer.ID
-		if req.Header.ReadKeyLogId != nil {
-			kid = req.Header.ReadKeyLogId.ID
+		if req.Header.ReadKeyLogID != nil {
+			kid = req.Header.ReadKeyLogID.ID
 		}
-		log, err := s.handleInvite(ctx, req.ThreadId.ID, req.LogId.ID, kid, rec)
+		lg, err := s.handleInvite(ctx, req.ThreadID.ID, req.LogID.ID, kid, rec)
 		if err != nil {
 			return nil, err
 		}
 
-		if log != nil {
+		if lg != nil {
 			// Notify existing logs of our new log
-			invite, err := cbor.NewInvite([]thread.LogInfo{*log}, true)
+			invite, err := cbor.NewInvite([]thread.LogInfo{*lg}, true)
 			if err != nil {
 				return nil, err
 			}
 			_, _, err = s.threads.Add(
 				ctx,
 				invite,
-				tserv.AddOpt.Thread(req.ThreadId.ID),
-				tserv.AddOpt.KeyLog(req.LogId.ID))
+				tserv.AddOpt.Thread(req.ThreadID.ID),
+				tserv.AddOpt.KeyLog(req.LogID.ID))
 			if err != nil {
 				return nil, err
 			}
@@ -133,7 +134,7 @@ func (s *service) Push(ctx context.Context, req *pb.RecordRequest) (*pb.RecordRe
 		}
 	}
 
-	err = s.threads.Put(ctx, rec, tserv.PutOpt.Thread(req.ThreadId.ID), tserv.PutOpt.Log(req.LogId.ID))
+	err = s.threads.Put(ctx, rec, tserv.PutOpt.Thread(req.ThreadID.ID), tserv.PutOpt.Log(req.LogID.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +142,26 @@ func (s *service) Push(ctx context.Context, req *pb.RecordRequest) (*pb.RecordRe
 	return reply, nil
 }
 
-// pushAddrs pushes a record to the given addresses.
-func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, settings *tserv.AddSettings) error {
+func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply, error) {
+	recs, err := s.threads.pullLocal(ctx, req.ThreadID.ID, req.LogID.ID, req.Offset.Cid, int(req.Limit))
+	if err != nil {
+		return nil, err
+	}
+
+	pbrecs := &pb.PullReply{
+		Records: make([]*pb.Record, len(recs)),
+	}
+	for i, r := range recs {
+		pbrecs.Records[i], err = cbor.RecordToProto(ctx, s.threads.dagService, r)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pbrecs, nil
+}
+
+// push a record to log addresses and thread topic.
+func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, settings *tserv.AddSettings) error {
 	var addrs []ma.Multiaddr
 	// Collect known writers
 	for _, l := range s.threads.ThreadInfo(settings.Thread).Logs {
@@ -182,16 +201,16 @@ func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID
 	if logKey != nil {
 		keyLog = &pb.ProtoPeerID{ID: settings.KeyLog}
 	}
-	req := &pb.RecordRequest{
-		Header: &pb.RecordRequest_Header{
+	req := &pb.PushRequest{
+		Header: &pb.PushRequest_Header{
 			From:         &pb.ProtoPeerID{ID: s.threads.host.ID()},
 			Signature:    sig,
 			Key:          pk,
 			FollowKey:    s.threads.FollowKey(id, lid),
-			ReadKeyLogId: keyLog,
+			ReadKeyLogID: keyLog,
 		},
-		ThreadId: &pb.ProtoThreadID{ID: id},
-		LogId:    &pb.ProtoPeerID{ID: lid},
+		ThreadID: &pb.ProtoThreadID{ID: id},
+		LogID:    &pb.ProtoPeerID{ID: lid},
 		Record:   pbrec,
 	}
 
@@ -211,9 +230,9 @@ func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID
 				return
 			}
 
-			log.Debugf("pushing request to %s...", p)
+			log.Debugf("pushing record to %s...", p)
 
-			cctx, _ := context.WithTimeout(ctx, pushTimeout)
+			cctx, _ := context.WithTimeout(ctx, reqTimeout)
 			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
 			if err != nil {
 				log.Error(err)
@@ -226,7 +245,7 @@ func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID
 				return
 			}
 
-			log.Debugf("reply from %s: %s", p, reply.String())
+			log.Debugf("reply from %s: %t", p, reply.Ok)
 
 			wg.Done()
 		}(addr)
@@ -242,6 +261,107 @@ func (s *service) pushAddrs(ctx context.Context, rec thread.Record, id thread.ID
 	return nil
 }
 
+type records struct {
+	sync.RWMutex
+	m map[cid.Cid]thread.Record
+	s []thread.Record
+}
+
+func newRecords() *records {
+	return &records{
+		m: make(map[cid.Cid]thread.Record),
+		s: make([]thread.Record, 0),
+	}
+}
+
+func (r *records) List() []thread.Record {
+	r.RLock()
+	defer r.RUnlock()
+	return r.s
+}
+
+func (r *records) Store(key cid.Cid, value thread.Record) {
+	r.Lock()
+	if _, ok := r.m[key]; ok {
+		return
+	}
+	r.m[key] = value
+	r.s = append(r.s, value)
+	r.Unlock()
+}
+
+// pull records from log addresses.
+func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, settings *tserv.PullSettings) ([]thread.Record, error) {
+	lg := s.threads.LogInfo(id, lid)
+	if lg.PubKey == nil {
+		return nil, fmt.Errorf("could not find log")
+	}
+	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &pb.PullRequest{
+		Header: &pb.PullRequest_Header{
+			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
+		},
+		ThreadID: &pb.ProtoThreadID{ID: id},
+		LogID:    &pb.ProtoPeerID{ID: lid},
+		Offset:   &pb.ProtoCid{Cid: offset},
+		Limit:    int32(settings.Limit),
+	}
+
+	// Pull from each address
+	recs := newRecords()
+	wg := sync.WaitGroup{}
+	for _, addr := range s.threads.LogInfo(id, lid).Addrs {
+		wg.Add(1)
+		go func(addr ma.Multiaddr) {
+			p, err := addr.ValueForProtocol(ma.P_P2P)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			pid, err := peer.IDB58Decode(p)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			log.Debugf("pulling records from %s...", p)
+
+			cctx, _ := context.WithTimeout(ctx, reqTimeout)
+			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			client := pb.NewThreadsClient(conn)
+			reply, err := client.Pull(cctx, req)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			for _, r := range reply.Records {
+				rec, err := cbor.RecordFromProto(r, fk)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				recs.Store(rec.Cid(), rec)
+			}
+
+			log.Debugf("reply from %s: %s", p, reply.String())
+
+			wg.Done()
+		}(addr)
+	}
+
+	wg.Wait()
+	return recs.List(), nil
+}
+
 // dial attempts to open a GRPC connection over libp2p to a peer.
 func (s *service) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
@@ -250,8 +370,8 @@ func (s *service) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.Dia
 
 // getDialOption returns the WithDialer option to dial via libp2p.
 func (s *service) getDialOption() grpc.DialOption {
-	return grpc.WithContextDialer(func(ctx context.Context, peerIdStr string) (net.Conn, error) {
-		id, err := peer.IDB58Decode(peerIdStr)
+	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (net.Conn, error) {
+		id, err := peer.IDB58Decode(peerIDStr)
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}
@@ -275,7 +395,7 @@ func (s *service) subscribe(id thread.ID) {
 			break
 		}
 
-		req := new(pb.RecordRequest)
+		req := new(pb.PushRequest)
 		err = proto.Unmarshal(msg.Data, req)
 		if err != nil {
 			log.Error(err)
@@ -292,7 +412,7 @@ func (s *service) subscribe(id thread.ID) {
 }
 
 // publish a request to a thread.
-func (s *service) publish(id thread.ID, req *pb.RecordRequest) error {
+func (s *service) publish(id thread.ID, req *pb.PushRequest) error {
 	data, err := req.Marshal()
 	if err != nil {
 		return err
@@ -336,23 +456,23 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 	if err != nil {
 		return nil, err
 	}
-	logs, reader, err := cbor.InviteFromNode(body)
+	lgs, reader, err := cbor.InviteFromNode(body)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add incoming logs
-	for _, log := range logs {
-		if !log.ID.MatchesPublicKey(log.PubKey) {
+	for _, lg := range lgs {
+		if !lg.ID.MatchesPublicKey(lg.PubKey) {
 			return nil, fmt.Errorf("invalid log")
 		}
-		if log.ID.String() == lid.String() { // This is the log carrying the event
-			err = rec.Verify(log.PubKey)
+		if lg.ID.String() == lid.String() { // This is the log carrying the event
+			err = rec.Verify(lg.PubKey)
 			if err != nil {
 				return nil, err
 			}
 		}
-		err = s.threads.AddLog(id, log)
+		err = s.threads.AddLog(id, lg)
 		if err != nil {
 			return nil, err
 		}
@@ -361,15 +481,15 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 	// Create an own log if this is a new thread
 	var ownLog *thread.LogInfo
 	if reader && newThread {
-		log, err := util.CreateLog(s.threads.host.ID())
+		lg, err := util.CreateLog(s.threads.host.ID())
 		if err != nil {
 			return nil, err
 		}
-		err = s.threads.AddLog(id, log)
+		err = s.threads.AddLog(id, lg)
 		if err != nil {
 			return nil, err
 		}
-		ownLog = &log
+		ownLog = &lg
 	}
 
 	// Subscribe to the new thread
@@ -381,7 +501,7 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 }
 
 // requestPubKey returns the key associated with a request.
-func requestPubKey(r *pb.RecordRequest) (ic.PubKey, error) {
+func requestPubKey(r *pb.PushRequest) (ic.PubKey, error) {
 	var pubk ic.PubKey
 	var err error
 	if r.Header.Key == nil {

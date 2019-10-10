@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/ipfs/go-cid"
+
 	bserv "github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
 	syncds "github.com/ipfs/go-datastore/sync"
@@ -109,7 +111,8 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 			t.Fatalf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
 		}
 
-		nodes, err := ts1.Pull(ctx, tid, lid1, tserv.PullOpt.Limit(2))
+		// Pull from the log origin
+		nodes, err := ts1.Pull(ctx, tid, lid1, cid.Undef)
 		if err != nil {
 			t.Fatal(err)
 		}

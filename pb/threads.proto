@@ -10,19 +10,19 @@ option (gogoproto.populate_all) = true;
 message Record {
     bytes node = 1;
 
-    bytes event_node = 2;
+    bytes eventNode = 2;
 
-    bytes header_node = 3;
+    bytes headerNode = 3;
 
-    bytes body_node = 4;
+    bytes bodyNode = 4;
 }
 
-message RecordRequest {
+message PushRequest {
     Header header = 1;
 
-    bytes thread_id = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
-    bytes log_id = 3 [(gogoproto.customtype) = "ProtoPeerID"];
+    bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
 
     Record record = 4;
 
@@ -33,17 +33,37 @@ message RecordRequest {
 
         textile.crypto.pb.PublicKey key = 3;
 
-        bytes follow_key = 4;
+        bytes followKey = 4;
 
-        bytes read_key_log_id = 5 [(gogoproto.customtype) = "ProtoPeerID"];
+        bytes readKeyLogID = 5 [(gogoproto.customtype) = "ProtoPeerID"];
     }
 }
 
-message RecordReply {
+message PushReply {
     bool ok = 1;
 }
 
+message PullRequest {
+    Header header = 1;
+
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+
+    bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    bytes offset = 4 [(gogoproto.customtype) = "ProtoCid"];
+
+    int32 limit = 5;
+
+    message Header {
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    }
+}
+
+message PullReply {
+    repeated Record records = 1;
+}
+
 service Threads {
-    rpc Push(RecordRequest) returns (RecordReply) {}
-    //rpc Pull(FetchRequest) returns (FetchReply) {}
+    rpc Push(PushRequest) returns (PushReply) {}
+    rpc Pull(PullRequest) returns (PullReply) {}
 }

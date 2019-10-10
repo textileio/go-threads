@@ -129,47 +129,35 @@ func (t *threads) DAGService() format.DAGService {
 func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, r thread.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
-	log, err := t.getOrCreateOwnLog(settings.Thread)
+	lg, err := t.getOrCreateOwnLog(settings.Thread)
 	if err != nil {
 		return
 	}
 
 	// Write a node locally
-	coded, err := t.createNode(ctx, body, log, settings)
+	coded, err := t.createNode(ctx, body, lg, settings)
 	if err != nil {
 		return
 	}
 
-	var addrs []ma.Multiaddr
-	// Collect known writers
-	for _, lid := range t.ThreadInfo(settings.Thread).Logs {
-		if lid.String() == log.ID.String() {
-			continue
-		}
-		addrs = append(addrs, t.Addrs(settings.Thread, lid)...)
-	}
-
-	// Add additional addresses
-	addrs = append(addrs, settings.Addrs...)
-
-	// Push our the new record
-	err = t.service.pushAddrs(ctx, coded, settings.Thread, log.ID, settings)
+	// Push out the new record
+	err = t.service.push(ctx, coded, settings.Thread, lg.ID, settings)
 	if err != nil {
 		return
 	}
 
-	return log.ID, coded, nil
+	return lg.ID, coded, nil
 }
 
 func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
 	// Get or create a log for the new rec
 	settings := tserv.PutOptions(opts...)
-	log, err := t.getOrCreateLog(settings.Thread, settings.Log)
+	lg, err := t.getOrCreateLog(settings.Thread, settings.Log)
 	if err != nil {
 		return err
 	}
 
-	// Save the rec locally
+	// Save the record locally
 	// Note: These get methods will return cached nodes.
 	block, err := rec.GetBlock(ctx, t.dagService)
 	if err != nil {
@@ -192,51 +180,33 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 		return err
 	}
 
-	t.SetHead(settings.Thread, log.ID, rec.Cid())
+	// Update head
+	t.SetHead(settings.Thread, lg.ID, rec.Cid())
 	return nil
 }
 
-// if own log, return local values
-// if not, call addresses
-func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, opts ...tserv.PullOption) ([]thread.Record, error) {
-	log := t.LogInfo(id, lid)
-
+func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, opts ...tserv.PullOption) ([]thread.Record, error) {
 	settings := tserv.PullOptions(opts...)
-	if !settings.Offset.Defined() {
-		if len(log.Heads) == 0 {
-			return nil, nil
-		}
-		settings.Offset = log.Heads[0]
+
+	if t.PubKey(id, lid) == nil {
+		return nil, fmt.Errorf("could not find log")
 	}
 
-	followKey, err := crypto.ParseDecryptionKey(log.FollowKey)
-	if err != nil {
-		return nil, err
+	if t.PrivKey(id, lid) != nil { // This is our own log
+		return t.pullLocal(ctx, id, lid, offset, settings.Limit)
 	}
 
-	var recs []thread.Record
-	for i := 0; i < settings.Limit; i++ {
-		node, err := cbor.GetRecord(ctx, t.dagService, settings.Offset, followKey)
-		if err != nil {
-			return nil, err
-		}
-		recs = append(recs, node)
-
-		settings.Offset = node.PrevID()
-		if !settings.Offset.Defined() {
-			break
-		}
-	}
-	return recs, nil
+	// Pull from addresses
+	return t.service.pull(ctx, id, lid, offset, settings)
 }
 
 func (t *threads) Logs(id thread.ID) []thread.LogInfo {
-	logs := make([]thread.LogInfo, 0)
-	for _, l := range t.ThreadInfo(id).Logs {
-		log := t.LogInfo(id, l)
-		logs = append(logs, log)
+	lgs := make([]thread.LogInfo, 0)
+	for _, lid := range t.ThreadInfo(id).Logs {
+		lg := t.LogInfo(id, lid)
+		lgs = append(lgs, lg)
 	}
-	return logs
+	return lgs
 }
 
 func (t *threads) Delete(ctx context.Context, id thread.ID) error {
@@ -287,14 +257,14 @@ func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 	return
 }
 
-func (t *threads) createNode(ctx context.Context, body format.Node, log thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
+func (t *threads) createNode(ctx context.Context, body format.Node, lg thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
 	if settings.Key == nil {
 		var key []byte
 		logKey := t.ReadKey(settings.Thread, settings.KeyLog)
 		if logKey != nil {
 			key = logKey
 		} else {
-			key = log.ReadKey
+			key = lg.ReadKey
 		}
 		var err error
 		settings.Key, err = crypto.ParseEncryptionKey(key)
@@ -308,21 +278,54 @@ func (t *threads) createNode(ctx context.Context, body format.Node, log thread.L
 	}
 
 	prev := cid.Undef
-	if len(log.Heads) != 0 {
-		prev = log.Heads[0]
+	if len(lg.Heads) != 0 {
+		prev = lg.Heads[0]
 	}
-	followKey, err := crypto.ParseEncryptionKey(log.FollowKey)
+	fk, err := crypto.ParseEncryptionKey(lg.FollowKey)
 	if err != nil {
 		return nil, err
 	}
-	rec, err := cbor.NewRecord(ctx, t.dagService, event, prev, log.PrivKey, followKey)
+	rec, err := cbor.NewRecord(ctx, t.dagService, event, prev, lg.PrivKey, fk)
 	if err != nil {
 		return nil, err
 	}
 
-	t.SetHead(settings.Thread, log.ID, rec.Cid())
+	t.SetHead(settings.Thread, lg.ID, rec.Cid())
 
 	return rec, nil
+}
+
+func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
+	lg := t.LogInfo(id, lid)
+	if lg.PubKey == nil {
+		return nil, fmt.Errorf("could not find log")
+	}
+	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
+	if err != nil {
+		return nil, err
+	}
+
+	var recs []thread.Record
+	if limit == 0 {
+		return recs, nil
+	}
+	cursor := lg.Heads[0]
+	for { // @todo: Max depth
+		if cursor.String() == offset.String() {
+			break
+		}
+		r, err := cbor.GetRecord(ctx, t.dagService, cursor, fk)
+		if err != nil {
+			return nil, err
+		}
+		recs = append([]thread.Record{r}, recs...)
+		cursor = r.PrevID()
+	}
+
+	if limit > 0 && len(recs) > limit {
+		return recs[:limit], nil
+	}
+	return recs, nil
 }
 
 func setLogLevels(systems map[string]logger.Level, color bool) error {
