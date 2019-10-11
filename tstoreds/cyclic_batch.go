@@ -1,7 +1,7 @@
 package tstoreds
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	ds "github.com/ipfs/go-datastore"
 )
@@ -31,7 +31,7 @@ func newCyclicBatch(ds ds.Batching, threshold int) (ds.Batch, error) {
 
 func (cb *cyclicBatch) cycle() (err error) {
 	if cb.Batch == nil {
-		return errors.New("cyclic batch is closed")
+		return fmt.Errorf("cyclic batch is closed")
 	}
 	if cb.pending < cb.threshold {
 		// we haven't reached the threshold yet.
@@ -39,10 +39,10 @@ func (cb *cyclicBatch) cycle() (err error) {
 	}
 	// commit and renew the batch.
 	if err = cb.Batch.Commit(); err != nil {
-		return errors.Wrap(err, "failed while committing cyclic batch")
+		return fmt.Errorf("failed while committing cyclic batch: %s", err)
 	}
 	if cb.Batch, err = cb.ds.Batch(); err != nil {
-		return errors.Wrap(err, "failed while renewing cyclic batch")
+		return fmt.Errorf("failed while renewing cyclic batch: %s", err)
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (cb *cyclicBatch) Delete(key ds.Key) error {
 
 func (cb *cyclicBatch) Commit() error {
 	if cb.Batch == nil {
-		return errors.New("cyclic batch is closed")
+		return fmt.Errorf("cyclic batch is closed")
 	}
 	if err := cb.Batch.Commit(); err != nil {
 		return err

@@ -25,11 +25,8 @@ require (
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
 	github.com/multiformats/go-multiaddr v0.1.1
 	github.com/multiformats/go-multihash v0.0.8
-	github.com/pkg/errors v0.8.1
-	github.com/textileio/go-textile-core v0.0.1
+	github.com/textileio/go-textile-core v0.0.0-20191011001311-73eb6e7093b8
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
 	google.golang.org/grpc v1.21.1
 )
-
-replace github.com/textileio/go-textile-core v0.0.1 => ../go-textile-core/

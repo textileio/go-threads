@@ -6,7 +6,6 @@ import (
 	"time"
 
 	query "github.com/ipfs/go-datastore/query"
-
 	pb "github.com/textileio/go-textile-threads/pb"
 )
 
