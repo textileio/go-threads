@@ -24,11 +24,16 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
+// Record is a thread record containing link data.
 type Record struct {
-	Node       []byte `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
-	EventNode  []byte `protobuf:"bytes,2,opt,name=eventNode,proto3" json:"eventNode,omitempty"`
+	// node is the top-level record node's raw data.
+	Node []byte `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	// eventNode is the event node's raw data.
+	EventNode []byte `protobuf:"bytes,2,opt,name=eventNode,proto3" json:"eventNode,omitempty"`
+	// headerNode is the header node's raw data.
 	HeaderNode []byte `protobuf:"bytes,3,opt,name=headerNode,proto3" json:"headerNode,omitempty"`
-	BodyNode   []byte `protobuf:"bytes,4,opt,name=bodyNode,proto3" json:"bodyNode,omitempty"`
+	// bodyNode is the body node's raw data.
+	BodyNode []byte `protobuf:"bytes,4,opt,name=bodyNode,proto3" json:"bodyNode,omitempty"`
 }
 
 func (m *Record) Reset()         { *m = Record{} }
@@ -92,11 +97,16 @@ func (m *Record) GetBodyNode() []byte {
 	return nil
 }
 
+// PushRequest is used as a record envelope for thread orchestration.
 type PushRequest struct {
-	Header   *PushRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
-	ThreadID *ProtoThreadID      `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
-	LogID    *ProtoPeerID        `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
-	Record   *Record             `protobuf:"bytes,4,opt,name=record,proto3" json:"record,omitempty"`
+	// header is the header message.
+	Header *PushRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	// threadID is the target thread's ID.
+	ThreadID *ProtoThreadID `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
+	// logID is the target log's ID.
+	LogID *ProtoPeerID `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
+	// record is the actual record payload.
+	Record *Record `protobuf:"bytes,4,opt,name=record,proto3" json:"record,omitempty"`
 }
 
 func (m *PushRequest) Reset()         { *m = PushRequest{} }
@@ -146,11 +156,17 @@ func (m *PushRequest) GetRecord() *Record {
 	return nil
 }
 
+// Header holds sender and key information.
 type PushRequest_Header struct {
-	From         *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
-	Signature    []byte       `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
-	Key          *ProtoPubKey `protobuf:"bytes,3,opt,name=key,proto3,customtype=ProtoPubKey" json:"key,omitempty"`
-	FollowKey    []byte       `protobuf:"bytes,4,opt,name=followKey,proto3" json:"followKey,omitempty"`
+	// from is the sender's peerID.
+	From *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
+	// signature is the signature of the payload.
+	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// key is the sender's public key used to sign the payload.
+	Key *ProtoPubKey `protobuf:"bytes,3,opt,name=key,proto3,customtype=ProtoPubKey" json:"key,omitempty"`
+	// followKey allows recipients to follow links in an invite.
+	FollowKey []byte `protobuf:"bytes,4,opt,name=followKey,proto3" json:"followKey,omitempty"`
+	// readKeyLogID allows recipients to decrypt invites from a join.
 	ReadKeyLogID *ProtoPeerID `protobuf:"bytes,5,opt,name=readKeyLogID,proto3,customtype=ProtoPeerID" json:"readKeyLogID,omitempty"`
 }
 
@@ -201,7 +217,9 @@ func (m *PushRequest_Header) GetFollowKey() []byte {
 	return nil
 }
 
+// PushReply is the response from a PushRequest.
 type PushReply struct {
+	// ok means the push succeeded.
 	Ok bool `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
 }
 
@@ -245,12 +263,18 @@ func (m *PushReply) GetOk() bool {
 	return false
 }
 
+// PullRequest is used to request records from a log address.
 type PullRequest struct {
-	Header   *PullRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
-	ThreadID *ProtoThreadID      `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
-	LogID    *ProtoPeerID        `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
-	Offset   *ProtoCid           `protobuf:"bytes,4,opt,name=offset,proto3,customtype=ProtoCid" json:"offset,omitempty"`
-	Limit    int32               `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	// header is the message header.
+	Header *PullRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	// threadID is the target thread's ID.
+	ThreadID *ProtoThreadID `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
+	// logID is the target log's ID.
+	LogID *ProtoPeerID `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
+	// offset tells the recipient at which point to consider records new for the reply.
+	Offset *ProtoCid `protobuf:"bytes,4,opt,name=offset,proto3,customtype=ProtoCid" json:"offset,omitempty"`
+	// limit indicates the max number of records to return.
+	Limit int32 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 }
 
 func (m *PullRequest) Reset()         { *m = PullRequest{} }
@@ -300,6 +324,7 @@ func (m *PullRequest) GetLimit() int32 {
 	return 0
 }
 
+// Header holds sender information.
 type PullRequest_Header struct {
 	From *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
 }
@@ -337,7 +362,9 @@ func (m *PullRequest_Header) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PullRequest_Header proto.InternalMessageInfo
 
+// PullReply contains records requested with a PullRequest.
 type PullReply struct {
+	// records are the result of the request.
 	Records []*Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
 }
 
@@ -442,7 +469,9 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ThreadsClient interface {
+	// Push a record to a thread.
 	Push(ctx context.Context, in *PushRequest, opts ...grpc.CallOption) (*PushReply, error)
+	// Pull records from a thread.
 	Pull(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PullReply, error)
 }
 
@@ -474,7 +503,9 @@ func (c *threadsClient) Pull(ctx context.Context, in *PullRequest, opts ...grpc.
 
 // ThreadsServer is the server API for Threads service.
 type ThreadsServer interface {
+	// Push a record to a thread.
 	Push(context.Context, *PushRequest) (*PushReply, error)
+	// Pull records from a thread.
 	Pull(context.Context, *PullRequest) (*PullReply, error)
 }
 

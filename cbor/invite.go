@@ -16,11 +16,13 @@ func init() {
 	cbornode.RegisterCborType(loginfo{})
 }
 
+// invite defines the node structure of an invite.
 type invite struct {
 	Readable bool
 	Logs     []loginfo
 }
 
+// loginfo defines the node structure of loginfo.
 type loginfo struct {
 	ID        string
 	PubKey    []byte
@@ -30,6 +32,8 @@ type loginfo struct {
 	Heads     [][]byte
 }
 
+// NewInvite creates a new invite with the given logs.
+// The read keys will be included if readable is true.
 func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 	ls := make([]loginfo, len(logs))
 	for i, l := range logs {
@@ -63,6 +67,7 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 	}, mh.SHA2_256, -1)
 }
 
+// InviteFromNode returns invite info from a node.
 func InviteFromNode(node format.Node) ([]thread.LogInfo, bool, error) {
 	i := new(invite)
 	err := cbornode.DecodeInto(node.RawData(), i)

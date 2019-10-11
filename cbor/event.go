@@ -20,16 +20,19 @@ func init() {
 	cbornode.RegisterCborType(eventHeader{})
 }
 
+// event defines the node structure of an event.
 type event struct {
 	Body   cid.Cid
 	Header cid.Cid
 }
 
+// eventHeader defines the node structure of an event header.
 type eventHeader struct {
 	Time int64
 	Key  []byte `refmt:",omitempty"`
 }
 
+// NewEvent create a new event by wrapping the body node.
 func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, settings *tserv.AddSettings) (thread.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
@@ -79,6 +82,7 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, sett
 	}, nil
 }
 
+// GetEvent returns the event node for the given cid.
 func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Event, error) {
 	node, err := dag.Get(ctx, id)
 	if err != nil {
@@ -87,6 +91,7 @@ func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Ev
 	return EventFromNode(node)
 }
 
+// EventFromNode decodes the given node into an event.
 func EventFromNode(node format.Node) (thread.Event, error) {
 	obj := new(event)
 	err := cbornode.DecodeInto(node.RawData(), obj)
@@ -99,6 +104,7 @@ func EventFromNode(node format.Node) (thread.Event, error) {
 	}, nil
 }
 
+// EventFromRecord returns the event within the given node.
 func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Record) (thread.Event, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
@@ -112,6 +118,7 @@ func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Reco
 	return event, nil
 }
 
+// Event is a IPLD node representing an event.
 type Event struct {
 	format.Node
 
@@ -120,10 +127,12 @@ type Event struct {
 	body   format.Node
 }
 
+// HeaderID returns the cid of the header.
 func (e *Event) HeaderID() cid.Cid {
 	return e.obj.Header
 }
 
+// GetHeader returns the header node.
 func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (thread.EventHeader, error) {
 	if e.header == nil {
 		coded, err := dag.Get(ctx, e.obj.Header)
@@ -150,10 +159,12 @@ func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto
 	return e.header, nil
 }
 
+// BodyID returns the cid of the body.
 func (e *Event) BodyID() cid.Cid {
 	return e.obj.Body
 }
 
+// GetBody returns the body node.
 func (e *Event) GetBody(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (format.Node, error) {
 	var k crypto.DecryptionKey
 	if key != nil {
@@ -182,12 +193,14 @@ func (e *Event) GetBody(ctx context.Context, dag format.DAGService, key crypto.D
 	}
 }
 
+// EventHeader is an IPLD node representing an event header.
 type EventHeader struct {
 	format.Node
 
 	obj *eventHeader
 }
 
+// Time returns the wall-clock time when the event was created if it has been decoded.
 func (h *EventHeader) Time() (*time.Time, error) {
 	if h.obj == nil {
 		return nil, fmt.Errorf("obj not loaded")
@@ -196,6 +209,7 @@ func (h *EventHeader) Time() (*time.Time, error) {
 	return &t, nil
 }
 
+// Key returns the key needed to decrypt the event body if it has been decoded.
 func (h *EventHeader) Key() (crypto.DecryptionKey, error) {
 	if h.obj == nil {
 		return nil, fmt.Errorf("obj not loaded")

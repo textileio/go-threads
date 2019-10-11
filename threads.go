@@ -29,9 +29,13 @@ import (
 var log = logging.Logger("threads")
 
 const (
-	IPEL                     = "ipel"
-	IPELCode                 = 406
-	IPELVersion              = "0.0.1"
+	// IPEL is the protocol slug.
+	IPEL = "ipel"
+	// IPELCode is the protocol code.
+	IPELCode = 406
+	// IPELVersion is the current protocol version.
+	IPELVersion = "0.0.1"
+	// IPELProtocol is the threads protocol tag.
 	IPELProtocol protocol.ID = "/" + IPEL + "/" + IPELVersion
 )
 
@@ -49,6 +53,7 @@ func init() {
 	}
 }
 
+// threads is an implementation of Threadservice.
 type threads struct {
 	host       host.Host
 	blocks     bserv.BlockService
@@ -59,6 +64,7 @@ type threads struct {
 	tstore.Threadstore
 }
 
+// NewThreads creates an instance of threads from the given host and thread store.
 func NewThreads(ctx context.Context, h host.Host, bs bserv.BlockService, ds format.DAGService, ts tstore.Threadstore, debug bool) (tserv.Threadservice, error) {
 	var err error
 	if debug {
@@ -96,6 +102,7 @@ func NewThreads(ctx context.Context, h host.Host, bs bserv.BlockService, ds form
 	return t, nil
 }
 
+// Close the threads instance.
 func (t *threads) Close() (err error) {
 	var errs []error
 	weakClose := func(name string, c interface{}) {
@@ -118,14 +125,17 @@ func (t *threads) Close() (err error) {
 	return nil
 }
 
+// Host returns the underlying libp2p host.
 func (t *threads) Host() host.Host {
 	return t.host
 }
 
+// DAGService returns the underlying dag service.
 func (t *threads) DAGService() format.DAGService {
 	return t.dagService
 }
 
+// Add a new record by wrapping body. See AddOption for more.
 func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, r thread.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
@@ -135,7 +145,7 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 	}
 
 	// Write a node locally
-	coded, err := t.createNode(ctx, body, lg, settings)
+	coded, err := t.createRecord(ctx, body, lg, settings)
 	if err != nil {
 		return
 	}
@@ -149,6 +159,7 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 	return lg.ID, coded, nil
 }
 
+// Put an existing record. See PutOption for more.
 func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
 	// Get or create a log for the new rec
 	settings := tserv.PutOptions(opts...)
@@ -185,6 +196,9 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 	return nil
 }
 
+// Pull for new records from the given log. See PullOption for more.
+// Local results are returned if the log is owned by this host.
+// Otherwise, records are pulled from the network at the log's addresses.
 func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, opts ...tserv.PullOption) ([]thread.Record, error) {
 	settings := tserv.PullOptions(opts...)
 
@@ -200,6 +214,7 @@ func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 	return t.service.pull(ctx, id, lid, offset, settings)
 }
 
+// Logs returns info about the logs in the given thread.
 func (t *threads) Logs(id thread.ID) []thread.LogInfo {
 	lgs := make([]thread.LogInfo, 0)
 	for _, lid := range t.ThreadInfo(id).Logs {
@@ -209,18 +224,23 @@ func (t *threads) Logs(id thread.ID) []thread.LogInfo {
 	return lgs
 }
 
+// Delete the given thread.
 func (t *threads) Delete(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
+// getPrivKey returns the host's private key.
 func (t *threads) getPrivKey() ic.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
 }
 
+// createLog call util.CreateLog.
 func (t *threads) createLog() (info thread.LogInfo, err error) {
 	return util.CreateLog(t.host.ID())
 }
 
+// getOrCreateLog returns the log with the given thread and log id
+// If no log exists, a new one is created under the given thread.
 func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
 	info = t.LogInfo(id, lid)
 	if info.PubKey != nil {
@@ -234,6 +254,7 @@ func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo
 	return
 }
 
+// getOwnLoad returns the log owned by the host under the given thread.
 func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo) {
 	for _, lid := range t.LogsWithKeys(id) {
 		if t.PrivKey(id, lid) != nil {
@@ -244,6 +265,8 @@ func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo) {
 	return
 }
 
+// getOrCreateOwnLoad returns the log owned by the host under the given thread.
+// If no log exists, a new one is created under the given thread.
 func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 	info = t.getOwnLog(id)
 	if info.PubKey != nil {
@@ -257,7 +280,8 @@ func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 	return
 }
 
-func (t *threads) createNode(ctx context.Context, body format.Node, lg thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
+// createRecord creates a new record with the given body as a new event body.
+func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
 	if settings.Key == nil {
 		var key []byte
 		logKey := t.ReadKey(settings.Thread, settings.KeyLog)
@@ -295,6 +319,7 @@ func (t *threads) createNode(ctx context.Context, body format.Node, lg thread.Lo
 	return rec, nil
 }
 
+// pullLocal returns local records from the given thread that are ahead of offset but not farther then limit.
 func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
 	lg := t.LogInfo(id, lid)
 	if lg.PubKey == nil {
@@ -328,6 +353,8 @@ func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offs
 	return recs, nil
 }
 
+// setLogLevels sets the logging levels of the given log systems.
+// color controls whether or not color codes are included in the output.
 func setLogLevels(systems map[string]logger.Level, color bool) error {
 	var form string
 	if color {

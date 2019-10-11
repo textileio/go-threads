@@ -18,12 +18,14 @@ func init() {
 	cbornode.RegisterCborType(record{})
 }
 
+// record defines the node structure of a record.
 type record struct {
 	Block cid.Cid
 	Sig   []byte
 	Prev  cid.Cid `refmt:",omitempty"`
 }
 
+// NewRecord returns a new record from the given block and log private key.
 func NewRecord(ctx context.Context, dag format.DAGService, block format.Node, prev cid.Cid, sk ic.PrivKey, key crypto.EncryptionKey) (thread.Record, error) {
 	payload := block.RawData()
 	if prev.Defined() {
@@ -59,6 +61,7 @@ func NewRecord(ctx context.Context, dag format.DAGService, block format.Node, pr
 	}, nil
 }
 
+// GetRecord returns a record from the given cid.
 func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (thread.Record, error) {
 	coded, err := dag.Get(ctx, id)
 	if err != nil {
@@ -67,6 +70,7 @@ func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypt
 	return RecordFromNode(coded, key)
 }
 
+// RecordFromNode decodes a record from a node using the given key.
 func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (thread.Record, error) {
 	obj := new(record)
 	node, err := DecodeBlock(coded, key)
@@ -83,6 +87,7 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (thread.Record,
 	}, nil
 }
 
+// RecordToProto returns a proto version of a record for transport.
 func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record) (*pb.Record, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
@@ -158,6 +163,7 @@ func RecordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, e
 	}, nil
 }
 
+// Record is an IPLD node representing a record.
 type Record struct {
 	format.Node
 
@@ -165,10 +171,12 @@ type Record struct {
 	block format.Node
 }
 
+// BlockID returns the cid of the block.
 func (r *Record) BlockID() cid.Cid {
 	return r.obj.Block
 }
 
+// GetBlock returns the block.
 func (r *Record) GetBlock(ctx context.Context, dag format.DAGService) (format.Node, error) {
 	if r.block != nil {
 		return r.block, nil
@@ -182,14 +190,17 @@ func (r *Record) GetBlock(ctx context.Context, dag format.DAGService) (format.No
 	return r.block, nil
 }
 
+// PrevID returns the cid of the previous linked record.
 func (r *Record) PrevID() cid.Cid {
 	return r.obj.Prev
 }
 
+// Sig returns the record signature.
 func (r *Record) Sig() []byte {
 	return r.obj.Sig
 }
 
+// Verify whether or not the signature is valid against the given public key.
 func (r *Record) Verify(pk ic.PubKey) error {
 	if r.block == nil {
 		return fmt.Errorf("block not loaded")

@@ -10,6 +10,7 @@ import (
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
 
+// threadstore is a collection of books for storing threads.
 type threadstore struct {
 	tstore.KeyBook
 	tstore.AddrBook
@@ -17,6 +18,7 @@ type threadstore struct {
 	tstore.HeadBook
 }
 
+// NewThreadstore creates a new thread store from the given books.
 func NewThreadstore(kb tstore.KeyBook, ab tstore.AddrBook, hb tstore.HeadBook, md tstore.ThreadMetadata) tstore.Threadstore {
 	return &threadstore{
 		KeyBook:        kb,
@@ -26,6 +28,7 @@ func NewThreadstore(kb tstore.KeyBook, ab tstore.AddrBook, hb tstore.HeadBook, m
 	}
 }
 
+// Close the threadstore.
 func (ts *threadstore) Close() (err error) {
 	var errs []error
 	weakClose := func(name string, c interface{}) {
@@ -47,6 +50,7 @@ func (ts *threadstore) Close() (err error) {
 	return nil
 }
 
+// Threads returns a list of the thread IDs in the store.
 func (ts *threadstore) Threads() thread.IDSlice {
 	set := map[thread.ID]struct{}{}
 	for _, t := range ts.ThreadsFromKeys() {
@@ -64,12 +68,13 @@ func (ts *threadstore) Threads() thread.IDSlice {
 	return ids
 }
 
-func (ts *threadstore) ThreadInfo(t thread.ID) thread.Info {
+// ThreadInfo returns thread info of the given id.
+func (ts *threadstore) ThreadInfo(id thread.ID) thread.Info {
 	set := map[peer.ID]struct{}{}
-	for _, l := range ts.LogsWithKeys(t) {
+	for _, l := range ts.LogsWithKeys(id) {
 		set[l] = struct{}{}
 	}
-	for _, l := range ts.LogsWithAddrs(t) {
+	for _, l := range ts.LogsWithAddrs(id) {
 		set[l] = struct{}{}
 	}
 
@@ -79,50 +84,52 @@ func (ts *threadstore) ThreadInfo(t thread.ID) thread.Info {
 	}
 
 	return thread.Info{
-		ID:   t,
+		ID:   id,
 		Logs: ids,
 	}
 }
 
-func (ts *threadstore) AddLog(t thread.ID, log thread.LogInfo) error {
-	err := ts.AddPubKey(t, log.ID, log.PubKey)
+// AddLog adds a log under the given thread.
+func (ts *threadstore) AddLog(id thread.ID, log thread.LogInfo) error {
+	err := ts.AddPubKey(id, log.ID, log.PubKey)
 	if err != nil {
 		return err
 	}
 
 	if log.PrivKey != nil {
-		err = ts.AddPrivKey(t, log.ID, log.PrivKey)
+		err = ts.AddPrivKey(id, log.ID, log.PrivKey)
 		if err != nil {
 			return err
 		}
 	}
 	if log.FollowKey != nil {
-		err = ts.AddFollowKey(t, log.ID, log.FollowKey)
+		err = ts.AddFollowKey(id, log.ID, log.FollowKey)
 		if err != nil {
 			return err
 		}
 	}
 	if log.ReadKey != nil {
-		err = ts.AddReadKey(t, log.ID, log.ReadKey)
+		err = ts.AddReadKey(id, log.ID, log.ReadKey)
 		if err != nil {
 			return err
 		}
 	}
 
-	ts.SetAddrs(t, log.ID, log.Addrs, pstore.PermanentAddrTTL)
-	ts.SetHeads(t, log.ID, log.Heads)
+	ts.SetAddrs(id, log.ID, log.Addrs, pstore.PermanentAddrTTL)
+	ts.SetHeads(id, log.ID, log.Heads)
 
 	return nil
 }
 
-func (ts *threadstore) LogInfo(t thread.ID, id peer.ID) thread.LogInfo {
+// LogInfo returns info about the given thread.
+func (ts *threadstore) LogInfo(id thread.ID, lid peer.ID) thread.LogInfo {
 	return thread.LogInfo{
-		ID:        id,
-		PubKey:    ts.PubKey(t, id),
-		PrivKey:   ts.PrivKey(t, id),
-		FollowKey: ts.FollowKey(t, id),
-		ReadKey:   ts.ReadKey(t, id),
-		Addrs:     ts.Addrs(t, id),
-		Heads:     ts.Heads(t, id),
+		ID:        lid,
+		PubKey:    ts.PubKey(id, lid),
+		PrivKey:   ts.PrivKey(id, lid),
+		FollowKey: ts.FollowKey(id, lid),
+		ReadKey:   ts.ReadKey(id, lid),
+		Addrs:     ts.Addrs(id, lid),
+		Heads:     ts.Heads(id, lid),
 	}
 }

@@ -11,7 +11,8 @@ import (
 	"github.com/textileio/go-textile-core/thread"
 )
 
-func CreateLog(p peer.ID) (info thread.LogInfo, err error) {
+// CreateLog creates a new log with the given peer as host.
+func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return
@@ -28,7 +29,7 @@ func CreateLog(p peer.ID) (info thread.LogInfo, err error) {
 	if err != nil {
 		return
 	}
-	addr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", p.String()))
+	addr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.String()))
 	if err != nil {
 		return
 	}
