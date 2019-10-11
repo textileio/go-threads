@@ -29,3 +29,5 @@ require (
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
 	google.golang.org/grpc v1.21.1
 )
+
+replace github.com/textileio/go-textile-core => ../go-textile-core/

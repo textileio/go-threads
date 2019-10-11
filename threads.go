@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 
 	bserv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -62,6 +63,7 @@ type threads struct {
 	blocks     bserv.BlockService
 	service    *service
 	dagService format.DAGService
+	bus        chan *tserv.Record
 	ctx        context.Context
 	cancel     context.CancelFunc
 	tstore.Threadstore
@@ -85,6 +87,7 @@ func NewThreads(ctx context.Context, h host.Host, bs bserv.BlockService, ds form
 		host:        h,
 		blocks:      bs,
 		dagService:  ds,
+		bus:         make(chan *tserv.Record),
 		ctx:         ctx,
 		cancel:      cancel,
 		Threadstore: ts,
@@ -139,7 +142,7 @@ func (t *threads) DAGService() format.DAGService {
 }
 
 // Add a new record by wrapping body. See AddOption for more.
-func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (l peer.ID, r thread.Record, err error) {
+func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (r *tserv.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
 	lg, err := t.getOrCreateOwnLog(settings.Thread)
@@ -147,23 +150,35 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 		return
 	}
 
-	// Write a node locally
-	coded, err := t.createRecord(ctx, body, lg, settings)
+	// Write a record locally
+	rec, err := t.createRecord(ctx, body, lg, settings)
 	if err != nil {
 		return
 	}
 
 	// Push out the new record
-	err = t.service.push(ctx, coded, settings.Thread, lg.ID, settings)
+	err = t.service.push(ctx, rec, settings.Thread, lg.ID, settings)
 	if err != nil {
 		return
 	}
 
-	return lg.ID, coded, nil
+	// Notify local listeners
+	brec := &tserv.Record{ThreadID: settings.Thread, LogID: lg.ID, Record: rec}
+	t.sendRecord(brec)
+
+	return brec, nil
 }
 
 // Put an existing record. See PutOption for more.
 func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
+	x, err := t.blocks.Blockstore().Has(rec.Cid())
+	if err != nil {
+		return err
+	}
+	if x {
+		return nil
+	}
+
 	// Get or create a log for the new rec
 	settings := tserv.PutOptions(opts...)
 	lg, err := t.getOrCreateLog(settings.Thread, settings.Log)
@@ -196,37 +211,70 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 
 	// Update head
 	t.SetHead(settings.Thread, lg.ID, rec.Cid())
+
+	// Notify local listeners
+	t.sendRecord(&tserv.Record{ThreadID: settings.Thread, LogID: lg.ID, Record: rec})
+
 	return nil
 }
 
-// Pull for new records from the given log. See PullOption for more.
-// Local results are returned if the log is owned by this host.
-// Otherwise, records are pulled from the network at the log's addresses.
-func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, opts ...tserv.PullOption) ([]thread.Record, error) {
-	settings := tserv.PullOptions(opts...)
-
-	pk, err := t.PubKey(id, lid)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't fetch public key from book: %v", err)
-	}
-	if pk == nil {
+// Get returns the record at cid.
+func (t *threads) Get(ctx context.Context, id thread.ID, lid peer.ID, rid cid.Cid) (thread.Record, error) {
+	lg := t.LogInfo(id, lid)
+	if lg.PubKey == nil {
 		return nil, fmt.Errorf("could not find log")
 	}
-
-	sk, err := t.PrivKey(id, lid)
+	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't fetch private key from book: %v", err)
+		return nil, err
 	}
-	if sk != nil { // This is our own log
-		return t.pullLocal(ctx, id, lid, offset, settings.Limit)
-	}
-
-	// Pull from addresses
-	return t.service.pull(ctx, id, lid, offset, settings)
+	return cbor.GetRecord(ctx, t.dagService, rid, fk)
 }
 
-// Logs returns info about the logs in the given thread.
-func (t *threads) Logs(id thread.ID) ([]thread.LogInfo, error) {
+// Pull for new records from the given thread.
+// Logs owned by this host are traversed locally.
+// Remotely addressed logs are pulled from the network.
+func (t *threads) Pull(ctx context.Context, id thread.ID) error {
+	wg := sync.WaitGroup{}
+	for _, lg := range t.GetLogs(id) {
+		wg.Add(1)
+		go func(lg thread.LogInfo) {
+			defer wg.Done()
+			var offset cid.Cid
+			if len(lg.Heads) > 0 {
+				offset = lg.Heads[0]
+			}
+			var recs []thread.Record
+			var err error
+			if lg.PrivKey != nil { // This is our own log
+				recs, err = t.pullLocal(ctx, id, lg.ID, offset, -1)
+			} else {
+				// Pull from addresses
+				recs, err = t.service.pull(ctx, id, lg.ID, offset, -1)
+			}
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			for _, r := range recs {
+				err = t.Put(ctx, r, tserv.PutOpt.Thread(id), tserv.PutOpt.Log(lg.ID))
+				if err != nil {
+					log.Error(err)
+					return
+				}
+			}
+		}(lg)
+	}
+	return nil
+}
+
+// Updates returns a read-only channel of updates.
+func (t *threads) Updates() <-chan *tserv.Record {
+	return t.bus
+}
+
+// GetLogs returns info about the logs in the given thread.
+func (t *threads) GetLogs(id thread.ID) ([]thread.LogInfo, error) {
 	lgs := make([]thread.LogInfo, 0)
 	ti, err := t.ThreadInfo(id)
 	if err != nil {
@@ -351,6 +399,7 @@ func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.
 		return nil, err
 	}
 
+	// Update head
 	t.SetHead(settings.Thread, lg.ID, rec.Cid())
 
 	return rec, nil
@@ -398,6 +447,14 @@ func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offs
 	}
 
 	return recs, nil
+}
+
+// sendRecord adds the given record to the bus.
+func (t *threads) sendRecord(rec *tserv.Record) {
+	select {
+	case t.bus <- rec:
+	default:
+	}
 }
 
 // setLogLevels sets the logging levels of the given log systems.

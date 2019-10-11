@@ -130,7 +130,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 			if err != nil {
 				return nil, err
 			}
-			_, _, err = s.threads.Add(
+			_, err = s.threads.Add(
 				ctx,
 				invite,
 				tserv.AddOpt.Thread(req.ThreadID.ID),
@@ -318,11 +318,8 @@ func (r *records) Store(key cid.Cid, value thread.Record) {
 }
 
 // pull records from log addresses.
-func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, settings *tserv.PullSettings) ([]thread.Record, error) {
-	lg, err := s.threads.LogInfo(id, lid)
-	if err != nil {
-		return nil, fmt.Errorf("error when getting log info for (%s, %s): %v", id, lid, err)
-	}
+func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
+	lg := s.threads.LogInfo(id, lid)
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("could not find log")
 	}
@@ -338,7 +335,7 @@ func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 		ThreadID: &pb.ProtoThreadID{ID: id},
 		LogID:    &pb.ProtoPeerID{ID: lid},
 		Offset:   &pb.ProtoCid{Cid: offset},
-		Limit:    int32(settings.Limit),
+		Limit:    int32(limit),
 	}
 
 	// Pull from each address
