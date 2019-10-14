@@ -63,6 +63,10 @@ func newService(t *threads) (*service, error) {
 
 // Push receives a record request.
 func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply, error) {
+	if req.Header == nil {
+		return nil, fmt.Errorf("request header is required")
+	}
+
 	// Verify the request
 	reqpk, err := requestPubKey(req)
 	if err != nil {
@@ -90,11 +94,11 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	if err != nil {
 		return nil, err
 	}
-	x, err := s.threads.blocks.Blockstore().Has(rec.Cid())
+	knownRecord, err := s.threads.blocks.Blockstore().Has(rec.Cid())
 	if err != nil {
 		return nil, err
 	}
-	if x {
+	if knownRecord {
 		return reply, nil
 	}
 
@@ -127,8 +131,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		}
 	} else {
 		// Verify node
-		err = rec.Verify(logpk)
-		if err != nil {
+		if err = rec.Verify(logpk); err != nil {
 			return nil, err
 		}
 	}
@@ -214,6 +217,7 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	for _, addr := range addrs {
 		wg.Add(1)
 		go func(addr ma.Multiaddr) {
+			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
 				log.Error(err)
@@ -227,10 +231,11 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 
 			log.Debugf("pushing record to %s...", p)
 
-			cctx, _ := context.WithTimeout(ctx, reqTimeout)
+			cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+			defer cancel()
 			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
 			if err != nil {
-				log.Error(err)
+				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
 			client := pb.NewThreadsClient(conn)
@@ -241,8 +246,6 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 			}
 
 			log.Debugf("reply from %s: %t", p, reply.Ok)
-
-			wg.Done()
 		}(addr)
 	}
 
@@ -256,12 +259,14 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	return nil
 }
 
+// records maintains an ordered list of records from multiple sources.
 type records struct {
 	sync.RWMutex
 	m map[cid.Cid]thread.Record
 	s []thread.Record
 }
 
+// newRecords creates an instance of records.
 func newRecords() *records {
 	return &records{
 		m: make(map[cid.Cid]thread.Record),
@@ -269,12 +274,14 @@ func newRecords() *records {
 	}
 }
 
+// List all records.
 func (r *records) List() []thread.Record {
 	r.RLock()
 	defer r.RUnlock()
 	return r.s
 }
 
+// Store a record.
 func (r *records) Store(key cid.Cid, value thread.Record) {
 	r.Lock()
 	if _, ok := r.m[key]; ok {
@@ -312,6 +319,7 @@ func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 	for _, addr := range s.threads.LogInfo(id, lid).Addrs {
 		wg.Add(1)
 		go func(addr ma.Multiaddr) {
+			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
 				log.Error(err)
@@ -325,10 +333,11 @@ func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 
 			log.Debugf("pulling records from %s...", p)
 
-			cctx, _ := context.WithTimeout(ctx, reqTimeout)
+			cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+			defer cancel()
 			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
 			if err != nil {
-				log.Error(err)
+				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
 			client := pb.NewThreadsClient(conn)
@@ -348,8 +357,6 @@ func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 			}
 
 			log.Debugf("reply from %s: %s", p, reply.String())
-
-			wg.Done()
 		}(addr)
 	}
 
@@ -451,13 +458,13 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 	if err != nil {
 		return nil, err
 	}
-	lgs, reader, err := cbor.InviteFromNode(body)
+	invite, err := cbor.InviteFromNode(body)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add incoming logs
-	for _, lg := range lgs {
+	for _, lg := range invite.Logs {
 		if !lg.ID.MatchesPublicKey(lg.PubKey) {
 			return nil, fmt.Errorf("invalid log")
 		}
@@ -475,7 +482,7 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 
 	// Create an own log if this is a new thread
 	var ownLog *thread.LogInfo
-	if reader && newThread {
+	if invite.Readable() && newThread {
 		lg, err := util.CreateLog(s.threads.host.ID())
 		if err != nil {
 			return nil, err

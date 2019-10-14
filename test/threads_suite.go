@@ -112,7 +112,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}
 
 		// Pull from the log origin
-		recs, err := ts1.Pull(ctx, tid, lid1, cid.Undef)
+		recs, err := ts1.Pull(ctx, tid, lid1, cid.Undef, tserv.PullOpt.Limit(100))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -191,7 +191,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 
 		for _, lid := range info.Logs {
 			// Pull from the log origin
-			recs, err := ts2.Pull(ctx, tid, lid, cid.Undef)
+			recs, err := ts2.Pull(ctx, tid, lid, cid.Undef, tserv.PullOpt.Limit(100))
 			if err != nil {
 				t.Fatal(err)
 			}

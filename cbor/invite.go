@@ -1,6 +1,8 @@
 package cbor
 
 import (
+	"fmt"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipfs/go-ipld-format"
@@ -18,8 +20,7 @@ func init() {
 
 // invite defines the node structure of an invite.
 type invite struct {
-	Readable bool
-	Logs     []loginfo
+	Logs []loginfo
 }
 
 // loginfo defines the node structure of loginfo.
@@ -61,42 +62,44 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 		}
 		ls[i] = log
 	}
-	return cbornode.WrapObject(&invite{
-		Readable: readable,
-		Logs:     ls,
-	}, mh.SHA2_256, -1)
+	return cbornode.WrapObject(&invite{Logs: ls}, mh.SHA2_256, -1)
 }
 
 // InviteFromNode returns invite info from a node.
-func InviteFromNode(node format.Node) ([]thread.LogInfo, bool, error) {
-	i := new(invite)
-	err := cbornode.DecodeInto(node.RawData(), i)
+func InviteFromNode(node format.Node) (*Invite, error) {
+	n := new(invite)
+	err := cbornode.DecodeInto(node.RawData(), n)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
-	logs := make([]thread.LogInfo, len(i.Logs))
-	for i, l := range i.Logs {
+	invite := &Invite{
+		Logs: make([]thread.LogInfo, len(n.Logs)),
+	}
+	for i, l := range n.Logs {
 		id, err := peer.IDB58Decode(l.ID)
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		pk, err := ic.UnmarshalPublicKey(l.PubKey)
 		if err != nil {
-			return nil, false, err
+			return nil, err
+		}
+		if !id.MatchesPublicKey(pk) {
+			return nil, fmt.Errorf("log id does not match public key")
 		}
 		addrs := make([]ma.Multiaddr, len(l.Addrs))
 		for j, a := range l.Addrs {
 			addrs[j], err = ma.NewMultiaddrBytes(a)
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 		}
 		heads := make([]cid.Cid, len(l.Heads))
 		for k, h := range l.Heads {
 			heads[k], err = cid.Cast(h)
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 		}
 		log := thread.LogInfo{
@@ -107,8 +110,23 @@ func InviteFromNode(node format.Node) ([]thread.LogInfo, bool, error) {
 			Addrs:     addrs,
 			Heads:     heads,
 		}
-		logs[i] = log
+		invite.Logs[i] = log
 	}
 
-	return logs, i.Readable, nil
+	return invite, nil
+}
+
+// Invite contains logs needed to load a thread.
+type Invite struct {
+	Logs []thread.LogInfo
+}
+
+// Readable returns whether or not all logs contain a read key.
+func (i *Invite) Readable() bool {
+	for _, l := range i.Logs {
+		if l.ReadKey == nil {
+			return false
+		}
+	}
+	return true
 }

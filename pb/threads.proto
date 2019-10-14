@@ -8,8 +8,8 @@ option (gogoproto.populate_all) = true;
 
 // Record is a thread record containing link data.
 message Record {
-    // node is the top-level record node's raw data.
-    bytes node = 1;
+    // recordNode is the top-level node's raw data.
+    bytes recordNode = 1;
 
     // eventNode is the event node's raw data.
     bytes eventNode = 2;

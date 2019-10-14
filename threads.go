@@ -53,6 +53,9 @@ func init() {
 	}
 }
 
+// MaxPullLimit is the maximum page size for pulling records.
+var MaxPullLimit = 10000
+
 // threads is an implementation of Threadservice.
 type threads struct {
 	host       host.Host
@@ -319,7 +322,10 @@ func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.
 	return rec, nil
 }
 
-// pullLocal returns local records from the given thread that are ahead of offset but not farther then limit.
+// pullLocal returns local records from the given thread that are ahead of
+// offset but not farther than limit.
+// It is possible to reach limit before offset, meaning that the caller
+// will be responsible for the remaining traversal.
 func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
 	lg := t.LogInfo(id, lid)
 	if lg.PubKey == nil {
@@ -331,11 +337,15 @@ func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offs
 	}
 
 	var recs []thread.Record
-	if limit == 0 {
+	if limit <= 0 {
 		return recs, nil
 	}
+
+	if len(lg.Heads) != 1 {
+		return nil, fmt.Errorf("log head must reference exactly one node")
+	}
 	cursor := lg.Heads[0]
-	for { // @todo: Max depth
+	for {
 		if cursor.String() == offset.String() {
 			break
 		}
@@ -344,12 +354,12 @@ func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offs
 			return nil, err
 		}
 		recs = append([]thread.Record{r}, recs...)
+		if len(recs) >= MaxPullLimit {
+			break
+		}
 		cursor = r.PrevID()
 	}
 
-	if limit > 0 && len(recs) > limit {
-		return recs[:limit], nil
-	}
 	return recs, nil
 }
 

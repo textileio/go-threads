@@ -144,6 +144,10 @@ func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto
 		}
 	}
 
+	if e.header.obj != nil {
+		return e.header, nil
+	}
+
 	header := new(eventHeader)
 	if key != nil {
 		node, err := DecodeBlock(e.header, key)

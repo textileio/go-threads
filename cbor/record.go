@@ -27,7 +27,7 @@ type record struct {
 
 // NewRecord returns a new record from the given block and log private key.
 func NewRecord(ctx context.Context, dag format.DAGService, block format.Node, prev cid.Cid, sk ic.PrivKey, key crypto.EncryptionKey) (thread.Record, error) {
-	payload := block.RawData()
+	payload := block.Cid().Bytes()
 	if prev.Defined() {
 		payload = append(payload, prev.Bytes()...)
 	}
@@ -49,7 +49,7 @@ func NewRecord(ctx context.Context, dag format.DAGService, block format.Node, pr
 		return nil, err
 	}
 
-	err = dag.AddMany(ctx, []format.Node{coded})
+	err = dag.Add(ctx, coded)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +88,7 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (thread.Record,
 }
 
 // RecordToProto returns a proto version of a record for transport.
+// Nodes are sent encrypted.
 func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record) (*pb.Record, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
@@ -107,7 +108,7 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record
 	}
 
 	return &pb.Record{
-		Node:       rec.RawData(),
+		RecordNode: rec.RawData(),
 		EventNode:  block.RawData(),
 		HeaderNode: header.RawData(),
 		BodyNode:   body.RawData(),
@@ -116,7 +117,11 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record
 
 // Unmarshal returns a node from a serialized version that contains link data.
 func RecordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, error) {
-	node, err := cbornode.Decode(rec.Node, mh.SHA2_256, -1)
+	if key == nil {
+		return nil, fmt.Errorf("decryption key is required")
+	}
+
+	rnode, err := cbornode.Decode(rec.RecordNode, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +138,7 @@ func RecordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, e
 		return nil, err
 	}
 
-	decoded, err := DecodeBlock(node, key)
+	decoded, err := DecodeBlock(rnode, key)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +162,7 @@ func RecordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, e
 		body: body,
 	}
 	return &Record{
-		Node:  node,
+		Node:  rnode,
 		obj:   robj,
 		block: event,
 	}, nil
@@ -205,7 +210,7 @@ func (r *Record) Verify(pk ic.PubKey) error {
 	if r.block == nil {
 		return fmt.Errorf("block not loaded")
 	}
-	payload := r.block.RawData()
+	payload := r.block.Cid().Bytes()
 	if r.PrevID().Defined() {
 		payload = append(payload, r.PrevID().Bytes()...)
 	}
