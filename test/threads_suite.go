@@ -125,7 +125,11 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		readKey, err := crypto.ParseDecryptionKey(ts1.ReadKey(tid, lid1))
+		kb, err := ts1.ReadKey(tid, lid1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		readKey, err := crypto.ParseDecryptionKey(kb)
 		if err != nil {
 			t.Fatal(err)
 		}

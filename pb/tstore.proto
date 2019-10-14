@@ -28,3 +28,13 @@ message AddrBookRecord {
 		int64 ttl = 3;
 	}
 }
+
+// HeadBookRecord represents the list of heads currently in a log
+message HeadBookRecord {
+	// List of current heads of a log
+	repeated HeadEntry heads = 1;
+
+	message HeadEntry {
+		bytes cid = 1 [(gogoproto.customtype) = "HeadCid"];
+	}
+}

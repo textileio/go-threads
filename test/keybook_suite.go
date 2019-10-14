@@ -47,8 +47,8 @@ func testKeyBookPrivKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		if logs := kb.LogsWithKeys(tid); len(logs) > 0 {
-			t.Error("expected logs to be empty on init")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
+			t.Error("expected logs to be empty on init without erros")
 		}
 
 		priv, _, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
@@ -61,8 +61,8 @@ func testKeyBookPrivKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.PrivKey(tid, id); res != nil {
-			t.Error("retrieving private key should have failed")
+		if res, err := kb.PrivKey(tid, id); err != nil || res != nil {
+			t.Error("retrieving private key should have failed without errors")
 		}
 
 		err = kb.AddPrivKey(tid, id, priv)
@@ -70,12 +70,12 @@ func testKeyBookPrivKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.PrivKey(tid, id); !priv.Equals(res) {
-			t.Error("retrieved private key did not match stored private key")
+		if res, err := kb.PrivKey(tid, id); err != nil || !priv.Equals(res) {
+			t.Error("retrieved private key did not match stored private key without errors")
 		}
 
-		if logs := kb.LogsWithKeys(tid); len(logs) != 1 || logs[0] != id {
-			t.Error("list of logs did not include test log")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) != 1 || logs[0] != id {
+			t.Error("list of logs did not include test log without errors")
 		}
 	}
 }
@@ -84,8 +84,8 @@ func testKeyBookPubKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		if logs := kb.LogsWithKeys(tid); len(logs) > 0 {
-			t.Error("expected logs to be empty on init")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
+			t.Error("expected logs to be empty on init without errors")
 		}
 
 		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
@@ -98,8 +98,8 @@ func testKeyBookPubKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.PubKey(tid, id); res != nil {
-			t.Error("retrieving public key should have failed")
+		if res, err := kb.PubKey(tid, id); err != nil || res != nil {
+			t.Error("retrieving public key should have failed without errors")
 		}
 
 		err = kb.AddPubKey(tid, id, pub)
@@ -107,12 +107,12 @@ func testKeyBookPubKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.PubKey(tid, id); !pub.Equals(res) {
-			t.Error("retrieved public key did not match stored public key")
+		if res, err := kb.PubKey(tid, id); err != nil || !pub.Equals(res) {
+			t.Error("retrieved public key did not match stored public key without errors")
 		}
 
-		if logs := kb.LogsWithKeys(tid); len(logs) != 1 || logs[0] != id {
-			t.Error("list of logs did not include test log")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) != 1 || logs[0] != id {
+			t.Error("list of logs did not include test log without errors")
 		}
 	}
 }
@@ -121,8 +121,8 @@ func testKeyBookReadKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		if logs := kb.LogsWithKeys(tid); len(logs) > 0 {
-			t.Error("expected logs to be empty on init")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
+			t.Error("expected logs to be empty on init without errors")
 		}
 
 		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
@@ -145,8 +145,8 @@ func testKeyBookReadKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.ReadKey(tid, id); !bytes.Equal(res, key.Bytes()) {
-			t.Error("retrieved read key did not match stored read key")
+		if res, err := kb.ReadKey(tid, id); err != nil || !bytes.Equal(res, key.Bytes()) {
+			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
 }
@@ -155,8 +155,8 @@ func testKeyBookFollowKey(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		if logs := kb.LogsWithKeys(tid); len(logs) > 0 {
-			t.Error("expected logs to be empty on init")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
+			t.Error("expected logs to be empty on init without errors")
 		}
 
 		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
@@ -179,8 +179,8 @@ func testKeyBookFollowKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		if res := kb.FollowKey(tid, id); !bytes.Equal(res, key.Bytes()) {
-			t.Error("retrieved read key did not match stored read key")
+		if res, err := kb.FollowKey(tid, id); err != nil || !bytes.Equal(res, key.Bytes()) {
+			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
 }
@@ -189,8 +189,8 @@ func testKeyBookLogs(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		if logs := kb.LogsWithKeys(tid); len(logs) > 0 {
-			t.Error("expected logs to be empty on init")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
+			t.Error("expected logs to be empty on init without errors")
 		}
 
 		logs := make(peer.IDSlice, 0)
@@ -208,7 +208,10 @@ func testKeyBookLogs(kb tstore.KeyBook) func(t *testing.T) {
 			logs = append(logs, []peer.ID{p1, p2}...)
 		}
 
-		kbLogs := kb.LogsWithKeys(tid)
+		kbLogs, err := kb.LogsWithKeys(tid)
+		if err != nil {
+			t.Fatalf("getting logs with keys failed: %v", err)
+		}
 		sort.Sort(kbLogs)
 		sort.Sort(logs)
 
@@ -222,8 +225,8 @@ func testKeyBookLogs(kb tstore.KeyBook) func(t *testing.T) {
 
 func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		if threads := kb.ThreadsFromKeys(); len(threads) > 0 {
-			t.Error("expected threads to be empty on init")
+		if threads, err := kb.ThreadsFromKeys(); err != nil || len(threads) > 0 {
+			t.Error("expected threads to be empty on init without errors")
 		}
 
 		threads := thread.IDSlice{
@@ -246,7 +249,10 @@ func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 			_ = kb.AddPrivKey(tid, p2, priv)
 		}
 
-		kbThreads := kb.ThreadsFromKeys()
+		kbThreads, err := kb.ThreadsFromKeys()
+		if err != nil {
+			t.Fatalf("error when getting threas from keys: %v", err)
+		}
 		sort.Sort(kbThreads)
 		sort.Sort(threads)
 
@@ -264,8 +270,8 @@ func testInlinedPubKeyAddedOnRetrieve(kb tstore.KeyBook) func(t *testing.T) {
 
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		if logs := kb.LogsWithKeys(tid); len(logs) > 0 {
-			t.Error("expected logs to be empty on init")
+		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
+			t.Error("expected logs to be empty on init without errors")
 		}
 
 		// Key small enough for inlining.
@@ -279,7 +285,10 @@ func testInlinedPubKeyAddedOnRetrieve(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		pubKey := kb.PubKey(tid, id)
+		pubKey, err := kb.PubKey(tid, id)
+		if err != nil {
+			t.Fatalf("error when getting public key: %v", err)
+		}
 		if !pubKey.Equals(pub) {
 			t.Error("mismatch between original public key and keybook-calculated one")
 		}

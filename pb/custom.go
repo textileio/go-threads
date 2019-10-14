@@ -21,6 +21,7 @@ type customGogoType interface {
 	json.Marshaler
 	json.Unmarshaler
 	proto.Sizer
+	MarshalTo(data []byte) (n int, err error)
 }
 
 // ProtoPeerID is a custom type used by gogo to serde raw peer IDs into the peer.ID type, and back.
@@ -300,4 +301,42 @@ func NewPopulatedProtoPubKey(r randyThreads) *ProtoPubKey {
 func NewPopulatedProtoPrivKey(r randyThreads) *ProtoPrivKey {
 	k, _, _ := ic.GenerateKeyPair(ic.RSA, 512)
 	return &ProtoPrivKey{PrivKey: k}
+}
+
+// HeadCID is a custom type used by gogo to serde raw log heads into a CIDtype, and back.
+type HeadCid struct {
+	cid.Cid
+}
+
+var _ customGogoType = (*HeadCid)(nil)
+
+func (hc HeadCid) Marshal() ([]byte, error) {
+	return hc.Bytes(), nil
+}
+
+func (hc *HeadCid) Unmarshal(data []byte) (err error) {
+	hc.Cid, err = cid.Cast(data)
+	return err
+}
+
+func (hc HeadCid) MarshalJSON() ([]byte, error) {
+	m, _ := hc.Marshal()
+	return json.Marshal(m)
+}
+
+func (hc *HeadCid) UnmarshalJSON(data []byte) error {
+	var v []byte
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		return err
+	}
+	return hc.Unmarshal(v)
+}
+
+func (hc *HeadCid) Size() int {
+	return len(hc.Bytes())
+}
+
+func (hc HeadCid) MarshalTo(data []byte) (n int, err error) {
+	return copy(data, []byte(hc.Bytes())), nil
 }

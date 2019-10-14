@@ -55,7 +55,7 @@ func NewKeyBook() tstore.KeyBook {
 	}
 }
 
-func (mkb *memoryKeyBook) LogsWithKeys(t thread.ID) peer.IDSlice {
+func (mkb *memoryKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
 	mkb.RLock()
 	ps := make(map[peer.ID]struct{})
 	if mkb.pks[t] != nil {
@@ -73,10 +73,10 @@ func (mkb *memoryKeyBook) LogsWithKeys(t thread.ID) peer.IDSlice {
 	for p := range ps {
 		pids = append(pids, p)
 	}
-	return pids
+	return pids, nil
 }
 
-func (mkb *memoryKeyBook) ThreadsFromKeys() thread.IDSlice {
+func (mkb *memoryKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
 	mkb.RLock()
 	ts := make(map[thread.ID]struct{})
 	for t := range mkb.pks {
@@ -90,14 +90,14 @@ func (mkb *memoryKeyBook) ThreadsFromKeys() thread.IDSlice {
 	for t := range ts {
 		tids = append(tids, t)
 	}
-	return tids
+	return tids, nil
 }
 
-func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) ic.PubKey {
+func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) (ic.PubKey, error) {
 	mkb.RLock()
 	pk, _ := mkb.getPubKey(t, p)
 	mkb.RUnlock()
-	return pk
+	return pk, nil
 }
 
 func (mkb *memoryKeyBook) AddPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error {
@@ -115,11 +115,11 @@ func (mkb *memoryKeyBook) AddPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error 
 	return nil
 }
 
-func (mkb *memoryKeyBook) PrivKey(t thread.ID, p peer.ID) ic.PrivKey {
+func (mkb *memoryKeyBook) PrivKey(t thread.ID, p peer.ID) (ic.PrivKey, error) {
 	mkb.RLock()
 	sk, _ := mkb.getPrivKey(t, p)
 	mkb.RUnlock()
-	return sk
+	return sk, nil
 }
 
 func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) error {
@@ -141,11 +141,11 @@ func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) erro
 	return nil
 }
 
-func (mkb *memoryKeyBook) ReadKey(t thread.ID, p peer.ID) []byte {
+func (mkb *memoryKeyBook) ReadKey(t thread.ID, p peer.ID) ([]byte, error) {
 	mkb.RLock()
 	key, _ := getKey(mkb.rks, t, p)
 	mkb.RUnlock()
-	return key
+	return key, nil
 }
 
 func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key []byte) error {
@@ -162,11 +162,11 @@ func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key []byte) error {
 	return nil
 }
 
-func (mkb *memoryKeyBook) FollowKey(t thread.ID, p peer.ID) []byte {
+func (mkb *memoryKeyBook) FollowKey(t thread.ID, p peer.ID) ([]byte, error) {
 	mkb.RLock()
 	key, _ := getKey(mkb.fks, t, p)
 	mkb.RUnlock()
-	return key
+	return key, nil
 }
 
 func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, p peer.ID, key []byte) error {

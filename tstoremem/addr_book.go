@@ -124,7 +124,7 @@ func (mab *memoryAddrBook) gc() {
 	}
 }
 
-func (mab *memoryAddrBook) LogsWithAddrs(t thread.ID) peer.IDSlice {
+func (mab *memoryAddrBook) LogsWithAddrs(t thread.ID) (peer.IDSlice, error) {
 	var pids peer.IDSlice
 	for _, s := range mab.segments {
 		s.RLock()
@@ -133,10 +133,10 @@ func (mab *memoryAddrBook) LogsWithAddrs(t thread.ID) peer.IDSlice {
 		}
 		s.RUnlock()
 	}
-	return pids
+	return pids, nil
 }
 
-func (mab *memoryAddrBook) ThreadsFromAddrs() thread.IDSlice {
+func (mab *memoryAddrBook) ThreadsFromAddrs() (thread.IDSlice, error) {
 	ts := make(map[thread.ID]struct{})
 	for _, s := range mab.segments {
 		s.RLock()
@@ -150,21 +150,21 @@ func (mab *memoryAddrBook) ThreadsFromAddrs() thread.IDSlice {
 	for t := range ts {
 		tids = append(tids, t)
 	}
-	return tids
+	return tids, nil
 }
 
 // AddAddr calls AddAddrs(t, p, []ma.Multiaddr{addr}, ttl)
-func (mab *memoryAddrBook) AddAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
-	mab.AddAddrs(t, p, []ma.Multiaddr{addr}, ttl)
+func (mab *memoryAddrBook) AddAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) error {
+	return mab.AddAddrs(t, p, []ma.Multiaddr{addr}, ttl)
 }
 
 // AddAddrs gives memoryAddrBook addresses to use, with a given ttl
 // (time-to-live), after which the address is no longer valid.
 // This function never reduces the TTL or expiration of an address.
-func (mab *memoryAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) {
+func (mab *memoryAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
 	// if ttl is zero, exit. nothing to do.
 	if ttl <= 0 {
-		return
+		return nil
 	}
 
 	s := mab.segments.get(p)
@@ -202,16 +202,17 @@ func (mab *memoryAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr
 			}
 		}
 	}
+	return nil
 }
 
 // SetAddr calls mgr.SetAddrs(t, p, addr, ttl)
-func (mab *memoryAddrBook) SetAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) {
-	mab.SetAddrs(t, p, []ma.Multiaddr{addr}, ttl)
+func (mab *memoryAddrBook) SetAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) error {
+	return mab.SetAddrs(t, p, []ma.Multiaddr{addr}, ttl)
 }
 
 // SetAddrs sets the ttl on addresses. This clears any TTL there previously.
 // This is used when we receive the best estimate of the validity of an address.
-func (mab *memoryAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) {
+func (mab *memoryAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
 	s := mab.segments.get(p)
 	s.Lock()
 	defer s.Unlock()
@@ -241,18 +242,19 @@ func (mab *memoryAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr
 			delete(amap, string(aBytes))
 		}
 	}
+	return nil
 }
 
 // UpdateAddrs updates the addresses associated with the given peer that have
 // the given oldTTL to have the given newTTL.
-func (mab *memoryAddrBook) UpdateAddrs(t thread.ID, p peer.ID, oldTTL time.Duration, newTTL time.Duration) {
+func (mab *memoryAddrBook) UpdateAddrs(t thread.ID, p peer.ID, oldTTL time.Duration, newTTL time.Duration) error {
 	s := mab.segments.get(p)
 	s.Lock()
 	defer s.Unlock()
 
 	amap, found := s.getAddrs(t, p)
 	if !found {
-		return
+		return nil
 	}
 
 	exp := time.Now().Add(newTTL)
@@ -263,17 +265,18 @@ func (mab *memoryAddrBook) UpdateAddrs(t thread.ID, p peer.ID, oldTTL time.Durat
 			amap[k] = a
 		}
 	}
+	return nil
 }
 
 // Addrs returns all known (and valid) addresses for a given log
-func (mab *memoryAddrBook) Addrs(t thread.ID, p peer.ID) []ma.Multiaddr {
+func (mab *memoryAddrBook) Addrs(t thread.ID, p peer.ID) ([]ma.Multiaddr, error) {
 	s := mab.segments.get(p)
 	s.RLock()
 	defer s.RUnlock()
 
 	amap, found := s.getAddrs(t, p)
 	if !found {
-		return nil
+		return nil, nil
 	}
 
 	now := time.Now()
@@ -284,11 +287,11 @@ func (mab *memoryAddrBook) Addrs(t thread.ID, p peer.ID) []ma.Multiaddr {
 		}
 	}
 
-	return good
+	return good, nil
 }
 
 // ClearAddrs removes all previously stored addresses
-func (mab *memoryAddrBook) ClearAddrs(t thread.ID, p peer.ID) {
+func (mab *memoryAddrBook) ClearAddrs(t thread.ID, p peer.ID) error {
 	s := mab.segments.get(p)
 	s.Lock()
 	defer s.Unlock()
@@ -300,11 +303,12 @@ func (mab *memoryAddrBook) ClearAddrs(t thread.ID, p peer.ID) {
 			delete(s.addrs, t)
 		}
 	}
+	return nil
 }
 
 // AddrStream returns a channel on which all new addresses discovered for a
 // given peer ID will be published.
-func (mab *memoryAddrBook) AddrStream(ctx context.Context, t thread.ID, p peer.ID) <-chan ma.Multiaddr {
+func (mab *memoryAddrBook) AddrStream(ctx context.Context, t thread.ID, p peer.ID) (<-chan ma.Multiaddr, error) {
 	s := mab.segments.get(p)
 	s.RLock()
 	defer s.RUnlock()
@@ -385,7 +389,7 @@ func (mgr *AddrSubManager) BroadcastAddr(p peer.ID, addr ma.Multiaddr) {
 
 // AddrStream creates a new subscription for a given peer ID, pre-populating the
 // channel with any addresses we might already have on file.
-func (mgr *AddrSubManager) AddrStream(ctx context.Context, p peer.ID, initial []ma.Multiaddr) <-chan ma.Multiaddr {
+func (mgr *AddrSubManager) AddrStream(ctx context.Context, p peer.ID, initial []ma.Multiaddr) (<-chan ma.Multiaddr, error) {
 	sub := &addrSub{pubch: make(chan ma.Multiaddr), ctx: ctx}
 	out := make(chan ma.Multiaddr)
 
@@ -446,5 +450,5 @@ func (mgr *AddrSubManager) AddrStream(ctx context.Context, p peer.ID, initial []
 
 	}(initial)
 
-	return out
+	return out, nil
 }

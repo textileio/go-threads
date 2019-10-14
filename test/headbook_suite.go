@@ -45,8 +45,8 @@ func testHeadBookAddHeads(hb tstore.HeadBook) func(t *testing.T) {
 		_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
 
-		if heads := hb.Heads(tid, p); len(heads) > 0 {
-			t.Error("expected heads to be empty on init")
+		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
+			t.Error("expected heads to be empty on init without errors")
 		}
 
 		heads := make([]cid.Cid, 0)
@@ -54,11 +54,16 @@ func testHeadBookAddHeads(hb tstore.HeadBook) func(t *testing.T) {
 			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
 			head := cid.NewCidV1(cid.DagCBOR, hash)
 
-			hb.AddHeads(tid, p, []cid.Cid{head})
+			if err := hb.AddHeads(tid, p, []cid.Cid{head}); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
 			heads = append(heads, head)
 		}
 
-		hbHeads := hb.Heads(tid, p)
+		hbHeads, err := hb.Heads(tid, p)
+		if err != nil {
+			t.Fatalf("error while getting heads: %v", err)
+		}
 		for _, h := range heads {
 			var found bool
 			for _, b := range hbHeads {
@@ -81,8 +86,8 @@ func testHeadBookSetHeads(hb tstore.HeadBook) func(t *testing.T) {
 		_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
 
-		if heads := hb.Heads(tid, p); len(heads) > 0 {
-			t.Error("expected heads to be empty on init")
+		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
+			t.Error("expected heads to be empty on init without errors")
 		}
 
 		heads := make([]cid.Cid, 0)
@@ -91,9 +96,14 @@ func testHeadBookSetHeads(hb tstore.HeadBook) func(t *testing.T) {
 			head := cid.NewCidV1(cid.DagCBOR, hash)
 			heads = append(heads, head)
 		}
-		hb.SetHeads(tid, p, heads)
+		if err := hb.SetHeads(tid, p, heads); err != nil {
+			t.Fatalf("error when setting heads: %v", err)
+		}
 
-		hbHeads := hb.Heads(tid, p)
+		hbHeads, err := hb.Heads(tid, p)
+		if err != nil {
+			t.Fatalf("error when getting heads: %v", err)
+		}
 		for _, h := range heads {
 			var found bool
 			for _, b := range hbHeads {
@@ -116,8 +126,8 @@ func testHeadBookClearHeads(hb tstore.HeadBook) func(t *testing.T) {
 		_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
 
-		if heads := hb.Heads(tid, p); len(heads) > 0 {
-			t.Error("expected heads to be empty on init")
+		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
+			t.Error("expected heads to be empty on init without errors")
 		}
 
 		heads := make([]cid.Cid, 0)
@@ -125,18 +135,30 @@ func testHeadBookClearHeads(hb tstore.HeadBook) func(t *testing.T) {
 			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
 			head := cid.NewCidV1(cid.DagCBOR, hash)
 
-			hb.AddHead(tid, p, head)
+			if err := hb.AddHead(tid, p, head); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
 			heads = append(heads, head)
 		}
 
-		len1 := len(hb.Heads(tid, p))
+		heads, err := hb.Heads(tid, p)
+		if err != nil {
+			t.Fatalf("error when getting heads: %v", err)
+		}
+		len1 := len(heads)
 		if len1 != 2 {
 			t.Errorf("incorrect heads length %d", len1)
 		}
 
-		hb.ClearHeads(tid, p)
+		if err = hb.ClearHeads(tid, p); err != nil {
+			t.Fatalf("error when clearing heads: %v", err)
+		}
 
-		len2 := len(hb.Heads(tid, p))
+		heads, err = hb.Heads(tid, p)
+		if err != nil {
+			t.Fatalf("error when getting heads: %v", err)
+		}
+		len2 := len(heads)
 		if len2 != 0 {
 			t.Errorf("incorrect heads length %d", len2)
 		}

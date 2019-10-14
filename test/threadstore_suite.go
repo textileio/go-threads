@@ -48,7 +48,10 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 		ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		addrch := ts.AddrStream(ctx, tid, pid)
+		addrch, err := ts.AddrStream(ctx, tid, pid)
+		if err != nil {
+			t.Fatalf("errro when adding stream: %v", err)
+		}
 
 		// while that subscription is active, publish ten more addrs
 		// this tests that it doesnt hang
@@ -68,7 +71,10 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 
 		// start a second stream
 		ctx2, cancel2 := context.WithCancel(context.Background())
-		addrch2 := ts.AddrStream(ctx2, tid, pid)
+		addrch2, err := ts.AddrStream(ctx2, tid, pid)
+		if err != nil {
+			t.Fatalf("error when adding stream: %v", err)
+		}
 
 		done := make(chan struct{})
 		go func() {
@@ -125,7 +131,10 @@ func testGetStreamBeforeLogAdded(ts tstore.Threadstore) func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach := ts.AddrStream(ctx, tid, pid)
+		ach, err := ts.AddrStream(ctx, tid, pid)
+		if err != nil {
+			t.Fatalf("error when adding stream: %v", err)
+		}
 		for i := 0; i < 10; i++ {
 			ts.AddAddr(tid, pid, addrs[i], time.Hour)
 		}
@@ -176,7 +185,10 @@ func testAddrStreamDuplicates(ts tstore.Threadstore) func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach := ts.AddrStream(ctx, tid, pid)
+		ach, err := ts.AddrStream(ctx, tid, pid)
+		if err != nil {
+			t.Fatalf("error when adding stream: %v", err)
+		}
 		go func() {
 			for i := 0; i < 10; i++ {
 				ts.AddAddr(tid, pid, addrs[i], time.Hour)
@@ -226,7 +238,10 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 		}
 
 		info := ts.ThreadInfo(tids[0])
-		tsAddrs := ts.Addrs(info.ID, info.Logs[0])
+		tsAddrs, err := ts.Addrs(info.ID, info.Logs[0])
+		if err != nil {
+			t.Fatalf("errro when getting addresses: %v", err)
+		}
 		if !tsAddrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
 		}
@@ -247,30 +262,30 @@ func testMetadata(ts tstore.Threadstore) func(t *testing.T) {
 			tids[i] = thread.NewIDV1(thread.Raw, 24)
 		}
 		for _, p := range tids {
-			if err := ts.PutMeta(p, "AgentVersion", "string"); err != nil {
+			if err := ts.PutString(p, "AgentVersion", "string"); err != nil {
 				t.Errorf("failed to put %q: %s", "AgentVersion", err)
 			}
-			if err := ts.PutMeta(p, "bar", 1); err != nil {
+			if err := ts.PutInt64(p, "bar", 1); err != nil {
 				t.Errorf("failed to put %q: %s", "bar", err)
 			}
 		}
 		for _, p := range tids {
-			v, err := ts.GetMeta(p, "AgentVersion")
+			v, err := ts.GetString(p, "AgentVersion")
 			if err != nil {
 				t.Errorf("failed to find %q: %s", "AgentVersion", err)
 				continue
 			}
-			if v != "string" {
+			if v != nil && *v != "string" {
 				t.Errorf("expected %q, got %q", "string", p)
 				continue
 			}
 
-			v, err = ts.GetMeta(p, "bar")
+			vi, err := ts.GetInt64(p, "bar")
 			if err != nil {
 				t.Errorf("failed to find %q: %s", "bar", err)
 				continue
 			}
-			if v != 1 {
+			if vi != nil && *vi != 1 {
 				t.Errorf("expected %q, got %v", 1, v)
 				continue
 			}
