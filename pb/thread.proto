@@ -1,8 +1,0 @@
-syntax = "proto3";
-package thread.pb;
-
-import "google/protobuf/timestamp.proto";
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";
-
-option (gogoproto.benchgen_all) = true;
-option (gogoproto.populate_all) = true;

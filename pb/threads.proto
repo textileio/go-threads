@@ -1,0 +1,99 @@
+syntax = "proto3";
+package threads.pb;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.populate_all) = true;
+
+// Record is a thread record containing link data.
+message Record {
+    // recordNode is the top-level node's raw data.
+    bytes recordNode = 1;
+
+    // eventNode is the event node's raw data.
+    bytes eventNode = 2;
+
+    // headerNode is the header node's raw data.
+    bytes headerNode = 3;
+
+    // bodyNode is the body node's raw data.
+    bytes bodyNode = 4;
+}
+
+// PushRequest is used as a record envelope for thread orchestration.
+message PushRequest {
+    // header is the header message.
+    Header header = 1;
+
+    // threadID is the target thread's ID.
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+
+    // logID is the target log's ID.
+    bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    // record is the actual record payload.
+    Record record = 4;
+
+    // Header holds sender and key information.
+    message Header {
+        // from is the sender's peerID.
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+        // signature is the signature of the payload.
+        bytes signature = 2;
+
+        // key is the sender's public key used to sign the payload.
+        bytes key = 3 [(gogoproto.customtype) = "ProtoPubKey"];
+
+        // followKey allows recipients to follow links in an invite.
+        bytes followKey = 4;
+
+        // readKeyLogID allows recipients to decrypt invites from a join.
+        bytes readKeyLogID = 5 [(gogoproto.customtype) = "ProtoPeerID"];
+    }
+}
+
+// PushReply is the response from a PushRequest.
+message PushReply {
+    // ok means the push succeeded.
+    bool ok = 1;
+}
+
+// PullRequest is used to request records from a log address.
+message PullRequest {
+    // header is the message header.
+    Header header = 1;
+
+    // threadID is the target thread's ID.
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+
+    // logID is the target log's ID.
+    bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    // offset tells the recipient at which point to consider records new for the reply.
+    bytes offset = 4 [(gogoproto.customtype) = "ProtoCid"];
+
+    // limit indicates the max number of records to return.
+    int32 limit = 5;
+
+    // Header holds sender information.
+    message Header {
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    }
+}
+
+// PullReply contains records requested with a PullRequest.
+message PullReply {
+    // records are the result of the request.
+    repeated Record records = 1;
+}
+
+// Threads is the peer-to-peer network API for thread orchestration.
+service Threads {
+    // Push a record to a thread.
+    rpc Push(PushRequest) returns (PushReply) {}
+
+    // Pull records from a thread.
+    rpc Pull(PullRequest) returns (PullReply) {}
+}

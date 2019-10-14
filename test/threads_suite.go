@@ -4,8 +4,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-ipfs/dagutils"
+	"github.com/ipfs/go-cid"
+
+	bserv "github.com/ipfs/go-blockservice"
+	ds "github.com/ipfs/go-datastore"
+	syncds "github.com/ipfs/go-datastore/sync"
+	bstore "github.com/ipfs/go-ipfs-blockstore"
+	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbornode "github.com/ipfs/go-ipld-cbor"
+	dag "github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -20,14 +27,14 @@ import (
 	tstore "github.com/textileio/go-textile-threads/tstoremem"
 )
 
-var threadserviceSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
+var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
 	"AddPull":   testAddPull,
 	"AddInvite": testAddInvite,
 	"Close":     testClose,
 }
 
-func ThreadserviceTest(t *testing.T) {
-	for name, test := range threadserviceSuite {
+func ThreadsTest(t *testing.T) {
+	for name, test := range threadsSuite {
 		// Create two thread services.
 		m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10000")
 		m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
@@ -55,7 +62,16 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts, err := threads.NewThreadservice(host, dagutils.NewMemoryDagService(), tstore.NewThreadstore())
+
+	bs := bstore.NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
+	bsrv := bserv.New(bs, offline.Exchange(bs))
+	ts, err := threads.NewThreads(
+		context.Background(),
+		host,
+		bsrv,
+		dag.NewDAGService(bsrv),
+		tstore.NewThreadstore(),
+		true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,15 +111,16 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 			t.Fatalf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
 		}
 
-		nodes, err := ts1.Pull(ctx, tid, lid1, tserv.PullOpt.Limit(2))
+		// Pull from the log origin
+		recs, err := ts1.Pull(ctx, tid, lid1, cid.Undef, tserv.PullOpt.Limit(100))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(nodes) != 2 {
-			t.Fatalf("expected 2 nodes got %d", len(nodes))
+		if len(recs) != 2 {
+			t.Fatalf("expected 2 records got %d", len(recs))
 		}
 
-		event, err := cbor.GetEvent(ctx, ts1.DAGService(), nodes[0].BlockID())
+		event, err := cbor.GetEvent(ctx, ts1.DAGService(), recs[0].BlockID())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -133,7 +150,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, _, err = ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		lid1, _, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -143,7 +160,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		pk := ts2.Host().Peerstore().PubKey(ts2.Host().ID())
+		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
 		if pk == nil {
 			t.Fatal("public key not found")
 		}
@@ -165,6 +182,28 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		info := ts2.ThreadInfo(tid)
+		if len(info.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info.Logs))
+		}
+
+		for _, lid := range info.Logs {
+			// Pull from the log origin
+			recs, err := ts2.Pull(ctx, tid, lid, cid.Undef, tserv.PullOpt.Limit(100))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if lid.String() == lid1.String() {
+				if len(recs) != 2 { // ts1's log with one msg and one invite record
+					t.Fatalf("expected 2 records got %d", len(recs))
+				}
+			} else {
+				if len(recs) != 1 { // ts2's log with one invite record
+					t.Fatalf("expected 1 record got %d", len(recs))
+				}
+			}
 		}
 	}
 }
