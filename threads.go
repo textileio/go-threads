@@ -16,6 +16,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-textile-core/broadcast"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -63,7 +64,7 @@ type threads struct {
 	blocks     bserv.BlockService
 	service    *service
 	dagService format.DAGService
-	bus        chan *tserv.Record
+	bus        *broadcast.Broadcaster
 	ctx        context.Context
 	cancel     context.CancelFunc
 	tstore.Threadstore
@@ -87,7 +88,7 @@ func NewThreads(ctx context.Context, h host.Host, bs bserv.BlockService, ds form
 		host:        h,
 		blocks:      bs,
 		dagService:  ds,
-		bus:         make(chan *tserv.Record),
+		bus:         broadcast.NewBroadcaster(0),
 		ctx:         ctx,
 		cancel:      cancel,
 		Threadstore: ts,
@@ -142,7 +143,7 @@ func (t *threads) DAGService() format.DAGService {
 }
 
 // Add a new record by wrapping body. See AddOption for more.
-func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (r *tserv.Record, err error) {
+func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (r tserv.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
 	lg, err := t.getOrCreateOwnLog(settings.Thread)
@@ -163,8 +164,14 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 	}
 
 	// Notify local listeners
-	brec := &tserv.Record{ThreadID: settings.Thread, LogID: lg.ID, Record: rec}
-	t.sendRecord(brec)
+	brec := &record{
+		Record:   rec,
+		threadID: settings.Thread,
+		logID:    lg.ID,
+	}
+	if err = t.bus.Send(brec); err != nil {
+		return
+	}
 
 	return brec, nil
 }
@@ -213,9 +220,11 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 	t.SetHead(settings.Thread, lg.ID, rec.Cid())
 
 	// Notify local listeners
-	t.sendRecord(&tserv.Record{ThreadID: settings.Thread, LogID: lg.ID, Record: rec})
-
-	return nil
+	return t.bus.Send(&record{
+		Record:   rec,
+		threadID: settings.Thread,
+		logID:    lg.ID,
+	})
 }
 
 // Get returns the record at cid.
@@ -247,10 +256,10 @@ func (t *threads) Pull(ctx context.Context, id thread.ID) error {
 			var recs []thread.Record
 			var err error
 			if lg.PrivKey != nil { // This is our own log
-				recs, err = t.pullLocal(ctx, id, lg.ID, offset, -1)
+				recs, err = t.pullLocal(ctx, id, lg.ID, offset, MaxPullLimit)
 			} else {
 				// Pull from addresses
-				recs, err = t.service.pull(ctx, id, lg.ID, offset, -1)
+				recs, err = t.service.pull(ctx, id, lg.ID, offset, MaxPullLimit)
 			}
 			if err != nil {
 				log.Error(err)
@@ -268,9 +277,78 @@ func (t *threads) Pull(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// Updates returns a read-only channel of updates.
-func (t *threads) Updates() <-chan *tserv.Record {
-	return t.bus
+// record wraps a thread.Record with thread and log context.
+type record struct {
+	thread.Record
+	threadID thread.ID
+	logID    peer.ID
+}
+
+// Value returns the underlying record.
+func (r *record) Value() thread.Record {
+	return r
+}
+
+// ThreadID returns the record's thread ID.
+func (r *record) ThreadID() thread.ID {
+	return r.threadID
+}
+
+// LogID returns the record's log ID.
+func (r *record) LogID() peer.ID {
+	return r.logID
+}
+
+// recordListener receives record updates.
+type recordListener struct {
+	l  *broadcast.Listener
+	ch chan tserv.Record
+}
+
+// Discard closes the RecordListener, disabling the reception of further records.
+func (l *recordListener) Discard() {
+	l.l.Discard()
+}
+
+func (l *recordListener) Channel() <-chan tserv.Record {
+	return l.ch
+}
+
+// Listen returns a read-only channel of records.
+func (t *threads) Listen(opts ...tserv.ListenOption) tserv.RecordListener {
+	settings := tserv.ListenOptions(opts...)
+	filter := make(map[thread.ID]struct{})
+	for _, tid := range settings.Threads {
+		if tid.Defined() {
+			filter[tid] = struct{}{}
+		}
+	}
+	listener := &recordListener{
+		l:  t.bus.Listen(),
+		ch: make(chan tserv.Record),
+	}
+	go func() {
+		for {
+			select {
+			case i, ok := <-listener.l.Channel():
+				if !ok {
+					close(listener.ch)
+					return
+				}
+				r, ok := i.(*record)
+				if ok {
+					if len(filter) > 0 {
+						if _, x := filter[r.threadID]; x {
+							listener.ch <- r
+						}
+					} else {
+						listener.ch <- r
+					}
+				}
+			}
+		}
+	}()
+	return listener
 }
 
 // GetLogs returns info about the logs in the given thread.
@@ -447,14 +525,6 @@ func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offs
 	}
 
 	return recs, nil
-}
-
-// sendRecord adds the given record to the bus.
-func (t *threads) sendRecord(rec *tserv.Record) {
-	select {
-	case t.bus <- rec:
-	default:
-	}
 }
 
 // setLogLevels sets the logging levels of the given log systems.
