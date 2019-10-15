@@ -17,8 +17,8 @@ import (
 type datastoreFactory func(tb testing.TB) (ds.Datastore, func())
 
 var dstores = map[string]datastoreFactory{
-	"Badger":  badgerStore,
-	"Leveldb": leveldbStore,
+	"Badger": badgerStore,
+	// "Leveldb": leveldbStore,
 }
 
 func TestDatastoreAddrBook(t *testing.T) {
