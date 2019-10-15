@@ -61,6 +61,15 @@ func TestDatastoreHeadBook(t *testing.T) {
 	}
 }
 
+func TestDatastoreMetadataBook(t *testing.T) {
+	for name, dsFactory := range dstores {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			pt.MetadataBookTest(t, metadataBookFactory(t, dsFactory))
+		})
+	}
+}
+
 func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Options) pt.AddrBookFactory {
 	return func() (tstore.AddrBook, func()) {
 		store, closeFunc := storeFactory(tb)
@@ -98,6 +107,17 @@ func headBookFactory(tb testing.TB, storeFactory datastoreFactory) pt.HeadBookFa
 			closeFunc()
 		}
 		return hb, closer
+	}
+}
+
+func metadataBookFactory(tb testing.TB, storeFactory datastoreFactory) pt.MetadataBookFactory {
+	return func() (tstore.ThreadMetadata, func()) {
+		store, closeFunc := storeFactory(tb)
+		tm := NewThreadMetadata(store)
+		closer := func() {
+			closeFunc()
+		}
+		return tm, closer
 	}
 }
 
