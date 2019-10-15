@@ -94,7 +94,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		}
 	}
 	if fkey == nil {
-		return nil, fmt.Errorf("could not find follow key")
+		return nil, fmt.Errorf("follow key not found")
 	}
 
 	rec, err := recordFromProto(req.Record, fkey)
@@ -159,7 +159,11 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 }
 
 func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply, error) {
-	recs, err := s.threads.pullLocal(ctx, req.ThreadID.ID, req.LogID.ID, req.Offset.Cid, int(req.Limit))
+	recs, err := s.threads.pullLocal(
+		ctx, req.ThreadID.ID,
+		req.LogID.ID,
+		req.Offset.Cid,
+		int(req.Limit))
 	if err != nil {
 		return nil, err
 	}
@@ -177,14 +181,28 @@ func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply,
 }
 
 // push a record to log addresses and thread topic.
-func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, settings *tserv.AddSettings) error {
+func (s *service) push(
+	ctx context.Context,
+	rec thread.Record,
+	id thread.ID,
+	lid peer.ID,
+	settings *tserv.AddSettings,
+) error {
 	var addrs []ma.Multiaddr
 	// Collect known writers
-	for _, l := range s.threads.ThreadInfo(settings.ThreadID).Logs {
+	info, err := s.threads.ThreadInfo(settings.ThreadID)
+	if err != nil {
+		return err
+	}
+	for _, l := range info.Logs {
 		if l.String() == lid.String() {
 			continue
 		}
-		addrs = append(addrs, s.threads.Addrs(settings.ThreadID, l)...)
+		laddrs, err := s.threads.Addrs(settings.ThreadID, l)
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, laddrs...)
 	}
 
 	// Add additional addresses
@@ -201,7 +219,7 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	}
 	sk := s.threads.getPrivKey()
 	if sk == nil {
-		return fmt.Errorf("could not find key for host")
+		return fmt.Errorf("key for host not found")
 	}
 	sig, err := sk.Sign(payload)
 	if err != nil {
@@ -209,7 +227,10 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	}
 
 	var keyLog *pb.ProtoPeerID
-	logKey := s.threads.ReadKey(settings.ThreadID, settings.KeyLog)
+	logKey, err := s.threads.ReadKey(settings.ThreadID, settings.KeyLog)
+	if err != nil {
+		return err
+	}
 	if logKey != nil {
 		keyLog = &pb.ProtoPeerID{ID: settings.KeyLog}
 	}
@@ -311,10 +332,19 @@ func (r *records) Store(key cid.Cid, value thread.Record) {
 }
 
 // pull records from log addresses.
-func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
-	lg := s.threads.LogInfo(id, lid)
+func (s *service) pull(
+	ctx context.Context,
+	id thread.ID,
+	lid peer.ID,
+	offset cid.Cid,
+	limit int,
+) ([]thread.Record, error) {
+	lg, err := s.threads.LogInfo(id, lid)
+	if err != nil {
+		return nil, err
+	}
 	if lg.PubKey == nil {
-		return nil, fmt.Errorf("could not find log")
+		return nil, fmt.Errorf("log not found")
 	}
 	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
 	if err != nil {
@@ -399,7 +429,11 @@ func (s *service) pullHistory(ctx context.Context, id thread.ID, lid peer.ID) er
 }
 
 // dial attempts to open a GRPC connection over libp2p to a peer.
-func (s *service) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
+func (s *service) dial(
+	ctx context.Context,
+	peerID peer.ID,
+	dialOpts ...grpc.DialOption,
+) (*grpc.ClientConn, error) {
 	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
 	return grpc.DialContext(ctx, peerID.Pretty(), opts...)
 }
@@ -457,7 +491,13 @@ func (s *service) publish(id thread.ID, req *pb.PushRequest) error {
 }
 
 // handleInvite attempts to process a log record as an invite event.
-func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, kid peer.ID, rec thread.Record) (*thread.LogInfo, error) {
+func (s *service) handleInvite(
+	ctx context.Context,
+	id thread.ID,
+	lid peer.ID,
+	kid peer.ID,
+	rec thread.Record,
+) (*thread.LogInfo, error) {
 	event, err := cbor.EventFromRecord(ctx, s.threads.dagService, rec)
 	if err != nil {
 		return nil, err
@@ -467,7 +507,7 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 	var key crypto.DecryptionKey
 	ti, err := s.threads.ThreadInfo(id)
 	if err != nil {
-		return nil, fmt.Errorf("error when handling invite from (%s, %s): %v", id, lid, err)
+		return nil, err
 	}
 	if ti.Logs.Len() > 0 {
 		// Thread exists—there should be a key log id
@@ -476,7 +516,7 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 			return nil, err
 		}
 		if logKey == nil {
-			return nil, fmt.Errorf("could not find read key")
+			return nil, fmt.Errorf("read key not found")
 		}
 		key, err = symmetric.NewKey(logKey)
 		if err != nil {
@@ -486,7 +526,7 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 		// Thread does not exist—try host peer's key
 		sk := s.threads.getPrivKey()
 		if sk == nil {
-			return nil, fmt.Errorf("could not find key for host")
+			return nil, fmt.Errorf("key for host not found")
 		}
 		key, err = asymmetric.NewDecryptionKey(sk)
 		if err != nil {
@@ -521,6 +561,8 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 		}
 
 		// Download log history
+		// @todo: should this even happen unless direcly asked for by a user?
+		// @todo: if auto, do we need to queue download a la, threads v1?
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
@@ -570,7 +612,9 @@ func requestPubKey(r *pb.PushRequest) (ic.PubKey, error) {
 		pubk = r.Header.Key.PubKey
 		// Verify that the source ID matches the attached key
 		if !r.Header.From.ID.MatchesPublicKey(r.Header.Key.PubKey) {
-			return nil, fmt.Errorf("bad signing key; source ID %s doesn't match key", r.Header.From.ID)
+			return nil, fmt.Errorf(
+				"bad signing key; source ID %s doesn't match key",
+				r.Header.From.ID)
 		}
 	}
 	return pubk, nil

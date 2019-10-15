@@ -71,7 +71,14 @@ type threads struct {
 }
 
 // NewThreads creates an instance of threads from the given host and thread store.
-func NewThreads(ctx context.Context, h host.Host, bs bserv.BlockService, ds format.DAGService, ts tstore.Threadstore, debug bool) (tserv.Threadservice, error) {
+func NewThreads(
+	ctx context.Context,
+	h host.Host,
+	bs bserv.BlockService,
+	ds format.DAGService,
+	ts tstore.Threadstore,
+	debug bool,
+) (tserv.Threadservice, error) {
 	var err error
 	if debug {
 		err = setLogLevels(map[string]logger.Level{
@@ -143,7 +150,11 @@ func (t *threads) DAGService() format.DAGService {
 }
 
 // Add a new record by wrapping body. See AddOption for more.
-func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (r tserv.Record, err error) {
+func (t *threads) Add(
+	ctx context.Context,
+	body format.Node,
+	opts ...tserv.AddOption,
+) (r tserv.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
 	lg, err := t.getOrCreateOwnLog(settings.ThreadID)
@@ -178,11 +189,11 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 
 // Put an existing record. See PutOption for more.
 func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
-	x, err := t.blocks.Blockstore().Has(rec.Cid())
+	knownRecord, err := t.blocks.Blockstore().Has(rec.Cid())
 	if err != nil {
 		return err
 	}
-	if x {
+	if knownRecord {
 		return nil
 	}
 
@@ -217,7 +228,9 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 	}
 
 	// Update head
-	t.SetHead(settings.ThreadID, lg.ID, rec.Cid())
+	if err = t.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
+		return err
+	}
 
 	// Notify local listeners
 	return t.bus.Send(&record{
@@ -228,10 +241,18 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 }
 
 // Get returns the record at cid.
-func (t *threads) Get(ctx context.Context, id thread.ID, lid peer.ID, rid cid.Cid) (thread.Record, error) {
-	lg := t.LogInfo(id, lid)
+func (t *threads) Get(
+	ctx context.Context,
+	id thread.ID,
+	lid peer.ID,
+	rid cid.Cid,
+) (thread.Record, error) {
+	lg, err := t.LogInfo(id, lid)
+	if err != nil {
+		return nil, err
+	}
 	if lg.PubKey == nil {
-		return nil, fmt.Errorf("could not find log")
+		return nil, fmt.Errorf("log not found")
 	}
 	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
 	if err != nil {
@@ -245,7 +266,11 @@ func (t *threads) Get(ctx context.Context, id thread.ID, lid peer.ID, rid cid.Ci
 // Remotely addressed logs are pulled from the network.
 func (t *threads) Pull(ctx context.Context, id thread.ID) error {
 	wg := sync.WaitGroup{}
-	for _, lg := range t.GetLogs(id) {
+	lgs, err := t.GetLogs(id)
+	if err != nil {
+		return err
+	}
+	for _, lg := range lgs {
 		wg.Add(1)
 		go func(lg thread.LogInfo) {
 			defer wg.Done()
@@ -310,6 +335,7 @@ func (l *recordListener) Discard() {
 	l.l.Discard()
 }
 
+// Channel returns the channel that receives broadcast records.
 func (l *recordListener) Channel() <-chan tserv.Record {
 	return l.ch
 }
@@ -405,17 +431,17 @@ func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo
 func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 	logs, err := t.LogsWithKeys(id)
 	if err != nil {
-		return info, fmt.Errorf("couldn't fetch logs with keys: %v", err)
+		return info, err
 	}
 	for _, lid := range logs {
 		sk, err := t.PrivKey(id, lid)
 		if err != nil {
-			return info, fmt.Errorf("couldn't fetch private key from book: %v", err)
+			return info, err
 		}
 		if sk != nil {
 			li, err := t.LogInfo(id, lid)
 			if err != nil {
-				return info, fmt.Errorf("error when getting own log for thread %s: %v", id, err)
+				return info, err
 			}
 			return li, nil
 		}
@@ -442,10 +468,18 @@ func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 }
 
 // createRecord creates a new record with the given body as a new event body.
-func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
+func (t *threads) createRecord(
+	ctx context.Context,
+	body format.Node,
+	lg thread.LogInfo,
+	settings *tserv.AddSettings,
+) (thread.Record, error) {
 	if settings.Key == nil {
 		var key []byte
-		logKey := t.ReadKey(settings.ThreadID, settings.KeyLog)
+		logKey, err := t.ReadKey(settings.ThreadID, settings.KeyLog)
+		if err != nil {
+			return nil, err
+		}
 		if logKey != nil {
 			key = logKey
 		} else {
@@ -475,7 +509,9 @@ func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.
 	}
 
 	// Update head
-	t.SetHead(settings.ThreadID, lg.ID, rec.Cid())
+	if err = t.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
+		return nil, err
+	}
 
 	return rec, nil
 }
@@ -484,13 +520,19 @@ func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.
 // offset but not farther than limit.
 // It is possible to reach limit before offset, meaning that the caller
 // will be responsible for the remaining traversal.
-func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
+func (t *threads) pullLocal(
+	ctx context.Context,
+	id thread.ID,
+	lid peer.ID,
+	offset cid.Cid,
+	limit int,
+) ([]thread.Record, error) {
 	lg, err := t.LogInfo(id, lid)
 	if err != nil {
-		return nil, fmt.Errorf("error when pulling local (%s, %s): %v", id, lid, err)
+		return nil, err
 	}
 	if lg.PubKey == nil {
-		return nil, fmt.Errorf("could not find log")
+		return nil, fmt.Errorf("log not found")
 	}
 	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
 	if err != nil {

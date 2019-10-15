@@ -50,9 +50,7 @@ func ThreadsTest(t *testing.T) {
 
 func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	sk, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	check(t, err)
 	host, err := libp2p.New(
 		context.Background(),
 		libp2p.ListenAddrs(listen),
@@ -94,17 +92,13 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		check(t, err)
 
 		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		if r1.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
 		r2, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		if r2.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
@@ -115,28 +109,22 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 
 		// Pull from the log origin
 		err = ts1.Pull(ctx, tid)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		time.Sleep(time.Second)
 		if rcount != 2 {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
 
 		r1b, err := ts1.Get(ctx, tid, r1.LogID(), r1.Value().Cid())
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
 		event, err := cbor.GetEvent(ctx, ts1.DAGService(), r1b.BlockID())
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
-		readKey, err := crypto.ParseDecryptionKey(ts1.ReadKey(tid, r1.LogID()))
-		if err != nil {
-			t.Fatal(err)
-		}
+		rk, err := ts1.ReadKey(tid, r1.LogID())
+		check(t, err)
+		readKey, err := crypto.ParseDecryptionKey(rk)
+		check(t, err)
 		back, err := event.GetBody(ctx, ts1.DAGService(), readKey)
 		check(t, err)
 
@@ -154,18 +142,14 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
-		invite, err := cbor.NewInvite(ts1.GetLogs(tid), true)
-		if err != nil {
-			t.Fatal(err)
-		}
+		lgs, err := ts1.GetLogs(tid)
+		check(t, err)
+		invite, err := cbor.NewInvite(lgs, true)
+		check(t, err)
 
 		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
 		if pk == nil {
@@ -185,7 +169,8 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
 		check(t, err)
 
-		info1 := ts1.ThreadInfo(tid)
+		info1, err := ts1.ThreadInfo(tid)
+		check(t, err)
 		if len(info1.Logs) != 2 {
 			t.Fatalf("expected 2 logs got %d", len(info1.Logs))
 		}
@@ -194,27 +179,23 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 				// Peer 1 should have 2 records in its own log (one msg
 				// and one invite record)
 				_, err = ts1.Get(ctx, tid, lid, r1.Value().Cid())
-				if err != nil {
-					t.Fatal(err)
-				}
+				check(t, err)
 				_, err := ts1.Get(ctx, tid, lid, r2.Value().Cid())
-				if err != nil {
-					t.Fatal(err)
-				}
+				check(t, err)
 			} else {
 				// Peer 1 should have 1 record in its log for peer 2 (one invite record)
-				heads := ts1.Heads(tid, lid)
+				heads, err := ts1.Heads(tid, lid)
+				check(t, err)
 				if len(heads) != 1 { // double check we only have one head
 					t.Fatalf("expected 1 head got %d", len(heads))
 				}
 				_, err = ts1.Get(ctx, tid, lid, heads[0])
-				if err != nil {
-					t.Fatal(err)
-				}
+				check(t, err)
 			}
 		}
 
-		info2 := ts2.ThreadInfo(tid)
+		info2, err := ts2.ThreadInfo(tid)
+		check(t, err)
 		if len(info2.Logs) != 2 {
 			t.Fatalf("expected 2 logs got %d", len(info2.Logs))
 		}
@@ -223,23 +204,18 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 				// Peer 2 should have 2 records in its log for peer 1 (one msg
 				// and one invite record)
 				_, err = ts2.Get(ctx, tid, lid, r1.Value().Cid())
-				if err != nil {
-					t.Fatal(err)
-				}
+				check(t, err)
 				_, err := ts2.Get(ctx, tid, lid, r2.Value().Cid())
-				if err != nil {
-					t.Fatal(err)
-				}
+				check(t, err)
 			} else {
 				// Peer 2 should have 1 record in its own log (one invite record)
-				heads := ts2.Heads(tid, lid)
+				heads, err := ts2.Heads(tid, lid)
+				check(t, err)
 				if len(heads) != 1 { // double check we only have one head
 					t.Fatalf("expected 1 head got %d", len(heads))
 				}
 				_, err = ts2.Get(ctx, tid, lid, heads[0])
-				if err != nil {
-					t.Fatal(err)
-				}
+				check(t, err)
 			}
 		}
 	}
