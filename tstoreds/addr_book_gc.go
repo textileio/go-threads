@@ -20,12 +20,12 @@ var (
 // dsAddrBookGc is responsible for garbage collection in a datastore-backed address book.
 type dsAddrBookGc struct {
 	ctx       context.Context
-	ab        *dsAddrBook
+	ab        *DsAddrBook
 	running   chan struct{}
 	purgeFunc func()
 }
 
-func newAddressBookGc(ctx context.Context, ab *dsAddrBook) (*dsAddrBookGc, error) {
+func newAddressBookGc(ctx context.Context, ab *DsAddrBook) (*dsAddrBookGc, error) {
 	if ab.opts.GCPurgeInterval < 0 {
 		return nil, fmt.Errorf("negative GC purge interval provided: %s", ab.opts.GCPurgeInterval)
 	}

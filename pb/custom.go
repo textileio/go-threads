@@ -21,6 +21,7 @@ type customGogoType interface {
 	json.Marshaler
 	json.Unmarshaler
 	proto.Sizer
+	MarshalTo(data []byte) (n int, err error)
 }
 
 // ProtoPeerID is a custom type used by gogo to serde raw peer IDs into the peer.ID type, and back.

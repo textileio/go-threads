@@ -14,11 +14,11 @@ import (
 	pt "github.com/textileio/go-textile-threads/test"
 )
 
-type datastoreFactory func(tb testing.TB) (ds.Batching, func())
+type datastoreFactory func(tb testing.TB) (ds.Datastore, func())
 
 var dstores = map[string]datastoreFactory{
-	"Badger":  badgerStore,
-	"Leveldb": leveldbStore,
+	"Badger": badgerStore,
+	// "Leveldb": leveldbStore,
 }
 
 func TestDatastoreAddrBook(t *testing.T) {
@@ -43,10 +43,28 @@ func TestDatastoreAddrBook(t *testing.T) {
 	}
 }
 
+func TestDatastoreKeyBook(t *testing.T) {
+	for name, dsFactory := range dstores {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			pt.KeyBookTest(t, keyBookFactory(t, dsFactory))
+		})
+	}
+}
+
+func TestDatastoreHeadBook(t *testing.T) {
+	for name, dsFactory := range dstores {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			pt.HeadBookTest(t, headBookFactory(t, dsFactory))
+		})
+	}
+}
+
 func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Options) pt.AddrBookFactory {
 	return func() (tstore.AddrBook, func()) {
 		store, closeFunc := storeFactory(tb)
-		ab, err := NewAddrBook(context.Background(), store, opts)
+		ab, err := NewAddrBook(context.Background(), store.(ds.Batching), opts)
 		if err != nil {
 			tb.Fatal(err)
 		}
@@ -58,7 +76,32 @@ func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Optio
 	}
 }
 
-func badgerStore(tb testing.TB) (ds.Batching, func()) {
+func keyBookFactory(tb testing.TB, storeFactory datastoreFactory) pt.KeyBookFactory {
+	return func() (tstore.KeyBook, func()) {
+		store, closeFunc := storeFactory(tb)
+		kb, err := NewKeyBook(store)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		closer := func() {
+			closeFunc()
+		}
+		return kb, closer
+	}
+}
+
+func headBookFactory(tb testing.TB, storeFactory datastoreFactory) pt.HeadBookFactory {
+	return func() (tstore.HeadBook, func()) {
+		store, closeFunc := storeFactory(tb)
+		hb := NewHeadBook(store.(ds.TxnDatastore))
+		closer := func() {
+			closeFunc()
+		}
+		return hb, closer
+	}
+}
+
+func badgerStore(tb testing.TB) (ds.Datastore, func()) {
 	dataPath, err := ioutil.TempDir(os.TempDir(), "badger")
 	if err != nil {
 		tb.Fatal(err)
@@ -74,7 +117,7 @@ func badgerStore(tb testing.TB) (ds.Batching, func()) {
 	return store, closer
 }
 
-func leveldbStore(tb testing.TB) (ds.Batching, func()) {
+func leveldbStore(tb testing.TB) (ds.Datastore, func()) {
 	dataPath, err := ioutil.TempDir(os.TempDir(), "leveldb")
 	if err != nil {
 		tb.Fatal(err)

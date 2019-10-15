@@ -30,11 +30,11 @@ func NewHeadBook() tstore.HeadBook {
 	}
 }
 
-func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) {
-	mhb.AddHeads(t, p, []cid.Cid{head})
+func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
+	return mhb.AddHeads(t, p, []cid.Cid{head})
 }
 
-func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
+func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -54,13 +54,14 @@ func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
 		}
 		hmap[h] = struct{}{}
 	}
+	return nil
 }
 
-func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head cid.Cid) {
-	mhb.SetHeads(t, p, []cid.Cid{head})
+func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head cid.Cid) error {
+	return mhb.SetHeads(t, p, []cid.Cid{head})
 }
 
-func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
+func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -80,24 +81,25 @@ func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) {
 		}
 		hmap[h] = struct{}{}
 	}
+	return nil
 }
 
-func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) []cid.Cid {
+func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 	mhb.RLock()
 	defer mhb.RUnlock()
 
 	var heads []cid.Cid
 	hmap, _ := mhb.getHeads(t, p)
 	if hmap == nil {
-		return heads
+		return heads, nil
 	}
 	for h := range hmap {
 		heads = append(heads, h)
 	}
-	return heads
+	return heads, nil
 }
 
-func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) {
+func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -108,4 +110,5 @@ func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) {
 			delete(mhb.heads, t)
 		}
 	}
+	return nil
 }

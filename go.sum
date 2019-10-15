@@ -375,8 +375,8 @@ github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/syndtr/goleveldb v1.0.0 h1:fBdIW9lB4Iz0n9khmH8w27SJ3QEJ7+IgjPEwGSZiFdE=
 github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpPAyBWyWuQ=
-github.com/textileio/go-textile-core v0.0.0-20191011001311-73eb6e7093b8 h1:CueJdSoQamIhyC0MoC7lTUTeZWi318EUH6i4JnFDpbQ=
-github.com/textileio/go-textile-core v0.0.0-20191011001311-73eb6e7093b8/go.mod h1:7Agpsfm5EoM4Qpd6MVSR61mklARurC1JQMjJ/sn6ooo=
+github.com/textileio/go-textile-core v0.0.0-20191015153302-09f58f138ff2 h1:89IXwsxVwcwmNd59bxDo0dSwrNQbHhpyEAwWWNvIk44=
+github.com/textileio/go-textile-core v0.0.0-20191015153302-09f58f138ff2/go.mod h1:7Agpsfm5EoM4Qpd6MVSR61mklARurC1JQMjJ/sn6ooo=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/warpfork/go-wish v0.0.0-20180510122957-5ad1f5abf436 h1:qOpVTI+BrstcjTZLm2Yz/3sOnqkzj3FQoh0g+E5s3Gc=
 github.com/warpfork/go-wish v0.0.0-20180510122957-5ad1f5abf436/go.mod h1:x6AKhvSSexNrVSrViXSHUEbICjmGXhtgABaHIySUSGw=

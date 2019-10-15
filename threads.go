@@ -205,11 +205,19 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, opts ...tserv.PullOption) ([]thread.Record, error) {
 	settings := tserv.PullOptions(opts...)
 
-	if t.PubKey(id, lid) == nil {
+	pk, err := t.PubKey(id, lid)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't fetch public key from book: %v", err)
+	}
+	if pk == nil {
 		return nil, fmt.Errorf("could not find log")
 	}
 
-	if t.PrivKey(id, lid) != nil { // This is our own log
+	sk, err := t.PrivKey(id, lid)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't fetch private key from book: %v", err)
+	}
+	if sk != nil { // This is our own log
 		return t.pullLocal(ctx, id, lid, offset, settings.Limit)
 	}
 
@@ -218,13 +226,20 @@ func (t *threads) Pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 }
 
 // Logs returns info about the logs in the given thread.
-func (t *threads) Logs(id thread.ID) []thread.LogInfo {
+func (t *threads) Logs(id thread.ID) ([]thread.LogInfo, error) {
 	lgs := make([]thread.LogInfo, 0)
-	for _, lid := range t.ThreadInfo(id).Logs {
-		lg := t.LogInfo(id, lid)
+	ti, err := t.ThreadInfo(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, lid := range ti.Logs {
+		lg, err := t.LogInfo(id, lid)
+		if err != nil {
+			return nil, err
+		}
 		lgs = append(lgs, lg)
 	}
-	return lgs
+	return lgs, nil
 }
 
 // Delete the given thread.
@@ -245,7 +260,10 @@ func (t *threads) createLog() (info thread.LogInfo, err error) {
 // getOrCreateLog returns the log with the given thread and log id
 // If no log exists, a new one is created under the given thread.
 func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info = t.LogInfo(id, lid)
+	info, err = t.LogInfo(id, lid)
+	if err != nil {
+		return
+	}
 	if info.PubKey != nil {
 		return
 	}
@@ -258,20 +276,34 @@ func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo
 }
 
 // getOwnLoad returns the log owned by the host under the given thread.
-func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo) {
-	for _, lid := range t.LogsWithKeys(id) {
-		if t.PrivKey(id, lid) != nil {
-			info = t.LogInfo(id, lid)
-			return
+func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	logs, err := t.LogsWithKeys(id)
+	if err != nil {
+		return info, fmt.Errorf("couldn't fetch logs with keys: %v", err)
+	}
+	for _, lid := range logs {
+		sk, err := t.PrivKey(id, lid)
+		if err != nil {
+			return info, fmt.Errorf("couldn't fetch private key from book: %v", err)
+		}
+		if sk != nil {
+			li, err := t.LogInfo(id, lid)
+			if err != nil {
+				return info, fmt.Errorf("error when getting own log for thread %s: %v", id, err)
+			}
+			return li, nil
 		}
 	}
-	return
+	return info, nil
 }
 
 // getOrCreateOwnLoad returns the log owned by the host under the given thread.
 // If no log exists, a new one is created under the given thread.
 func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	info = t.getOwnLog(id)
+	info, err = t.getOwnLog(id)
+	if err != nil {
+		return info, err
+	}
 	if info.PubKey != nil {
 		return
 	}
@@ -287,13 +319,15 @@ func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
 	if settings.Key == nil {
 		var key []byte
-		logKey := t.ReadKey(settings.Thread, settings.KeyLog)
+		logKey, err := t.ReadKey(settings.Thread, settings.KeyLog)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't fetch read key from book: %v", err)
+		}
 		if logKey != nil {
 			key = logKey
 		} else {
 			key = lg.ReadKey
 		}
-		var err error
 		settings.Key, err = crypto.ParseEncryptionKey(key)
 		if err != nil {
 			return nil, err
@@ -327,7 +361,10 @@ func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.
 // It is possible to reach limit before offset, meaning that the caller
 // will be responsible for the remaining traversal.
 func (t *threads) pullLocal(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]thread.Record, error) {
-	lg := t.LogInfo(id, lid)
+	lg, err := t.LogInfo(id, lid)
+	if err != nil {
+		return nil, fmt.Errorf("error when pulling local (%s, %s): %v", id, lid, err)
+	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("could not find log")
 	}

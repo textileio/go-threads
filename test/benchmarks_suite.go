@@ -95,7 +95,7 @@ func benchmarkGetAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = ts.Addrs(tid, pp.ID)
+			_, _ = ts.Addrs(tid, pp.ID)
 		}
 	}
 }
@@ -125,7 +125,7 @@ func benchmarkGet1000LogsWithAddrs(ts tstore.Threadstore, addrs chan *logpair) f
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = ts.LogsWithAddrs(tid)
+			_, _ = ts.LogsWithAddrs(tid)
 		}
 	}
 }
