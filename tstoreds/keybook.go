@@ -43,7 +43,7 @@ func (kb *dsKeyBook) PubKey(t thread.ID, p peer.ID) (ic.PubKey, error) {
 	var pk ic.PubKey
 	if v, err := kb.ds.Get(key); err == nil {
 		if pk, err = ic.UnmarshalPublicKey(v); err != nil {
-			return nil, fmt.Errorf("store backed public key %v can't be unmarshaled: %w", key, err)
+			return nil, fmt.Errorf("store backed public key %s can't be unmarshaled: %w", key, err)
 		}
 	} else if err == ds.ErrNotFound {
 		pk, err = p.ExtractPublicKey()
@@ -51,18 +51,16 @@ func (kb *dsKeyBook) PubKey(t thread.ID, p peer.ID) (ic.PubKey, error) {
 		case nil:
 			pkb, err := pk.Bytes()
 			if err != nil {
-				return nil, fmt.Errorf("error when getting bytes from identity multihashed public key %v: %w", key, err)
+				return nil, fmt.Errorf("error when getting bytes from identity multihashed public key %s: %w", key, err)
 			}
 			if kb.ds.Put(key, pkb) != nil {
-				return nil, fmt.Errorf("error when putting identity multihashed public key %v in store: %w", key, err)
+				return nil, fmt.Errorf("error when putting identity multihashed public key %s in store: %w", key, err)
 			}
-		case peer.ErrNoPublicKey:
-			return nil, fmt.Errorf("missing stored public key %v and isn't an identity multihash", key)
 		default:
-			return nil, fmt.Errorf("missing stored public key %v errored while extracting public key: %w", key, err)
+			return nil, nil
 		}
 	} else {
-		return nil, fmt.Errorf("error when getting key %v from store", key)
+		return nil, fmt.Errorf("error when getting key %s from store: %v", key, err)
 	}
 	return pk, nil
 }
@@ -129,6 +127,9 @@ func (kb *dsKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) error {
 func (kb *dsKeyBook) ReadKey(t thread.ID, p peer.ID) ([]byte, error) {
 	key := dsKey(t, p, kbBase).Child(readSuffix)
 	v, err := kb.ds.Get(key)
+	if err == ds.ErrNotFound {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error when getting read key from store for peer ID %v", key)
 	}
@@ -151,6 +152,9 @@ func (kb *dsKeyBook) FollowKey(t thread.ID, p peer.ID) ([]byte, error) {
 	key := dsKey(t, p, kbBase).Child(followSuffix)
 
 	v, err := kb.ds.Get(key)
+	if err == ds.ErrNotFound {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error when getting follow-key from datastore: %v", err)
 	}
