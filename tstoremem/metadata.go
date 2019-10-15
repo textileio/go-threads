@@ -35,8 +35,8 @@ func (ts *memoryThreadMetadata) PutInt64(t thread.ID, key string, val int64) err
 }
 
 func (ts *memoryThreadMetadata) GetInt64(t thread.ID, key string) (*int64, error) {
-	val := ts.getValue(t, key).(*int64)
-	return val, nil
+	val := ts.getValue(t, key).(int64)
+	return &val, nil
 }
 
 func (ts *memoryThreadMetadata) PutString(t thread.ID, key string, val string) error {
@@ -45,18 +45,20 @@ func (ts *memoryThreadMetadata) PutString(t thread.ID, key string, val string) e
 }
 
 func (ts *memoryThreadMetadata) GetString(t thread.ID, key string) (*string, error) {
-	val := ts.getValue(t, key).(*string)
-	return val, nil
+	val := ts.getValue(t, key).(string)
+	return &val, nil
 }
 
 func (ts *memoryThreadMetadata) PutBytes(t thread.ID, key string, val []byte) error {
-	ts.putValue(t, key, val)
+	b := make([]byte, len(val))
+	copy(b, val)
+	ts.putValue(t, key, b)
 	return nil
 }
 
 func (ts *memoryThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error) {
-	val := ts.getValue(t, key).(*[]byte)
-	return val, nil
+	val := ts.getValue(t, key).([]byte)
+	return &val, nil
 }
 
 func (ts *memoryThreadMetadata) putValue(t thread.ID, key string, val interface{}) {

@@ -385,7 +385,7 @@ func testThreadsFromddrs(ab tstore.AddrBook) func(t *testing.T) {
 
 func check(t *testing.T, err error) {
 	if err != nil {
-		t.Fatal("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

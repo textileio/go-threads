@@ -321,7 +321,7 @@ func (r *records) Store(key cid.Cid, value thread.Record) {
 func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, settings *tserv.PullSettings) ([]thread.Record, error) {
 	lg, err := s.threads.LogInfo(id, lid)
 	if err != nil {
-		return nil, fmt.Errorf("error when getting log info %s: %v", err)
+		return nil, fmt.Errorf("error when getting log info for (%s, %s): %v", id, lid, err)
 	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("could not find log")
