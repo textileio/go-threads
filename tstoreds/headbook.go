@@ -65,7 +65,7 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 			continue
 		}
 		if _, ok := set[heads[i]]; !ok {
-			entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.HeadCid{Cid: heads[i]}}
+			entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.ProtoCid{Cid: heads[i]}}
 			hr.Heads = append(hr.Heads, entry)
 		}
 	}
@@ -89,10 +89,10 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	hr := pb.HeadBookRecord{}
 	for i := range heads {
 		if !heads[i].Defined() {
-			log.Warningf("ignoring head %s is is undefined for %s", heads[i], key)
+			log.Warningf("ignoring head %s is undefined for %s", heads[i], key)
 			continue
 		}
-		entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.HeadCid{Cid: heads[i]}}
+		entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.ProtoCid{Cid: heads[i]}}
 		hr.Heads = append(hr.Heads, entry)
 
 	}

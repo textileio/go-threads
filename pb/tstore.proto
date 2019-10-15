@@ -35,6 +35,6 @@ message HeadBookRecord {
 	repeated HeadEntry heads = 1;
 
 	message HeadEntry {
-		bytes cid = 1 [(gogoproto.customtype) = "HeadCid"];
+		bytes cid = 1 [(gogoproto.customtype) = "ProtoCid"];
 	}
 }

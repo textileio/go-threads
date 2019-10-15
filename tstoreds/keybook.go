@@ -40,28 +40,18 @@ func NewKeyBook(store ds.Datastore) (tstore.KeyBook, error) {
 func (kb *dsKeyBook) PubKey(t thread.ID, p peer.ID) (ic.PubKey, error) {
 	key := dsKey(t, p, kbBase).Child(pubSuffix)
 
-	var pk ic.PubKey
-	if v, err := kb.ds.Get(key); err == nil {
-		if pk, err = ic.UnmarshalPublicKey(v); err != nil {
-			return nil, fmt.Errorf("store backed public key %s can't be unmarshaled: %w", key, err)
-		}
-	} else if err == ds.ErrNotFound {
-		pk, err = p.ExtractPublicKey()
-		switch err {
-		case nil:
-			pkb, err := pk.Bytes()
-			if err != nil {
-				return nil, fmt.Errorf("error when getting bytes from identity multihashed public key %s: %w", key, err)
-			}
-			if kb.ds.Put(key, pkb) != nil {
-				return nil, fmt.Errorf("error when putting identity multihashed public key %s in store: %w", key, err)
-			}
-		default:
-			return nil, nil
-		}
-	} else {
+	v, err := kb.ds.Get(key)
+	if err == ds.ErrNotFound {
+		return nil, nil
+	}
+	if err != nil {
 		return nil, fmt.Errorf("error when getting key %s from store: %v", key, err)
 	}
+	pk, err := ic.UnmarshalPublicKey(v)
+	if err != nil {
+		return nil, fmt.Errorf("store backed public key %s can't be unmarshaled: %w", key, err)
+	}
+
 	return pk, nil
 }
 

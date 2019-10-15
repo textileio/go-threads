@@ -90,7 +90,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	} else {
 		fkey, err = s.threads.FollowKey(req.ThreadID.ID, req.LogID.ID)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't fetch follow key: %v", err)
+			return nil, err
 		}
 	}
 	if fkey == nil {
@@ -112,7 +112,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	// Check if this log already exists
 	logpk, err := s.threads.PubKey(req.ThreadID.ID, req.LogID.ID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't fetch public key: %v", err)
+		return nil, err
 	}
 	if logpk == nil {
 		var kid peer.ID
@@ -186,7 +186,7 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 		}
 		storedAddrs, err := s.threads.Addrs(settings.Thread, l)
 		if err != nil {
-			return fmt.Errorf("coudn't fetch addresses: %v", storedAddrs)
+			return err
 		}
 		addrs = append(addrs, storedAddrs...)
 	}
@@ -215,14 +215,14 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	var keyLog *pb.ProtoPeerID
 	logKey, err := s.threads.ReadKey(settings.Thread, settings.KeyLog)
 	if err != nil {
-		return fmt.Errorf("couldn't fetch read key from book: %v", err)
+		return err
 	}
 	if logKey != nil {
 		keyLog = &pb.ProtoPeerID{ID: settings.KeyLog}
 	}
 	followKey, err := s.threads.FollowKey(id, lid)
 	if err != nil {
-		return fmt.Errorf("couldn't fetch follow key from addr book: %v", err)
+		return err
 	}
 	req := &pb.PushRequest{
 		Header: &pb.PushRequest_Header{
@@ -467,7 +467,7 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 		// Thread exists—there should be a key log id
 		logKey, err := s.threads.ReadKey(id, kid)
 		if err != nil {
-			return nil, fmt.Errorf("couldn't fetch read key from book: %v", err)
+			return nil, err
 		}
 		if logKey == nil {
 			return nil, fmt.Errorf("could not find read key")
