@@ -60,6 +60,8 @@ type memoryAddrBook struct {
 	subManager *AddrSubManager
 }
 
+var _ tstore.AddrBook = (*memoryAddrBook)(nil)
+
 func NewAddrBook() tstore.AddrBook {
 	ctx, cancel := context.WithCancel(context.Background())
 

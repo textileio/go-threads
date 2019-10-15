@@ -232,12 +232,14 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 			ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
 		}
 
-		threads := ts.Threads()
+		threads, err := ts.Threads()
+		check(t, err)
 		if len(threads) != 10 {
 			t.Fatal("expected ten threads, got", len(threads))
 		}
 
-		info := ts.ThreadInfo(tids[0])
+		info, err := ts.ThreadInfo(tids[0])
+		check(t, err)
 		tsAddrs, err := ts.Addrs(info.ID, info.Logs[0])
 		if err != nil {
 			t.Fatalf("errro when getting addresses: %v", err)
@@ -246,7 +248,8 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 			t.Fatal("stored wrong address")
 		}
 
-		log := ts.LogInfo(info.ID, info.Logs[0])
+		log, err := ts.LogInfo(info.ID, info.Logs[0])
+		check(t, err)
 		if !log.Addrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
 		}

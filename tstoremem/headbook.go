@@ -91,7 +91,7 @@ func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 	var heads []cid.Cid
 	hmap, _ := mhb.getHeads(t, p)
 	if hmap == nil {
-		return heads
+		return heads, nil
 	}
 	for h := range hmap {
 		heads = append(heads, h)

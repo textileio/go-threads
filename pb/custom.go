@@ -1,6 +1,7 @@
 package threads_pb
 
 import (
+	"encoding/binary"
 	"encoding/json"
 
 	"github.com/gogo/protobuf/proto"
@@ -260,6 +261,54 @@ func (k ProtoPrivKey) Size() int {
 	return len(b)
 }
 
+// HeadCID is a custom type used by gogo to serde raw log heads into a CIDtype, and back.
+type HeadCid struct {
+	cid.Cid
+}
+
+var _ customGogoType = (*HeadCid)(nil)
+
+func (hc HeadCid) Marshal() ([]byte, error) {
+	return hc.Bytes(), nil
+}
+
+func (hc *HeadCid) Unmarshal(data []byte) (err error) {
+	hc.Cid, err = cid.Cast(data)
+	return err
+}
+
+func (hc HeadCid) MarshalJSON() ([]byte, error) {
+	m, _ := hc.Marshal()
+	return json.Marshal(m)
+}
+
+func (hc *HeadCid) UnmarshalJSON(data []byte) error {
+	var v []byte
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		return err
+	}
+	return hc.Unmarshal(v)
+}
+
+func (hc *HeadCid) Size() int {
+	return len(hc.Bytes())
+}
+
+func (hc HeadCid) MarshalTo(data []byte) (n int, err error) {
+	return copy(data, []byte(hc.Bytes())), nil
+}
+
+// NewPopulatedHeadCid generates a populated instance of the custom gogo type HeadCid.
+// It is required by gogo-generated tests.
+func NewPopulatedHeadCid(r randyThreads) *HeadCid {
+	var b []byte
+	_ = binary.PutVarint(b, r.Int63())
+	m, _ := mh.Sum(b, mh.SHA2_256, -1)
+	cid := cid.NewCidV1(cid.Raw, m)
+	return &HeadCid{Cid: cid}
+}
+
 // NewPopulatedProtoPeerID generates a populated instance of the custom gogo type ProtoPeerID.
 // It is required by gogo-generated tests.
 func NewPopulatedProtoPeerID(r randyThreads) *ProtoPeerID {
@@ -301,42 +350,4 @@ func NewPopulatedProtoPubKey(r randyThreads) *ProtoPubKey {
 func NewPopulatedProtoPrivKey(r randyThreads) *ProtoPrivKey {
 	k, _, _ := ic.GenerateKeyPair(ic.RSA, 512)
 	return &ProtoPrivKey{PrivKey: k}
-}
-
-// HeadCID is a custom type used by gogo to serde raw log heads into a CIDtype, and back.
-type HeadCid struct {
-	cid.Cid
-}
-
-var _ customGogoType = (*HeadCid)(nil)
-
-func (hc HeadCid) Marshal() ([]byte, error) {
-	return hc.Bytes(), nil
-}
-
-func (hc *HeadCid) Unmarshal(data []byte) (err error) {
-	hc.Cid, err = cid.Cast(data)
-	return err
-}
-
-func (hc HeadCid) MarshalJSON() ([]byte, error) {
-	m, _ := hc.Marshal()
-	return json.Marshal(m)
-}
-
-func (hc *HeadCid) UnmarshalJSON(data []byte) error {
-	var v []byte
-	err := json.Unmarshal(data, &v)
-	if err != nil {
-		return err
-	}
-	return hc.Unmarshal(v)
-}
-
-func (hc *HeadCid) Size() int {
-	return len(hc.Bytes())
-}
-
-func (hc HeadCid) MarshalTo(data []byte) (n int, err error) {
-	return copy(data, []byte(hc.Bytes())), nil
 }

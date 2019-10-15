@@ -12,7 +12,7 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	gostream "github.com/libp2p/go-libp2p-gostream"
-	"github.com/libp2p/go-libp2p-pubsub"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/asymmetric"
@@ -52,7 +52,11 @@ func newService(t *threads) (*service, error) {
 		pubsub:  ps,
 	}
 
-	for _, id := range t.Threads() {
+	ts, err := t.Threads()
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ts {
 		go s.subscribe(id)
 	}
 
@@ -84,7 +88,10 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	if req.Header.FollowKey != nil {
 		fkey = req.Header.FollowKey
 	} else {
-		fkey = s.threads.FollowKey(req.ThreadID.ID, req.LogID.ID)
+		fkey, err = s.threads.FollowKey(req.ThreadID.ID, req.LogID.ID)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't fetch follow key: %v", err)
+		}
 	}
 	if fkey == nil {
 		return nil, fmt.Errorf("could not find follow key")
@@ -103,7 +110,10 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	}
 
 	// Check if this log already exists
-	logpk := s.threads.PubKey(req.ThreadID.ID, req.LogID.ID)
+	logpk, err := s.threads.PubKey(req.ThreadID.ID, req.LogID.ID)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't fetch public key: %v", err)
+	}
 	if logpk == nil {
 		var kid peer.ID
 		if req.Header.ReadKeyLogID != nil {
@@ -166,11 +176,19 @@ func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply,
 func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, settings *tserv.AddSettings) error {
 	var addrs []ma.Multiaddr
 	// Collect known writers
-	for _, l := range s.threads.ThreadInfo(settings.Thread).Logs {
+	ti, err := s.threads.ThreadInfo(settings.Thread)
+	if err != nil {
+		return fmt.Errorf("error when pushing record in (%s, %s): %v", id, lid, err)
+	}
+	for _, l := range ti.Logs {
 		if l.String() == lid.String() {
 			continue
 		}
-		addrs = append(addrs, s.threads.Addrs(settings.Thread, l)...)
+		storedAddrs, err := s.threads.Addrs(settings.Thread, l)
+		if err != nil {
+			return fmt.Errorf("coudn't fetch addresses: %v", storedAddrs)
+		}
+		addrs = append(addrs, storedAddrs...)
 	}
 
 	// Add additional addresses
@@ -195,16 +213,23 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	}
 
 	var keyLog *pb.ProtoPeerID
-	logKey := s.threads.ReadKey(settings.Thread, settings.KeyLog)
+	logKey, err := s.threads.ReadKey(settings.Thread, settings.KeyLog)
+	if err != nil {
+		return fmt.Errorf("couldn't fetch read key from book: %v", err)
+	}
 	if logKey != nil {
 		keyLog = &pb.ProtoPeerID{ID: settings.KeyLog}
+	}
+	followKey, err := s.threads.FollowKey(id, lid)
+	if err != nil {
+		return fmt.Errorf("couldn't fetch follow key from addr book: %v", err)
 	}
 	req := &pb.PushRequest{
 		Header: &pb.PushRequest_Header{
 			From:         &pb.ProtoPeerID{ID: s.threads.host.ID()},
 			Signature:    sig,
 			Key:          &pb.ProtoPubKey{PubKey: sk.GetPublic()},
-			FollowKey:    s.threads.FollowKey(id, lid),
+			FollowKey:    followKey,
 			ReadKeyLogID: keyLog,
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
@@ -294,7 +319,10 @@ func (r *records) Store(key cid.Cid, value thread.Record) {
 
 // pull records from log addresses.
 func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, settings *tserv.PullSettings) ([]thread.Record, error) {
-	lg := s.threads.LogInfo(id, lid)
+	lg, err := s.threads.LogInfo(id, lid)
+	if err != nil {
+		return nil, fmt.Errorf("error when getting log info %s: %v", err)
+	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("could not find log")
 	}
@@ -316,7 +344,7 @@ func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 	// Pull from each address
 	recs := newRecords()
 	wg := sync.WaitGroup{}
-	for _, addr := range s.threads.LogInfo(id, lid).Addrs {
+	for _, addr := range lg.Addrs {
 		wg.Add(1)
 		go func(addr ma.Multiaddr) {
 			defer wg.Done()
@@ -431,9 +459,16 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 
 	var newThread bool
 	var key crypto.DecryptionKey
-	if s.threads.ThreadInfo(id).Logs.Len() > 0 {
+	ti, err := s.threads.ThreadInfo(id)
+	if err != nil {
+		return nil, fmt.Errorf("error when handling invite from (%s, %s): %v", id, lid, err)
+	}
+	if ti.Logs.Len() > 0 {
 		// Thread exists—there should be a key log id
-		logKey := s.threads.ReadKey(id, kid)
+		logKey, err := s.threads.ReadKey(id, kid)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't fetch read key from book: %v", err)
+		}
 		if logKey == nil {
 			return nil, fmt.Errorf("could not find read key")
 		}

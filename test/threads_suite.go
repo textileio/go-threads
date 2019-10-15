@@ -59,9 +59,7 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 		libp2p.ListenAddrs(listen),
 		libp2p.Identity(sk),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	check(t, err)
 
 	bs := bstore.NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
 	bsrv := bserv.New(bs, offline.Exchange(bs))
@@ -72,9 +70,7 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 		dag.NewDAGService(bsrv),
 		tstore.NewThreadstore(),
 		true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	check(t, err)
 	return ts
 }
 
@@ -87,22 +83,17 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 			"foo": "bar",
 			"baz": []byte("howdy"),
 		}, mh.SHA2_256, -1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
 		lid1, n1, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
+
 		if n1 == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
 		lid2, n2, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		if n2 == nil {
 			t.Fatalf("expected node to not be nil")
 		}
@@ -113,30 +104,23 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 
 		// Pull from the log origin
 		recs, err := ts1.Pull(ctx, tid, lid1, cid.Undef, tserv.PullOpt.Limit(100))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		if len(recs) != 2 {
 			t.Fatalf("expected 2 records got %d", len(recs))
 		}
 
 		event, err := cbor.GetEvent(ctx, ts1.DAGService(), recs[0].BlockID())
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
 		kb, err := ts1.ReadKey(tid, lid1)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
+
 		readKey, err := crypto.ParseDecryptionKey(kb)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
+
 		back, err := event.GetBody(ctx, ts1.DAGService(), readKey)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
+
 		if body.String() != back.String() {
 			t.Fatalf("retrieved body does not equal input body")
 		}
@@ -151,32 +135,25 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
-		if err != nil {
-			t.Fatal(err)
-		}
-		lid1, _, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
-		invite, err := cbor.NewInvite(ts1.Logs(tid), true)
-		if err != nil {
-			t.Fatal(err)
-		}
+		lid1, _, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		check(t, err)
+
+		l, err := ts1.Logs(tid)
+		check(t, err)
+		invite, err := cbor.NewInvite(l, true)
+		check(t, err)
 
 		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
 		if pk == nil {
 			t.Fatal("public key not found")
 		}
 		ek, err := asymmetric.NewEncryptionKey(pk)
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
 		a, err := ma.NewMultiaddr("/p2p/" + ts2.Host().ID().String())
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
 		_, _, err = ts1.Add(
 			context.Background(),
@@ -184,11 +161,10 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			tserv.AddOpt.Thread(tid),
 			tserv.AddOpt.Key(ek),
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 
-		info := ts2.ThreadInfo(tid)
+		info, err := ts2.ThreadInfo(tid)
+		check(t, err)
 		if len(info.Logs) != 2 {
 			t.Fatalf("expected 2 logs got %d", len(info.Logs))
 		}
@@ -196,9 +172,8 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		for _, lid := range info.Logs {
 			// Pull from the log origin
 			recs, err := ts2.Pull(ctx, tid, lid, cid.Undef, tserv.PullOpt.Limit(100))
-			if err != nil {
-				t.Fatal(err)
-			}
+			check(t, err)
+
 			if lid.String() == lid1.String() {
 				if len(recs) != 2 { // ts1's log with one msg and one invite record
 					t.Fatalf("expected 2 records got %d", len(recs))
@@ -215,12 +190,8 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 func testClose(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		err := ts1.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 		err = ts2.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
+		check(t, err)
 	}
 }

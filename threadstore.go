@@ -51,12 +51,20 @@ func (ts *threadstore) Close() (err error) {
 }
 
 // Threads returns a list of the thread IDs in the store.
-func (ts *threadstore) Threads() thread.IDSlice {
+func (ts *threadstore) Threads() (thread.IDSlice, error) {
 	set := map[thread.ID]struct{}{}
-	for _, t := range ts.ThreadsFromKeys() {
+	threadsFromKeys, err := ts.ThreadsFromKeys()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't fetch threads from keys: %v", err)
+	}
+	for _, t := range threadsFromKeys {
 		set[t] = struct{}{}
 	}
-	for _, t := range ts.ThreadsFromAddrs() {
+	threadsFromAddrs, err := ts.ThreadsFromAddrs()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't fetch threads from addrs: %v", err)
+	}
+	for _, t := range threadsFromAddrs {
 		set[t] = struct{}{}
 	}
 
@@ -65,16 +73,24 @@ func (ts *threadstore) Threads() thread.IDSlice {
 		ids = append(ids, t)
 	}
 
-	return ids
+	return ids, nil
 }
 
 // ThreadInfo returns thread info of the given id.
-func (ts *threadstore) ThreadInfo(id thread.ID) thread.Info {
+func (ts *threadstore) ThreadInfo(id thread.ID) (thread.Info, error) {
 	set := map[peer.ID]struct{}{}
-	for _, l := range ts.LogsWithKeys(id) {
+	logsWithKeys, err := ts.LogsWithKeys(id)
+	if err != nil {
+		return thread.Info{}, fmt.Errorf("couldn't fetch logs from keys: %v", err)
+	}
+	for _, l := range logsWithKeys {
 		set[l] = struct{}{}
 	}
-	for _, l := range ts.LogsWithAddrs(id) {
+	logsWithAddrs, err := ts.LogsWithAddrs(id)
+	if err != nil {
+		return thread.Info{}, fmt.Errorf("couldn't fetch logs from addrs: %v", err)
+	}
+	for _, l := range logsWithAddrs {
 		set[l] = struct{}{}
 	}
 
@@ -86,7 +102,7 @@ func (ts *threadstore) ThreadInfo(id thread.ID) thread.Info {
 	return thread.Info{
 		ID:   id,
 		Logs: ids,
-	}
+	}, nil
 }
 
 // AddLog adds a log under the given thread.
@@ -122,14 +138,38 @@ func (ts *threadstore) AddLog(id thread.ID, log thread.LogInfo) error {
 }
 
 // LogInfo returns info about the given thread.
-func (ts *threadstore) LogInfo(id thread.ID, lid peer.ID) thread.LogInfo {
-	return thread.LogInfo{
-		ID:        lid,
-		PubKey:    ts.PubKey(id, lid),
-		PrivKey:   ts.PrivKey(id, lid),
-		FollowKey: ts.FollowKey(id, lid),
-		ReadKey:   ts.ReadKey(id, lid),
-		Addrs:     ts.Addrs(id, lid),
-		Heads:     ts.Heads(id, lid),
+func (ts *threadstore) LogInfo(id thread.ID, lid peer.ID) (li thread.LogInfo, err error) {
+	pk, err := ts.PubKey(id, lid)
+	if err != nil {
+		return
 	}
+	sk, err := ts.PrivKey(id, lid)
+	if err != nil {
+		return
+	}
+	fk, err := ts.FollowKey(id, lid)
+	if err != nil {
+		return
+	}
+	rk, err := ts.ReadKey(id, lid)
+	if err != nil {
+		return
+	}
+	addrs, err := ts.Addrs(id, lid)
+	if err != nil {
+		return
+	}
+	heads, err := ts.Heads(id, lid)
+	if err != nil {
+		return
+	}
+
+	li.ID = lid
+	li.PubKey = pk
+	li.PrivKey = sk
+	li.FollowKey = fk
+	li.ReadKey = rk
+	li.Addrs = addrs
+	li.Heads = heads
+	return
 }
