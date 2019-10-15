@@ -146,7 +146,7 @@ func (t *threads) DAGService() format.DAGService {
 func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOption) (r tserv.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
-	lg, err := t.getOrCreateOwnLog(settings.Thread)
+	lg, err := t.getOrCreateOwnLog(settings.ThreadID)
 	if err != nil {
 		return
 	}
@@ -158,7 +158,7 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 	}
 
 	// Push out the new record
-	err = t.service.push(ctx, rec, settings.Thread, lg.ID, settings)
+	err = t.service.push(ctx, rec, settings.ThreadID, lg.ID, settings)
 	if err != nil {
 		return
 	}
@@ -166,7 +166,7 @@ func (t *threads) Add(ctx context.Context, body format.Node, opts ...tserv.AddOp
 	// Notify local listeners
 	brec := &record{
 		Record:   rec,
-		threadID: settings.Thread,
+		threadID: settings.ThreadID,
 		logID:    lg.ID,
 	}
 	if err = t.bus.Send(brec); err != nil {
@@ -188,7 +188,7 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 
 	// Get or create a log for the new rec
 	settings := tserv.PutOptions(opts...)
-	lg, err := t.getOrCreateLog(settings.Thread, settings.Log)
+	lg, err := t.getOrCreateLog(settings.ThreadID, settings.LogID)
 	if err != nil {
 		return err
 	}
@@ -217,12 +217,12 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 	}
 
 	// Update head
-	t.SetHead(settings.Thread, lg.ID, rec.Cid())
+	t.SetHead(settings.ThreadID, lg.ID, rec.Cid())
 
 	// Notify local listeners
 	return t.bus.Send(&record{
 		Record:   rec,
-		threadID: settings.Thread,
+		threadID: settings.ThreadID,
 		logID:    lg.ID,
 	})
 }
@@ -266,7 +266,7 @@ func (t *threads) Pull(ctx context.Context, id thread.ID) error {
 				return
 			}
 			for _, r := range recs {
-				err = t.Put(ctx, r, tserv.PutOpt.Thread(id), tserv.PutOpt.Log(lg.ID))
+				err = t.Put(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lg.ID))
 				if err != nil {
 					log.Error(err)
 					return
@@ -318,7 +318,7 @@ func (l *recordListener) Channel() <-chan tserv.Record {
 func (t *threads) Listen(opts ...tserv.ListenOption) tserv.RecordListener {
 	settings := tserv.ListenOptions(opts...)
 	filter := make(map[thread.ID]struct{})
-	for _, tid := range settings.Threads {
+	for _, tid := range settings.ThreadIDs {
 		if tid.Defined() {
 			filter[tid] = struct{}{}
 		}
@@ -445,10 +445,7 @@ func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.LogInfo, settings *tserv.AddSettings) (thread.Record, error) {
 	if settings.Key == nil {
 		var key []byte
-		logKey, err := t.ReadKey(settings.Thread, settings.KeyLog)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't fetch read key from book: %v", err)
-		}
+		logKey := t.ReadKey(settings.ThreadID, settings.KeyLog)
 		if logKey != nil {
 			key = logKey
 		} else {
@@ -478,7 +475,7 @@ func (t *threads) createRecord(ctx context.Context, body format.Node, lg thread.
 	}
 
 	// Update head
-	t.SetHead(settings.Thread, lg.ID, rec.Cid())
+	t.SetHead(settings.ThreadID, lg.ID, rec.Cid())
 
 	return rec, nil
 }

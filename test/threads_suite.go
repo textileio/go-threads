@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	bserv "github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
@@ -92,7 +93,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}, mh.SHA2_256, -1)
 		check(t, err)
 
-		r1, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +101,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		r2, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -117,9 +118,10 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		//if len(recs) != 2 {
-		//	t.Fatalf("expected 2 records got %d", len(recs))
-		//}
+		time.Sleep(time.Second)
+		if rcount != 2 {
+			t.Fatalf("expected 2 records got %d", rcount)
+		}
 
 		r1b, err := ts1.Get(ctx, tid, r1.LogID(), r1.Value().Cid())
 		if err != nil {
@@ -155,7 +157,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -175,36 +177,71 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		a, err := ma.NewMultiaddr("/p2p/" + ts2.Host().ID().String())
 		check(t, err)
 
-		_, err = ts1.Add(
+		r2, err := ts1.Add(
 			context.Background(),
 			invite,
-			tserv.AddOpt.Thread(tid),
+			tserv.AddOpt.ThreadID(tid),
 			tserv.AddOpt.Key(ek),
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
 		check(t, err)
 
-		info, err := ts2.ThreadInfo(tid)
-		check(t, err)
-		if len(info.Logs) != 2 {
-			t.Fatalf("expected 2 logs got %d", len(info.Logs))
+		info1 := ts1.ThreadInfo(tid)
+		if len(info1.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info1.Logs))
+		}
+		for _, lid := range info1.Logs {
+			if lid.String() == r1.LogID().String() {
+				// Peer 1 should have 2 records in its own log (one msg
+				// and one invite record)
+				_, err = ts1.Get(ctx, tid, lid, r1.Value().Cid())
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err := ts1.Get(ctx, tid, lid, r2.Value().Cid())
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				// Peer 1 should have 1 record in its log for peer 2 (one invite record)
+				heads := ts1.Heads(tid, lid)
+				if len(heads) != 1 { // double check we only have one head
+					t.Fatalf("expected 1 head got %d", len(heads))
+				}
+				_, err = ts1.Get(ctx, tid, lid, heads[0])
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 		}
 
-		//for _, lid := range info.Logs {
-		//	// Pull from the log origin
-		//	recs, err := ts2.Pull(ctx, tid, lid, cid.Undef)
-		//	if err != nil {
-		//		t.Fatal(err)
-		//	}
-		//	if lid.String() == r1.LogID().String() {
-		//		if len(recs) != 2 { // ts1's log with one msg and one invite record
-		//			t.Fatalf("expected 2 records got %d", len(recs))
-		//		}
-		//	} else {
-		//		if len(recs) != 1 { // ts2's log with one invite record
-		//			t.Fatalf("expected 1 record got %d", len(recs))
-		//		}
-		//	}
-		//}
+		info2 := ts2.ThreadInfo(tid)
+		if len(info2.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info2.Logs))
+		}
+		for _, lid := range info2.Logs {
+			if lid.String() == r1.LogID().String() {
+				// Peer 2 should have 2 records in its log for peer 1 (one msg
+				// and one invite record)
+				_, err = ts2.Get(ctx, tid, lid, r1.Value().Cid())
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, err := ts2.Get(ctx, tid, lid, r2.Value().Cid())
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				// Peer 2 should have 1 record in its own log (one invite record)
+				heads := ts2.Heads(tid, lid)
+				if len(heads) != 1 { // double check we only have one head
+					t.Fatalf("expected 1 head got %d", len(heads))
+				}
+				_, err = ts2.Get(ctx, tid, lid, heads[0])
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
 	}
 }
 

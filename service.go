@@ -133,7 +133,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 			_, err = s.threads.Add(
 				ctx,
 				invite,
-				tserv.AddOpt.Thread(req.ThreadID.ID),
+				tserv.AddOpt.ThreadID(req.ThreadID.ID),
 				tserv.AddOpt.KeyLog(req.LogID.ID))
 			if err != nil {
 				return nil, err
@@ -146,7 +146,11 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		}
 	}
 
-	err = s.threads.Put(ctx, rec, tserv.PutOpt.Thread(req.ThreadID.ID), tserv.PutOpt.Log(req.LogID.ID))
+	err = s.threads.Put(
+		ctx,
+		rec,
+		tserv.PutOpt.ThreadID(req.ThreadID.ID),
+		tserv.PutOpt.LogID(req.LogID.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -176,19 +180,11 @@ func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply,
 func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid peer.ID, settings *tserv.AddSettings) error {
 	var addrs []ma.Multiaddr
 	// Collect known writers
-	ti, err := s.threads.ThreadInfo(settings.Thread)
-	if err != nil {
-		return fmt.Errorf("error when pushing record in (%s, %s): %v", id, lid, err)
-	}
-	for _, l := range ti.Logs {
+	for _, l := range s.threads.ThreadInfo(settings.ThreadID).Logs {
 		if l.String() == lid.String() {
 			continue
 		}
-		storedAddrs, err := s.threads.Addrs(settings.Thread, l)
-		if err != nil {
-			return err
-		}
-		addrs = append(addrs, storedAddrs...)
+		addrs = append(addrs, s.threads.Addrs(settings.ThreadID, l)...)
 	}
 
 	// Add additional addresses
@@ -213,10 +209,7 @@ func (s *service) push(ctx context.Context, rec thread.Record, id thread.ID, lid
 	}
 
 	var keyLog *pb.ProtoPeerID
-	logKey, err := s.threads.ReadKey(settings.Thread, settings.KeyLog)
-	if err != nil {
-		return err
-	}
+	logKey := s.threads.ReadKey(settings.ThreadID, settings.KeyLog)
 	if logKey != nil {
 		keyLog = &pb.ProtoPeerID{ID: settings.KeyLog}
 	}
@@ -389,6 +382,22 @@ func (s *service) pull(ctx context.Context, id thread.ID, lid peer.ID, offset ci
 	return recs.List(), nil
 }
 
+// pullHistory downloads a logs entire history.
+// @todo: offset needs to be expanded into a start and stop cid
+func (s *service) pullHistory(ctx context.Context, id thread.ID, lid peer.ID) error {
+	recs, err := s.pull(ctx, id, lid, cid.Undef, MaxPullLimit)
+	if err != nil {
+		return err
+	}
+	for _, r := range recs {
+		err = s.threads.Put(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lid))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // dial attempts to open a GRPC connection over libp2p to a peer.
 func (s *service) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
@@ -510,6 +519,16 @@ func (s *service) handleInvite(ctx context.Context, id thread.ID, lid peer.ID, k
 		if err != nil {
 			return nil, err
 		}
+
+		// Download log history
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			err := s.pullHistory(ctx, id, lg.ID)
+			if err != nil {
+				log.Errorf("error pulling history: %s", err)
+			}
+		}()
 	}
 
 	// Create an own log if this is a new thread
