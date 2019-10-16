@@ -5,7 +5,7 @@ import (
 	threads "github.com/textileio/go-textile-threads"
 )
 
-// NewThreadstore creates an in-memory threadsafe collection of peers.
+// NewThreadstore creates an in-memory threadsafe collection of threads.
 func NewThreadstore() iface.Threadstore {
 	return threads.NewThreadstore(
 		NewKeyBook(),

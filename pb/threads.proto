@@ -56,8 +56,8 @@ message PushRequest {
 
 // PushReply is the response from a PushRequest.
 message PushReply {
-    // ok means the push succeeded.
-    bool ok = 1;
+    // newAddr is a new address for the sender's log.
+    bytes newAddr = 1 [(gogoproto.customtype) = "ProtoAddr"];
 }
 
 // PullRequest is used to request records from a log address.

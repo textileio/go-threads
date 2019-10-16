@@ -207,11 +207,11 @@ func benchmarkHeads(hb tstore.HeadBook) func(*testing.B) {
 		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
 		head := cid.NewCidV1(cid.DagCBOR, hash)
 
-		hb.AddHead(tid, id, head)
+		_ = hb.AddHead(tid, id, head)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.Heads(tid, id)
+			_, _ = hb.Heads(tid, id)
 		}
 	}
 }
@@ -235,7 +235,7 @@ func benchmarkAddHeads(hb tstore.HeadBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.AddHeads(tid, id, []cid.Cid{head})
+			_ = hb.AddHeads(tid, id, []cid.Cid{head})
 		}
 	}
 }
@@ -259,7 +259,7 @@ func benchmarkSetHeads(hb tstore.HeadBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.SetHeads(tid, id, []cid.Cid{head})
+			_ = hb.SetHeads(tid, id, []cid.Cid{head})
 		}
 	}
 }
@@ -280,11 +280,11 @@ func benchmarkClearHeads(hb tstore.HeadBook) func(*testing.B) {
 
 		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
 		head := cid.NewCidV1(cid.DagCBOR, hash)
-		hb.SetHeads(tid, id, []cid.Cid{head})
+		_ = hb.SetHeads(tid, id, []cid.Cid{head})
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			hb.ClearHeads(tid, id)
+			_ = hb.ClearHeads(tid, id)
 		}
 	}
 }

@@ -343,8 +343,10 @@ func testLogsWithAddrs(ab tstore.AddrBook) func(t *testing.T) {
 			ids := GeneratePeerIDs(2)
 			addrs := GenerateAddrs(10)
 
-			ab.AddAddrs(tid, ids[0], addrs[:5], pstore.PermanentAddrTTL)
-			ab.AddAddrs(tid, ids[1], addrs[5:], pstore.PermanentAddrTTL)
+			err := ab.AddAddrs(tid, ids[0], addrs[:5], pstore.PermanentAddrTTL)
+			check(t, err)
+			err = ab.AddAddrs(tid, ids[1], addrs[5:], pstore.PermanentAddrTTL)
+			check(t, err)
 
 			if logs, err := ab.LogsWithAddrs(tid); err != nil || len(logs) != 2 {
 				t.Fatal("expected to find 2 logs without errors")
@@ -372,8 +374,10 @@ func testThreadsFromddrs(ab tstore.AddrBook) func(t *testing.T) {
 				ids := GeneratePeerIDs(2)
 				addrs := GenerateAddrs(4)
 
-				ab.AddAddrs(tids[i], ids[0], addrs[:2], pstore.PermanentAddrTTL)
-				ab.AddAddrs(tids[i], ids[1], addrs[2:], pstore.PermanentAddrTTL)
+				err := ab.AddAddrs(tids[i], ids[0], addrs[:2], pstore.PermanentAddrTTL)
+				check(t, err)
+				err = ab.AddAddrs(tids[i], ids[1], addrs[2:], pstore.PermanentAddrTTL)
+				check(t, err)
 			}
 
 			if threads, err := ab.ThreadsFromAddrs(); err != nil || len(threads) != len(tids) {

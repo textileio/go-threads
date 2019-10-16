@@ -78,7 +78,7 @@ func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Optio
 			tb.Fatal(err)
 		}
 		closer := func() {
-			ab.Close()
+			_ = ab.Close()
 			closeFunc()
 		}
 		return ab, closer
@@ -131,8 +131,8 @@ func badgerStore(tb testing.TB) (ds.Datastore, func()) {
 		tb.Fatal(err)
 	}
 	closer := func() {
-		store.Close()
-		os.RemoveAll(dataPath)
+		_ = store.Close()
+		_ = os.RemoveAll(dataPath)
 	}
 	return store, closer
 }
@@ -147,8 +147,8 @@ func leveldbStore(tb testing.TB) (ds.Datastore, func()) {
 		tb.Fatal(err)
 	}
 	closer := func() {
-		store.Close()
-		os.RemoveAll(dataPath)
+		_ = store.Close()
+		_ = os.RemoveAll(dataPath)
 	}
 	return store, closer
 }

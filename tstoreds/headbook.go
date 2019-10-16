@@ -39,10 +39,10 @@ func (hb *dsHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
 // AddHeads adds multiple heads to a log.
 func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	txn, err := hb.ds.NewTransaction(false)
-	defer txn.Discard()
 	if err != nil {
 		return fmt.Errorf("error when creating txn in datastore: %w", err)
 	}
+	defer txn.Discard()
 	key := dsKey(t, p, hbBase)
 	hr := pb.HeadBookRecord{}
 	v, err := txn.Get(key)
@@ -76,8 +76,7 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	if err = txn.Put(key, data); err != nil {
 		return fmt.Errorf("error when saving new head record in datastore for %v: %v", key, err)
 	}
-	txn.Commit()
-	return nil
+	return txn.Commit()
 }
 
 func (hb *dsHeadBook) SetHead(t thread.ID, p peer.ID, c cid.Cid) error {

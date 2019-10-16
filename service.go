@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
@@ -81,7 +82,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		return nil, err
 	}
 
-	reply := &pb.PushReply{Ok: true}
+	reply := &pb.PushReply{}
 
 	// Unpack the record
 	var fkey []byte
@@ -119,9 +120,13 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		if req.Header.ReadKeyLogID != nil {
 			kid = req.Header.ReadKeyLogID.ID
 		}
-		lg, err := s.handleInvite(ctx, req.ThreadID.ID, req.LogID.ID, kid, rec)
+		lg, newAddr, err := s.handleInvite(ctx, req.ThreadID.ID, req.LogID.ID, kid, rec)
 		if err != nil {
 			return nil, err
+		}
+
+		if newAddr != nil {
+			reply.NewAddr = &pb.ProtoAddr{Multiaddr: newAddr}
 		}
 
 		if lg != nil {
@@ -144,6 +149,8 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		if err = rec.Verify(logpk); err != nil {
 			return nil, err
 		}
+
+		// @todo: could still be an invite... check to see if we need to update addresses.
 	}
 
 	err = s.threads.Put(
@@ -285,7 +292,44 @@ func (s *service) push(
 				return
 			}
 
-			log.Debugf("reply from %s: %t", p, reply.Ok)
+			log.Debugf("received reply from %s", p)
+
+			// Handle new log addresses
+			if reply.NewAddr != nil {
+				err = s.threads.AddAddr(id, lid, reply.NewAddr.Multiaddr, pstore.PermanentAddrTTL)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+
+				// Notify others
+				go func() {
+					pk, err := s.threads.PubKey(id, lid)
+					if err != nil {
+						log.Error(err)
+						return
+					}
+					info := thread.LogInfo{
+						ID:     lid,
+						PubKey: pk,
+						Addrs:  []ma.Multiaddr{reply.NewAddr.Multiaddr},
+					}
+					invite, err := cbor.NewInvite([]thread.LogInfo{info}, true)
+					if err != nil {
+						log.Error(err)
+						return
+					}
+					_, err = s.threads.Add(
+						ctx,
+						invite,
+						tserv.AddOpt.ThreadID(req.ThreadID.ID),
+						tserv.AddOpt.KeyLog(req.LogID.ID))
+					if err != nil {
+						log.Error(err)
+						return
+					}
+				}()
+			}
 		}(addr)
 	}
 
@@ -405,7 +449,7 @@ func (s *service) pull(
 				recs.Store(rec.Cid(), rec)
 			}
 
-			log.Debugf("reply from %s: %s", p, reply.String())
+			log.Debugf("received reply from %s", p)
 		}(addr)
 	}
 
@@ -478,7 +522,7 @@ func (s *service) subscribe(id thread.ID) {
 			log.Error(err)
 			continue
 		}
-		log.Debugf("received multicast request (reply: %t)", reply.Ok)
+		log.Debugf("received multicast request (reply: %s)", reply.String())
 	}
 }
 
@@ -498,67 +542,71 @@ func (s *service) handleInvite(
 	lid peer.ID,
 	kid peer.ID,
 	rec thread.Record,
-) (*thread.LogInfo, error) {
+) (ownLog *thread.LogInfo, newAddr ma.Multiaddr, err error) {
 	event, err := cbor.EventFromRecord(ctx, s.threads.dagService, rec)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	var newThread bool
 	var key crypto.DecryptionKey
 	ti, err := s.threads.ThreadInfo(id)
 	if err != nil {
-		return nil, err
+		return
 	}
 	if ti.Logs.Len() > 0 {
 		// Thread exists—there should be a key log id
-		logKey, err := s.threads.ReadKey(id, kid)
+		var logKey []byte
+		logKey, err = s.threads.ReadKey(id, kid)
 		if err != nil {
-			return nil, err
+			return
 		}
 		if logKey == nil {
-			return nil, fmt.Errorf("read key not found")
+			err = fmt.Errorf("read key not found")
+			return
 		}
 		key, err = symmetric.NewKey(logKey)
 		if err != nil {
-			return nil, err
+			return
 		}
 	} else {
 		// Thread does not exist—try host peer's key
 		sk := s.threads.getPrivKey()
 		if sk == nil {
-			return nil, fmt.Errorf("key for host not found")
+			err = fmt.Errorf("key for host not found")
+			return
 		}
 		key, err = asymmetric.NewDecryptionKey(sk)
 		if err != nil {
-			return nil, err
+			return
 		}
 		newThread = true
 	}
 
 	body, err := event.GetBody(ctx, s.threads.dagService, key)
 	if err != nil {
-		return nil, err
+		return
 	}
 	invite, err := cbor.InviteFromNode(body)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	// Add incoming logs
 	for _, lg := range invite.Logs {
 		if !lg.ID.MatchesPublicKey(lg.PubKey) {
-			return nil, fmt.Errorf("invalid log")
+			err = fmt.Errorf("invalid log")
+			return
 		}
 		if lg.ID.String() == lid.String() { // This is the log carrying the event
 			err = rec.Verify(lg.PubKey)
 			if err != nil {
-				return nil, err
+				return
 			}
 		}
 		err = s.threads.AddLog(id, lg)
 		if err != nil {
-			return nil, err
+			return
 		}
 
 		// Download log history
@@ -567,33 +615,44 @@ func (s *service) handleInvite(
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
-			err := s.pullHistory(ctx, id, lg.ID)
-			if err != nil {
+			if err := s.pullHistory(ctx, id, lg.ID); err != nil {
 				log.Errorf("error pulling history: %s", err)
 			}
 		}()
 	}
 
 	// Create an own log if this is a new thread
-	var ownLog *thread.LogInfo
 	if invite.Readable() && newThread {
-		lg, err := util.CreateLog(s.threads.host.ID())
+		var lg thread.LogInfo
+		lg, err = util.CreateLog(s.threads.host.ID())
 		if err != nil {
-			return nil, err
+			return
 		}
 		err = s.threads.AddLog(id, lg)
 		if err != nil {
-			return nil, err
+			return
 		}
 		ownLog = &lg
+	}
+
+	// If not readable, return a new address for the sender's log.
+	// This peer becomes a follower.
+	if !invite.Readable() {
+		newAddr, err = ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", s.threads.host.ID().String()))
+		if err != nil {
+			return
+		}
+		// @todo: How do we want to handle TTL?
+		if err = s.threads.AddAddr(id, lid, newAddr, pstore.PermanentAddrTTL); err != nil {
+			return
+		}
 	}
 
 	// Subscribe to the new thread
 	if newThread {
 		go s.subscribe(id)
 	}
-
-	return ownLog, nil
+	return
 }
 
 // requestPubKey returns the key associated with a request.
