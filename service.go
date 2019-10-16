@@ -120,7 +120,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		if req.Header.ReadKeyLogID != nil {
 			kid = req.Header.ReadKeyLogID.ID
 		}
-		lg, newAddr, err := s.handleInvite(ctx, req.ThreadID.ID, req.LogID.ID, kid, rec)
+		lg, newAddr, err := s.handleNewLogs(ctx, req.ThreadID.ID, req.LogID.ID, kid, rec)
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +150,9 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 			return nil, err
 		}
 
-		// @todo: could still be an invite... check to see if we need to update addresses.
+		if err = s.handleLogUpdate(ctx, req.ThreadID.ID, req.LogID.ID, rec); err == nil {
+			log.Infof("log %s updated", req.LogID.ID.String())
+		}
 	}
 
 	err = s.threads.Put(
@@ -458,7 +460,7 @@ func (s *service) pull(
 }
 
 // pullHistory downloads a logs entire history.
-// @todo: offset needs to be expanded into a start and stop cid
+// @todo: Offset needs to be expanded into a start and stop cid
 func (s *service) pullHistory(ctx context.Context, id thread.ID, lid peer.ID) error {
 	recs, err := s.pull(ctx, id, lid, cid.Undef, MaxPullLimit)
 	if err != nil {
@@ -536,8 +538,8 @@ func (s *service) publish(id thread.ID, req *pb.PushRequest) error {
 	return s.pubsub.Publish(id.String(), data)
 }
 
-// handleInvite attempts to process a log record as an invite event.
-func (s *service) handleInvite(
+// handleNewLogs processes a record as a list of new logs.
+func (s *service) handleNewLogs(
 	ctx context.Context,
 	id thread.ID,
 	lid peer.ID,
@@ -650,6 +652,53 @@ func (s *service) handleInvite(
 		go s.subscribe(id)
 	}
 	return
+}
+
+// handleLogUpdate processes a record as a log update.
+func (s *service) handleLogUpdate(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
+	event, err := cbor.EventFromRecord(ctx, s.threads.dagService, rec)
+	if err != nil {
+		return err
+	}
+	rk, err := s.threads.ReadKey(id, lid)
+	if err != nil {
+		return err
+	}
+	if rk == nil {
+		return nil // No key, carry on
+	}
+	key, err := symmetric.NewKey(rk)
+	if err != nil {
+		return err
+	}
+
+	body, err := event.GetBody(ctx, s.threads.dagService, key)
+	if err != nil {
+		return err
+	}
+	logs, err := cbor.LogsFromNode(body)
+	if err != nil {
+		return err
+	}
+
+	// Update the record's log
+	for _, lg := range logs.Logs {
+		if !lg.ID.MatchesPublicKey(lg.PubKey) {
+			return fmt.Errorf("invalid log")
+		}
+		if lg.ID.String() != lid.String() { // We only want updates from the owner
+			continue
+		}
+		err = rec.Verify(lg.PubKey)
+		if err != nil {
+			return err
+		}
+		err = s.threads.AddLog(id, lg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // requestPubKey returns the key associated with a request.
