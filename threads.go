@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	bserv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
@@ -58,12 +59,16 @@ func init() {
 // MaxPullLimit is the maximum page size for pulling records.
 var MaxPullLimit = 10000
 
+// PullInterval is the interval between automatic log pulls.
+var PullInterval = time.Second * 10
+
 // threads is an implementation of Threadservice.
 type threads struct {
 	host       host.Host
 	blocks     bserv.BlockService
-	service    *service
 	dagService format.DAGService
+	rpc        *grpc.Server
+	service    *service
 	bus        *broadcast.Broadcaster
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -95,6 +100,7 @@ func NewThreads(
 		host:        h,
 		blocks:      bs,
 		dagService:  ds,
+		rpc:         grpc.NewServer(),
 		bus:         broadcast.NewBroadcaster(0),
 		ctx:         ctx,
 		cancel:      cancel,
@@ -109,15 +115,18 @@ func NewThreads(
 	if err != nil {
 		return nil, err
 	}
-	rpc := grpc.NewServer()
-	go rpc.Serve(listener)
-	pb.RegisterThreadsServer(rpc, t.service)
+	go t.rpc.Serve(listener)
+	pb.RegisterThreadsServer(t.rpc, t.service)
+
+	go t.startPulling()
 
 	return t, nil
 }
 
 // Close the threads instance.
 func (t *threads) Close() (err error) {
+	t.rpc.GracefulStop()
+
 	var errs []error
 	weakClose := func(name string, c interface{}) {
 		if cl, ok := c.(io.Closer); ok {
@@ -127,7 +136,7 @@ func (t *threads) Close() (err error) {
 		}
 	}
 
-	//weakClose("host", t.host) @todo: fix panic on close
+	weakClose("host", t.host)
 	weakClose("dagservice", t.dagService)
 	weakClose("threadstore", t.Threadstore)
 
@@ -564,6 +573,32 @@ func (t *threads) pullLocal(
 	}
 
 	return recs, nil
+}
+
+// startPulling periodically pulls on all threads.
+func (t *threads) startPulling() {
+	tick := time.NewTicker(PullInterval)
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-tick.C:
+			ts, err := t.Threads()
+			if err != nil {
+				log.Errorf("error listing threads: %s", err)
+				continue
+			}
+			for _, tid := range ts {
+				go func(id thread.ID) {
+					if err := t.Pull(t.ctx, id); err != nil {
+						log.Errorf("error pulling thread %s: %s", tid.String(), err)
+					}
+				}(tid)
+			}
+		case <-t.ctx.Done():
+			return
+		}
+	}
 }
 
 // setLogLevels sets the logging levels of the given log systems.

@@ -65,7 +65,7 @@ func newService(t *threads) (*service, error) {
 	return s, nil
 }
 
-// Push receives a record request.
+// Push receives a push request.
 func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply, error) {
 	if req.Header == nil {
 		return nil, fmt.Errorf("request header is required")
@@ -158,6 +158,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	return reply, nil
 }
 
+// Pull receives a pull request.
 func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply, error) {
 	recs, err := s.threads.pullLocal(
 		ctx, req.ThreadID.ID,
@@ -561,8 +562,8 @@ func (s *service) handleInvite(
 		}
 
 		// Download log history
-		// @todo: should this even happen unless direcly asked for by a user?
-		// @todo: if auto, do we need to queue download a la, threads v1?
+		// @todo: Should this even happen unless direcly asked for by a user?
+		// @todo: If auto, do we need to queue downloads a la, threads v1?
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
