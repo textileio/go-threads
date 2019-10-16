@@ -32,6 +32,12 @@ func TestInMemoryHeadBook(t *testing.T) {
 	})
 }
 
+func TestInMemoryMetadataBook(t *testing.T) {
+	pt.MetadataBookTest(t, func() (tstore.ThreadMetadata, func()) {
+		return m.NewThreadMetadata(), nil
+	})
+}
+
 func BenchmarkInMemoryThreadstore(b *testing.B) {
 	pt.BenchmarkThreadstore(b, func() (tstore.Threadstore, func()) {
 		return m.NewThreadstore(), nil
