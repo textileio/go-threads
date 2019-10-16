@@ -27,9 +27,9 @@ import (
 )
 
 var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
-	"AddPull":   testAddPull,
-	"AddInvite": testAddInvite,
-	"Close":     testClose,
+	"AddPull": testAddPull,
+	"AddPeer": testAddPeer,
+	"Close":   testClose,
 }
 
 func ThreadsTest(t *testing.T) {
@@ -136,7 +136,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 	}
 }
 
-func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
 		tid := thread.NewIDV1(thread.Raw, 32)
@@ -150,7 +150,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 
 		lgs, err := ts1.GetLogs(tid)
 		check(t, err)
-		invite, err := cbor.NewInvite(lgs, true)
+		logs, err := cbor.NewLogs(lgs, true)
 		check(t, err)
 
 		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
@@ -165,7 +165,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 
 		r2, err := ts1.Add(
 			context.Background(),
-			invite,
+			logs,
 			tserv.AddOpt.ThreadID(tid),
 			tserv.AddOpt.Key(ek),
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))

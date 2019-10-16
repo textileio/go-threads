@@ -131,11 +131,11 @@ func (ts *threadstore) AddLog(id thread.ID, log thread.LogInfo) error {
 		}
 	}
 
-	err = ts.SetAddrs(id, log.ID, log.Addrs, pstore.PermanentAddrTTL)
+	err = ts.AddAddrs(id, log.ID, log.Addrs, pstore.PermanentAddrTTL)
 	if err != nil {
 		return err
 	}
-	err = ts.SetHeads(id, log.ID, log.Heads)
+	err = ts.AddHeads(id, log.ID, log.Heads)
 	if err != nil {
 		return err
 	}

@@ -131,13 +131,13 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 
 		if lg != nil {
 			// Notify existing logs of our new log
-			invite, err := cbor.NewInvite([]thread.LogInfo{*lg}, true)
+			logs, err := cbor.NewLogs([]thread.LogInfo{*lg}, true)
 			if err != nil {
 				return nil, err
 			}
 			_, err = s.threads.Add(
 				ctx,
-				invite,
+				logs,
 				tserv.AddOpt.ThreadID(req.ThreadID.ID),
 				tserv.AddOpt.KeyLog(req.LogID.ID))
 			if err != nil {
@@ -309,19 +309,19 @@ func (s *service) push(
 						log.Error(err)
 						return
 					}
-					info := thread.LogInfo{
+					lg := thread.LogInfo{
 						ID:     lid,
 						PubKey: pk,
 						Addrs:  []ma.Multiaddr{reply.NewAddr.Multiaddr},
 					}
-					invite, err := cbor.NewInvite([]thread.LogInfo{info}, true)
+					logs, err := cbor.NewLogs([]thread.LogInfo{lg}, true)
 					if err != nil {
 						log.Error(err)
 						return
 					}
 					_, err = s.threads.Add(
 						ctx,
-						invite,
+						logs,
 						tserv.AddOpt.ThreadID(req.ThreadID.ID),
 						tserv.AddOpt.KeyLog(req.LogID.ID))
 					if err != nil {
@@ -517,12 +517,13 @@ func (s *service) subscribe(id thread.ID) {
 			continue
 		}
 
-		reply, err := s.Push(s.threads.ctx, req)
+		log.Debugf("received multicast request")
+
+		_, err = s.Push(s.threads.ctx, req)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
-		log.Debugf("received multicast request (reply: %s)", reply.String())
 	}
 }
 
@@ -587,13 +588,13 @@ func (s *service) handleInvite(
 	if err != nil {
 		return
 	}
-	invite, err := cbor.InviteFromNode(body)
+	logs, err := cbor.LogsFromNode(body)
 	if err != nil {
 		return
 	}
 
 	// Add incoming logs
-	for _, lg := range invite.Logs {
+	for _, lg := range logs.Logs {
 		if !lg.ID.MatchesPublicKey(lg.PubKey) {
 			err = fmt.Errorf("invalid log")
 			return
@@ -622,7 +623,7 @@ func (s *service) handleInvite(
 	}
 
 	// Create an own log if this is a new thread
-	if invite.Readable() && newThread {
+	if logs.Readable() && newThread {
 		var lg thread.LogInfo
 		lg, err = util.CreateLog(s.threads.host.ID())
 		if err != nil {
@@ -637,13 +638,9 @@ func (s *service) handleInvite(
 
 	// If not readable, return a new address for the sender's log.
 	// This peer becomes a follower.
-	if !invite.Readable() {
+	if !logs.Readable() {
 		newAddr, err = ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", s.threads.host.ID().String()))
 		if err != nil {
-			return
-		}
-		// @todo: How do we want to handle TTL?
-		if err = s.threads.AddAddr(id, lid, newAddr, pstore.PermanentAddrTTL); err != nil {
 			return
 		}
 	}

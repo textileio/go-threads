@@ -26,7 +26,14 @@ type record struct {
 }
 
 // NewRecord returns a new record from the given block and log private key.
-func NewRecord(ctx context.Context, dag format.DAGService, block format.Node, prev cid.Cid, sk ic.PrivKey, key crypto.EncryptionKey) (thread.Record, error) {
+func NewRecord(
+	ctx context.Context,
+	dag format.DAGService,
+	block format.Node,
+	prev cid.Cid,
+	sk ic.PrivKey,
+	key crypto.EncryptionKey,
+) (thread.Record, error) {
 	payload := block.Cid().Bytes()
 	if prev.Defined() {
 		payload = append(payload, prev.Bytes()...)
