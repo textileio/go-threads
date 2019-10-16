@@ -140,12 +140,12 @@ func (t *threads) Close() (err error) {
 	weakClose("dagservice", t.dagService)
 	weakClose("threadstore", t.Threadstore)
 
+	t.bus.Discard()
+	t.cancel()
+
 	if len(errs) > 0 {
 		return fmt.Errorf("failed while closing threads; err(s): %q", errs)
 	}
-
-	t.bus.Discard()
-	t.cancel()
 	return nil
 }
 
@@ -185,16 +185,16 @@ func (t *threads) Add(
 	}
 
 	// Notify local listeners
-	brec := &record{
+	r = &record{
 		Record:   rec,
 		threadID: settings.ThreadID,
 		logID:    lg.ID,
 	}
-	if err = t.bus.Send(brec); err != nil {
+	if err = t.bus.Send(r); err != nil {
 		return
 	}
 
-	return brec, nil
+	return r, nil
 }
 
 // Put an existing record. See PutOption for more.
@@ -309,6 +309,7 @@ func (t *threads) Pull(ctx context.Context, id thread.ID) error {
 			}
 		}(lg)
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -374,12 +375,14 @@ func (t *threads) Listen(opts ...tserv.ListenOption) tserv.RecordListener {
 				r, ok := i.(*record)
 				if ok {
 					if len(filter) > 0 {
-						if _, x := filter[r.threadID]; x {
+						if _, ok := filter[r.threadID]; ok {
 							listener.ch <- r
 						}
 					} else {
 						listener.ch <- r
 					}
+				} else {
+					log.Warning("listener received a non-record value")
 				}
 			}
 		}
@@ -577,6 +580,7 @@ func (t *threads) pullLocal(
 }
 
 // startPulling periodically pulls on all threads.
+// @todo: Ensure that a thread is not pulled concurrently (#26).
 func (t *threads) startPulling() {
 	tick := time.NewTicker(PullInterval)
 	defer tick.Stop()
