@@ -144,6 +144,7 @@ func (t *threads) Close() (err error) {
 		return fmt.Errorf("failed while closing threads; err(s): %q", errs)
 	}
 
+	t.bus.Discard()
 	t.cancel()
 	return nil
 }
