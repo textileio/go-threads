@@ -425,6 +425,9 @@ func (s *service) pull(
 				log.Error(err)
 				return
 			}
+			if pid.String() == s.threads.host.ID().String() {
+				return
+			}
 
 			log.Debugf("pulling records from %s...", p)
 
@@ -642,6 +645,10 @@ func (s *service) handleNewLogs(
 	// This peer becomes a follower.
 	if !logs.Readable() {
 		newAddr, err = ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", s.threads.host.ID().String()))
+		if err != nil {
+			return
+		}
+		err = s.threads.AddAddr(id, lid, newAddr, pstore.PermanentAddrTTL)
 		if err != nil {
 			return
 		}

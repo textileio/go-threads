@@ -387,12 +387,6 @@ func testThreadsFromddrs(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func check(t *testing.T, err error) {
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
 func checkedAddrs(t *testing.T, ab tstore.AddrBook, tid thread.ID, id peer.ID) []ma.Multiaddr {
 	addrs, err := ab.Addrs(tid, id)
 	if err != nil {

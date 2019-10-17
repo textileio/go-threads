@@ -418,7 +418,7 @@ func (t *threads) getPrivKey() ic.PrivKey {
 }
 
 // createLog call util.CreateLog.
-func (t *threads) createLog() (info thread.LogInfo, err error) {
+func (t *threads) createLog() (thread.LogInfo, error) {
 	return util.CreateLog(t.host.ID())
 }
 
