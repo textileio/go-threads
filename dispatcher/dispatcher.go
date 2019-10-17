@@ -23,7 +23,7 @@ var ErrPersistence = errors.New("persistence failure")
 var ErrTokenNotFound = errors.New("token not found")
 
 // Events are stored under the following db key pattern:
-// /events/<event.time><event.entityid><event.type>
+// /events/<event.entityid>/<event.time>/<event.type>
 // @todo: This is up for debate! It might make more sense to have time at the end of the key.
 // @todo: We might also want to include thread, and log information in the key?
 var baseKey = datastore.NewKey("/events")
@@ -92,8 +92,9 @@ func (d *Dispatcher) Dispatch(event dispatch.Event) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	var result *multierror.Error
-	key := baseKey.ChildString(string(event.Time())).ChildString(event.EntityID()).ChildString(event.Type())
+	key := baseKey.ChildString(event.EntityID()).ChildString(string(event.Time())).ChildString(event.Type())
 	// Add an Event's body to the event store as the value
+	// @todo: Should encode + dump whole Event here? Otherwise, need to parse key to extract type, time, etc...
 	if err := d.store.Put(key, event.Body()); err != nil {
 		return ErrPersistence
 	}
