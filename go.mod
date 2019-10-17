@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/gogo/protobuf v1.3.0
+	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.2

@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -15,16 +16,17 @@ type Token uint
 // lastID is the last ID used by the singleton Dispatcher.
 var lastID uint
 
-const (
-	// ErrPersistence means that a write to the underlying event store failed.
-	ErrPersistence = esError("persistance failure")
-	// ErrTokenNotFound means the given token was not found in the dispatcher's reducer map.
-	ErrTokenNotFound = esError("token not found")
-)
+// ErrPersistence means that a write to the underlying event store failed.
+var ErrPersistence = errors.New("persistence failure")
 
-type esError string
+// ErrTokenNotFound means the given token was not found in the dispatcher's reducer map.
+var ErrTokenNotFound = errors.New("token not found")
 
-func (e esError) Error() string { return string(e) }
+// Events are stored under the following db key pattern:
+// /events/<event.time><event.entityid><event.type>
+// @todo: This is up for debate! It might make more sense to have time at the end of the key.
+// @todo: We might also want to include thread, and log information in the key?
+var baseKey = datastore.NewKey("/events")
 
 // Dispatcher is used to dispatch events to registered reducers.
 //
@@ -70,8 +72,7 @@ func (d *Dispatcher) Register(reducer dispatch.Reducer) Token {
 	return id
 }
 
-// Deregister removes a reducer based on its token. If the token is invalid (i.e. no associated reducer),
-// this is a no-op.
+// Deregister removes a reducer based on its token. If the token is invalid it will return an error.
 func (d *Dispatcher) Deregister(token Token) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -83,15 +84,15 @@ func (d *Dispatcher) Deregister(token Token) error {
 }
 
 // Dispatch dispatches a payload to all registered reducers. It returns a multierror object, which may contain
-// zero (nil) or more errors. Errors from reducer callbacks can be safely ignored and/or retried (and are prefixed
-// with "warning"), whereas errors due to event persistence are "critical" and will be prefixed as such.
+// zero (nil) or more errors. Errors from reducer callbacks can be safely ignored and/or retried, whereas errors due
+// to event persistence (`ErrPersistence`) are likely critical, and should be handled by the caller.  If a given
+// reducer does fail, it does not affect the other reducers or event store state. It is up to the caller to catch
+// this, and rerun if/as needed.
 func (d *Dispatcher) Dispatch(event dispatch.Event) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	var result *multierror.Error
-	// Key format: <timestamp>/<entity-id>/<type>
-	// @todo: This is up for debate, its a 'fake' Event struct right now anyway
-	key := datastore.NewKey(string(event.Time())).ChildString(event.EntityID()).ChildString(event.Type())
+	key := baseKey.ChildString(string(event.Time())).ChildString(event.EntityID()).ChildString(event.Type())
 	// Add an Event's body to the event store as the value
 	if err := d.store.Put(key, event.Body()); err != nil {
 		return ErrPersistence
@@ -105,7 +106,7 @@ func (d *Dispatcher) Dispatch(event dispatch.Event) error {
 		go func(r dispatch.Reducer) {
 			defer wg.Done()
 			if err := r.Reduce(event); err != nil {
-				errChan <- multierror.Prefix(err, "warning")
+				errChan <- err
 			}
 		}(reducer)
 	}
