@@ -3,8 +3,7 @@ package test
 import (
 	"context"
 	"testing"
-
-	"github.com/ipfs/go-cid"
+	"time"
 
 	bserv "github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
@@ -41,6 +40,8 @@ func ThreadsTest(t *testing.T) {
 		ts1 := newService(t, m1)
 		ts2 := newService(t, m2)
 
+		time.Sleep(time.Second)
+
 		ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 		ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
@@ -51,9 +52,7 @@ func ThreadsTest(t *testing.T) {
 
 func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	sk, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	check(t, err)
 	host, err := libp2p.New(
 		context.Background(),
 		libp2p.ListenAddrs(listen),
@@ -76,6 +75,15 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 
 func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
+		listener := ts1.Listen()
+		var rcount int
+		go func() {
+			for r := range listener.Channel() {
+				rcount++
+				t.Logf("got record %s", r.Value().Cid())
+			}
+		}()
+
 		ctx := context.Background()
 		tid := thread.NewIDV1(thread.Raw, 32)
 
@@ -85,39 +93,40 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}, mh.SHA2_256, -1)
 		check(t, err)
 
-		lid1, n1, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
 		check(t, err)
-
-		if n1 == nil {
+		if r1.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		lid2, n2, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		r2, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
 		check(t, err)
-		if n2 == nil {
+		if r2.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		if lid2.String() != lid2.String() {
-			t.Fatalf("expected log IDs to match, got %s and %s", lid1.String(), lid2.String())
+		if r1.LogID().String() != r2.LogID().String() {
+			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID().String(), r2.LogID().String())
 		}
 
 		// Pull from the log origin
-		recs, err := ts1.Pull(ctx, tid, lid1, cid.Undef, tserv.PullOpt.Limit(100))
+		err = ts1.Pull(ctx, tid)
 		check(t, err)
-		if len(recs) != 2 {
-			t.Fatalf("expected 2 records got %d", len(recs))
+		time.Sleep(time.Second)
+		if rcount != 2 {
+			t.Fatalf("expected 2 records got %d", rcount)
 		}
 
-		event, err := cbor.GetEvent(ctx, ts1.DAGService(), recs[0].BlockID())
+		r1b, err := ts1.Get(ctx, tid, r1.LogID(), r1.Value().Cid())
 		check(t, err)
 
-		kb, err := ts1.ReadKey(tid, lid1)
+		event, err := cbor.GetEvent(ctx, ts1.DAGService(), r1b.BlockID())
 		check(t, err)
 
-		readKey, err := crypto.ParseDecryptionKey(kb)
+		rk, err := ts1.ReadKey(tid, r1.LogID())
 		check(t, err)
-
+		readKey, err := crypto.ParseDecryptionKey(rk)
+		check(t, err)
 		back, err := event.GetBody(ctx, ts1.DAGService(), readKey)
 		check(t, err)
 
@@ -136,13 +145,12 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-
-		lid1, _, err := ts1.Add(ctx, body, tserv.AddOpt.Thread(tid))
+		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
 		check(t, err)
 
-		l, err := ts1.Logs(tid)
+		lgs, err := ts1.GetLogs(tid)
 		check(t, err)
-		invite, err := cbor.NewInvite(l, true)
+		invite, err := cbor.NewInvite(lgs, true)
 		check(t, err)
 
 		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
@@ -155,33 +163,61 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		a, err := ma.NewMultiaddr("/p2p/" + ts2.Host().ID().String())
 		check(t, err)
 
-		_, _, err = ts1.Add(
+		r2, err := ts1.Add(
 			context.Background(),
 			invite,
-			tserv.AddOpt.Thread(tid),
+			tserv.AddOpt.ThreadID(tid),
 			tserv.AddOpt.Key(ek),
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
 		check(t, err)
 
-		info, err := ts2.ThreadInfo(tid)
+		info1, err := ts1.ThreadInfo(tid)
 		check(t, err)
-		if len(info.Logs) != 2 {
-			t.Fatalf("expected 2 logs got %d", len(info.Logs))
+		if len(info1.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info1.Logs))
+		}
+		for _, lid := range info1.Logs {
+			if lid.String() == r1.LogID().String() {
+				// Peer 1 should have 2 records in its own log (one msg
+				// and one invite record)
+				_, err = ts1.Get(ctx, tid, lid, r1.Value().Cid())
+				check(t, err)
+				_, err := ts1.Get(ctx, tid, lid, r2.Value().Cid())
+				check(t, err)
+			} else {
+				// Peer 1 should have 1 record in its log for peer 2 (one invite record)
+				heads, err := ts1.Heads(tid, lid)
+				check(t, err)
+				if len(heads) != 1 { // double check we only have one head
+					t.Fatalf("expected 1 head got %d", len(heads))
+				}
+				_, err = ts1.Get(ctx, tid, lid, heads[0])
+				check(t, err)
+			}
 		}
 
-		for _, lid := range info.Logs {
-			// Pull from the log origin
-			recs, err := ts2.Pull(ctx, tid, lid, cid.Undef, tserv.PullOpt.Limit(100))
-			check(t, err)
-
-			if lid.String() == lid1.String() {
-				if len(recs) != 2 { // ts1's log with one msg and one invite record
-					t.Fatalf("expected 2 records got %d", len(recs))
-				}
+		info2, err := ts2.ThreadInfo(tid)
+		check(t, err)
+		if len(info2.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info2.Logs))
+		}
+		for _, lid := range info2.Logs {
+			if lid.String() == r1.LogID().String() {
+				// Peer 2 should have 2 records in its log for peer 1 (one msg
+				// and one invite record)
+				_, err = ts2.Get(ctx, tid, lid, r1.Value().Cid())
+				check(t, err)
+				_, err := ts2.Get(ctx, tid, lid, r2.Value().Cid())
+				check(t, err)
 			} else {
-				if len(recs) != 1 { // ts2's log with one invite record
-					t.Fatalf("expected 1 record got %d", len(recs))
+				// Peer 2 should have 1 record in its own log (one invite record)
+				heads, err := ts2.Heads(tid, lid)
+				check(t, err)
+				if len(heads) != 1 { // double check we only have one head
+					t.Fatalf("expected 1 head got %d", len(heads))
 				}
+				_, err = ts2.Get(ctx, tid, lid, heads[0])
+				check(t, err)
 			}
 		}
 	}
