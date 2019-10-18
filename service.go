@@ -369,12 +369,12 @@ func (r *records) List() []thread.Record {
 // Store a record.
 func (r *records) Store(key cid.Cid, value thread.Record) {
 	r.Lock()
+	defer r.Unlock()
 	if _, ok := r.m[key]; ok {
 		return
 	}
 	r.m[key] = value
 	r.s = append(r.s, value)
-	r.Unlock()
 }
 
 // pull records from log addresses.
