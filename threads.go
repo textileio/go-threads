@@ -178,6 +178,8 @@ func (t *threads) Add(
 		return
 	}
 
+	log.Infof("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+
 	// Push out the new record
 	err = t.service.push(ctx, rec, settings.ThreadID, lg.ID, settings)
 	if err != nil {
@@ -241,6 +243,8 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 	if err = t.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
 		return err
 	}
+
+	log.Infof("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
 	// Notify local listeners
 	return t.bus.Send(&record{

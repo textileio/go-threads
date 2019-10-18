@@ -155,12 +155,11 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		}
 	}
 
-	err = s.threads.Put(
+	if err = s.threads.Put(
 		ctx,
 		rec,
 		tserv.PutOpt.ThreadID(req.ThreadID.ID),
-		tserv.PutOpt.LogID(req.LogID.ID))
-	if err != nil {
+		tserv.PutOpt.LogID(req.LogID.ID)); err != nil {
 		return nil, err
 	}
 

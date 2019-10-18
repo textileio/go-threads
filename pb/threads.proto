@@ -1,7 +1,7 @@
 syntax = "proto3";
 package threads.pb;
 
-import "github.com/gogo/protobuf/gogoproto/gogo.proto";]
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
