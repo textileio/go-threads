@@ -41,7 +41,7 @@ func ThreadsTest(t *testing.T) {
 		ts1 := newService(t, m1)
 		ts2 := newService(t, m2)
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 5)
 
 		ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 		ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
