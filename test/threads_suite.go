@@ -66,9 +66,10 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 	ts, err := threads.NewThreads(
 		context.Background(),
 		host,
-		bsrv,
+		bsrv.Blockstore(),
 		dag.NewDAGService(bsrv),
 		tstore.NewThreadstore(),
+		nil,
 		true)
 	check(t, err)
 	return ts

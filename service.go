@@ -22,7 +22,6 @@ import (
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
-	"github.com/textileio/go-textile-threads/util"
 	"google.golang.org/grpc"
 )
 
@@ -102,7 +101,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	if err != nil {
 		return nil, err
 	}
-	knownRecord, err := s.threads.blocks.Blockstore().Has(rec.Cid())
+	knownRecord, err := s.threads.bstore.Has(rec.Cid())
 	if err != nil {
 		return nil, err
 	}
@@ -514,6 +513,15 @@ func (s *service) subscribe(id thread.ID) {
 			break
 		}
 
+		from, err := peer.IDFromBytes(msg.From)
+		if err != nil {
+			log.Error(err)
+			break
+		}
+		if from.String() == s.threads.host.ID().String() {
+			continue
+		}
+
 		req := new(pb.PushRequest)
 		err = proto.Unmarshal(msg.Data, req)
 		if err != nil {
@@ -521,7 +529,7 @@ func (s *service) subscribe(id thread.ID) {
 			continue
 		}
 
-		log.Debugf("received multicast request")
+		log.Debugf("received multicast request from %s", from.String())
 
 		_, err = s.Push(s.threads.ctx, req)
 		if err != nil {
@@ -629,7 +637,7 @@ func (s *service) handleNewLogs(
 	// Create an own log if this is a new thread
 	if logs.Readable() && newThread {
 		var lg thread.LogInfo
-		lg, err = util.CreateLog(s.threads.host.ID())
+		lg, err = s.threads.createLog()
 		if err != nil {
 			return
 		}

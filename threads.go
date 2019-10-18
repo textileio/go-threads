@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	bserv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
@@ -65,7 +65,7 @@ var PullInterval = time.Second * 10
 // threads is an implementation of Threadservice.
 type threads struct {
 	host       host.Host
-	blocks     bserv.BlockService
+	bstore     bs.Blockstore
 	dagService format.DAGService
 	rpc        *grpc.Server
 	service    *service
@@ -79,9 +79,10 @@ type threads struct {
 func NewThreads(
 	ctx context.Context,
 	h host.Host,
-	bs bserv.BlockService,
+	bstore bs.Blockstore,
 	ds format.DAGService,
 	ts tstore.Threadstore,
+	writer io.Writer,
 	debug bool,
 ) (tserv.Threadservice, error) {
 	var err error
@@ -89,7 +90,8 @@ func NewThreads(
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-		}, true)
+			"ipfslite":    logger.DEBUG,
+		}, writer, true)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +100,7 @@ func NewThreads(
 	ctx, cancel := context.WithCancel(ctx)
 	t := &threads{
 		host:        h,
-		blocks:      bs,
+		bstore:      bstore,
 		dagService:  ds,
 		rpc:         grpc.NewServer(),
 		bus:         broadcast.NewBroadcaster(0),
@@ -167,7 +169,7 @@ func (t *threads) Add(
 ) (r tserv.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
-	lg, err := t.getOrCreateOwnLog(settings.ThreadID)
+	lg, err := util.GetOrCreateOwnLog(t, settings.ThreadID)
 	if err != nil {
 		return
 	}
@@ -201,7 +203,7 @@ func (t *threads) Add(
 
 // Put an existing record. See PutOption for more.
 func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
-	knownRecord, err := t.blocks.Blockstore().Has(rec.Cid())
+	knownRecord, err := t.bstore.Has(rec.Cid())
 	if err != nil {
 		return err
 	}
@@ -211,7 +213,7 @@ func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutO
 
 	// Get or create a log for the new rec
 	settings := tserv.PutOptions(opts...)
-	lg, err := t.getOrCreateLog(settings.ThreadID, settings.LogID)
+	lg, err := util.GetOrCreateLog(t, settings.ThreadID, settings.LogID)
 	if err != nil {
 		return err
 	}
@@ -426,64 +428,6 @@ func (t *threads) createLog() (thread.LogInfo, error) {
 	return util.CreateLog(t.host.ID())
 }
 
-// getOrCreateLog returns the log with the given thread and log id
-// If no log exists, a new one is created under the given thread.
-func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = t.LogInfo(id, lid)
-	if err != nil {
-		return
-	}
-	if info.PubKey != nil {
-		return
-	}
-	info, err = t.createLog()
-	if err != nil {
-		return
-	}
-	err = t.AddLog(id, info)
-	return
-}
-
-// getOwnLoad returns the log owned by the host under the given thread.
-func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := t.LogsWithKeys(id)
-	if err != nil {
-		return info, err
-	}
-	for _, lid := range logs {
-		sk, err := t.PrivKey(id, lid)
-		if err != nil {
-			return info, err
-		}
-		if sk != nil {
-			li, err := t.LogInfo(id, lid)
-			if err != nil {
-				return info, err
-			}
-			return li, nil
-		}
-	}
-	return info, nil
-}
-
-// getOrCreateOwnLoad returns the log owned by the host under the given thread.
-// If no log exists, a new one is created under the given thread.
-func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	info, err = t.getOwnLog(id)
-	if err != nil {
-		return info, err
-	}
-	if info.PubKey != nil {
-		return
-	}
-	info, err = t.createLog()
-	if err != nil {
-		return
-	}
-	err = t.AddLog(id, info)
-	return
-}
-
 // createRecord creates a new record with the given body as a new event body.
 func (t *threads) createRecord(
 	ctx context.Context,
@@ -612,7 +556,12 @@ func (t *threads) startPulling() {
 
 // setLogLevels sets the logging levels of the given log systems.
 // color controls whether or not color codes are included in the output.
-func setLogLevels(systems map[string]logger.Level, color bool) error {
+func setLogLevels(systems map[string]logger.Level, writer io.Writer, color bool) error {
+	if writer != nil {
+		backendFile := logger.NewLogBackend(writer, "", 0)
+		logger.SetBackend(backendFile)
+	}
+
 	var form string
 	if color {
 		form = logging.LogFormats["color"]

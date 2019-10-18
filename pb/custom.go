@@ -36,7 +36,7 @@ func (id ProtoPeerID) Marshal() ([]byte, error) {
 }
 
 func (id ProtoPeerID) MarshalTo(data []byte) (n int, err error) {
-	return copy(data, []byte(id.ID)), nil
+	return copy(data, id.ID), nil
 }
 
 func (id ProtoPeerID) MarshalJSON() ([]byte, error) {
