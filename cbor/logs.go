@@ -14,17 +14,12 @@ import (
 )
 
 func init() {
-	cbornode.RegisterCborType(invite{})
-	cbornode.RegisterCborType(loginfo{})
+	cbornode.RegisterCborType(log{})
+	cbornode.RegisterCborType(logs{})
 }
 
-// invite defines the node structure of an invite.
-type invite struct {
-	Logs []loginfo
-}
-
-// loginfo defines the node structure of loginfo.
-type loginfo struct {
+// log defines the node structure of loginfo.
+type log struct {
 	ID        string
 	PubKey    []byte
 	FollowKey []byte
@@ -33,11 +28,16 @@ type loginfo struct {
 	Heads     [][]byte
 }
 
-// NewInvite creates a new invite with the given logs.
+// logs defines the node structure of logs.
+type logs struct {
+	Logs []log
+}
+
+// NewLogs creates a thread node with the given logs.
 // The read keys will be included if readable is true.
-func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
-	ls := make([]loginfo, len(logs))
-	for i, l := range logs {
+func NewLogs(lgs []thread.LogInfo, readable bool) (format.Node, error) {
+	ls := make([]log, len(lgs))
+	for i, l := range lgs {
 		pk, err := ic.MarshalPublicKey(l.PubKey)
 		if err != nil {
 			return nil, err
@@ -50,7 +50,7 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 		for k, h := range l.Heads {
 			heads[k] = h.Bytes()
 		}
-		log := loginfo{
+		lg := log{
 			ID:        l.ID.String(),
 			PubKey:    pk,
 			FollowKey: l.FollowKey,
@@ -58,22 +58,22 @@ func NewInvite(logs []thread.LogInfo, readable bool) (format.Node, error) {
 			Heads:     heads,
 		}
 		if readable {
-			log.ReadKey = l.ReadKey
+			lg.ReadKey = l.ReadKey
 		}
-		ls[i] = log
+		ls[i] = lg
 	}
-	return cbornode.WrapObject(&invite{Logs: ls}, mh.SHA2_256, -1)
+	return cbornode.WrapObject(&logs{Logs: ls}, mh.SHA2_256, -1)
 }
 
-// InviteFromNode returns invite info from a node.
-func InviteFromNode(node format.Node) (*Invite, error) {
-	n := new(invite)
+// LogsFromNode returns slice info from a node.
+func LogsFromNode(node format.Node) (*Logs, error) {
+	n := new(logs)
 	err := cbornode.DecodeInto(node.RawData(), n)
 	if err != nil {
 		return nil, err
 	}
 
-	invite := &Invite{
+	info := &Logs{
 		Logs: make([]thread.LogInfo, len(n.Logs)),
 	}
 	for i, l := range n.Logs {
@@ -102,7 +102,7 @@ func InviteFromNode(node format.Node) (*Invite, error) {
 				return nil, err
 			}
 		}
-		log := thread.LogInfo{
+		lg := thread.LogInfo{
 			ID:        id,
 			PubKey:    pk,
 			FollowKey: l.FollowKey,
@@ -110,19 +110,19 @@ func InviteFromNode(node format.Node) (*Invite, error) {
 			Addrs:     addrs,
 			Heads:     heads,
 		}
-		invite.Logs[i] = log
+		info.Logs[i] = lg
 	}
 
-	return invite, nil
+	return info, nil
 }
 
-// Invite contains logs needed to load a thread.
-type Invite struct {
+// Logs contains logs that are part of a thread.
+type Logs struct {
 	Logs []thread.LogInfo
 }
 
 // Readable returns whether or not all logs contain a read key.
-func (i *Invite) Readable() bool {
+func (i *Logs) Readable() bool {
 	for _, l := range i.Logs {
 		if l.ReadKey == nil {
 			return false

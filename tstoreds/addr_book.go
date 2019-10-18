@@ -125,8 +125,8 @@ func (ab *DsAddrBook) SetAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl tim
 func (ab *DsAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
 	addrs = cleanAddrs(addrs)
 	if ttl <= 0 {
-		ab.deleteAddrs(t, p, addrs)
-		return nil
+		err := ab.deleteAddrs(t, p, addrs)
+		return err
 	}
 	if err := ab.setAddrs(t, p, addrs, ttl, ttlOverride); err != nil {
 		return err
@@ -446,74 +446,6 @@ func cleanAddrs(addrs []ma.Multiaddr) []ma.Multiaddr {
 		clean = append(clean, addr)
 	}
 	return clean
-}
-
-// uniqueThreadIds extracts and returns unique thread IDs from database keys.
-func uniqueThreadIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Result) string) (thread.IDSlice, error) {
-	var (
-		q       = query.Query{Prefix: prefix.String(), KeysOnly: true}
-		results query.Results
-		err     error
-	)
-
-	if results, err = ds.Query(q); err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	defer results.Close()
-
-	idset := make(map[string]struct{})
-	for result := range results.Next() {
-		k := extractor(result)
-		idset[k] = struct{}{}
-	}
-
-	if len(idset) == 0 {
-		return thread.IDSlice{}, nil
-	}
-
-	ids := make(thread.IDSlice, 0, len(idset))
-	for id := range idset {
-		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, _ := thread.Cast(pid)
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
-// uniqueLogIds extracts and returns unique thread IDs from database keys.
-func uniqueLogIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Result) string) (peer.IDSlice, error) {
-	var (
-		q       = query.Query{Prefix: prefix.String(), KeysOnly: true}
-		results query.Results
-		err     error
-	)
-
-	if results, err = ds.Query(q); err != nil {
-		log.Error(err)
-		return nil, err
-	}
-
-	defer results.Close()
-
-	idset := make(map[string]struct{})
-	for result := range results.Next() {
-		k := extractor(result)
-		idset[k] = struct{}{}
-	}
-
-	if len(idset) == 0 {
-		return peer.IDSlice{}, nil
-	}
-
-	ids := make(peer.IDSlice, 0, len(idset))
-	for id := range idset {
-		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, _ := peer.IDFromBytes(pid)
-		ids = append(ids, id)
-	}
-	return ids, nil
 }
 
 func (ab *DsAddrBook) Close() error {

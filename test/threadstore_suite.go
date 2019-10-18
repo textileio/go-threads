@@ -45,7 +45,8 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
 		addrs, pid := getAddrs(t, 100), peer.ID("testlog")
-		ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
+		err := ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
+		check(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		addrch, err := ts.AddrStream(ctx, tid, pid)
@@ -56,7 +57,8 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 		// while that subscription is active, publish ten more addrs
 		// this tests that it doesnt hang
 		for i := 10; i < 20; i++ {
-			ts.AddAddr(tid, pid, addrs[i], time.Hour)
+			err = ts.AddAddr(tid, pid, addrs[i], time.Hour)
+			check(t, err)
 		}
 
 		// now receive them (without hanging)
@@ -81,7 +83,8 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 			defer close(done)
 			// now send the rest of the addresses
 			for _, a := range addrs[20:80] {
-				ts.AddAddr(tid, pid, a, time.Hour)
+				err := ts.AddAddr(tid, pid, a, time.Hour)
+				check(t, err)
 			}
 		}()
 
@@ -117,7 +120,8 @@ func testAddrStream(ts tstore.Threadstore) func(t *testing.T) {
 
 		// and add a few more addresses it doesnt hang afterwards
 		for _, a := range addrs[80:] {
-			ts.AddAddr(tid, pid, a, time.Hour)
+			err = ts.AddAddr(tid, pid, a, time.Hour)
+			check(t, err)
 		}
 	}
 }
@@ -136,7 +140,8 @@ func testGetStreamBeforeLogAdded(ts tstore.Threadstore) func(t *testing.T) {
 			t.Fatalf("error when adding stream: %v", err)
 		}
 		for i := 0; i < 10; i++ {
-			ts.AddAddr(tid, pid, addrs[i], time.Hour)
+			err = ts.AddAddr(tid, pid, addrs[i], time.Hour)
+			check(t, err)
 		}
 
 		received := make(map[string]bool)
@@ -191,8 +196,10 @@ func testAddrStreamDuplicates(ts tstore.Threadstore) func(t *testing.T) {
 		}
 		go func() {
 			for i := 0; i < 10; i++ {
-				ts.AddAddr(tid, pid, addrs[i], time.Hour)
-				ts.AddAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
+				err := ts.AddAddr(tid, pid, addrs[i], time.Hour)
+				check(t, err)
+				err = ts.AddAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
+				check(t, err)
 			}
 
 			// make sure that all addresses get processed before context is cancelled
@@ -229,7 +236,8 @@ func testBasicThreadstore(ts tstore.Threadstore) func(t *testing.T) {
 			tids = append(tids, tid)
 			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p, _ := peer.IDFromPrivateKey(priv)
-			ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
+			err := ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
+			check(t, err)
 		}
 
 		threads, err := ts.Threads()

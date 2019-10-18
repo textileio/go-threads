@@ -28,7 +28,8 @@ import (
 
 var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
 	"AddPull":   testAddPull,
-	"AddInvite": testAddInvite,
+	"AddPeer":   testAddPeer,
+	"AddFollow": testAddFollower,
 	"Close":     testClose,
 }
 
@@ -40,7 +41,7 @@ func ThreadsTest(t *testing.T) {
 		ts1 := newService(t, m1)
 		ts2 := newService(t, m2)
 
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 5)
 
 		ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 		ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
@@ -136,7 +137,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 	}
 }
 
-func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
 		tid := thread.NewIDV1(thread.Raw, 32)
@@ -150,7 +151,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 
 		lgs, err := ts1.GetLogs(tid)
 		check(t, err)
-		invite, err := cbor.NewInvite(lgs, true)
+		logs, err := cbor.NewLogs(lgs, true)
 		check(t, err)
 
 		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
@@ -165,7 +166,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 
 		r2, err := ts1.Add(
 			context.Background(),
-			invite,
+			logs,
 			tserv.AddOpt.ThreadID(tid),
 			tserv.AddOpt.Key(ek),
 			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
@@ -201,6 +202,7 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if len(info2.Logs) != 2 {
 			t.Fatalf("expected 2 logs got %d", len(info2.Logs))
 		}
+		time.Sleep(time.Second) // Give ts2 some time to traverse the logs.
 		for _, lid := range info2.Logs {
 			if lid.String() == r1.LogID().String() {
 				// Peer 2 should have 2 records in its log for peer 1 (one msg
@@ -218,6 +220,88 @@ func testAddInvite(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 				}
 				_, err = ts2.Get(ctx, tid, lid, heads[0])
 				check(t, err)
+			}
+		}
+	}
+}
+
+func testAddFollower(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
+	return func(t *testing.T) {
+		ctx := context.Background()
+		tid := thread.NewIDV1(thread.Raw, 32)
+
+		body, err := cbornode.WrapObject(map[string]interface{}{
+			"msg": "yo!",
+		}, mh.SHA2_256, -1)
+		check(t, err)
+		r1, err := ts1.Add(ctx, body, tserv.AddOpt.ThreadID(tid))
+		check(t, err)
+
+		lgs, err := ts1.GetLogs(tid)
+		check(t, err)
+		logs, err := cbor.NewLogs(lgs, false)
+		check(t, err)
+
+		pk := ts1.Host().Peerstore().PubKey(ts2.Host().ID())
+		if pk == nil {
+			t.Fatal("public key not found")
+		}
+		ek, err := asymmetric.NewEncryptionKey(pk)
+		check(t, err)
+
+		a, err := ma.NewMultiaddr("/p2p/" + ts2.Host().ID().String())
+		check(t, err)
+
+		r2, err := ts1.Add(
+			context.Background(),
+			logs,
+			tserv.AddOpt.ThreadID(tid),
+			tserv.AddOpt.Key(ek),
+			tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
+		check(t, err)
+
+		info1, err := ts1.ThreadInfo(tid)
+		check(t, err)
+		if len(info1.Logs) != 1 {
+			t.Fatalf("expected 1 logs got %d", len(info1.Logs))
+		}
+		for _, lid := range info1.Logs {
+			if lid.String() == r1.LogID().String() {
+				// Peer 1 should have 2 records in its own log (one msg
+				// and one invite record)
+				_, err = ts1.Get(ctx, tid, lid, r1.Value().Cid())
+				check(t, err)
+				_, err := ts1.Get(ctx, tid, lid, r2.Value().Cid())
+				check(t, err)
+				// Peer 1 should have 2 addresses for this log.
+				addrs, err := ts1.Addrs(tid, lid)
+				check(t, err)
+				if len(addrs) != 2 {
+					t.Fatalf("expected 2 addresses got %d", len(addrs))
+				}
+			}
+		}
+
+		info2, err := ts2.ThreadInfo(tid)
+		check(t, err)
+		if len(info2.Logs) != 1 {
+			t.Fatalf("expected 1 logs got %d", len(info2.Logs))
+		}
+		time.Sleep(time.Second * 1) // Give ts2 some time to traverse the logs.
+		for _, lid := range info2.Logs {
+			if lid.String() == r1.LogID().String() {
+				// Peer 2 should have 2 records in its log for peer 1 (one msg
+				// and one invite record)
+				_, err = ts2.Get(ctx, tid, lid, r1.Value().Cid())
+				check(t, err)
+				_, err := ts2.Get(ctx, tid, lid, r2.Value().Cid())
+				check(t, err)
+				// Peer 2 should have 2 addresses for this log.
+				addrs, err := ts2.Addrs(tid, lid)
+				check(t, err)
+				if len(addrs) != 2 {
+					t.Fatalf("expected 2 addresses got %d", len(addrs))
+				}
 			}
 		}
 	}

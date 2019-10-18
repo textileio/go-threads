@@ -163,9 +163,10 @@ func (kb *dsKeyBook) AddFollowKey(t thread.ID, p peer.ID, fk []byte) error {
 }
 
 func (kb *dsKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
-	ids, err := uniqueLogIds(kb.ds, kbBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())), func(result query.Result) string {
-		return ds.RawKey(result.Key).Parent().Name()
-	})
+	ids, err := uniqueLogIds(kb.ds, kbBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())),
+		func(result query.Result) string {
+			return ds.RawKey(result.Key).Parent().Name()
+		})
 	if err != nil {
 		return nil, fmt.Errorf("error while retrieving logs with addresses: %v", err)
 	}

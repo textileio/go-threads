@@ -342,7 +342,7 @@ func benchmarkPubKey(kb tstore.KeyBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.PubKey(tid, id)
+			_, _ = kb.PubKey(tid, id)
 		}
 	}
 }
@@ -389,7 +389,7 @@ func benchmarkPrivKey(kb tstore.KeyBook) func(*testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.PrivKey(tid, id)
+			_, _ = kb.PrivKey(tid, id)
 		}
 	}
 }
@@ -440,7 +440,7 @@ func benchmarkLogsWithKeys(kb tstore.KeyBook) func(*testing.B) {
 		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			kb.LogsWithKeys(tid)
+			_, _ = kb.LogsWithKeys(tid)
 		}
 	}
 }

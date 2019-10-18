@@ -94,3 +94,9 @@ func AssertAddressesEqual(t *testing.T, exp, act []ma.Multiaddr) {
 		}
 	}
 }
+
+func check(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
