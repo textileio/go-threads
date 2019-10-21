@@ -14,7 +14,6 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
@@ -30,31 +29,6 @@ import (
 )
 
 var log = logging.Logger("threads")
-
-const (
-	// IPEL is the protocol slug.
-	IPEL = "ipel"
-	// IPELCode is the protocol code.
-	IPELCode = 406
-	// IPELVersion is the current protocol version.
-	IPELVersion = "0.0.1"
-	// IPELProtocol is the threads protocol tag.
-	IPELProtocol protocol.ID = "/" + IPEL + "/" + IPELVersion
-)
-
-var addrProtocol = ma.Protocol{
-	Name:       IPEL,
-	Code:       IPELCode,
-	VCode:      ma.CodeToVarint(IPELCode),
-	Size:       ma.LengthPrefixedVarSize,
-	Transcoder: ma.TranscoderP2P,
-}
-
-func init() {
-	if err := ma.AddProtocol(addrProtocol); err != nil {
-		panic(err)
-	}
-}
 
 // MaxPullLimit is the maximum page size for pulling records.
 var MaxPullLimit = 10000
@@ -90,7 +64,7 @@ func NewThreads(
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-			"ipfslite":    logger.DEBUG,
+			//"ipfslite":    logger.DEBUG,
 		}, writer, true)
 		if err != nil {
 			return nil, err
@@ -113,7 +87,7 @@ func NewThreads(
 		return nil, err
 	}
 
-	listener, err := gostream.Listen(h, IPELProtocol)
+	listener, err := gostream.Listen(h, ThreadProtocol)
 	if err != nil {
 		return nil, err
 	}
@@ -411,6 +385,11 @@ func (t *threads) GetLogs(id thread.ID) ([]thread.LogInfo, error) {
 		lgs = append(lgs, lg)
 	}
 	return lgs, nil
+}
+
+// Join the thread at the given address.
+func (t *threads) Join(ctx context.Context, addr ma.Multiaddr) error {
+	return t.service.get(ctx, addr)
 }
 
 // Delete the given thread.

@@ -2,10 +2,9 @@ package util
 
 import (
 	"crypto/rand"
-	"fmt"
 
 	ic "github.com/libp2p/go-libp2p-core/crypto"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
@@ -30,7 +29,8 @@ func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 	if err != nil {
 		return
 	}
-	addr, err := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", host.String()))
+	pro := ma.ProtocolWithCode(ma.P_P2P).Name
+	addr, err := ma.NewMultiaddr("/" + pro + "/" + host.String())
 	if err != nil {
 		return
 	}

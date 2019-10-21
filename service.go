@@ -130,13 +130,13 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 
 		if lg != nil {
 			// Notify existing logs of our new log
-			logs, err := cbor.NewLogs([]thread.LogInfo{*lg}, true)
+			lgs, err := cbor.NewLogs([]thread.LogInfo{*lg}, true)
 			if err != nil {
 				return nil, err
 			}
 			_, err = s.threads.Add(
 				ctx,
-				logs,
+				lgs,
 				tserv.AddOpt.ThreadID(req.ThreadID.ID),
 				tserv.AddOpt.KeyLog(req.LogID.ID))
 			if err != nil {
@@ -186,6 +186,37 @@ func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply,
 		}
 	}
 	return pbrecs, nil
+}
+
+// Get receives a get request.
+func (s *service) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetReply, error) {
+	lgs, err := s.threads.GetLogs(req.ThreadID.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	pblgs := &pb.GetReply{
+		Logs: make([]*pb.Log, len(lgs)),
+	}
+	for i, l := range lgs {
+		pbaddrs := make([]pb.ProtoAddr, len(l.Addrs))
+		for j, a := range l.Addrs {
+			pbaddrs[j] = pb.ProtoAddr{Multiaddr: a}
+		}
+		pbheads := make([]pb.ProtoCid, len(l.Heads))
+		for k, h := range l.Heads {
+			pbheads[k] = pb.ProtoCid{Cid: h}
+		}
+		pblgs.Logs[i] = &pb.Log{
+			ID:        &pb.ProtoPeerID{ID: l.ID},
+			PubKey:    &pb.ProtoPubKey{PubKey: l.PubKey},
+			FollowKey: l.FollowKey,
+			ReadKey:   l.ReadKey,
+			Addrs:     pbaddrs,
+			Heads:     pbheads,
+		}
+	}
+	return pblgs, nil
 }
 
 // push a record to log addresses and thread topic.
@@ -314,14 +345,14 @@ func (s *service) push(
 						PubKey: pk,
 						Addrs:  []ma.Multiaddr{reply.NewAddr.Multiaddr},
 					}
-					logs, err := cbor.NewLogs([]thread.LogInfo{lg}, true)
+					lgs, err := cbor.NewLogs([]thread.LogInfo{lg}, true)
 					if err != nil {
 						log.Error(err)
 						return
 					}
 					_, err = s.threads.Add(
 						ctx,
-						logs,
+						lgs,
 						tserv.AddOpt.ThreadID(req.ThreadID.ID),
 						tserv.AddOpt.KeyLog(req.LogID.ID))
 					if err != nil {
@@ -476,6 +507,79 @@ func (s *service) pullHistory(ctx context.Context, id thread.ID, lid peer.ID) er
 	return nil
 }
 
+// get the thread at the given address.
+func (s *service) get(ctx context.Context, addr ma.Multiaddr) error {
+	t, err := addr.ValueForProtocol(ThreadCode)
+	if err != nil {
+		return err
+	}
+	tid, err := thread.Decode(t)
+	if err != nil {
+		return err
+	}
+
+	req := &pb.GetRequest{
+		Header: &pb.GetRequest_Header{
+			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
+		},
+		ThreadID: &pb.ProtoThreadID{ID: tid},
+	}
+
+	p, err := addr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return err
+	}
+	pid, err := peer.IDB58Decode(p)
+	if err != nil {
+		return err
+	}
+	if pid.String() == s.threads.host.ID().String() {
+		return nil
+	}
+
+	log.Debugf("getting thread %s from %s...", t, p)
+
+	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+	defer cancel()
+	conn, err := s.dial(cctx, pid, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+	client := pb.NewThreadsClient(conn)
+	reply, err := client.Get(cctx, req)
+	if err != nil {
+		return err
+	}
+
+	// Add logs
+	// @todo: ensure does not exist? or overwrite with newer info?
+	for _, l := range reply.Logs {
+		addrs := make([]ma.Multiaddr, len(l.Addrs))
+		for j, a := range l.Addrs {
+			addrs[j] = a.Multiaddr
+		}
+		heads := make([]cid.Cid, len(l.Heads))
+		for k, h := range l.Heads {
+			heads[k] = h.Cid
+		}
+		lg := thread.LogInfo{
+			ID:        l.ID.ID,
+			PubKey:    l.PubKey.PubKey,
+			FollowKey: l.FollowKey,
+			ReadKey:   l.ReadKey,
+			Addrs:     addrs,
+			Heads:     heads,
+		}
+		if err = s.threads.AddLog(tid, lg); err != nil {
+			return err
+		}
+	}
+
+	log.Debugf("received reply from %s %s", p, reply.String())
+
+	return nil
+}
+
 // dial attempts to open a GRPC connection over libp2p to a peer.
 func (s *service) dial(
 	ctx context.Context,
@@ -493,7 +597,7 @@ func (s *service) getDialOption() grpc.DialOption {
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}
-		c, err := gostream.Dial(ctx, s.threads.host, id, IPELProtocol)
+		c, err := gostream.Dial(ctx, s.threads.host, id, ThreadProtocol)
 		return c, err
 	})
 }
@@ -600,13 +704,13 @@ func (s *service) handleNewLogs(
 	if err != nil {
 		return
 	}
-	logs, err := cbor.LogsFromNode(body)
+	lgs, err := cbor.LogsFromNode(body)
 	if err != nil {
 		return
 	}
 
 	// Add incoming logs
-	for _, lg := range logs.Logs {
+	for _, lg := range lgs.Logs {
 		if !lg.ID.MatchesPublicKey(lg.PubKey) {
 			err = fmt.Errorf("invalid log")
 			return
@@ -635,7 +739,7 @@ func (s *service) handleNewLogs(
 	}
 
 	// Create an own log if this is a new thread
-	if logs.Readable() && newThread {
+	if lgs.Readable() && newThread {
 		var lg thread.LogInfo
 		lg, err = s.threads.createLog()
 		if err != nil {
@@ -650,8 +754,9 @@ func (s *service) handleNewLogs(
 
 	// If not readable, return a new address for the sender's log.
 	// This peer becomes a follower.
-	if !logs.Readable() {
-		newAddr, err = ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", s.threads.host.ID().String()))
+	if !lgs.Readable() {
+		pro := ma.ProtocolWithCode(ma.P_P2P).Name
+		newAddr, err = ma.NewMultiaddr("/" + pro + "/" + s.threads.host.ID().String())
 		if err != nil {
 			return
 		}
@@ -690,13 +795,13 @@ func (s *service) handleLogUpdate(ctx context.Context, id thread.ID, lid peer.ID
 	if err != nil {
 		return err
 	}
-	logs, err := cbor.LogsFromNode(body)
+	lgs, err := cbor.LogsFromNode(body)
 	if err != nil {
 		return err
 	}
 
 	// Update the record's log
-	for _, lg := range logs.Logs {
+	for _, lg := range lgs.Logs {
 		if !lg.ID.MatchesPublicKey(lg.PubKey) {
 			return fmt.Errorf("invalid log")
 		}

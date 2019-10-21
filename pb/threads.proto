@@ -21,6 +21,21 @@ message Record {
     bytes bodyNode = 4;
 }
 
+// Log contains information about a thread log.
+message Log {
+    bytes ID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    bytes pubKey = 2 [(gogoproto.customtype) = "ProtoPubKey"];
+
+    bytes followKey = 3;
+
+    bytes readKey = 4;
+
+    repeated bytes addrs = 5 [(gogoproto.customtype) = "ProtoAddr"];
+
+    repeated bytes heads = 6 [(gogoproto.customtype) = "ProtoCid"];
+}
+
 // PushRequest is used as a record envelope for thread orchestration.
 message PushRequest {
     // header is the header message.
@@ -89,6 +104,26 @@ message PullReply {
     repeated Record records = 1;
 }
 
+// GetRequest is used to request thread logs.
+message GetRequest {
+    // header is the message header.
+    Header header = 1;
+
+    // threadID is the target thread's ID.
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+
+    // Header holds sender information.
+    message Header {
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    }
+}
+
+// GetReply contains logs requested with a GetRequest.
+message GetReply {
+    // logs are the result of the request.
+    repeated Log logs = 1;
+}
+
 // Threads is the peer-to-peer network API for thread orchestration.
 service Threads {
     // Push a record to a thread.
@@ -96,4 +131,7 @@ service Threads {
 
     // Pull records from a thread.
     rpc Pull(PullRequest) returns (PullReply) {}
+
+    // Get thread logs.
+    rpc Get(GetRequest) returns (GetReply) {}
 }
