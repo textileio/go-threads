@@ -98,12 +98,12 @@ func BenchmarkLogProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushRequestProtoMarshal(b *testing.B) {
+func BenchmarkGetLogsRequestProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PushRequest, 10000)
+	pops := make([]*GetLogsRequest, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedPushRequest(popr, false)
+		pops[i] = NewPopulatedGetLogsRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -116,18 +116,18 @@ func BenchmarkPushRequestProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushRequestProtoUnmarshal(b *testing.B) {
+func BenchmarkGetLogsRequestProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPushRequest(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedGetLogsRequest(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &PushRequest{}
+	msg := &GetLogsRequest{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -138,12 +138,12 @@ func BenchmarkPushRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushRequest_HeaderProtoMarshal(b *testing.B) {
+func BenchmarkGetLogsRequest_HeaderProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PushRequest_Header, 10000)
+	pops := make([]*GetLogsRequest_Header, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedPushRequest_Header(popr, false)
+		pops[i] = NewPopulatedGetLogsRequest_Header(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -156,18 +156,18 @@ func BenchmarkPushRequest_HeaderProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushRequest_HeaderProtoUnmarshal(b *testing.B) {
+func BenchmarkGetLogsRequest_HeaderProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPushRequest_Header(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedGetLogsRequest_Header(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &PushRequest_Header{}
+	msg := &GetLogsRequest_Header{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -178,12 +178,12 @@ func BenchmarkPushRequest_HeaderProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushReplyProtoMarshal(b *testing.B) {
+func BenchmarkGetLogsReplyProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PushReply, 10000)
+	pops := make([]*GetLogsReply, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedPushReply(popr, false)
+		pops[i] = NewPopulatedGetLogsReply(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -196,18 +196,18 @@ func BenchmarkPushReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkGetLogsReplyProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPushReply(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedGetLogsReply(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &PushReply{}
+	msg := &GetLogsReply{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -218,12 +218,12 @@ func BenchmarkPushReplyProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullRequestProtoMarshal(b *testing.B) {
+func BenchmarkPushRecordRequestProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PullRequest, 10000)
+	pops := make([]*PushRecordRequest, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedPullRequest(popr, false)
+		pops[i] = NewPopulatedPushRecordRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -236,18 +236,18 @@ func BenchmarkPullRequestProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullRequestProtoUnmarshal(b *testing.B) {
+func BenchmarkPushRecordRequestProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPullRequest(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPushRecordRequest(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &PullRequest{}
+	msg := &PushRecordRequest{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -258,12 +258,12 @@ func BenchmarkPullRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullRequest_HeaderProtoMarshal(b *testing.B) {
+func BenchmarkPushRecordRequest_HeaderProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PullRequest_Header, 10000)
+	pops := make([]*PushRecordRequest_Header, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedPullRequest_Header(popr, false)
+		pops[i] = NewPopulatedPushRecordRequest_Header(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -276,18 +276,18 @@ func BenchmarkPullRequest_HeaderProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullRequest_HeaderProtoUnmarshal(b *testing.B) {
+func BenchmarkPushRecordRequest_HeaderProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPullRequest_Header(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPushRecordRequest_Header(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &PullRequest_Header{}
+	msg := &PushRecordRequest_Header{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -298,12 +298,12 @@ func BenchmarkPullRequest_HeaderProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullReplyProtoMarshal(b *testing.B) {
+func BenchmarkPushRecordReplyProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PullReply, 10000)
+	pops := make([]*PushRecordReply, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedPullReply(popr, false)
+		pops[i] = NewPopulatedPushRecordReply(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -316,18 +316,18 @@ func BenchmarkPullReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkPushRecordReplyProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPullReply(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPushRecordReply(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &PullReply{}
+	msg := &PushRecordReply{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -338,12 +338,12 @@ func BenchmarkPullReplyProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetRequestProtoMarshal(b *testing.B) {
+func BenchmarkPullRecordsRequestProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*GetRequest, 10000)
+	pops := make([]*PullRecordsRequest, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedGetRequest(popr, false)
+		pops[i] = NewPopulatedPullRecordsRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -356,18 +356,18 @@ func BenchmarkGetRequestProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetRequestProtoUnmarshal(b *testing.B) {
+func BenchmarkPullRecordsRequestProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedGetRequest(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPullRecordsRequest(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &GetRequest{}
+	msg := &PullRecordsRequest{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -378,12 +378,12 @@ func BenchmarkGetRequestProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetRequest_HeaderProtoMarshal(b *testing.B) {
+func BenchmarkPullRecordsRequest_HeaderProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*GetRequest_Header, 10000)
+	pops := make([]*PullRecordsRequest_Header, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedGetRequest_Header(popr, false)
+		pops[i] = NewPopulatedPullRecordsRequest_Header(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -396,18 +396,18 @@ func BenchmarkGetRequest_HeaderProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetRequest_HeaderProtoUnmarshal(b *testing.B) {
+func BenchmarkPullRecordsRequest_HeaderProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedGetRequest_Header(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPullRecordsRequest_Header(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &GetRequest_Header{}
+	msg := &PullRecordsRequest_Header{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -418,12 +418,12 @@ func BenchmarkGetRequest_HeaderProtoUnmarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetReplyProtoMarshal(b *testing.B) {
+func BenchmarkPullRecordsReplyProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*GetReply, 10000)
+	pops := make([]*PullRecordsReply, 10000)
 	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedGetReply(popr, false)
+		pops[i] = NewPopulatedPullRecordsReply(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -436,18 +436,18 @@ func BenchmarkGetReplyProtoMarshal(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetReplyProtoUnmarshal(b *testing.B) {
+func BenchmarkPullRecordsReplyProtoUnmarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
 	datas := make([][]byte, 10000)
 	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedGetReply(popr, false))
+		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedPullRecordsReply(popr, false))
 		if err != nil {
 			panic(err)
 		}
 		datas[i] = dAtA
 	}
-	msg := &GetReply{}
+	msg := &PullRecordsReply{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		total += len(datas[i%10000])
@@ -486,12 +486,12 @@ func BenchmarkLogSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushRequestSize(b *testing.B) {
+func BenchmarkGetLogsRequestSize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PushRequest, 1000)
+	pops := make([]*GetLogsRequest, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedPushRequest(popr, false)
+		pops[i] = NewPopulatedGetLogsRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -500,12 +500,12 @@ func BenchmarkPushRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushRequest_HeaderSize(b *testing.B) {
+func BenchmarkGetLogsRequest_HeaderSize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PushRequest_Header, 1000)
+	pops := make([]*GetLogsRequest_Header, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedPushRequest_Header(popr, false)
+		pops[i] = NewPopulatedGetLogsRequest_Header(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -514,12 +514,12 @@ func BenchmarkPushRequest_HeaderSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPushReplySize(b *testing.B) {
+func BenchmarkGetLogsReplySize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PushReply, 1000)
+	pops := make([]*GetLogsReply, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedPushReply(popr, false)
+		pops[i] = NewPopulatedGetLogsReply(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -528,12 +528,12 @@ func BenchmarkPushReplySize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullRequestSize(b *testing.B) {
+func BenchmarkPushRecordRequestSize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PullRequest, 1000)
+	pops := make([]*PushRecordRequest, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedPullRequest(popr, false)
+		pops[i] = NewPopulatedPushRecordRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -542,12 +542,12 @@ func BenchmarkPullRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullRequest_HeaderSize(b *testing.B) {
+func BenchmarkPushRecordRequest_HeaderSize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PullRequest_Header, 1000)
+	pops := make([]*PushRecordRequest_Header, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedPullRequest_Header(popr, false)
+		pops[i] = NewPopulatedPushRecordRequest_Header(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -556,12 +556,12 @@ func BenchmarkPullRequest_HeaderSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkPullReplySize(b *testing.B) {
+func BenchmarkPushRecordReplySize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*PullReply, 1000)
+	pops := make([]*PushRecordReply, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedPullReply(popr, false)
+		pops[i] = NewPopulatedPushRecordReply(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -570,12 +570,12 @@ func BenchmarkPullReplySize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetRequestSize(b *testing.B) {
+func BenchmarkPullRecordsRequestSize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*GetRequest, 1000)
+	pops := make([]*PullRecordsRequest, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedGetRequest(popr, false)
+		pops[i] = NewPopulatedPullRecordsRequest(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -584,12 +584,12 @@ func BenchmarkGetRequestSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetRequest_HeaderSize(b *testing.B) {
+func BenchmarkPullRecordsRequest_HeaderSize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*GetRequest_Header, 1000)
+	pops := make([]*PullRecordsRequest_Header, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedGetRequest_Header(popr, false)
+		pops[i] = NewPopulatedPullRecordsRequest_Header(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -598,12 +598,12 @@ func BenchmarkGetRequest_HeaderSize(b *testing.B) {
 	b.SetBytes(int64(total / b.N))
 }
 
-func BenchmarkGetReplySize(b *testing.B) {
+func BenchmarkPullRecordsReplySize(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
-	pops := make([]*GetReply, 1000)
+	pops := make([]*PullRecordsReply, 1000)
 	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedGetReply(popr, false)
+		pops[i] = NewPopulatedPullRecordsReply(popr, false)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

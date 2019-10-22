@@ -17,7 +17,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/asymmetric"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	"github.com/textileio/go-textile-threads/cbor"
@@ -52,7 +51,7 @@ func newService(t *threads) (*service, error) {
 		pubsub:  ps,
 	}
 
-	ts, err := t.Threads()
+	ts, err := t.store.Threads()
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +64,39 @@ func newService(t *threads) (*service, error) {
 	return s, nil
 }
 
-// Push receives a push request.
-func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply, error) {
+// GetLogs receives a get logs request.
+func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
+	lgs, err := s.threads.getLogs(req.ThreadID.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	pblgs := &pb.GetLogsReply{
+		Logs: make([]*pb.Log, len(lgs)),
+	}
+	for i, l := range lgs {
+		pbaddrs := make([]pb.ProtoAddr, len(l.Addrs))
+		for j, a := range l.Addrs {
+			pbaddrs[j] = pb.ProtoAddr{Multiaddr: a}
+		}
+		pbheads := make([]pb.ProtoCid, len(l.Heads))
+		for k, h := range l.Heads {
+			pbheads[k] = pb.ProtoCid{Cid: h}
+		}
+		pblgs.Logs[i] = &pb.Log{
+			ID:        &pb.ProtoPeerID{ID: l.ID},
+			PubKey:    &pb.ProtoPubKey{PubKey: l.PubKey},
+			FollowKey: &pb.ProtoKey{Key: l.FollowKey},
+			ReadKey:   &pb.ProtoKey{Key: l.ReadKey},
+			Addrs:     pbaddrs,
+			Heads:     pbheads,
+		}
+	}
+	return pblgs, nil
+}
+
+// PushRecord receives a push record request.
+func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb.PushRecordReply, error) {
 	if req.Header == nil {
 		return nil, fmt.Errorf("request header is required")
 	}
@@ -81,23 +111,23 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		return nil, err
 	}
 
-	reply := &pb.PushReply{}
+	reply := &pb.PushRecordReply{}
 
 	// Unpack the record
-	var fkey []byte
+	var key crypto.DecryptionKey
 	if req.Header.FollowKey != nil {
-		fkey = req.Header.FollowKey
+		key = req.Header.FollowKey
 	} else {
-		fkey, err = s.threads.FollowKey(req.ThreadID.ID, req.LogID.ID)
+		key, err = s.threads.store.FollowKey(req.ThreadID.ID, req.LogID.ID)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if fkey == nil {
+	if key == nil {
 		return nil, fmt.Errorf("follow key not found")
 	}
 
-	rec, err := recordFromProto(req.Record, fkey)
+	rec, err := recordFromProto(req.Record, key)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +140,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	}
 
 	// Check if this log already exists
-	logpk, err := s.threads.PubKey(req.ThreadID.ID, req.LogID.ID)
+	logpk, err := s.threads.store.PubKey(req.ThreadID.ID, req.LogID.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +164,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 			if err != nil {
 				return nil, err
 			}
-			_, err = s.threads.Add(
+			_, err = s.threads.AddRecord(
 				ctx,
 				lgs,
 				tserv.AddOpt.ThreadID(req.ThreadID.ID),
@@ -154,7 +184,7 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 		}
 	}
 
-	if err = s.threads.Put(
+	if err = s.threads.PutRecord(
 		ctx,
 		rec,
 		tserv.PutOpt.ThreadID(req.ThreadID.ID),
@@ -165,8 +195,8 @@ func (s *service) Push(ctx context.Context, req *pb.PushRequest) (*pb.PushReply,
 	return reply, nil
 }
 
-// Pull receives a pull request.
-func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply, error) {
+// PullRecords receives a pull records request.
+func (s *service) PullRecords(ctx context.Context, req *pb.PullRecordsRequest) (*pb.PullRecordsReply, error) {
 	recs, err := s.threads.pullLocal(
 		ctx, req.ThreadID.ID,
 		req.LogID.ID,
@@ -176,11 +206,11 @@ func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply,
 		return nil, err
 	}
 
-	pbrecs := &pb.PullReply{
+	pbrecs := &pb.PullRecordsReply{
 		Records: make([]*pb.Record, len(recs)),
 	}
 	for i, r := range recs {
-		pbrecs.Records[i], err = cbor.RecordToProto(ctx, s.threads.dagService, r)
+		pbrecs.Records[i], err = cbor.RecordToProto(ctx, s.threads, r)
 		if err != nil {
 			return nil, err
 		}
@@ -188,39 +218,8 @@ func (s *service) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullReply,
 	return pbrecs, nil
 }
 
-// Get receives a get request.
-func (s *service) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetReply, error) {
-	lgs, err := s.threads.GetLogs(req.ThreadID.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	pblgs := &pb.GetReply{
-		Logs: make([]*pb.Log, len(lgs)),
-	}
-	for i, l := range lgs {
-		pbaddrs := make([]pb.ProtoAddr, len(l.Addrs))
-		for j, a := range l.Addrs {
-			pbaddrs[j] = pb.ProtoAddr{Multiaddr: a}
-		}
-		pbheads := make([]pb.ProtoCid, len(l.Heads))
-		for k, h := range l.Heads {
-			pbheads[k] = pb.ProtoCid{Cid: h}
-		}
-		pblgs.Logs[i] = &pb.Log{
-			ID:        &pb.ProtoPeerID{ID: l.ID},
-			PubKey:    &pb.ProtoPubKey{PubKey: l.PubKey},
-			FollowKey: l.FollowKey,
-			ReadKey:   l.ReadKey,
-			Addrs:     pbaddrs,
-			Heads:     pbheads,
-		}
-	}
-	return pblgs, nil
-}
-
-// push a record to log addresses and thread topic.
-func (s *service) push(
+// pushRecord to log addresses and thread topic.
+func (s *service) pushRecord(
 	ctx context.Context,
 	rec thread.Record,
 	id thread.ID,
@@ -229,7 +228,7 @@ func (s *service) push(
 ) error {
 	var addrs []ma.Multiaddr
 	// Collect known writers
-	info, err := s.threads.ThreadInfo(settings.ThreadID)
+	info, err := s.threads.store.ThreadInfo(settings.ThreadID)
 	if err != nil {
 		return err
 	}
@@ -237,7 +236,7 @@ func (s *service) push(
 		if l.String() == lid.String() {
 			continue
 		}
-		laddrs, err := s.threads.Addrs(settings.ThreadID, l)
+		laddrs, err := s.threads.store.Addrs(settings.ThreadID, l)
 		if err != nil {
 			return err
 		}
@@ -248,7 +247,7 @@ func (s *service) push(
 	addrs = append(addrs, settings.Addrs...)
 
 	// Serialize and sign the record for transport
-	pbrec, err := cbor.RecordToProto(ctx, s.threads.dagService, rec)
+	pbrec, err := cbor.RecordToProto(ctx, s.threads, rec)
 	if err != nil {
 		return err
 	}
@@ -266,23 +265,23 @@ func (s *service) push(
 	}
 
 	var keyLog *pb.ProtoPeerID
-	logKey, err := s.threads.ReadKey(settings.ThreadID, settings.KeyLog)
+	logKey, err := s.threads.store.ReadKey(settings.ThreadID, settings.KeyLog)
 	if err != nil {
 		return err
 	}
 	if logKey != nil {
 		keyLog = &pb.ProtoPeerID{ID: settings.KeyLog}
 	}
-	followKey, err := s.threads.FollowKey(id, lid)
+	followKey, err := s.threads.store.FollowKey(id, lid)
 	if err != nil {
 		return err
 	}
-	req := &pb.PushRequest{
-		Header: &pb.PushRequest_Header{
+	req := &pb.PushRecordRequest{
+		Header: &pb.PushRecordRequest_Header{
 			From:         &pb.ProtoPeerID{ID: s.threads.host.ID()},
 			Signature:    sig,
 			Key:          &pb.ProtoPubKey{PubKey: sk.GetPublic()},
-			FollowKey:    followKey,
+			FollowKey:    &pb.ProtoKey{Key: followKey},
 			ReadKeyLogID: keyLog,
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
@@ -317,7 +316,7 @@ func (s *service) push(
 				return
 			}
 			client := pb.NewThreadsClient(conn)
-			reply, err := client.Push(cctx, req)
+			reply, err := client.PushRecord(cctx, req)
 			if err != nil {
 				log.Error(err)
 				return
@@ -327,7 +326,7 @@ func (s *service) push(
 
 			// Handle new log addresses
 			if reply.NewAddr != nil {
-				err = s.threads.AddAddr(id, lid, reply.NewAddr.Multiaddr, pstore.PermanentAddrTTL)
+				err = s.threads.store.AddAddr(id, lid, reply.NewAddr.Multiaddr, pstore.PermanentAddrTTL)
 				if err != nil {
 					log.Error(err)
 					return
@@ -335,7 +334,7 @@ func (s *service) push(
 
 				// Notify others
 				go func() {
-					pk, err := s.threads.PubKey(id, lid)
+					pk, err := s.threads.store.PubKey(id, lid)
 					if err != nil {
 						log.Error(err)
 						return
@@ -350,7 +349,7 @@ func (s *service) push(
 						log.Error(err)
 						return
 					}
-					_, err = s.threads.Add(
+					_, err = s.threads.AddRecord(
 						ctx,
 						lgs,
 						tserv.AddOpt.ThreadID(req.ThreadID.ID),
@@ -407,28 +406,24 @@ func (r *records) Store(key cid.Cid, value thread.Record) {
 	r.s = append(r.s, value)
 }
 
-// pull records from log addresses.
-func (s *service) pull(
+// pullRecords from log addresses.
+func (s *service) pullRecords(
 	ctx context.Context,
 	id thread.ID,
 	lid peer.ID,
 	offset cid.Cid,
 	limit int,
 ) ([]thread.Record, error) {
-	lg, err := s.threads.LogInfo(id, lid)
+	lg, err := s.threads.store.LogInfo(id, lid)
 	if err != nil {
 		return nil, err
 	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
 	}
-	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
-	if err != nil {
-		return nil, err
-	}
 
-	req := &pb.PullRequest{
-		Header: &pb.PullRequest_Header{
+	req := &pb.PullRecordsRequest{
+		Header: &pb.PullRecordsRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
@@ -468,22 +463,22 @@ func (s *service) pull(
 				return
 			}
 			client := pb.NewThreadsClient(conn)
-			reply, err := client.Pull(cctx, req)
+			reply, err := client.PullRecords(cctx, req)
 			if err != nil {
 				log.Error(err)
 				return
 			}
 
+			log.Debugf("received %d records from %s", len(reply.Records), p)
+
 			for _, r := range reply.Records {
-				rec, err := cbor.RecordFromProto(r, fk)
+				rec, err := cbor.RecordFromProto(r, lg.FollowKey)
 				if err != nil {
 					log.Error(err)
 					return
 				}
 				recs.Store(rec.Cid(), rec)
 			}
-
-			log.Debugf("received reply from %s", p)
 		}(addr)
 	}
 
@@ -494,12 +489,12 @@ func (s *service) pull(
 // pullHistory downloads a logs entire history.
 // @todo: Offset needs to be expanded into a start and stop cid
 func (s *service) pullHistory(ctx context.Context, id thread.ID, lid peer.ID) error {
-	recs, err := s.pull(ctx, id, lid, cid.Undef, MaxPullLimit)
+	recs, err := s.pullRecords(ctx, id, lid, cid.Undef, MaxPullLimit)
 	if err != nil {
 		return err
 	}
 	for _, r := range recs {
-		err = s.threads.Put(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lid))
+		err = s.threads.PutRecord(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lid))
 		if err != nil {
 			return err
 		}
@@ -507,53 +502,33 @@ func (s *service) pullHistory(ctx context.Context, id thread.ID, lid peer.ID) er
 	return nil
 }
 
-// get the thread at the given address.
-func (s *service) get(ctx context.Context, addr ma.Multiaddr) error {
-	t, err := addr.ValueForProtocol(ThreadCode)
-	if err != nil {
-		return err
-	}
-	tid, err := thread.Decode(t)
-	if err != nil {
-		return err
-	}
-
-	req := &pb.GetRequest{
-		Header: &pb.GetRequest_Header{
+// getLogs in a thread.
+func (s *service) getLogs(ctx context.Context, pid peer.ID, tid thread.ID) ([]thread.LogInfo, error) {
+	req := &pb.GetLogsRequest{
+		Header: &pb.GetLogsRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
 		},
 		ThreadID: &pb.ProtoThreadID{ID: tid},
 	}
 
-	p, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		return err
-	}
-	pid, err := peer.IDB58Decode(p)
-	if err != nil {
-		return err
-	}
-	if pid.String() == s.threads.host.ID().String() {
-		return nil
-	}
-
-	log.Debugf("getting thread %s from %s...", t, p)
+	log.Debugf("getting thread %s logs from %s...", tid.String(), pid.String())
 
 	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()
 	conn, err := s.dial(cctx, pid, grpc.WithInsecure())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	client := pb.NewThreadsClient(conn)
-	reply, err := client.Get(cctx, req)
+	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Add logs
-	// @todo: ensure does not exist? or overwrite with newer info?
-	for _, l := range reply.Logs {
+	log.Debugf("received %d logs from %s", len(reply.Logs), pid.String())
+
+	lgs := make([]thread.LogInfo, len(reply.Logs))
+	for i, l := range reply.Logs {
 		addrs := make([]ma.Multiaddr, len(l.Addrs))
 		for j, a := range l.Addrs {
 			addrs[j] = a.Multiaddr
@@ -562,22 +537,17 @@ func (s *service) get(ctx context.Context, addr ma.Multiaddr) error {
 		for k, h := range l.Heads {
 			heads[k] = h.Cid
 		}
-		lg := thread.LogInfo{
+		lgs[i] = thread.LogInfo{
 			ID:        l.ID.ID,
 			PubKey:    l.PubKey.PubKey,
-			FollowKey: l.FollowKey,
-			ReadKey:   l.ReadKey,
+			FollowKey: l.FollowKey.Key,
+			ReadKey:   l.ReadKey.Key,
 			Addrs:     addrs,
 			Heads:     heads,
 		}
-		if err = s.threads.AddLog(tid, lg); err != nil {
-			return err
-		}
 	}
 
-	log.Debugf("received reply from %s %s", p, reply.String())
-
-	return nil
+	return lgs, nil
 }
 
 // dial attempts to open a GRPC connection over libp2p to a peer.
@@ -626,7 +596,7 @@ func (s *service) subscribe(id thread.ID) {
 			continue
 		}
 
-		req := new(pb.PushRequest)
+		req := new(pb.PushRecordRequest)
 		err = proto.Unmarshal(msg.Data, req)
 		if err != nil {
 			log.Error(err)
@@ -635,7 +605,7 @@ func (s *service) subscribe(id thread.ID) {
 
 		log.Debugf("received multicast request from %s", from.String())
 
-		_, err = s.Push(s.threads.ctx, req)
+		_, err = s.PushRecord(s.threads.ctx, req)
 		if err != nil {
 			log.Error(err)
 			continue
@@ -644,7 +614,7 @@ func (s *service) subscribe(id thread.ID) {
 }
 
 // publish a request to a thread.
-func (s *service) publish(id thread.ID, req *pb.PushRequest) error {
+func (s *service) publish(id thread.ID, req *pb.PushRecordRequest) error {
 	data, err := req.Marshal()
 	if err != nil {
 		return err
@@ -660,30 +630,25 @@ func (s *service) handleNewLogs(
 	kid peer.ID,
 	rec thread.Record,
 ) (ownLog *thread.LogInfo, newAddr ma.Multiaddr, err error) {
-	event, err := cbor.EventFromRecord(ctx, s.threads.dagService, rec)
+	event, err := cbor.EventFromRecord(ctx, s.threads, rec)
 	if err != nil {
 		return
 	}
 
 	var newThread bool
 	var key crypto.DecryptionKey
-	ti, err := s.threads.ThreadInfo(id)
+	ti, err := s.threads.store.ThreadInfo(id)
 	if err != nil {
 		return
 	}
 	if ti.Logs.Len() > 0 {
 		// Thread exists—there should be a key log id
-		var logKey []byte
-		logKey, err = s.threads.ReadKey(id, kid)
+		key, err = s.threads.store.ReadKey(id, kid)
 		if err != nil {
 			return
 		}
-		if logKey == nil {
+		if key == nil {
 			err = fmt.Errorf("read key not found")
-			return
-		}
-		key, err = symmetric.NewKey(logKey)
-		if err != nil {
 			return
 		}
 	} else {
@@ -700,7 +665,7 @@ func (s *service) handleNewLogs(
 		newThread = true
 	}
 
-	body, err := event.GetBody(ctx, s.threads.dagService, key)
+	body, err := event.GetBody(ctx, s.threads, key)
 	if err != nil {
 		return
 	}
@@ -721,7 +686,7 @@ func (s *service) handleNewLogs(
 				return
 			}
 		}
-		err = s.threads.AddLog(id, lg)
+		err = s.threads.store.AddLog(id, lg)
 		if err != nil {
 			return
 		}
@@ -745,7 +710,7 @@ func (s *service) handleNewLogs(
 		if err != nil {
 			return
 		}
-		err = s.threads.AddLog(id, lg)
+		err = s.threads.store.AddLog(id, lg)
 		if err != nil {
 			return
 		}
@@ -760,7 +725,7 @@ func (s *service) handleNewLogs(
 		if err != nil {
 			return
 		}
-		err = s.threads.AddAddr(id, lid, newAddr, pstore.PermanentAddrTTL)
+		err = s.threads.store.AddAddr(id, lid, newAddr, pstore.PermanentAddrTTL)
 		if err != nil {
 			return
 		}
@@ -775,23 +740,19 @@ func (s *service) handleNewLogs(
 
 // handleLogUpdate processes a record as a log update.
 func (s *service) handleLogUpdate(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
-	event, err := cbor.EventFromRecord(ctx, s.threads.dagService, rec)
+	event, err := cbor.EventFromRecord(ctx, s.threads, rec)
 	if err != nil {
 		return err
 	}
-	rk, err := s.threads.ReadKey(id, lid)
+	key, err := s.threads.store.ReadKey(id, lid)
 	if err != nil {
 		return err
 	}
-	if rk == nil {
+	if key == nil {
 		return nil // No key, carry on
 	}
-	key, err := symmetric.NewKey(rk)
-	if err != nil {
-		return err
-	}
 
-	body, err := event.GetBody(ctx, s.threads.dagService, key)
+	body, err := event.GetBody(ctx, s.threads, key)
 	if err != nil {
 		return err
 	}
@@ -812,7 +773,7 @@ func (s *service) handleLogUpdate(ctx context.Context, id thread.ID, lid peer.ID
 		if err != nil {
 			return err
 		}
-		err = s.threads.AddLog(id, lg)
+		err = s.threads.store.AddLog(id, lg)
 		if err != nil {
 			return err
 		}
@@ -821,7 +782,7 @@ func (s *service) handleLogUpdate(ctx context.Context, id thread.ID, lid peer.ID
 }
 
 // requestPubKey returns the key associated with a request.
-func requestPubKey(r *pb.PushRequest) (ic.PubKey, error) {
+func requestPubKey(r *pb.PushRecordRequest) (ic.PubKey, error) {
 	var pubk ic.PubKey
 	var err error
 	if r.Header.Key == nil {
@@ -859,10 +820,6 @@ func verifyRequestSignature(rec *pb.Record, pk ic.PubKey, sig []byte) error {
 }
 
 // recordFromProto returns a thread record from a proto record.
-func recordFromProto(rec *pb.Record, key []byte) (thread.Record, error) {
-	dkey, err := crypto.ParseDecryptionKey(key)
-	if err != nil {
-		return nil, err
-	}
-	return cbor.RecordFromProto(rec, dkey)
+func recordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, error) {
+	return cbor.RecordFromProto(rec, key)
 }

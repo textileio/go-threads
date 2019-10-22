@@ -38,8 +38,8 @@ func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 		ID:        id,
 		PubKey:    pk,
 		PrivKey:   sk,
-		ReadKey:   rk.Bytes(),
-		FollowKey: fk.Bytes(),
+		ReadKey:   rk,
+		FollowKey: fk,
 		Addrs:     []ma.Multiaddr{addr},
 	}, nil
 }
@@ -47,7 +47,7 @@ func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 // GetOrCreateLog returns the log with the given thread and log id.
 // If no log exists, a new one is created under the given thread.
 func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = t.LogInfo(id, lid)
+	info, err = t.Store().LogInfo(id, lid)
 	if err != nil {
 		return
 	}
@@ -58,23 +58,23 @@ func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thre
 	if err != nil {
 		return
 	}
-	err = t.AddLog(id, info)
+	err = t.Store().AddLog(id, info)
 	return
 }
 
 // GetOwnLoad returns the log owned by the host under the given thread.
 func GetOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := t.LogsWithKeys(id)
+	logs, err := t.Store().LogsWithKeys(id)
 	if err != nil {
 		return info, err
 	}
 	for _, lid := range logs {
-		sk, err := t.PrivKey(id, lid)
+		sk, err := t.Store().PrivKey(id, lid)
 		if err != nil {
 			return info, err
 		}
 		if sk != nil {
-			li, err := t.LogInfo(id, lid)
+			li, err := t.Store().LogInfo(id, lid)
 			if err != nil {
 				return info, err
 			}
@@ -98,6 +98,6 @@ func GetOrCreateOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo
 	if err != nil {
 		return
 	}
-	err = t.AddLog(id, info)
+	err = t.Store().AddLog(id, info)
 	return
 }

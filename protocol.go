@@ -25,10 +25,8 @@ var addrProtocol = ma.Protocol{
 	Code:       ThreadCode,
 	VCode:      ma.CodeToVarint(ThreadCode),
 	Size:       ma.LengthPrefixedVarSize,
-	Transcoder: TranscoderThread,
+	Transcoder: ma.NewTranscoderFromFunctions(threadStB, threadBtS, threadVal),
 }
-
-var TranscoderThread = ma.NewTranscoderFromFunctions(threadStB, threadBtS, threadVal)
 
 func threadStB(s string) ([]byte, error) {
 	_, data, err := mb.Decode(s)

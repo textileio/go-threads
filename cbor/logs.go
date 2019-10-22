@@ -3,6 +3,8 @@ package cbor
 import (
 	"fmt"
 
+	"github.com/textileio/go-textile-core/crypto/symmetric"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/ipfs/go-ipld-format"
@@ -53,12 +55,12 @@ func NewLogs(lgs []thread.LogInfo, readable bool) (format.Node, error) {
 		lg := log{
 			ID:        l.ID.String(),
 			PubKey:    pk,
-			FollowKey: l.FollowKey,
+			FollowKey: l.FollowKey.Bytes(),
 			Addrs:     addrs,
 			Heads:     heads,
 		}
 		if readable {
-			lg.ReadKey = l.ReadKey
+			lg.ReadKey = l.ReadKey.Bytes()
 		}
 		ls[i] = lg
 	}
@@ -102,13 +104,22 @@ func LogsFromNode(node format.Node) (*Logs, error) {
 				return nil, err
 			}
 		}
+		fk, err := symmetric.NewKey(l.FollowKey)
+		if err != nil {
+			return nil, err
+		}
 		lg := thread.LogInfo{
 			ID:        id,
 			PubKey:    pk,
-			FollowKey: l.FollowKey,
-			ReadKey:   l.ReadKey,
+			FollowKey: fk,
 			Addrs:     addrs,
 			Heads:     heads,
+		}
+		if l.ReadKey != nil {
+			lg.ReadKey, err = symmetric.NewKey(l.ReadKey)
+			if err != nil {
+				return nil, err
+			}
 		}
 		info.Logs[i] = lg
 	}

@@ -140,12 +140,12 @@ func testKeyBookReadKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddReadKey(tid, id, key.Bytes())
+		err = kb.AddReadKey(tid, id, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res, err := kb.ReadKey(tid, id); err != nil || !bytes.Equal(res, key.Bytes()) {
+		if res, err := kb.ReadKey(tid, id); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
@@ -174,12 +174,12 @@ func testKeyBookFollowKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddFollowKey(tid, id, key.Bytes())
+		err = kb.AddFollowKey(tid, id, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res, err := kb.FollowKey(tid, id); err != nil || !bytes.Equal(res, key.Bytes()) {
+		if res, err := kb.FollowKey(tid, id); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
