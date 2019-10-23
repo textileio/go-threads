@@ -59,11 +59,7 @@ func (s *service) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thr
 }
 
 // pushLog to a peer.
-func (s *service) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid peer.ID) error {
-	l, err := s.threads.store.LogInfo(id, lid)
-	if err != nil {
-		return err
-	}
+func (s *service) pushLog(ctx context.Context, id thread.ID, l thread.LogInfo, pid peer.ID) error {
 	lreq := &pb.PushLogRequest{
 		Header: &pb.PushLogRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
@@ -72,7 +68,7 @@ func (s *service) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid pe
 		Log:      logToProto(l),
 	}
 
-	log.Debugf("pushing log %s to %s...", lid.String(), pid.String())
+	log.Debugf("pushing log %s to %s...", l.ID.String(), pid.String())
 
 	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()

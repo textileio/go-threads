@@ -14,6 +14,7 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
@@ -237,7 +238,71 @@ func (t *threads) DeleteThread(ctx context.Context, id thread.ID) error {
 
 // AddFollower to a thread.
 func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
+	lgs, err := t.getLogs(id)
+	if err != nil {
+		return err
+	}
+	for _, l := range lgs {
+		if err = t.service.pushLog(ctx, id, l, pid); err != nil {
+			return err
+		}
+	}
 
+	// Update local addresses
+	pro := ma.ProtocolWithCode(ma.P_P2P).Name
+	addr, err := ma.NewMultiaddr("/" + pro + "/" + pid.String())
+	if err != nil {
+		return err
+	}
+	ownlg, err := util.GetOwnLog(t, id)
+	if err != nil {
+		return err
+	}
+	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+		return err
+	}
+
+	// Send the updated log to peers
+	var addrs []ma.Multiaddr
+	info, err := t.store.ThreadInfo(id)
+	if err != nil {
+		return err
+	}
+	for _, l := range info.Logs {
+		if l.String() == ownlg.ID.String() {
+			continue
+		}
+		laddrs, err := t.store.Addrs(id, l)
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, laddrs...)
+	}
+
+	wg := sync.WaitGroup{}
+	for _, addr := range addrs {
+		wg.Add(1)
+		go func(addr ma.Multiaddr) {
+			defer wg.Done()
+			p, err := addr.ValueForProtocol(ma.P_P2P)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			pid, err := peer.IDB58Decode(p)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+
+			if err = t.service.pushLog(ctx, id, ownlg, pid); err != nil {
+				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
+			}
+		}(addr)
+	}
+
+	wg.Wait()
+	return nil
 }
 
 // AddRecord with body. See AddOption for more.
