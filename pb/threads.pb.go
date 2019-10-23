@@ -776,7 +776,7 @@ const _ = grpc.SupportPackageIsVersion4
 type ThreadsClient interface {
 	// GetLogs from a peer.
 	GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsReply, error)
-	// PushLog to a peer
+	// PushLog to a peer.
 	PushLog(ctx context.Context, in *PushLogRequest, opts ...grpc.CallOption) (*PushLogReply, error)
 	// GetRecords from a peer.
 	GetRecords(ctx context.Context, in *GetRecordsRequest, opts ...grpc.CallOption) (*GetRecordsReply, error)
@@ -832,7 +832,7 @@ func (c *threadsClient) PushRecord(ctx context.Context, in *PushRecordRequest, o
 type ThreadsServer interface {
 	// GetLogs from a peer.
 	GetLogs(context.Context, *GetLogsRequest) (*GetLogsReply, error)
-	// PushLog to a peer
+	// PushLog to a peer.
 	PushLog(context.Context, *PushLogRequest) (*PushLogReply, error)
 	// GetRecords from a peer.
 	GetRecords(context.Context, *GetRecordsRequest) (*GetRecordsReply, error)

@@ -140,7 +140,7 @@ service Threads {
     // GetLogs from a peer.
     rpc GetLogs(GetLogsRequest) returns (GetLogsReply) {}
 
-    // PushLog to a peer
+    // PushLog to a peer.
     rpc PushLog(PushLogRequest) returns (PushLogReply) {}
 
     // GetRecords from a peer.

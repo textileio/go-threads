@@ -167,57 +167,6 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		if info2.Logs.Len() != 2 {
 			t.Fatalf("expected 2 log got %d", info2.Logs.Len())
 		}
-
-		//info1, err := ts1.Store().ThreadInfo(tid)
-		//check(t, err)
-		//if len(info1.Logs) != 2 {
-		//	t.Fatalf("expected 2 logs got %d", len(info1.Logs))
-		//}
-		//for _, lid := range info1.Logs {
-		//	if lid.String() == r1.LogID().String() {
-		//		// Peer 1 should have 2 records in its own log (one msg
-		//		// and one invite record)
-		//		_, err = ts1.Get(ctx, tid, lid, r1.Value().Cid())
-		//		check(t, err)
-		//		_, err := ts1.Get(ctx, tid, lid, r2.Value().Cid())
-		//		check(t, err)
-		//	} else {
-		//		// Peer 1 should have 1 record in its log for peer 2 (one invite record)
-		//		heads, err := ts1.Heads(tid, lid)
-		//		check(t, err)
-		//		if len(heads) != 1 { // double check we only have one head
-		//			t.Fatalf("expected 1 head got %d", len(heads))
-		//		}
-		//		_, err = ts1.Get(ctx, tid, lid, heads[0])
-		//		check(t, err)
-		//	}
-		//}
-		//
-		//info2, err := ts2.ThreadInfo(tid)
-		//check(t, err)
-		//if len(info2.Logs) != 2 {
-		//	t.Fatalf("expected 2 logs got %d", len(info2.Logs))
-		//}
-		//time.Sleep(time.Second) // Give ts2 some time to traverse the logs.
-		//for _, lid := range info2.Logs {
-		//	if lid.String() == r1.LogID().String() {
-		//		// Peer 2 should have 2 records in its log for peer 1 (one msg
-		//		// and one invite record)
-		//		_, err = ts2.Get(ctx, tid, lid, r1.Value().Cid())
-		//		check(t, err)
-		//		_, err := ts2.Get(ctx, tid, lid, r2.Value().Cid())
-		//		check(t, err)
-		//	} else {
-		//		// Peer 2 should have 1 record in its own log (one invite record)
-		//		heads, err := ts2.Heads(tid, lid)
-		//		check(t, err)
-		//		if len(heads) != 1 { // double check we only have one head
-		//			t.Fatalf("expected 1 head got %d", len(heads))
-		//		}
-		//		_, err = ts2.Get(ctx, tid, lid, heads[0])
-		//		check(t, err)
-		//	}
-		//}
 	}
 }
 

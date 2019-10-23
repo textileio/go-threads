@@ -235,81 +235,9 @@ func (t *threads) DeleteThread(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
-// record wraps a thread.Record with thread and log context.
-type record struct {
-	thread.Record
-	threadID thread.ID
-	logID    peer.ID
-}
+// AddFollower to a thread.
+func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
 
-// Value returns the underlying record.
-func (r *record) Value() thread.Record {
-	return r
-}
-
-// ThreadID returns the record's thread ID.
-func (r *record) ThreadID() thread.ID {
-	return r.threadID
-}
-
-// LogID returns the record's log ID.
-func (r *record) LogID() peer.ID {
-	return r.logID
-}
-
-// recordListener receives record updates.
-type recordListener struct {
-	l  *broadcast.Listener
-	ch chan tserv.Record
-}
-
-// Discard closes the RecordListener, disabling the reception of further records.
-func (l *recordListener) Discard() {
-	l.l.Discard()
-}
-
-// Channel returns the channel that receives broadcast records.
-func (l *recordListener) Channel() <-chan tserv.Record {
-	return l.ch
-}
-
-// Subscribe returns a read-only channel of records.
-func (t *threads) Subscribe(opts ...tserv.SubOption) tserv.Subscription {
-	settings := tserv.SubOptions(opts...)
-	filter := make(map[thread.ID]struct{})
-	for _, id := range settings.ThreadIDs {
-		if id.Defined() {
-			filter[id] = struct{}{}
-		}
-	}
-	listener := &recordListener{
-		l:  t.bus.Listen(),
-		ch: make(chan tserv.Record),
-	}
-	go func() {
-		for {
-			select {
-			case i, ok := <-listener.l.Channel():
-				if !ok {
-					close(listener.ch)
-					return
-				}
-				r, ok := i.(*record)
-				if ok {
-					if len(filter) > 0 {
-						if _, ok := filter[r.threadID]; ok {
-							listener.ch <- r
-						}
-					} else {
-						listener.ch <- r
-					}
-				} else {
-					log.Warning("listener received a non-record value")
-				}
-			}
-		}
-	}()
-	return listener
 }
 
 // AddRecord with body. See AddOption for more.
@@ -367,6 +295,83 @@ func (t *threads) GetRecord(
 		return nil, fmt.Errorf("log not found")
 	}
 	return cbor.GetRecord(ctx, t, rid, lg.FollowKey)
+}
+
+// record wraps a thread.Record within a thread and log context.
+type record struct {
+	thread.Record
+	threadID thread.ID
+	logID    peer.ID
+}
+
+// Value returns the underlying record.
+func (r *record) Value() thread.Record {
+	return r
+}
+
+// ThreadID returns the record's thread ID.
+func (r *record) ThreadID() thread.ID {
+	return r.threadID
+}
+
+// LogID returns the record's log ID.
+func (r *record) LogID() peer.ID {
+	return r.logID
+}
+
+// subscription receives thread record updates.
+type subscription struct {
+	l  *broadcast.Listener
+	ch chan tserv.Record
+}
+
+// Discard closes the subscription, disabling the reception of further records.
+func (l *subscription) Discard() {
+	l.l.Discard()
+}
+
+// Channel returns the channel that receives records.
+func (l *subscription) Channel() <-chan tserv.Record {
+	return l.ch
+}
+
+// Subscribe returns a read-only channel of records.
+func (t *threads) Subscribe(opts ...tserv.SubOption) tserv.Subscription {
+	settings := tserv.SubOptions(opts...)
+	filter := make(map[thread.ID]struct{})
+	for _, id := range settings.ThreadIDs {
+		if id.Defined() {
+			filter[id] = struct{}{}
+		}
+	}
+	listener := &subscription{
+		l:  t.bus.Listen(),
+		ch: make(chan tserv.Record),
+	}
+	go func() {
+		for {
+			select {
+			case i, ok := <-listener.l.Channel():
+				if !ok {
+					close(listener.ch)
+					return
+				}
+				r, ok := i.(*record)
+				if ok {
+					if len(filter) > 0 {
+						if _, ok := filter[r.threadID]; ok {
+							listener.ch <- r
+						}
+					} else {
+						listener.ch <- r
+					}
+				} else {
+					log.Warning("listener received a non-record value")
+				}
+			}
+		}
+	}()
+	return listener
 }
 
 // putRecord adds an existing record. See PutOption for more.
