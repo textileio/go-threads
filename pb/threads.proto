@@ -6,22 +6,7 @@ import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
-// Record is a thread record containing link data.
-message Record {
-    // recordNode is the top-level node's raw data.
-    bytes recordNode = 1;
-
-    // eventNode is the event node's raw data.
-    bytes eventNode = 2;
-
-    // headerNode is the header node's raw data.
-    bytes headerNode = 3;
-
-    // bodyNode is the body node's raw data.
-    bytes bodyNode = 4;
-}
-
-// Log contains information about a thread log.
+// Log represents a thread log.
 message Log {
     bytes ID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
 
@@ -34,6 +19,21 @@ message Log {
     repeated bytes addrs = 5 [(gogoproto.customtype) = "ProtoAddr"];
 
     repeated bytes heads = 6 [(gogoproto.customtype) = "ProtoCid"];
+
+    // Record is a thread record containing link data.
+    message Record {
+        // recordNode is the top-level node's raw data.
+        bytes recordNode = 1;
+
+        // eventNode is the event node's raw data.
+        bytes eventNode = 2;
+
+        // headerNode is the header node's raw data.
+        bytes headerNode = 3;
+
+        // bodyNode is the body node's raw data.
+        bytes bodyNode = 4;
+    }
 }
 
 // GetLogsRequest is used to request thread logs.
@@ -50,13 +50,33 @@ message GetLogsRequest {
     }
 }
 
-// GetReply contains logs requested with a GetRequest.
+// GetLogsReply is the response from a GetLogsRequest.
 message GetLogsReply {
     // logs are the result of the request.
     repeated Log logs = 1;
 }
 
-// PushRecordRequest is used as a record envelope for thread orchestration.
+// PushLogRequest is used to push a thread log to a peer.
+message PushLogRequest {
+    // header is the message header.
+    Header header = 1;
+
+    // threadID is the target thread's ID.
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+
+    // log is the actual log payload.
+    Log log = 3;
+
+    // Header holds sender information.
+    message Header {
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    }
+}
+
+// PushLogReply is the response from a PushLogRequest.
+message PushLogReply {}
+
+// PushRecordRequest is used to push a log record to a peer.
 message PushRecordRequest {
     // header is the header message.
     Header header = 1;
@@ -68,7 +88,7 @@ message PushRecordRequest {
     bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
 
     // record is the actual record payload.
-    Record record = 4;
+    Log.Record record = 4;
 
     // Header holds sender and key information.
     message Header {
@@ -80,23 +100,14 @@ message PushRecordRequest {
 
         // key is the sender's public key used to sign the payload.
         bytes key = 3 [(gogoproto.customtype) = "ProtoPubKey"];
-
-        // followKey allows recipients to follow links in an invite.
-        bytes followKey = 4 [(gogoproto.customtype) = "ProtoKey"];
-
-        // readKeyLogID allows recipients to decrypt invites from a join.
-        bytes readKeyLogID = 5 [(gogoproto.customtype) = "ProtoPeerID"];
     }
 }
 
-// PushRecordReply is the response from a PushRequest.
-message PushRecordReply {
-    // newAddr is a new address for the sender's log.
-    bytes newAddr = 1 [(gogoproto.customtype) = "ProtoAddr"];
-}
+// PushRecordReply is the response from a PushRecordRequest.
+message PushRecordReply {}
 
-// PullRecordsRequest is used to request records from a log address.
-message PullRecordsRequest {
+// GetRecordsRequest is used to request records from a log address.
+message GetRecordsRequest {
     // header is the message header.
     Header header = 1;
 
@@ -118,20 +129,23 @@ message PullRecordsRequest {
     }
 }
 
-// PullRecordsReply contains records requested with a PullRequest.
-message PullRecordsReply {
+// GetRecordsReply contains records requested with a GetRecordsRequest.
+message GetRecordsReply {
     // records are the result of the request.
-    repeated Record records = 1;
+    repeated Log.Record records = 1;
 }
 
 // Threads is the peer-to-peer network API for thread orchestration.
 service Threads {
-    // GetLogs from a thread.
+    // GetLogs from a peer.
     rpc GetLogs(GetLogsRequest) returns (GetLogsReply) {}
 
-    // PushRecord to a log.
-    rpc PushRecord(PushRecordRequest) returns (PushRecordReply) {}
+    // PushLog to a peer
+    rpc PushLog(PushLogRequest) returns (PushLogReply) {}
 
-    // PullRecords from a log.
-    rpc PullRecords(PullRecordsRequest) returns (PullRecordsReply) {}
+    // GetRecords from a peer.
+    rpc GetRecords(GetRecordsRequest) returns (GetRecordsReply) {}
+
+    // PushRecord to a peer.
+    rpc PushRecord(PushRecordRequest) returns (PushRecordReply) {}
 }
