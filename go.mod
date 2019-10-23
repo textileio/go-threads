@@ -8,6 +8,7 @@ require (
 	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/gogo/protobuf v1.3.0
+	github.com/gogo/status v1.1.0
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hsanjuan/ipfs-lite v0.1.6
 	github.com/ipfs/go-block-format v0.0.2

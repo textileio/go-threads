@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -22,16 +23,12 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 const (
 	// reqTimeout is the duration to wait for a request to complete.
 	reqTimeout = time.Second * 5
-)
-
-var (
-	// errFollowKeyNotFound indicates a peer does not have a log follow-key.
-	errFollowKeyNotFound = fmt.Errorf("follow-key not found")
 )
 
 // service implements the Threads RPC service.
@@ -74,7 +71,7 @@ func newService(t *threads) (*service, error) {
 func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
 	lgs, err := s.threads.getLogs(req.ThreadID.ID)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	pblgs := &pb.GetLogsReply{
@@ -90,12 +87,12 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 // @todo: Verification, authentication
 func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
 	if req.Header == nil {
-		return nil, fmt.Errorf("request header is required")
+		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
 
 	lg := logFromProto(req.Log)
 	if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	go func() {
@@ -130,7 +127,7 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 		req.Offset.Cid,
 		int(req.Limit))
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	pbrecs := &pb.GetRecordsReply{
@@ -139,7 +136,7 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 	for i, r := range recs {
 		pbrecs.Records[i], err = cbor.RecordToProto(ctx, s.threads, r)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	return pbrecs, nil
@@ -148,35 +145,35 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 // PushRecord receives a push record request.
 func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb.PushRecordReply, error) {
 	if req.Header == nil {
-		return nil, fmt.Errorf("request header is required")
+		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
 
 	// Verify the request
 	reqpk, err := requestPubKey(req)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = verifyRequestSignature(req.Record, reqpk, req.Header.Signature)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// A follow-key is required to accept new records
 	key, err := s.threads.store.FollowKey(req.ThreadID.ID, req.LogID.ID)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if key == nil {
-		return nil, errFollowKeyNotFound
+		return nil, status.Error(codes.NotFound, "log not found")
 	}
 
 	rec, err := recordFromProto(req.Record, key)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	knownRecord, err := s.threads.bstore.Has(rec.Cid())
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if knownRecord {
 		return &pb.PushRecordReply{}, nil
@@ -185,10 +182,10 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 	// Verify node
 	logpk, err := s.threads.store.PubKey(req.ThreadID.ID, req.LogID.ID)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if err = rec.Verify(logpk); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if err = s.threads.putRecord(
@@ -196,7 +193,7 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 		rec,
 		tserv.PutOpt.ThreadID(req.ThreadID.ID),
 		tserv.PutOpt.LogID(req.LogID.ID)); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &pb.PushRecordReply{}, nil
@@ -287,7 +284,7 @@ func (s *service) pushRecord(
 			}
 			client := pb.NewThreadsClient(conn)
 			if _, err = client.PushRecord(cctx, req); err != nil {
-				if err == errFollowKeyNotFound {
+				if status.Convert(err).Code() == codes.NotFound {
 					log.Debugf("pushing log %s to %s...", lid.String(), p)
 
 					// Send the missing log

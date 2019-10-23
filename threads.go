@@ -137,35 +137,35 @@ func (t *threads) Store() tstore.Threadstore {
 }
 
 // AddThread from a multiaddress.
-func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) error {
+func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread.Info, err error) {
 	idstr, err := addr.ValueForProtocol(ThreadCode)
 	if err != nil {
-		return err
+		return
 	}
 	id, err := thread.Decode(idstr)
 	if err != nil {
-		return err
+		return
 	}
 	p, err := addr.ValueForProtocol(ma.P_P2P)
 	if err != nil {
-		return err
+		return
 	}
 	pid, err := peer.IDB58Decode(p)
 	if err != nil {
-		return err
+		return
 	}
 	if pid.String() == t.host.ID().String() {
-		return nil
+		return t.store.ThreadInfo(id)
 	}
 
 	lgs, err := t.service.getLogs(ctx, id, pid)
 	if err != nil {
-		return err
+		return
 	}
-	// @todo: ensure does not exist? or overwrite with newer info?
+	// @todo: ensure does not exist? or overwrite with newer info from owner?
 	for _, l := range lgs {
 		if err = t.store.AddLog(id, l); err != nil {
-			return err
+			return
 		}
 	}
 
@@ -175,7 +175,7 @@ func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) error {
 		}
 	}()
 
-	return nil
+	return t.store.ThreadInfo(id)
 }
 
 // PullThread for new records.

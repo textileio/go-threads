@@ -149,10 +149,26 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 		addr, err := ma.NewMultiaddr("/p2p/" + ts1.Host().ID().String() + "/thread/" + tid.String())
 		check(t, err)
 
-		err = ts2.AddThread(ctx, addr)
+		info, err := ts2.AddThread(ctx, addr)
+		check(t, err)
+		if info.Logs.Len() != 1 {
+			t.Fatalf("expected 1 log got %d", info.Logs.Len())
+		}
+
+		body2, err := cbornode.WrapObject(map[string]interface{}{
+			"msg": "yo back!",
+		}, mh.SHA2_256, -1)
+		check(t, err)
+		_, err = ts2.AddRecord(ctx, body2, tserv.AddOpt.ThreadID(tid))
 		check(t, err)
 
-		//info1, err := ts1.ThreadInfo(tid)
+		info2, err := ts1.Store().ThreadInfo(tid)
+		check(t, err)
+		if info2.Logs.Len() != 2 {
+			t.Fatalf("expected 2 log got %d", info2.Logs.Len())
+		}
+
+		//info1, err := ts1.Store().ThreadInfo(tid)
 		//check(t, err)
 		//if len(info1.Logs) != 2 {
 		//	t.Fatalf("expected 2 logs got %d", len(info1.Logs))
