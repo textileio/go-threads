@@ -25,8 +25,6 @@ import (
 	"github.com/mitchellh/go-homedir"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-textile-core/crypto/asymmetric"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
@@ -166,7 +164,7 @@ func main() {
 	}
 	defer rl.Close()
 
-	sub := api.Listen()
+	sub := api.Subscribe()
 	last := true
 	go func() {
 		for {
@@ -189,25 +187,20 @@ func main() {
 					continue // This is our record
 				}
 
-				event, err := cbor.EventFromRecord(ctx, api.DAGService(), rec.Value())
+				event, err := cbor.EventFromRecord(ctx, api, rec.Value())
 				if err != nil {
 					logError(err)
 					continue
 				}
-				rk, err := api.ReadKey(rec.ThreadID(), rec.LogID())
+				key, err := api.Store().ReadKey(rec.ThreadID(), rec.LogID())
 				if err != nil {
 					logError(err)
 					continue
 				}
-				if rk == nil {
+				if key == nil {
 					continue
 				}
-				key, err := symmetric.NewKey(rk)
-				if err != nil {
-					logError(err)
-					continue
-				}
-				node, err := event.GetBody(ctx, api.DAGService(), key)
+				node, err := event.GetBody(ctx, api, key)
 				if err != nil {
 					continue // Not for us
 				}
@@ -254,8 +247,10 @@ func handleLine(line string) (out string, err error) {
 		switch args[0] {
 		case "use":
 			return useCmd(args[1:])
-		case "add":
-			return addCmd(args[1:])
+		case "link":
+			return linkCmd()
+		case "follower":
+			return followerCmd(args[1:])
 		default:
 			err = fmt.Errorf("unknown command: %s\n", args[0])
 			return
@@ -293,7 +288,24 @@ func useCmd(args []string) (out string, err error) {
 	return
 }
 
-func addCmd(args []string) (out string, err error) {
+func linkCmd() (out string, err error) {
+	if !threadID.Defined() {
+		err = fmt.Errorf("choose a thread to use with `:use`")
+		return
+	}
+
+	// get own log in thread
+	// find the "most public" address (ideally a follower)
+	// return "/ip4/x.x.x.x/tcp/<PORT>/p2p/<ID>/thread/<ID>"
+	return
+}
+
+func followerCmd(args []string) (out string, err error) {
+	if !threadID.Defined() {
+		err = fmt.Errorf("choose a thread to use with `:use`")
+		return
+	}
+
 	if len(args) == 0 {
 		err = fmt.Errorf("enter a thread name to use")
 		return
@@ -313,40 +325,7 @@ func addCmd(args []string) (out string, err error) {
 	}
 	api.Host().Peerstore().AddAddrs(pid, pinfo.Addrs, peerstore.PermanentAddrTTL)
 
-	pk, err := pid.ExtractPublicKey()
-	if err != nil {
-		return
-	}
-
-	lgs, err := api.GetLogs(threadID)
-	if err != nil {
-		return
-	}
-	if len(lgs) == 0 {
-		err = fmt.Errorf("thread in use is empty")
-		return
-	}
-	logs, err := cbor.NewLogs(lgs, true)
-	if err != nil {
-		return
-	}
-
-	ek, err := asymmetric.NewEncryptionKey(pk)
-	if err != nil {
-		return
-	}
-
-	a, err := ma.NewMultiaddr("/p2p/" + pid.String())
-	if err != nil {
-		return
-	}
-
-	_, err = api.Add(
-		ctx,
-		logs,
-		tserv.AddOpt.ThreadID(threadID),
-		tserv.AddOpt.Key(ek),
-		tserv.AddOpt.Addrs([]ma.Multiaddr{a}))
+	err = api.AddFollower(ctx, threadID, pid)
 	return
 }
 
@@ -362,7 +341,7 @@ func sendMessage(txt string) error {
 	if err != nil {
 		return err
 	}
-	_, err = api.Add(mctx, body, tserv.AddOpt.ThreadID(threadID))
+	_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(threadID))
 	return err
 }
 
