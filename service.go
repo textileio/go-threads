@@ -73,6 +73,7 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 
 // PushLog receives a push log request.
 // @todo: Verification, authentication
+// @todo: Don't overwrite info from non-owners
 func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
