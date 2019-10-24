@@ -457,6 +457,8 @@ github.com/syndtr/goleveldb v1.0.0 h1:fBdIW9lB4Iz0n9khmH8w27SJ3QEJ7+IgjPEwGSZiFd
 github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpPAyBWyWuQ=
 github.com/textileio/go-textile-core v0.0.0-20191016171609-e984eef83a4c h1:ceJlIzojwCtDaDYJFOyzzWiu4htbdo6DVPYKI8SwNiM=
 github.com/textileio/go-textile-core v0.0.0-20191016171609-e984eef83a4c/go.mod h1:tU9neDoNFzNfErPqYnjQEyMiiAETJzKaDF9Br3XDwQc=
+github.com/textileio/go-textile-core v0.0.0-20191024183610-a22c2e62942e h1:3oGktV2K6l3BpPEZPX+prWo2JoEY3k0jaCdjMvJXAoM=
+github.com/textileio/go-textile-core v0.0.0-20191024183610-a22c2e62942e/go.mod h1:F98c4NsIU30JVjGrGG4HrG1Cs2iJk2RRRcwYAhSYP7I=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/warpfork/go-wish v0.0.0-20180510122957-5ad1f5abf436 h1:qOpVTI+BrstcjTZLm2Yz/3sOnqkzj3FQoh0g+E5s3Gc=
 github.com/warpfork/go-wish v0.0.0-20180510122957-5ad1f5abf436/go.mod h1:x6AKhvSSexNrVSrViXSHUEbICjmGXhtgABaHIySUSGw=
