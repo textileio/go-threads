@@ -59,16 +59,21 @@ func (s *service) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thr
 }
 
 // pushLog to a peer.
-func (s *service) pushLog(ctx context.Context, id thread.ID, l thread.LogInfo, pid peer.ID) error {
+func (s *service) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid peer.ID) error {
+	lg, err := s.threads.store.LogInfo(id, lid)
+	if err != nil {
+		return err
+	}
+
 	lreq := &pb.PushLogRequest{
 		Header: &pb.PushLogRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
-		Log:      logToProto(l),
+		Log:      logToProto(lg),
 	}
 
-	log.Debugf("pushing log %s to %s...", l.ID.String(), pid.String())
+	log.Debugf("pushing log %s to %s...", lg.ID.String(), pid.String())
 
 	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()
@@ -202,16 +207,13 @@ func (s *service) pushRecord(
 	lid peer.ID,
 	settings *tserv.AddSettings,
 ) error {
-	var addrs []ma.Multiaddr
 	// Collect known writers
+	var addrs []ma.Multiaddr
 	info, err := s.threads.store.ThreadInfo(settings.ThreadID)
 	if err != nil {
 		return err
 	}
 	for _, l := range info.Logs {
-		if l.String() == lid.String() {
-			continue
-		}
 		laddrs, err := s.threads.store.Addrs(settings.ThreadID, l)
 		if err != nil {
 			return err
@@ -265,6 +267,9 @@ func (s *service) pushRecord(
 			pid, err := peer.IDB58Decode(p)
 			if err != nil {
 				log.Error(err)
+				return
+			}
+			if pid.String() == s.threads.host.ID().String() {
 				return
 			}
 

@@ -238,11 +238,11 @@ func (t *threads) DeleteThread(ctx context.Context, id thread.ID) error {
 
 // AddFollower to a thread.
 func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
-	lgs, err := t.getLogs(id)
+	info, err := t.store.ThreadInfo(id)
 	if err != nil {
 		return err
 	}
-	for _, l := range lgs {
+	for _, l := range info.Logs {
 		if err = t.service.pushLog(ctx, id, l, pid); err != nil {
 			return err
 		}
@@ -264,14 +264,7 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 
 	// Send the updated log to peers
 	var addrs []ma.Multiaddr
-	info, err := t.store.ThreadInfo(id)
-	if err != nil {
-		return err
-	}
 	for _, l := range info.Logs {
-		if l.String() == ownlg.ID.String() {
-			continue
-		}
 		laddrs, err := t.store.Addrs(id, l)
 		if err != nil {
 			return err
@@ -294,8 +287,11 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 				log.Error(err)
 				return
 			}
+			if pid.String() == t.host.ID().String() {
+				return
+			}
 
-			if err = t.service.pushLog(ctx, id, ownlg, pid); err != nil {
+			if err = t.service.pushLog(ctx, id, ownlg.ID, pid); err != nil {
 				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
 			}
 		}(addr)
@@ -324,7 +320,7 @@ func (t *threads) AddRecord(
 		return
 	}
 
-	log.Infof("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
 	// Push out the new record
 	err = t.service.pushRecord(ctx, rec, settings.ThreadID, lg.ID, settings)
@@ -484,7 +480,7 @@ func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tser
 		return err
 	}
 
-	log.Infof("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
 	// Notify local listeners
 	return t.bus.Send(&record{
