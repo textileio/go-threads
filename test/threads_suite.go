@@ -85,7 +85,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}()
 
 		ctx := context.Background()
-		tid := thread.NewIDV1(thread.Raw, 32)
+		id := thread.NewIDV1(thread.Raw, 32)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"foo": "bar",
@@ -93,13 +93,13 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}, mh.SHA2_256, -1)
 		check(t, err)
 
-		r1, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(tid))
+		r1, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
 		check(t, err)
 		if r1.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(tid))
+		r2, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
 		check(t, err)
 		if r2.Value() == nil {
 			t.Fatalf("expected node to not be nil")
@@ -110,20 +110,20 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}
 
 		// Pull from the origin
-		err = ts1.PullThread(ctx, tid)
+		err = ts1.PullThread(ctx, id)
 		check(t, err)
 		time.Sleep(time.Second)
 		if rcount != 2 {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
 
-		r1b, err := ts1.GetRecord(ctx, tid, r1.LogID(), r1.Value().Cid())
+		r1b, err := ts1.GetRecord(ctx, id, r1.LogID(), r1.Value().Cid())
 		check(t, err)
 
 		event, err := cbor.GetEvent(ctx, ts1, r1b.BlockID())
 		check(t, err)
 
-		lg, err := ts1.Store().LogInfo(tid, r1.LogID())
+		lg, err := ts1.Store().LogInfo(id, r1.LogID())
 		check(t, err)
 		back, err := event.GetBody(ctx, ts1, lg.ReadKey)
 		check(t, err)
@@ -137,16 +137,16 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
-		tid := thread.NewIDV1(thread.Raw, 32)
+		id := thread.NewIDV1(thread.Raw, 32)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		_, err = ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(tid))
+		_, err = ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
 		check(t, err)
 
-		addr, err := ma.NewMultiaddr("/p2p/" + ts1.Host().ID().String() + "/thread/" + tid.String())
+		addr, err := ma.NewMultiaddr("/p2p/" + ts1.Host().ID().String() + "/thread/" + id.String())
 		check(t, err)
 
 		info, err := ts2.AddThread(ctx, addr)
@@ -159,10 +159,10 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			"msg": "yo back!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		_, err = ts2.AddRecord(ctx, body2, tserv.AddOpt.ThreadID(tid))
+		_, err = ts2.AddRecord(ctx, body2, tserv.AddOpt.ThreadID(id))
 		check(t, err)
 
-		info2, err := ts1.Store().ThreadInfo(tid)
+		info2, err := ts1.Store().ThreadInfo(id)
 		check(t, err)
 		if info2.Logs.Len() != 2 {
 			t.Fatalf("expected 2 logs got %d", info2.Logs.Len())
@@ -173,32 +173,32 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 func testAddFollower(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
-		tid := thread.NewIDV1(thread.Raw, 32)
+		id := thread.NewIDV1(thread.Raw, 32)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		r, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(tid))
+		r, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
 		check(t, err)
 
 		t.Logf("adding follower %s", ts2.Host().ID().String())
-		err = ts1.AddFollower(ctx, tid, ts2.Host().ID())
+		err = ts1.AddFollower(ctx, id, ts2.Host().ID())
 		check(t, err)
 
-		info, err := ts2.Store().ThreadInfo(tid)
+		info, err := ts2.Store().ThreadInfo(id)
 		check(t, err)
 		if info.Logs.Len() != 1 {
 			t.Fatalf("expected 1 log got %d", info.Logs.Len())
 		}
 
-		addrs, err := ts1.Store().Addrs(tid, r.LogID())
+		addrs, err := ts1.Store().Addrs(id, r.LogID())
 		check(t, err)
 		if len(addrs) != 2 {
 			t.Fatalf("expected 2 addresses got %d", len(addrs))
 		}
 
-		addrs2, err := ts2.Store().Addrs(tid, r.LogID())
+		addrs2, err := ts2.Store().Addrs(id, r.LogID())
 		check(t, err)
 		if len(addrs2) != 2 {
 			t.Fatalf("expected 2 addresses got %d", len(addrs2))

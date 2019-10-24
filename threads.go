@@ -28,6 +28,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+func init() {
+	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
+}
+
 var log = logging.Logger("threads")
 
 // MaxPullLimit is the maximum page size for pulling records.
@@ -67,7 +71,6 @@ func NewThreads(
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-			//"ipfslite":    logger.DEBUG,
 		}, writer, true)
 		if err != nil {
 			return nil, err

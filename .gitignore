@@ -15,4 +15,4 @@
 vendor/
 
 # Shell repo
-repo/
+.threads/

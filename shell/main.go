@@ -4,9 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
+
+	swarm "github.com/libp2p/go-libp2p-swarm"
 
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
@@ -68,12 +73,15 @@ type msg struct {
 }
 
 func main() {
-	repo := flag.String("repo", "threads", "repo location")
+	repo := flag.String("repo", ".threads", "repo location")
 	port := flag.Int("port", 4006, "host port")
 	flag.Parse()
 
 	repop, err := homedir.Expand(*repo)
 	if err != nil {
+		panic(err)
+	}
+	if err = os.MkdirAll(repop, os.ModePerm); err != nil {
 		panic(err)
 	}
 
@@ -82,27 +90,25 @@ func main() {
 	defer cancel()
 
 	// Build an IPFS-Lite peer
+	priv := loadKey(filepath.Join(repop, "key"))
+
 	ds, err = ipfslite.BadgerDatastore(repop)
 	if err != nil {
 		panic(err)
 	}
-	priv, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
-	if err != nil {
-		panic(err)
-	}
+
 	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", *port))
 	if err != nil {
 		panic(err)
 	}
 
-	connman := connmgr.NewConnManager(100, 400, time.Minute)
 	var h host.Host
 	h, dht, err = ipfslite.SetupLibp2p(
 		ctx,
 		priv,
 		nil,
 		[]ma.Multiaddr{listen},
-		libp2p.ConnectionManager(connman),
+		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
 	)
 	if err != nil {
 		panic(err)
@@ -245,14 +251,16 @@ func handleLine(line string) (out string, err error) {
 	if strings.HasPrefix(line, ":") {
 		args := strings.Split(line[1:], " ")
 		switch args[0] {
-		case "use":
-			return useCmd(args[1:])
-		case "link":
-			return linkCmd()
-		case "follower":
-			return followerCmd(args[1:])
+		case "address":
+			return addressCmd()
+		case "thread":
+			return threadCmd(args[1:])
+		case "thread-address":
+			return threadAddressCmd()
+		case "add-follower":
+			return addFollowerCmd(args[1:])
 		default:
-			err = fmt.Errorf("unknown command: %s\n", args[0])
+			err = fmt.Errorf("unknown command: %s", args[0])
 			return
 		}
 	}
@@ -261,16 +269,52 @@ func handleLine(line string) (out string, err error) {
 	return
 }
 
-func useCmd(args []string) (out string, err error) {
+func addressCmd() (out string, err error) {
+	pro := ma.ProtocolWithCode(ma.P_P2P).Name
+	addr, err := ma.NewMultiaddr("/" + pro + "/" + api.Host().ID().String())
+	if err != nil {
+		return
+	}
+	addrs := api.Host().Addrs()
+	for i, a := range addrs {
+		a = a.Encapsulate(addr)
+		out += a.String()
+		if i != len(addrs)-1 {
+			out += "\n"
+		}
+	}
+	return
+}
+
+func threadCmd(args []string) (out string, err error) {
 	if len(args) == 0 {
 		err = fmt.Errorf("enter a thread name to use")
 		return
 	}
 	name := args[0]
 
+	var addr ma.Multiaddr
+	if len(args) > 1 {
+		addr, err = ma.NewMultiaddr(args[1])
+		if err != nil {
+			return
+		}
+		if !canDial(addr) {
+			return "", fmt.Errorf("address is not dialable")
+		}
+	}
+
 	x, err := ds.Get(datastore.NewKey("/names/" + name))
 	if err == datastore.ErrNotFound {
-		threadID = thread.NewIDV1(thread.Raw, 32)
+		if addr != nil {
+			info, err := api.AddThread(ctx, addr)
+			if err != nil {
+				return "", err
+			}
+			threadID = info.ID
+		} else {
+			threadID = thread.NewIDV1(thread.Raw, 32)
+		}
 		err = ds.Put(datastore.NewKey("/names/"+name), threadID.Bytes())
 		if err != nil {
 			return
@@ -288,42 +332,93 @@ func useCmd(args []string) (out string, err error) {
 	return
 }
 
-func linkCmd() (out string, err error) {
+func threadAddressCmd() (out string, err error) {
 	if !threadID.Defined() {
-		err = fmt.Errorf("choose a thread to use with `:use`")
+		err = fmt.Errorf("choose a thread to use with `:thread`")
 		return
 	}
 
-	// get own log in thread
-	// find the "most public" address (ideally a follower)
-	// return "/ip4/x.x.x.x/tcp/<PORT>/p2p/<ID>/thread/<ID>"
+	lg, err := util.GetOwnLog(api, threadID)
+	if err != nil {
+		return
+	}
+	ta, err := ma.NewMultiaddr("/" + t.Thread + "/" + threadID.String())
+	if err != nil {
+		return
+	}
+
+	var addrs []ma.Multiaddr
+	for _, la := range lg.Addrs {
+		p2p, err := la.ValueForProtocol(ma.P_P2P)
+		if err != nil {
+			return "", err
+		}
+		pid, err := peer.IDB58Decode(p2p)
+		if err != nil {
+			return "", err
+		}
+
+		var paddrs []ma.Multiaddr
+		if pid.String() == api.Host().ID().String() {
+			paddrs = api.Host().Addrs()
+		} else {
+			paddrs = api.Host().Peerstore().Addrs(pid)
+		}
+		for _, pa := range paddrs {
+			addrs = append(addrs, pa.Encapsulate(la).Encapsulate(ta))
+		}
+	}
+
+	for i, a := range addrs {
+		out += a.String()
+		if i != len(addrs)-1 {
+			out += "\n"
+		}
+	}
+
 	return
 }
 
-func followerCmd(args []string) (out string, err error) {
+func addFollowerCmd(args []string) (out string, err error) {
 	if !threadID.Defined() {
-		err = fmt.Errorf("choose a thread to use with `:use`")
+		err = fmt.Errorf("choose a thread to use with `:thread`")
 		return
 	}
 
 	if len(args) == 0 {
-		err = fmt.Errorf("enter a thread name to use")
+		err = fmt.Errorf("enter a peer address")
 		return
 	}
-	p := args[0]
 
-	pid, err := peer.IDB58Decode(p)
+	addr, err := ma.NewMultiaddr(args[0])
+	if err != nil {
+		return
+	}
+	p2p, err := addr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return
+	}
+	pid, err := peer.IDB58Decode(p2p)
+	if err != nil {
+		return
+	}
+	dialable, err := getDialable(addr)
 	if err != nil {
 		return
 	}
 
-	pctx, cancel := context.WithTimeout(ctx, findPeerTimeout)
-	defer cancel()
-	pinfo, err := dht.FindPeer(pctx, pid)
-	if err != nil {
-		return
+	if dialable != nil {
+		api.Host().Peerstore().AddAddr(pid, dialable, peerstore.PermanentAddrTTL)
 	}
-	api.Host().Peerstore().AddAddrs(pid, pinfo.Addrs, peerstore.PermanentAddrTTL)
+	if len(api.Host().Peerstore().Addrs(pid)) == 0 {
+		pctx, cancel := context.WithTimeout(ctx, findPeerTimeout)
+		defer cancel()
+		pinfo, err := dht.FindPeer(pctx, pid)
+		if err != nil {
+			return "", err
+		}
+		api.Host().Peerstore().AddAddrs(pid, pinfo.Addrs, peerstore.PermanentAddrTTL)
+	}
 
 	err = api.AddFollower(ctx, threadID, pid)
 	return
@@ -331,7 +426,7 @@ func followerCmd(args []string) (out string, err error) {
 
 func sendMessage(txt string) error {
 	if !threadID.Defined() {
-		return fmt.Errorf("choose a thread to use with `:use`")
+		return fmt.Errorf("choose a thread to use with `:thread`")
 	}
 
 	mctx, cancel := context.WithTimeout(ctx, msgTimeout)
@@ -345,6 +440,36 @@ func sendMessage(txt string) error {
 	return err
 }
 
+func loadKey(pth string) ic.PrivKey {
+	var priv ic.PrivKey
+	_, err := os.Stat(pth)
+	if os.IsNotExist(err) {
+		priv, _, err = ic.GenerateKeyPair(ic.Ed25519, 0)
+		if err != nil {
+			panic(err)
+		}
+		key, err := ic.MarshalPrivateKey(priv)
+		if err != nil {
+			panic(err)
+		}
+		if err = ioutil.WriteFile(pth, key, 0400); err != nil {
+			panic(err)
+		}
+	} else if err != nil {
+		panic(err)
+	} else {
+		key, err := ioutil.ReadFile(pth)
+		if err != nil {
+			panic(err)
+		}
+		priv, err = ic.UnmarshalPrivateKey(key)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return priv
+}
+
 func parseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
 	maddrs := make([]ma.Multiaddr, len(addrs))
 	for i, addr := range addrs {
@@ -355,6 +480,18 @@ func parseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
 		}
 	}
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
+}
+
+func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
+	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
+	return ma.NewMultiaddr(parts[0])
+}
+
+func canDial(addr ma.Multiaddr) bool {
+	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
+	addr, _ = ma.NewMultiaddr(parts[0])
+	tr := api.Host().Network().(*swarm.Swarm).TransportForDialing(addr)
+	return tr != nil && tr.CanDial(addr)
 }
 
 func logError(err error) {
