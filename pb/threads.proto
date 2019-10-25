@@ -76,6 +76,53 @@ message PushLogRequest {
 // PushLogReply is the response from a PushLogRequest.
 message PushLogReply {}
 
+// GetRecordsRequest is used to request records from a log address.
+message GetRecordsRequest {
+    // header is the message header.
+    Header header = 1;
+
+    // threadID is the target thread's ID.
+    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+
+    // List of requested logs.
+    repeated LogEntry logs = 3;
+
+    // LogEntry represents a single log.
+    message LogEntry {
+        // logID of this entry.
+        bytes logID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+        // offset tells the recipient at which point to consider records new for the reply.
+        bytes offset = 2 [(gogoproto.customtype) = "ProtoCid"];
+
+        // limit indicates the max number of records to return.
+        int32 limit = 3;
+    }
+
+    // Header holds sender information.
+    message Header {
+        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    }
+}
+
+// GetRecordsReply contains records requested with a GetRecordsRequest.
+message GetRecordsReply {
+    // records are the result of the request.
+    repeated LogEntry logs = 1;
+
+    // LogEntry represents a single log.
+    message LogEntry {
+        // logID of this entry.
+        bytes logID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+        // records returned for this entry.
+        repeated Log.Record records = 2;
+
+        // log contains new log info that was missing from the request.
+        Log log = 3;
+    }
+}
+
 // PushRecordRequest is used to push a log record to a peer.
 message PushRecordRequest {
     // header is the header message.
@@ -105,35 +152,6 @@ message PushRecordRequest {
 
 // PushRecordReply is the response from a PushRecordRequest.
 message PushRecordReply {}
-
-// GetRecordsRequest is used to request records from a log address.
-message GetRecordsRequest {
-    // header is the message header.
-    Header header = 1;
-
-    // threadID is the target thread's ID.
-    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
-
-    // logID is the target log's ID.
-    bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
-
-    // offset tells the recipient at which point to consider records new for the reply.
-    bytes offset = 4 [(gogoproto.customtype) = "ProtoCid"];
-
-    // limit indicates the max number of records to return.
-    int32 limit = 5;
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-    }
-}
-
-// GetRecordsReply contains records requested with a GetRecordsRequest.
-message GetRecordsReply {
-    // records are the result of the request.
-    repeated Log.Record records = 1;
-}
 
 // Threads is the peer-to-peer network API for thread orchestration.
 service Threads {

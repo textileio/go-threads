@@ -86,20 +86,27 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 
 	go func() {
 		// Get log records for this new log
-		recs, err := s.getRecords(s.threads.ctx, req.ThreadID.ID, lg.ID, cid.Undef, MaxPullLimit)
+		recs, err := s.getRecords(
+			s.threads.ctx,
+			req.ThreadID.ID,
+			lg.ID,
+			map[peer.ID]cid.Cid{lg.ID: cid.Undef},
+			MaxPullLimit)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		for _, r := range recs {
-			err = s.threads.putRecord(
-				s.threads.ctx,
-				r,
-				tserv.PutOpt.ThreadID(req.ThreadID.ID),
-				tserv.PutOpt.LogID(lg.ID))
-			if err != nil {
-				log.Error(err)
-				return
+		for lid, rs := range recs {
+			for _, r := range rs {
+				err = s.threads.putRecord(
+					s.threads.ctx,
+					r,
+					tserv.PutOpt.ThreadID(req.ThreadID.ID),
+					tserv.PutOpt.LogID(lid))
+				if err != nil {
+					log.Error(err)
+					return
+				}
 			}
 		}
 	}()
@@ -110,23 +117,57 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 // GetRecords receives a get records request.
 // @todo: Verification, authentication
 func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
-	recs, err := s.threads.getLocal(
-		ctx, req.ThreadID.ID,
-		req.LogID.ID,
-		req.Offset.Cid,
-		int(req.Limit))
+	reqd := make(map[peer.ID]*pb.GetRecordsRequest_LogEntry)
+	for _, l := range req.Logs {
+		reqd[l.LogID.ID] = l
+	}
+	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
+	}
+	pbrecs := &pb.GetRecordsReply{
+		Logs: make([]*pb.GetRecordsReply_LogEntry, info.Logs.Len()),
 	}
 
-	pbrecs := &pb.GetRecordsReply{
-		Records: make([]*pb.Log_Record, len(recs)),
-	}
-	for i, r := range recs {
-		pbrecs.Records[i], err = cbor.RecordToProto(ctx, s.threads, r)
+	for i, lid := range info.Logs {
+		var offset cid.Cid
+		var limit int
+		var pblg *pb.Log
+		if opts, ok := reqd[lid]; ok {
+			offset = opts.Offset.Cid
+			limit = int(opts.Limit)
+		} else {
+			offset = cid.Undef
+			limit = MaxPullLimit
+			lg, err := s.threads.store.LogInfo(req.ThreadID.ID, lid)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			pblg = logToProto(lg)
+		}
+
+		recs, err := s.threads.getLocalRecords(
+			ctx,
+			req.ThreadID.ID,
+			lid,
+			offset,
+			limit)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
+
+		entry := &pb.GetRecordsReply_LogEntry{
+			LogID:   &pb.ProtoPeerID{ID: lid},
+			Records: make([]*pb.Log_Record, len(recs)),
+			Log:     pblg,
+		}
+		for j, r := range recs {
+			entry.Records[j], err = cbor.RecordToProto(ctx, s.threads, r)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+		pbrecs.Logs[i] = entry
 	}
 	return pbrecs, nil
 }

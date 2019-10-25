@@ -185,9 +185,6 @@ func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread
 // PullThread for new records.
 // Logs owned by this host are traversed locally.
 // Remotely addressed logs are pulled from the network.
-// @todo: We have to be able to pull for new logs as well.
-// @todo: This could mean that we should ask each address for a diff
-// @todo: from offset for all their logs, including logs we don't request.
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 	wg := sync.WaitGroup{}
 	lgs, err := t.getLogs(id)
@@ -209,23 +206,34 @@ func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 					offset = lg.Heads[0]
 				}
 			}
-			var recs []thread.Record
-			var err error
+			recs := make(map[peer.ID][]thread.Record)
 			if lg.PrivKey != nil { // This is our own log
-				recs, err = t.getLocal(ctx, id, lg.ID, offset, MaxPullLimit)
-			} else {
-				// Pull from addresses
-				recs, err = t.service.getRecords(ctx, id, lg.ID, offset, MaxPullLimit)
-			}
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			for _, r := range recs {
-				err = t.putRecord(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lg.ID))
+				rs, err := t.getLocalRecords(ctx, id, lg.ID, offset, MaxPullLimit)
 				if err != nil {
 					log.Error(err)
 					return
+				}
+				recs[lg.ID] = rs
+			} else {
+				// Pull from addresses
+				//recs, err = t.service.getRecords(
+				//	ctx,
+				//	id,
+				//	lg.ID,
+				//	map[peer.ID]cid.Cid{lg.ID: offset},
+				//	MaxPullLimit)
+				//if err != nil {
+				//	log.Error(err)
+				//	return
+				//}
+			}
+			for lid, rs := range recs {
+				for _, r := range rs {
+					err = t.putRecord(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lid))
+					if err != nil {
+						log.Error(err)
+						return
+					}
 				}
 			}
 		}(lg)
@@ -560,11 +568,11 @@ func (t *threads) getLogs(id thread.ID) ([]thread.LogInfo, error) {
 	return lgs, nil
 }
 
-// getLocal returns local records from the given thread that are ahead of
+// getLocalRecords returns local records from the given thread that are ahead of
 // offset but not farther than limit.
 // It is possible to reach limit before offset, meaning that the caller
 // will be responsible for the remaining traversal.
-func (t *threads) getLocal(
+func (t *threads) getLocalRecords(
 	ctx context.Context,
 	id thread.ID,
 	lid peer.ID,

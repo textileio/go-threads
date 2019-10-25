@@ -36,10 +36,8 @@ func ThreadsTest(t *testing.T) {
 		// Create two thread services.
 		m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10000")
 		ts1 := newService(t, m1)
-		time.Sleep(time.Second * 5)
 		m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
 		ts2 := newService(t, m2)
-		time.Sleep(time.Second * 5)
 
 		ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 		ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)

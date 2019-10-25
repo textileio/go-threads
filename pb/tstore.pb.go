@@ -24,7 +24,7 @@ const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 // AddrBookRecord represents a record for a log in the address book.
 type AddrBookRecord struct {
-	// Thread ID
+	// Thread ID.
 	ThreadID *ProtoThreadID `protobuf:"bytes,1,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
 	// The peer ID.
 	PeerID *ProtoPeerID `protobuf:"bytes,2,opt,name=peerID,proto3,customtype=ProtoPeerID" json:"peerID,omitempty"`
@@ -130,7 +130,7 @@ func (m *AddrBookRecord_AddrEntry) GetTtl() int64 {
 
 // HeadBookRecord represents the list of heads currently in a log
 type HeadBookRecord struct {
-	// List of current heads of a log
+	// List of current heads of a log.
 	Heads []*HeadBookRecord_HeadEntry `protobuf:"bytes,1,rep,name=heads,proto3" json:"heads,omitempty"`
 }
 
@@ -174,6 +174,7 @@ func (m *HeadBookRecord) GetHeads() []*HeadBookRecord_HeadEntry {
 	return nil
 }
 
+// HeadEntry represents a single cid.
 type HeadBookRecord_HeadEntry struct {
 	Cid *ProtoCid `protobuf:"bytes,1,opt,name=cid,proto3,customtype=ProtoCid" json:"cid,omitempty"`
 }
