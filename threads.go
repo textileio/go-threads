@@ -216,16 +216,16 @@ func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 				recs[lg.ID] = rs
 			} else {
 				// Pull from addresses
-				//recs, err = t.service.getRecords(
-				//	ctx,
-				//	id,
-				//	lg.ID,
-				//	map[peer.ID]cid.Cid{lg.ID: offset},
-				//	MaxPullLimit)
-				//if err != nil {
-				//	log.Error(err)
-				//	return
-				//}
+				recs, err = t.service.getRecords(
+					ctx,
+					id,
+					lg.ID,
+					map[peer.ID]cid.Cid{lg.ID: offset},
+					MaxPullLimit)
+				if err != nil {
+					log.Error(err)
+					return
+				}
 			}
 			for lid, rs := range recs {
 				for _, r := range rs {
