@@ -57,6 +57,11 @@ func newService(t *threads) (*service, error) {
 // GetLogs receives a get logs request.
 // @todo: Verification, authentication
 func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
+	if req.Header == nil {
+		return nil, status.Error(codes.FailedPrecondition, "request header is required")
+	}
+	log.Debugf("received get logs request from %s", req.Header.From.ID.String())
+
 	lgs, err := s.threads.getLogs(req.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -78,6 +83,7 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
+	log.Debugf("received push log request from %s", req.Header.From.ID.String())
 
 	lg := logFromProto(req.Log)
 	if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
@@ -117,6 +123,11 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 // GetRecords receives a get records request.
 // @todo: Verification, authentication
 func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
+	if req.Header == nil {
+		return nil, status.Error(codes.FailedPrecondition, "request header is required")
+	}
+	log.Debugf("received get records request from %s", req.Header.From.ID.String())
+
 	reqd := make(map[peer.ID]*pb.GetRecordsRequest_LogEntry)
 	for _, l := range req.Logs {
 		reqd[l.LogID.ID] = l
@@ -177,6 +188,7 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
+	log.Debugf("received push record request from %s", req.Header.From.ID.String())
 
 	// Verify the request
 	reqpk, err := requestPubKey(req)

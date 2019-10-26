@@ -353,8 +353,6 @@ func (s *service) pushRecord(
 				log.Error(err)
 				return
 			}
-
-			log.Debugf("received reply from %s", p)
 		}(addr)
 	}
 

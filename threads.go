@@ -186,50 +186,51 @@ func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread
 // Logs owned by this host are traversed locally.
 // Remotely addressed logs are pulled from the network.
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
-	wg := sync.WaitGroup{}
+	log.Debugf("pulling thread %s", id.String())
+
 	lgs, err := t.getLogs(id)
 	if err != nil {
 		return err
 	}
+
+	// Gather offsets for each log
+	offsets := make(map[peer.ID]cid.Cid)
+	for _, lg := range lgs {
+		offsets[lg.ID] = cid.Undef
+		if len(lg.Heads) > 0 {
+			has, err := t.bstore.Has(lg.Heads[0])
+			if err != nil {
+				return err
+			}
+			if has {
+				offsets[lg.ID] = lg.Heads[0]
+			}
+		}
+	}
+
+	wg := sync.WaitGroup{}
 	for _, lg := range lgs {
 		wg.Add(1)
 		go func(lg thread.LogInfo) {
 			defer wg.Done()
-			var offset cid.Cid
-			if len(lg.Heads) > 0 {
-				has, err := t.bstore.Has(lg.Heads[0])
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				if has {
-					offset = lg.Heads[0]
-				}
-			}
-			recs := make(map[peer.ID][]thread.Record)
-			if lg.PrivKey != nil { // This is our own log
-				rs, err := t.getLocalRecords(ctx, id, lg.ID, offset, MaxPullLimit)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				recs[lg.ID] = rs
-			} else {
-				// Pull from addresses
-				recs, err = t.service.getRecords(
-					ctx,
-					id,
-					lg.ID,
-					map[peer.ID]cid.Cid{lg.ID: offset},
-					MaxPullLimit)
-				if err != nil {
-					log.Error(err)
-					return
-				}
+			// Pull from addresses
+			recs, err := t.service.getRecords(
+				ctx,
+				id,
+				lg.ID,
+				offsets,
+				MaxPullLimit)
+			if err != nil {
+				log.Error(err)
+				return
 			}
 			for lid, rs := range recs {
 				for _, r := range rs {
-					err = t.putRecord(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lid))
+					err = t.putRecord(
+						ctx,
+						r,
+						tserv.PutOpt.ThreadID(id),
+						tserv.PutOpt.LogID(lid))
 					if err != nil {
 						log.Error(err)
 						return
