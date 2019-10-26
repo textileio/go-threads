@@ -11,14 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-datastore/query"
-
-	swarm "github.com/libp2p/go-libp2p-swarm"
-
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
@@ -28,6 +25,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
+	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	"github.com/mitchellh/go-homedir"
 	ma "github.com/multiformats/go-multiaddr"
@@ -69,6 +67,8 @@ const (
 func init() {
 	cbornode.RegisterCborType(msg{})
 }
+
+var log = logging.Logger("shell")
 
 type msg struct {
 	Txt string
@@ -464,8 +464,13 @@ func sendMessage(txt string) error {
 	if err != nil {
 		return err
 	}
-	_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(threadID))
-	return err
+	go func() {
+		_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(threadID))
+		if err != nil {
+			log.Errorf("error writing message: %s", err)
+		}
+	}()
+	return nil
 }
 
 func loadKey(pth string) ic.PrivKey {
