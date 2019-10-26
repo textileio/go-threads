@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipfs/go-datastore/query"
+
 	swarm "github.com/libp2p/go-libp2p-swarm"
 
 	"github.com/chzyer/readline"
@@ -162,9 +164,8 @@ func main() {
 	fmt.Println(grey("Welcome to Threads!"))
 	fmt.Println(grey("Your peer ID is ") + yellow(h.ID().String()))
 
-	nick := h.ID().String()[len(h.ID().String())-7:]
-
-	rl, err := readline.New(green("you  "))
+	sep := "  "
+	rl, err := readline.New(green(shortID(h.ID()) + sep))
 	if err != nil {
 		panic(err)
 	}
@@ -219,7 +220,7 @@ func main() {
 				if last {
 					fmt.Println()
 				}
-				fmt.Println(cyan(nick) + "  " + grey(m.Txt))
+				fmt.Println(cyan(shortID(rec.LogID())) + sep + grey(m.Txt))
 				last = false
 			}
 		}
@@ -255,6 +256,8 @@ func handleLine(line string) (out string, err error) {
 			return addressCmd()
 		case "thread":
 			return threadCmd(args[1:])
+		case "threads":
+			return threadsCmd()
 		case "thread-address":
 			return threadAddressCmd()
 		case "add-follower":
@@ -329,6 +332,31 @@ func threadCmd(args []string) (out string, err error) {
 	}
 
 	out = fmt.Sprintf("Using thread %s", threadID.String())
+	return
+}
+
+func threadsCmd() (out string, err error) {
+	q, err := ds.Query(query.Query{Prefix: "/names"})
+	if err != nil {
+		return
+	}
+	all, err := q.Rest()
+	if err != nil {
+		return
+	}
+
+	var id thread.ID
+	for i, e := range all {
+		id, err = thread.Cast(e.Value)
+		if err != nil {
+			return
+		}
+		name := e.Key[strings.LastIndex(e.Key, "/")+1:]
+		out += name + ": " + id.String()
+		if i != len(all)-1 {
+			out += "\n"
+		}
+	}
 	return
 }
 
@@ -480,6 +508,11 @@ func parseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
 		}
 	}
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
+}
+
+func shortID(id peer.ID) string {
+	l := id.String()
+	return l[len(l)-7:]
 }
 
 func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
