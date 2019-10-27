@@ -2,39 +2,30 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
-	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
-	"github.com/libp2p/go-libp2p"
-	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
-	"github.com/mitchellh/go-homedir"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
 	"github.com/textileio/go-textile-threads/cbor"
-	"github.com/textileio/go-textile-threads/tstoreds"
-	"github.com/textileio/go-textile-threads/util"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"github.com/textileio/go-textile-threads/exe/util"
+	tutil "github.com/textileio/go-textile-threads/util"
 )
 
 var (
@@ -73,53 +64,14 @@ type msg struct {
 }
 
 func main() {
-	repo := flag.String("repo", ".threads", "repo location")
-	port := flag.Int("port", 4006, "host port")
-	flag.Parse()
-
-	repop, err := homedir.Expand(*repo)
-	if err != nil {
-		panic(err)
-	}
-	if err = os.MkdirAll(repop, os.ModePerm); err != nil {
-		panic(err)
-	}
-
 	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(context.Background())
-	defer cancel()
-
-	// Build an IPFS-Lite peer
-	priv := util.LoadKey(filepath.Join(repop, "key"))
-
-	ds, err = ipfslite.BadgerDatastore(repop)
-	if err != nil {
-		panic(err)
-	}
-
-	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", *port))
-	if err != nil {
-		panic(err)
-	}
-
 	var h host.Host
-	h, dht, err = ipfslite.SetupLibp2p(
-		ctx,
-		priv,
-		nil,
-		[]ma.Multiaddr{listen},
-		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
-	)
-	if err != nil {
-		panic(err)
-	}
+	ctx, cancel, ds, h, dht, api = util.Build(bootstrapPeers)
+
+	defer cancel()
 	defer h.Close()
 	defer dht.Close()
-
-	lite, err := ipfslite.New(ctx, ds, h, dht, nil)
-	if err != nil {
-		panic(err)
-	}
+	defer api.Close()
 
 	// Build a MDNS service
 	mdns, err := discovery.NewMdnsService(ctx, h, time.Second, "")
@@ -127,36 +79,6 @@ func main() {
 		panic(err)
 	}
 	defer mdns.Close()
-
-	// Build a threadstore
-	tstore, err := tstoreds.NewThreadstore(ctx, ds, tstoreds.DefaultOpts())
-	if err != nil {
-		panic(err)
-	}
-
-	// Build a threadservice
-	writer := &lumberjack.Logger{
-		Filename:   path.Join(repop, "log"),
-		MaxSize:    10, // megabytes
-		MaxBackups: 3,
-		MaxAge:     30, // days
-	}
-	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, writer, true)
-	if err != nil {
-		panic(err)
-	}
-	defer api.Close()
-
-	// Bootstrap to textile peers
-	err = logging.SetLogLevel("ipfslite", "debug")
-	if err != nil {
-		panic(err)
-	}
-	boots, err := util.ParseBootstrapPeers(bootstrapPeers)
-	if err != nil {
-		panic(err)
-	}
-	lite.Bootstrap(boots)
 
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))
@@ -182,7 +104,7 @@ func main() {
 					continue
 				}
 
-				lg, err := util.GetOwnLog(api, threadID)
+				lg, err := tutil.GetOwnLog(api, threadID)
 				if err != nil {
 					logError(err)
 					continue
@@ -364,7 +286,7 @@ func threadAddressCmd() (out string, err error) {
 		return
 	}
 
-	lg, err := util.GetOwnLog(api, threadID)
+	lg, err := tutil.GetOwnLog(api, threadID)
 	if err != nil {
 		return
 	}
