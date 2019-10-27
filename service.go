@@ -73,6 +73,9 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 	for i, l := range lgs {
 		pblgs.Logs[i] = logToProto(l)
 	}
+
+	log.Debugf("sending %d logs to %s", len(lgs), req.Header.From.ID.String())
+
 	return pblgs, nil
 }
 
@@ -179,7 +182,10 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 			}
 		}
 		pbrecs.Logs[i] = entry
+
+		log.Debugf("sending %d records in log %s to %s", len(recs), lid.String(), req.Header.From.ID.String())
 	}
+
 	return pbrecs, nil
 }
 

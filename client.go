@@ -34,7 +34,7 @@ func (s *service) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thr
 		ThreadID: &pb.ProtoThreadID{ID: id},
 	}
 
-	log.Debugf("getting thread %s logs from %s...", id.String(), pid.String())
+	log.Debugf("getting %s logs from %s...", id.String(), pid.String())
 
 	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()
@@ -45,6 +45,7 @@ func (s *service) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thr
 	client := pb.NewThreadsClient(conn)
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
+		log.Warningf("get logs from %s failed: %s", pid.String(), err)
 		return nil, err
 	}
 
@@ -83,6 +84,9 @@ func (s *service) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid pe
 	}
 	client := pb.NewThreadsClient(conn)
 	_, err = client.PushLog(cctx, lreq)
+	if err != nil {
+		log.Warningf("push log to %s failed: %s", pid.String(), err)
+	}
 	return err
 }
 
@@ -194,7 +198,7 @@ func (s *service) getRecords(
 			client := pb.NewThreadsClient(conn)
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
-				log.Error(err)
+				log.Warningf("get records from %s failed: %s", p, err)
 				return
 			}
 
@@ -345,12 +349,12 @@ func (s *service) pushRecord(
 						Log:      logToProto(l),
 					}
 					if _, err = client.PushLog(cctx, lreq); err != nil {
-						log.Error(err)
+						log.Warningf("push log to %s failed: %s", p, err)
 						return
 					}
 					return
 				}
-				log.Error(err)
+				log.Warningf("push record to %s failed: %s", p, err)
 				return
 			}
 		}(addr)

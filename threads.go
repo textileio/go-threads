@@ -186,7 +186,7 @@ func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread
 // Logs owned by this host are traversed locally.
 // Remotely addressed logs are pulled from the network.
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("pulling thread %s", id.String())
+	log.Debugf("pulling thread %s...", id.String())
 
 	lgs, err := t.getLogs(id)
 	if err != nil {
