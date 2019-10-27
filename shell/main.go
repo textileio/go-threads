@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,7 +19,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -92,7 +90,7 @@ func main() {
 	defer cancel()
 
 	// Build an IPFS-Lite peer
-	priv := loadKey(filepath.Join(repop, "key"))
+	priv := util.LoadKey(filepath.Join(repop, "key"))
 
 	ds, err = ipfslite.BadgerDatastore(repop)
 	if err != nil {
@@ -154,7 +152,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	boots, err := parseBootstrapPeers(bootstrapPeers)
+	boots, err := util.ParseBootstrapPeers(bootstrapPeers)
 	if err != nil {
 		panic(err)
 	}
@@ -471,48 +469,6 @@ func sendMessage(txt string) error {
 		}
 	}()
 	return nil
-}
-
-func loadKey(pth string) ic.PrivKey {
-	var priv ic.PrivKey
-	_, err := os.Stat(pth)
-	if os.IsNotExist(err) {
-		priv, _, err = ic.GenerateKeyPair(ic.Ed25519, 0)
-		if err != nil {
-			panic(err)
-		}
-		key, err := ic.MarshalPrivateKey(priv)
-		if err != nil {
-			panic(err)
-		}
-		if err = ioutil.WriteFile(pth, key, 0400); err != nil {
-			panic(err)
-		}
-	} else if err != nil {
-		panic(err)
-	} else {
-		key, err := ioutil.ReadFile(pth)
-		if err != nil {
-			panic(err)
-		}
-		priv, err = ic.UnmarshalPrivateKey(key)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return priv
-}
-
-func parseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
-	maddrs := make([]ma.Multiaddr, len(addrs))
-	for i, addr := range addrs {
-		var err error
-		maddrs[i], err = ma.NewMultiaddr(addr)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return peer.AddrInfosFromP2pAddrs(maddrs...)
 }
 
 func shortID(id peer.ID) string {

@@ -2,6 +2,8 @@ package util
 
 import (
 	"crypto/rand"
+	"io/ioutil"
+	"os"
 
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -100,4 +102,48 @@ func GetOrCreateOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo
 	}
 	err = t.Store().AddLog(id, info)
 	return
+}
+
+// LoadKey at path.
+func LoadKey(pth string) ic.PrivKey {
+	var priv ic.PrivKey
+	_, err := os.Stat(pth)
+	if os.IsNotExist(err) {
+		priv, _, err = ic.GenerateKeyPair(ic.Ed25519, 0)
+		if err != nil {
+			panic(err)
+		}
+		key, err := ic.MarshalPrivateKey(priv)
+		if err != nil {
+			panic(err)
+		}
+		if err = ioutil.WriteFile(pth, key, 0400); err != nil {
+			panic(err)
+		}
+	} else if err != nil {
+		panic(err)
+	} else {
+		key, err := ioutil.ReadFile(pth)
+		if err != nil {
+			panic(err)
+		}
+		priv, err = ic.UnmarshalPrivateKey(key)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return priv
+}
+
+// ParseBootstrapPeers returns address info from a list of string addresses.
+func ParseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
+	maddrs := make([]ma.Multiaddr, len(addrs))
+	for i, addr := range addrs {
+		var err error
+		maddrs[i], err = ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return peer.AddrInfosFromP2pAddrs(maddrs...)
 }
