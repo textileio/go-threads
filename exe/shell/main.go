@@ -377,14 +377,13 @@ func sendMessage(txt string) error {
 		return fmt.Errorf("choose a thread to use with `:thread`")
 	}
 
-	mctx, cancel := context.WithTimeout(ctx, msgTimeout)
-	defer cancel()
-
 	body, err := cbornode.WrapObject(&msg{Txt: txt}, mh.SHA2_256, -1)
 	if err != nil {
 		return err
 	}
 	go func() {
+		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
+		defer cancel()
 		_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(threadID))
 		if err != nil {
 			log.Errorf("error writing message: %s", err)

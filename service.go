@@ -282,8 +282,7 @@ func (s *service) subscribe(id thread.ID) {
 
 		_, err = s.PushRecord(s.threads.ctx, req)
 		if err != nil {
-			// @todo: Catch log not found error and request the log
-			log.Error(err)
+			log.Warningf("pubsub: %s", err)
 			continue
 		}
 	}
