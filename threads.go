@@ -598,7 +598,7 @@ func (t *threads) getLocalRecords(
 	}
 	cursor := lg.Heads[0]
 	for {
-		if cursor.String() == offset.String() {
+		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
 		r, err := cbor.GetRecord(ctx, t, cursor, lg.FollowKey)
