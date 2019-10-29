@@ -93,34 +93,38 @@ func (s *service) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid pe
 // records maintains an ordered list of records from multiple sources.
 type records struct {
 	sync.RWMutex
-	m map[cid.Cid]thread.Record
-	s []thread.Record
+	m map[peer.ID]map[cid.Cid]thread.Record
+	s map[peer.ID][]thread.Record
 }
 
 // newRecords creates an instance of records.
 func newRecords() *records {
 	return &records{
-		m: make(map[cid.Cid]thread.Record),
-		s: make([]thread.Record, 0),
+		m: make(map[peer.ID]map[cid.Cid]thread.Record),
+		s: make(map[peer.ID][]thread.Record, 0),
 	}
 }
 
 // List all records.
-func (r *records) List() []thread.Record {
+func (r *records) List() map[peer.ID][]thread.Record {
 	r.RLock()
 	defer r.RUnlock()
 	return r.s
 }
 
 // Store a record.
-func (r *records) Store(key cid.Cid, value thread.Record) {
+func (r *records) Store(p peer.ID, key cid.Cid, value thread.Record) {
 	r.Lock()
 	defer r.Unlock()
-	if _, ok := r.m[key]; ok {
+	if _, ok := r.m[p]; !ok {
+		r.m[p] = make(map[cid.Cid]thread.Record)
+		r.s[p] = make([]thread.Record, 0)
+	}
+	if _, ok := r.m[p][key]; ok {
 		return
 	}
-	r.m[key] = value
-	r.s = append(r.s, value)
+	r.m[p][key] = value
+	r.s[p] = append(r.s[p], value)
 }
 
 // getRecords from log addresses.
@@ -166,7 +170,7 @@ func (s *service) getRecords(
 	}
 
 	// Pull from each address
-	recs := make(map[peer.ID]*records)
+	recs := newRecords()
 	wg := sync.WaitGroup{}
 	for _, addr := range lg.Addrs {
 		wg.Add(1)
@@ -222,29 +226,20 @@ func (s *service) getRecords(
 					}
 				}
 
-				if recs[lg.ID] == nil {
-					recs[lg.ID] = newRecords()
-				}
-
 				for _, r := range l.Records {
 					rec, err := cbor.RecordFromProto(r, lg.FollowKey)
 					if err != nil {
 						log.Error(err)
 						return
 					}
-					recs[lg.ID].Store(rec.Cid(), rec)
+					recs.Store(lg.ID, rec.Cid(), rec)
 				}
 			}
 		}(addr)
 	}
-
 	wg.Wait()
 
-	res := make(map[peer.ID][]thread.Record)
-	for lid, rs := range recs {
-		res[lid] = rs.List()
-	}
-	return res, nil
+	return recs.List(), nil
 }
 
 // pushRecord to log addresses and thread topic.
