@@ -66,7 +66,7 @@ func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thre
 func GetOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo, err error) {
 	logs, err := t.Store().LogsWithKeys(id)
 	if err != nil {
-		return info, err
+		return
 	}
 	for _, lid := range logs {
 		sk, err := t.Store().PrivKey(id, lid)
@@ -74,11 +74,7 @@ func GetOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo, err er
 			return info, err
 		}
 		if sk != nil {
-			li, err := t.Store().LogInfo(id, lid)
-			if err != nil {
-				return info, err
-			}
-			return li, nil
+			return t.Store().LogInfo(id, lid)
 		}
 	}
 	return info, nil
@@ -99,5 +95,5 @@ func GetOrCreateOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo
 		return
 	}
 	err = t.Store().AddLog(id, info)
-	return
+	return info, err
 }

@@ -135,20 +135,11 @@ func (s *service) getRecords(
 	offsets map[peer.ID]cid.Cid,
 	limit int,
 ) (map[peer.ID][]thread.Record, error) {
-	lgs := make(map[peer.ID]thread.LogInfo)
-	var err error
-	for lid := range offsets {
-		lgs[lid], err = s.threads.store.LogInfo(id, lid)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	pblgs := make([]*pb.GetRecordsRequest_LogEntry, 0)
-	for _, lg := range lgs {
+	pblgs := make([]*pb.GetRecordsRequest_LogEntry, 0, len(offsets))
+	for lid, offset := range offsets {
 		pblgs = append(pblgs, &pb.GetRecordsRequest_LogEntry{
-			LogID:  &pb.ProtoPeerID{ID: lg.ID},
-			Offset: &pb.ProtoCid{Cid: offsets[lg.ID]},
+			LogID:  &pb.ProtoPeerID{ID: lid},
+			Offset: &pb.ProtoCid{Cid: offset},
 			Limit:  int32(limit),
 		})
 	}
@@ -251,7 +242,7 @@ func (s *service) pushRecord(
 	settings *tserv.AddSettings,
 ) error {
 	// Collect known writers
-	var addrs []ma.Multiaddr
+	addrs := make([]ma.Multiaddr, 0, len(settings.Addrs))
 	info, err := s.threads.store.ThreadInfo(settings.ThreadID)
 	if err != nil {
 		return err
@@ -356,8 +347,7 @@ func (s *service) pushRecord(
 	}
 
 	// Finally, publish to the thread's topic
-	err = s.publish(id, req)
-	if err != nil {
+	if err = s.publish(id, req); err != nil {
 		log.Error(err)
 	}
 
@@ -382,8 +372,7 @@ func (s *service) getDialOption() grpc.DialOption {
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}
-		c, err := gostream.Dial(ctx, s.threads.host, id, ThreadProtocol)
-		return c, err
+		return gostream.Dial(ctx, s.threads.host, id, ThreadProtocol)
 	})
 }
 
