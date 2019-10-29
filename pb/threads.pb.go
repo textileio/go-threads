@@ -24,8 +24,51 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
+// Log represents a thread log.
+type Log struct {
+	ID        *ProtoPeerID `protobuf:"bytes,1,opt,name=ID,proto3,customtype=ProtoPeerID" json:"ID,omitempty"`
+	PubKey    *ProtoPubKey `protobuf:"bytes,2,opt,name=pubKey,proto3,customtype=ProtoPubKey" json:"pubKey,omitempty"`
+	FollowKey *ProtoKey    `protobuf:"bytes,3,opt,name=followKey,proto3,customtype=ProtoKey" json:"followKey,omitempty"`
+	ReadKey   *ProtoKey    `protobuf:"bytes,4,opt,name=readKey,proto3,customtype=ProtoKey" json:"readKey,omitempty"`
+	Addrs     []ProtoAddr  `protobuf:"bytes,5,rep,name=addrs,proto3,customtype=ProtoAddr" json:"addrs,omitempty"`
+	Heads     []ProtoCid   `protobuf:"bytes,6,rep,name=heads,proto3,customtype=ProtoCid" json:"heads,omitempty"`
+}
+
+func (m *Log) Reset()         { *m = Log{} }
+func (m *Log) String() string { return proto.CompactTextString(m) }
+func (*Log) ProtoMessage()    {}
+func (*Log) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{0}
+}
+func (m *Log) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Log) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Log.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Log) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Log.Merge(m, src)
+}
+func (m *Log) XXX_Size() int {
+	return m.Size()
+}
+func (m *Log) XXX_DiscardUnknown() {
+	xxx_messageInfo_Log.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Log proto.InternalMessageInfo
+
 // Record is a thread record containing link data.
-type Record struct {
+type Log_Record struct {
 	// recordNode is the top-level node's raw data.
 	RecordNode []byte `protobuf:"bytes,1,opt,name=recordNode,proto3" json:"recordNode,omitempty"`
 	// eventNode is the event node's raw data.
@@ -36,18 +79,18 @@ type Record struct {
 	BodyNode []byte `protobuf:"bytes,4,opt,name=bodyNode,proto3" json:"bodyNode,omitempty"`
 }
 
-func (m *Record) Reset()         { *m = Record{} }
-func (m *Record) String() string { return proto.CompactTextString(m) }
-func (*Record) ProtoMessage()    {}
-func (*Record) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{0}
+func (m *Log_Record) Reset()         { *m = Log_Record{} }
+func (m *Log_Record) String() string { return proto.CompactTextString(m) }
+func (*Log_Record) ProtoMessage()    {}
+func (*Log_Record) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{0, 0}
 }
-func (m *Record) XXX_Unmarshal(b []byte) error {
+func (m *Log_Record) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Record) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Log_Record) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Record.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Log_Record.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -57,70 +100,66 @@ func (m *Record) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Record) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Record.Merge(m, src)
+func (m *Log_Record) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Log_Record.Merge(m, src)
 }
-func (m *Record) XXX_Size() int {
+func (m *Log_Record) XXX_Size() int {
 	return m.Size()
 }
-func (m *Record) XXX_DiscardUnknown() {
-	xxx_messageInfo_Record.DiscardUnknown(m)
+func (m *Log_Record) XXX_DiscardUnknown() {
+	xxx_messageInfo_Log_Record.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Record proto.InternalMessageInfo
+var xxx_messageInfo_Log_Record proto.InternalMessageInfo
 
-func (m *Record) GetRecordNode() []byte {
+func (m *Log_Record) GetRecordNode() []byte {
 	if m != nil {
 		return m.RecordNode
 	}
 	return nil
 }
 
-func (m *Record) GetEventNode() []byte {
+func (m *Log_Record) GetEventNode() []byte {
 	if m != nil {
 		return m.EventNode
 	}
 	return nil
 }
 
-func (m *Record) GetHeaderNode() []byte {
+func (m *Log_Record) GetHeaderNode() []byte {
 	if m != nil {
 		return m.HeaderNode
 	}
 	return nil
 }
 
-func (m *Record) GetBodyNode() []byte {
+func (m *Log_Record) GetBodyNode() []byte {
 	if m != nil {
 		return m.BodyNode
 	}
 	return nil
 }
 
-// PushRequest is used as a record envelope for thread orchestration.
-type PushRequest struct {
-	// header is the header message.
-	Header *PushRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+// GetLogsRequest is used to request thread logs.
+type GetLogsRequest struct {
+	// header is the message header.
+	Header *GetLogsRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	// threadID is the target thread's ID.
 	ThreadID *ProtoThreadID `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
-	// logID is the target log's ID.
-	LogID *ProtoPeerID `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
-	// record is the actual record payload.
-	Record *Record `protobuf:"bytes,4,opt,name=record,proto3" json:"record,omitempty"`
 }
 
-func (m *PushRequest) Reset()         { *m = PushRequest{} }
-func (m *PushRequest) String() string { return proto.CompactTextString(m) }
-func (*PushRequest) ProtoMessage()    {}
-func (*PushRequest) Descriptor() ([]byte, []int) {
+func (m *GetLogsRequest) Reset()         { *m = GetLogsRequest{} }
+func (m *GetLogsRequest) String() string { return proto.CompactTextString(m) }
+func (*GetLogsRequest) ProtoMessage()    {}
+func (*GetLogsRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f2ba358bb2150022, []int{1}
 }
-func (m *PushRequest) XXX_Unmarshal(b []byte) error {
+func (m *GetLogsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *PushRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetLogsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_PushRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetLogsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -130,58 +169,42 @@ func (m *PushRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return b[:n], nil
 	}
 }
-func (m *PushRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PushRequest.Merge(m, src)
+func (m *GetLogsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetLogsRequest.Merge(m, src)
 }
-func (m *PushRequest) XXX_Size() int {
+func (m *GetLogsRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *PushRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_PushRequest.DiscardUnknown(m)
+func (m *GetLogsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetLogsRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PushRequest proto.InternalMessageInfo
+var xxx_messageInfo_GetLogsRequest proto.InternalMessageInfo
 
-func (m *PushRequest) GetHeader() *PushRequest_Header {
+func (m *GetLogsRequest) GetHeader() *GetLogsRequest_Header {
 	if m != nil {
 		return m.Header
 	}
 	return nil
 }
 
-func (m *PushRequest) GetRecord() *Record {
-	if m != nil {
-		return m.Record
-	}
-	return nil
-}
-
-// Header holds sender and key information.
-type PushRequest_Header struct {
-	// from is the sender's peerID.
+// Header holds sender information.
+type GetLogsRequest_Header struct {
 	From *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
-	// signature is the signature of the payload.
-	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
-	// key is the sender's public key used to sign the payload.
-	Key *ProtoPubKey `protobuf:"bytes,3,opt,name=key,proto3,customtype=ProtoPubKey" json:"key,omitempty"`
-	// followKey allows recipients to follow links in an invite.
-	FollowKey []byte `protobuf:"bytes,4,opt,name=followKey,proto3" json:"followKey,omitempty"`
-	// readKeyLogID allows recipients to decrypt invites from a join.
-	ReadKeyLogID *ProtoPeerID `protobuf:"bytes,5,opt,name=readKeyLogID,proto3,customtype=ProtoPeerID" json:"readKeyLogID,omitempty"`
 }
 
-func (m *PushRequest_Header) Reset()         { *m = PushRequest_Header{} }
-func (m *PushRequest_Header) String() string { return proto.CompactTextString(m) }
-func (*PushRequest_Header) ProtoMessage()    {}
-func (*PushRequest_Header) Descriptor() ([]byte, []int) {
+func (m *GetLogsRequest_Header) Reset()         { *m = GetLogsRequest_Header{} }
+func (m *GetLogsRequest_Header) String() string { return proto.CompactTextString(m) }
+func (*GetLogsRequest_Header) ProtoMessage()    {}
+func (*GetLogsRequest_Header) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f2ba358bb2150022, []int{1, 0}
 }
-func (m *PushRequest_Header) XXX_Unmarshal(b []byte) error {
+func (m *GetLogsRequest_Header) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *PushRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetLogsRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_PushRequest_Header.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetLogsRequest_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -191,50 +214,36 @@ func (m *PushRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *PushRequest_Header) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PushRequest_Header.Merge(m, src)
+func (m *GetLogsRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetLogsRequest_Header.Merge(m, src)
 }
-func (m *PushRequest_Header) XXX_Size() int {
+func (m *GetLogsRequest_Header) XXX_Size() int {
 	return m.Size()
 }
-func (m *PushRequest_Header) XXX_DiscardUnknown() {
-	xxx_messageInfo_PushRequest_Header.DiscardUnknown(m)
+func (m *GetLogsRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetLogsRequest_Header.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PushRequest_Header proto.InternalMessageInfo
+var xxx_messageInfo_GetLogsRequest_Header proto.InternalMessageInfo
 
-func (m *PushRequest_Header) GetSignature() []byte {
-	if m != nil {
-		return m.Signature
-	}
-	return nil
+// GetLogsReply is the response from a GetLogsRequest.
+type GetLogsReply struct {
+	// logs are the result of the request.
+	Logs []*Log `protobuf:"bytes,1,rep,name=logs,proto3" json:"logs,omitempty"`
 }
 
-func (m *PushRequest_Header) GetFollowKey() []byte {
-	if m != nil {
-		return m.FollowKey
-	}
-	return nil
-}
-
-// PushReply is the response from a PushRequest.
-type PushReply struct {
-	// newAddr is a new address for the sender's log.
-	NewAddr *ProtoAddr `protobuf:"bytes,1,opt,name=newAddr,proto3,customtype=ProtoAddr" json:"newAddr,omitempty"`
-}
-
-func (m *PushReply) Reset()         { *m = PushReply{} }
-func (m *PushReply) String() string { return proto.CompactTextString(m) }
-func (*PushReply) ProtoMessage()    {}
-func (*PushReply) Descriptor() ([]byte, []int) {
+func (m *GetLogsReply) Reset()         { *m = GetLogsReply{} }
+func (m *GetLogsReply) String() string { return proto.CompactTextString(m) }
+func (*GetLogsReply) ProtoMessage()    {}
+func (*GetLogsReply) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f2ba358bb2150022, []int{2}
 }
-func (m *PushReply) XXX_Unmarshal(b []byte) error {
+func (m *GetLogsReply) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *PushReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetLogsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_PushReply.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetLogsReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -244,44 +253,47 @@ func (m *PushReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *PushReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PushReply.Merge(m, src)
+func (m *GetLogsReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetLogsReply.Merge(m, src)
 }
-func (m *PushReply) XXX_Size() int {
+func (m *GetLogsReply) XXX_Size() int {
 	return m.Size()
 }
-func (m *PushReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_PushReply.DiscardUnknown(m)
+func (m *GetLogsReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetLogsReply.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PushReply proto.InternalMessageInfo
+var xxx_messageInfo_GetLogsReply proto.InternalMessageInfo
 
-// PullRequest is used to request records from a log address.
-type PullRequest struct {
+func (m *GetLogsReply) GetLogs() []*Log {
+	if m != nil {
+		return m.Logs
+	}
+	return nil
+}
+
+// PushLogRequest is used to push a thread log to a peer.
+type PushLogRequest struct {
 	// header is the message header.
-	Header *PullRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	Header *PushLogRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	// threadID is the target thread's ID.
 	ThreadID *ProtoThreadID `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
-	// logID is the target log's ID.
-	LogID *ProtoPeerID `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
-	// offset tells the recipient at which point to consider records new for the reply.
-	Offset *ProtoCid `protobuf:"bytes,4,opt,name=offset,proto3,customtype=ProtoCid" json:"offset,omitempty"`
-	// limit indicates the max number of records to return.
-	Limit int32 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	// log is the actual log payload.
+	Log *Log `protobuf:"bytes,3,opt,name=log,proto3" json:"log,omitempty"`
 }
 
-func (m *PullRequest) Reset()         { *m = PullRequest{} }
-func (m *PullRequest) String() string { return proto.CompactTextString(m) }
-func (*PullRequest) ProtoMessage()    {}
-func (*PullRequest) Descriptor() ([]byte, []int) {
+func (m *PushLogRequest) Reset()         { *m = PushLogRequest{} }
+func (m *PushLogRequest) String() string { return proto.CompactTextString(m) }
+func (*PushLogRequest) ProtoMessage()    {}
+func (*PushLogRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f2ba358bb2150022, []int{3}
 }
-func (m *PullRequest) XXX_Unmarshal(b []byte) error {
+func (m *PushLogRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *PullRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *PushLogRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_PullRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_PushLogRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -291,26 +303,208 @@ func (m *PullRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return b[:n], nil
 	}
 }
-func (m *PullRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PullRequest.Merge(m, src)
+func (m *PushLogRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushLogRequest.Merge(m, src)
 }
-func (m *PullRequest) XXX_Size() int {
+func (m *PushLogRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *PullRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_PullRequest.DiscardUnknown(m)
+func (m *PushLogRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushLogRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PullRequest proto.InternalMessageInfo
+var xxx_messageInfo_PushLogRequest proto.InternalMessageInfo
 
-func (m *PullRequest) GetHeader() *PullRequest_Header {
+func (m *PushLogRequest) GetHeader() *PushLogRequest_Header {
 	if m != nil {
 		return m.Header
 	}
 	return nil
 }
 
-func (m *PullRequest) GetLimit() int32 {
+func (m *PushLogRequest) GetLog() *Log {
+	if m != nil {
+		return m.Log
+	}
+	return nil
+}
+
+// Header holds sender information.
+type PushLogRequest_Header struct {
+	From *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
+}
+
+func (m *PushLogRequest_Header) Reset()         { *m = PushLogRequest_Header{} }
+func (m *PushLogRequest_Header) String() string { return proto.CompactTextString(m) }
+func (*PushLogRequest_Header) ProtoMessage()    {}
+func (*PushLogRequest_Header) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{3, 0}
+}
+func (m *PushLogRequest_Header) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PushLogRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PushLogRequest_Header.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PushLogRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushLogRequest_Header.Merge(m, src)
+}
+func (m *PushLogRequest_Header) XXX_Size() int {
+	return m.Size()
+}
+func (m *PushLogRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushLogRequest_Header.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PushLogRequest_Header proto.InternalMessageInfo
+
+// PushLogReply is the response from a PushLogRequest.
+type PushLogReply struct {
+}
+
+func (m *PushLogReply) Reset()         { *m = PushLogReply{} }
+func (m *PushLogReply) String() string { return proto.CompactTextString(m) }
+func (*PushLogReply) ProtoMessage()    {}
+func (*PushLogReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{4}
+}
+func (m *PushLogReply) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PushLogReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PushLogReply.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PushLogReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushLogReply.Merge(m, src)
+}
+func (m *PushLogReply) XXX_Size() int {
+	return m.Size()
+}
+func (m *PushLogReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushLogReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PushLogReply proto.InternalMessageInfo
+
+// GetRecordsRequest is used to request records from a log address.
+type GetRecordsRequest struct {
+	// header is the message header.
+	Header *GetRecordsRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	// threadID is the target thread's ID.
+	ThreadID *ProtoThreadID `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
+	// List of requested logs.
+	Logs []*GetRecordsRequest_LogEntry `protobuf:"bytes,3,rep,name=logs,proto3" json:"logs,omitempty"`
+}
+
+func (m *GetRecordsRequest) Reset()         { *m = GetRecordsRequest{} }
+func (m *GetRecordsRequest) String() string { return proto.CompactTextString(m) }
+func (*GetRecordsRequest) ProtoMessage()    {}
+func (*GetRecordsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{5}
+}
+func (m *GetRecordsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetRecordsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetRecordsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GetRecordsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRecordsRequest.Merge(m, src)
+}
+func (m *GetRecordsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetRecordsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRecordsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRecordsRequest proto.InternalMessageInfo
+
+func (m *GetRecordsRequest) GetHeader() *GetRecordsRequest_Header {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
+func (m *GetRecordsRequest) GetLogs() []*GetRecordsRequest_LogEntry {
+	if m != nil {
+		return m.Logs
+	}
+	return nil
+}
+
+// LogEntry represents a single log.
+type GetRecordsRequest_LogEntry struct {
+	// logID of this entry.
+	LogID *ProtoPeerID `protobuf:"bytes,1,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
+	// offset tells the recipient at which point to consider records new for the reply.
+	Offset *ProtoCid `protobuf:"bytes,2,opt,name=offset,proto3,customtype=ProtoCid" json:"offset,omitempty"`
+	// limit indicates the max number of records to return.
+	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+}
+
+func (m *GetRecordsRequest_LogEntry) Reset()         { *m = GetRecordsRequest_LogEntry{} }
+func (m *GetRecordsRequest_LogEntry) String() string { return proto.CompactTextString(m) }
+func (*GetRecordsRequest_LogEntry) ProtoMessage()    {}
+func (*GetRecordsRequest_LogEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{5, 0}
+}
+func (m *GetRecordsRequest_LogEntry) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetRecordsRequest_LogEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetRecordsRequest_LogEntry.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GetRecordsRequest_LogEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRecordsRequest_LogEntry.Merge(m, src)
+}
+func (m *GetRecordsRequest_LogEntry) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetRecordsRequest_LogEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRecordsRequest_LogEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRecordsRequest_LogEntry proto.InternalMessageInfo
+
+func (m *GetRecordsRequest_LogEntry) GetLimit() int32 {
 	if m != nil {
 		return m.Limit
 	}
@@ -318,22 +512,22 @@ func (m *PullRequest) GetLimit() int32 {
 }
 
 // Header holds sender information.
-type PullRequest_Header struct {
+type GetRecordsRequest_Header struct {
 	From *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
 }
 
-func (m *PullRequest_Header) Reset()         { *m = PullRequest_Header{} }
-func (m *PullRequest_Header) String() string { return proto.CompactTextString(m) }
-func (*PullRequest_Header) ProtoMessage()    {}
-func (*PullRequest_Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{3, 0}
+func (m *GetRecordsRequest_Header) Reset()         { *m = GetRecordsRequest_Header{} }
+func (m *GetRecordsRequest_Header) String() string { return proto.CompactTextString(m) }
+func (*GetRecordsRequest_Header) ProtoMessage()    {}
+func (*GetRecordsRequest_Header) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{5, 1}
 }
-func (m *PullRequest_Header) XXX_Unmarshal(b []byte) error {
+func (m *GetRecordsRequest_Header) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *PullRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetRecordsRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_PullRequest_Header.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetRecordsRequest_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -343,36 +537,36 @@ func (m *PullRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *PullRequest_Header) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PullRequest_Header.Merge(m, src)
+func (m *GetRecordsRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRecordsRequest_Header.Merge(m, src)
 }
-func (m *PullRequest_Header) XXX_Size() int {
+func (m *GetRecordsRequest_Header) XXX_Size() int {
 	return m.Size()
 }
-func (m *PullRequest_Header) XXX_DiscardUnknown() {
-	xxx_messageInfo_PullRequest_Header.DiscardUnknown(m)
+func (m *GetRecordsRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRecordsRequest_Header.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PullRequest_Header proto.InternalMessageInfo
+var xxx_messageInfo_GetRecordsRequest_Header proto.InternalMessageInfo
 
-// PullReply contains records requested with a PullRequest.
-type PullReply struct {
+// GetRecordsReply contains records requested with a GetRecordsRequest.
+type GetRecordsReply struct {
 	// records are the result of the request.
-	Records []*Record `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	Logs []*GetRecordsReply_LogEntry `protobuf:"bytes,1,rep,name=logs,proto3" json:"logs,omitempty"`
 }
 
-func (m *PullReply) Reset()         { *m = PullReply{} }
-func (m *PullReply) String() string { return proto.CompactTextString(m) }
-func (*PullReply) ProtoMessage()    {}
-func (*PullReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f2ba358bb2150022, []int{4}
+func (m *GetRecordsReply) Reset()         { *m = GetRecordsReply{} }
+func (m *GetRecordsReply) String() string { return proto.CompactTextString(m) }
+func (*GetRecordsReply) ProtoMessage()    {}
+func (*GetRecordsReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{6}
 }
-func (m *PullReply) XXX_Unmarshal(b []byte) error {
+func (m *GetRecordsReply) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *PullReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *GetRecordsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_PullReply.Marshal(b, m, deterministic)
+		return xxx_messageInfo_GetRecordsReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalTo(b)
@@ -382,73 +576,298 @@ func (m *PullReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *PullReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PullReply.Merge(m, src)
+func (m *GetRecordsReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRecordsReply.Merge(m, src)
 }
-func (m *PullReply) XXX_Size() int {
+func (m *GetRecordsReply) XXX_Size() int {
 	return m.Size()
 }
-func (m *PullReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_PullReply.DiscardUnknown(m)
+func (m *GetRecordsReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRecordsReply.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PullReply proto.InternalMessageInfo
+var xxx_messageInfo_GetRecordsReply proto.InternalMessageInfo
 
-func (m *PullReply) GetRecords() []*Record {
+func (m *GetRecordsReply) GetLogs() []*GetRecordsReply_LogEntry {
+	if m != nil {
+		return m.Logs
+	}
+	return nil
+}
+
+// LogEntry represents a single log.
+type GetRecordsReply_LogEntry struct {
+	// logID of this entry.
+	LogID *ProtoPeerID `protobuf:"bytes,1,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
+	// records returned for this entry.
+	Records []*Log_Record `protobuf:"bytes,2,rep,name=records,proto3" json:"records,omitempty"`
+	// log contains new log info that was missing from the request.
+	Log *Log `protobuf:"bytes,3,opt,name=log,proto3" json:"log,omitempty"`
+}
+
+func (m *GetRecordsReply_LogEntry) Reset()         { *m = GetRecordsReply_LogEntry{} }
+func (m *GetRecordsReply_LogEntry) String() string { return proto.CompactTextString(m) }
+func (*GetRecordsReply_LogEntry) ProtoMessage()    {}
+func (*GetRecordsReply_LogEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{6, 0}
+}
+func (m *GetRecordsReply_LogEntry) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GetRecordsReply_LogEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GetRecordsReply_LogEntry.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GetRecordsReply_LogEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetRecordsReply_LogEntry.Merge(m, src)
+}
+func (m *GetRecordsReply_LogEntry) XXX_Size() int {
+	return m.Size()
+}
+func (m *GetRecordsReply_LogEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetRecordsReply_LogEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetRecordsReply_LogEntry proto.InternalMessageInfo
+
+func (m *GetRecordsReply_LogEntry) GetRecords() []*Log_Record {
 	if m != nil {
 		return m.Records
 	}
 	return nil
 }
 
+func (m *GetRecordsReply_LogEntry) GetLog() *Log {
+	if m != nil {
+		return m.Log
+	}
+	return nil
+}
+
+// PushRecordRequest is used to push a log record to a peer.
+type PushRecordRequest struct {
+	// header is the header message.
+	Header *PushRecordRequest_Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	// threadID is the target thread's ID.
+	ThreadID *ProtoThreadID `protobuf:"bytes,2,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
+	// logID is the target log's ID.
+	LogID *ProtoPeerID `protobuf:"bytes,3,opt,name=logID,proto3,customtype=ProtoPeerID" json:"logID,omitempty"`
+	// record is the actual record payload.
+	Record *Log_Record `protobuf:"bytes,4,opt,name=record,proto3" json:"record,omitempty"`
+}
+
+func (m *PushRecordRequest) Reset()         { *m = PushRecordRequest{} }
+func (m *PushRecordRequest) String() string { return proto.CompactTextString(m) }
+func (*PushRecordRequest) ProtoMessage()    {}
+func (*PushRecordRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{7}
+}
+func (m *PushRecordRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PushRecordRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PushRecordRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PushRecordRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushRecordRequest.Merge(m, src)
+}
+func (m *PushRecordRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *PushRecordRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushRecordRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PushRecordRequest proto.InternalMessageInfo
+
+func (m *PushRecordRequest) GetHeader() *PushRecordRequest_Header {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
+func (m *PushRecordRequest) GetRecord() *Log_Record {
+	if m != nil {
+		return m.Record
+	}
+	return nil
+}
+
+// Header holds sender and key information.
+type PushRecordRequest_Header struct {
+	// from is the sender's peerID.
+	From *ProtoPeerID `protobuf:"bytes,1,opt,name=from,proto3,customtype=ProtoPeerID" json:"from,omitempty"`
+	// signature is the signature of the payload.
+	Signature []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// key is the sender's public key used to sign the payload.
+	Key *ProtoPubKey `protobuf:"bytes,3,opt,name=key,proto3,customtype=ProtoPubKey" json:"key,omitempty"`
+}
+
+func (m *PushRecordRequest_Header) Reset()         { *m = PushRecordRequest_Header{} }
+func (m *PushRecordRequest_Header) String() string { return proto.CompactTextString(m) }
+func (*PushRecordRequest_Header) ProtoMessage()    {}
+func (*PushRecordRequest_Header) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{7, 0}
+}
+func (m *PushRecordRequest_Header) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PushRecordRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PushRecordRequest_Header.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PushRecordRequest_Header) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushRecordRequest_Header.Merge(m, src)
+}
+func (m *PushRecordRequest_Header) XXX_Size() int {
+	return m.Size()
+}
+func (m *PushRecordRequest_Header) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushRecordRequest_Header.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PushRecordRequest_Header proto.InternalMessageInfo
+
+func (m *PushRecordRequest_Header) GetSignature() []byte {
+	if m != nil {
+		return m.Signature
+	}
+	return nil
+}
+
+// PushRecordReply is the response from a PushRecordRequest.
+type PushRecordReply struct {
+}
+
+func (m *PushRecordReply) Reset()         { *m = PushRecordReply{} }
+func (m *PushRecordReply) String() string { return proto.CompactTextString(m) }
+func (*PushRecordReply) ProtoMessage()    {}
+func (*PushRecordReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f2ba358bb2150022, []int{8}
+}
+func (m *PushRecordReply) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PushRecordReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PushRecordReply.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PushRecordReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushRecordReply.Merge(m, src)
+}
+func (m *PushRecordReply) XXX_Size() int {
+	return m.Size()
+}
+func (m *PushRecordReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushRecordReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PushRecordReply proto.InternalMessageInfo
+
 func init() {
-	proto.RegisterType((*Record)(nil), "threads.pb.Record")
-	proto.RegisterType((*PushRequest)(nil), "threads.pb.PushRequest")
-	proto.RegisterType((*PushRequest_Header)(nil), "threads.pb.PushRequest.Header")
-	proto.RegisterType((*PushReply)(nil), "threads.pb.PushReply")
-	proto.RegisterType((*PullRequest)(nil), "threads.pb.PullRequest")
-	proto.RegisterType((*PullRequest_Header)(nil), "threads.pb.PullRequest.Header")
-	proto.RegisterType((*PullReply)(nil), "threads.pb.PullReply")
+	proto.RegisterType((*Log)(nil), "threads.pb.Log")
+	proto.RegisterType((*Log_Record)(nil), "threads.pb.Log.Record")
+	proto.RegisterType((*GetLogsRequest)(nil), "threads.pb.GetLogsRequest")
+	proto.RegisterType((*GetLogsRequest_Header)(nil), "threads.pb.GetLogsRequest.Header")
+	proto.RegisterType((*GetLogsReply)(nil), "threads.pb.GetLogsReply")
+	proto.RegisterType((*PushLogRequest)(nil), "threads.pb.PushLogRequest")
+	proto.RegisterType((*PushLogRequest_Header)(nil), "threads.pb.PushLogRequest.Header")
+	proto.RegisterType((*PushLogReply)(nil), "threads.pb.PushLogReply")
+	proto.RegisterType((*GetRecordsRequest)(nil), "threads.pb.GetRecordsRequest")
+	proto.RegisterType((*GetRecordsRequest_LogEntry)(nil), "threads.pb.GetRecordsRequest.LogEntry")
+	proto.RegisterType((*GetRecordsRequest_Header)(nil), "threads.pb.GetRecordsRequest.Header")
+	proto.RegisterType((*GetRecordsReply)(nil), "threads.pb.GetRecordsReply")
+	proto.RegisterType((*GetRecordsReply_LogEntry)(nil), "threads.pb.GetRecordsReply.LogEntry")
+	proto.RegisterType((*PushRecordRequest)(nil), "threads.pb.PushRecordRequest")
+	proto.RegisterType((*PushRecordRequest_Header)(nil), "threads.pb.PushRecordRequest.Header")
+	proto.RegisterType((*PushRecordReply)(nil), "threads.pb.PushRecordReply")
 }
 
 func init() { proto.RegisterFile("threads.proto", fileDescriptor_f2ba358bb2150022) }
 
 var fileDescriptor_f2ba358bb2150022 = []byte{
-	// 529 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x54, 0x4f, 0x8f, 0x12, 0x4f,
-	0x10, 0xa5, 0x17, 0x18, 0xa0, 0x80, 0xfc, 0xf2, 0xeb, 0x68, 0xdc, 0x10, 0xd3, 0xe0, 0xa8, 0xd1,
-	0x18, 0x61, 0x13, 0xd6, 0x18, 0x3d, 0x8a, 0x1c, 0x24, 0x18, 0x43, 0x3a, 0x7e, 0x01, 0x66, 0xa7,
-	0x19, 0x26, 0x36, 0x34, 0xce, 0x1f, 0x37, 0x73, 0xf0, 0xe2, 0xc1, 0x8b, 0x17, 0x3f, 0x92, 0xde,
-	0x3c, 0xee, 0xd1, 0x70, 0x20, 0x0a, 0x5f, 0xc2, 0xa3, 0xe9, 0xea, 0xd9, 0x01, 0x17, 0x37, 0xd1,
-	0x8b, 0xb7, 0xa9, 0x7a, 0xef, 0x75, 0x5e, 0xbd, 0xaa, 0x0c, 0xd4, 0xa3, 0x69, 0x20, 0xc6, 0x6e,
-	0xd8, 0x59, 0x04, 0x2a, 0x52, 0x14, 0xb2, 0xd2, 0x69, 0xb4, 0x3d, 0x3f, 0x9a, 0xc6, 0x4e, 0xe7,
-	0x44, 0xcd, 0x8e, 0x3c, 0xe5, 0xa9, 0x23, 0xa4, 0x38, 0xf1, 0x04, 0x2b, 0x2c, 0xf0, 0xcb, 0x48,
-	0xed, 0x77, 0x04, 0x2c, 0x2e, 0x4e, 0x54, 0xe0, 0x52, 0x06, 0x10, 0xe0, 0xd7, 0x0b, 0xe5, 0x8a,
-	0x43, 0xd2, 0x22, 0x77, 0x6b, 0x7c, 0xa7, 0x43, 0xaf, 0x43, 0x45, 0xbc, 0x11, 0xf3, 0x08, 0xe1,
-	0x03, 0x84, 0xb7, 0x0d, 0xad, 0x9e, 0x8a, 0xb1, 0x2b, 0x02, 0x84, 0xf3, 0x46, 0xbd, 0xed, 0xd0,
-	0x06, 0x94, 0x1d, 0xe5, 0x26, 0x88, 0x16, 0x10, 0xcd, 0x6a, 0xfb, 0x43, 0x1e, 0xaa, 0xa3, 0x38,
-	0x9c, 0x72, 0xf1, 0x3a, 0x16, 0x61, 0x44, 0x1f, 0x82, 0x65, 0x94, 0xe8, 0xa2, 0xda, 0x65, 0x9d,
-	0xed, 0x80, 0x9d, 0x1d, 0x62, 0xe7, 0x19, 0xb2, 0x78, 0xca, 0xa6, 0x6d, 0x28, 0x1b, 0xe2, 0xa0,
-	0x6f, 0x0c, 0xf6, 0xfe, 0x5f, 0xae, 0x9a, 0xf5, 0x91, 0x9e, 0xf4, 0x65, 0x0a, 0xf0, 0x8c, 0x42,
-	0x6f, 0x43, 0x51, 0x2a, 0x6f, 0xd0, 0x37, 0x6e, 0x7b, 0xff, 0x2d, 0x57, 0xcd, 0x2a, 0x72, 0x47,
-	0x42, 0x04, 0x83, 0x3e, 0x37, 0x28, 0xbd, 0x07, 0x96, 0x49, 0x01, 0x7d, 0x57, 0xbb, 0x74, 0xd7,
-	0x8d, 0xc9, 0x8e, 0xa7, 0x8c, 0xc6, 0x67, 0x02, 0x96, 0x31, 0x45, 0x6f, 0x42, 0x61, 0x12, 0xa8,
-	0x99, 0x09, 0x72, 0xff, 0x71, 0x04, 0x75, 0xa6, 0xa1, 0xef, 0xcd, 0xc7, 0x51, 0x1c, 0x64, 0x99,
-	0x66, 0x0d, 0x7a, 0x03, 0xf2, 0xaf, 0x44, 0xb2, 0x6f, 0x2f, 0x76, 0x86, 0x22, 0xe1, 0x1a, 0xd3,
-	0x0f, 0x4c, 0x94, 0x94, 0xea, 0x74, 0x28, 0x92, 0x34, 0xd7, 0x6d, 0x83, 0x1e, 0x43, 0x4d, 0x3b,
-	0x1d, 0x8a, 0xe4, 0x39, 0x0e, 0x5a, 0xfc, 0xbd, 0x97, 0x5f, 0x48, 0xf6, 0x03, 0xa8, 0x98, 0x8c,
-	0x17, 0x32, 0xa1, 0x77, 0xa0, 0x34, 0x17, 0xa7, 0x4f, 0x5c, 0x37, 0x48, 0x07, 0xa9, 0x2f, 0x57,
-	0xcd, 0x0a, 0x8a, 0x75, 0x93, 0x9f, 0xa3, 0xf6, 0xfb, 0x03, 0xbd, 0x43, 0x29, 0xff, 0x70, 0x87,
-	0x19, 0xf1, 0xdf, 0xec, 0xf0, 0x16, 0x58, 0x6a, 0x32, 0x09, 0x45, 0x64, 0x32, 0xea, 0xd5, 0x96,
-	0xab, 0x66, 0x19, 0x79, 0x4f, 0x7d, 0x97, 0xa7, 0x18, 0xbd, 0x02, 0x45, 0xe9, 0xcf, 0xfc, 0x08,
-	0x73, 0x2a, 0x72, 0x53, 0x34, 0xda, 0x7f, 0xb5, 0x52, 0xfb, 0xb1, 0x8e, 0x4f, 0x8f, 0xa7, 0xe3,
-	0xbb, 0x0f, 0x25, 0x73, 0x19, 0xe1, 0x21, 0x69, 0xe5, 0x2f, 0x39, 0x9e, 0x73, 0x4a, 0xf7, 0x2d,
-	0x94, 0xcc, 0x88, 0x21, 0x7d, 0x04, 0x05, 0xbd, 0x04, 0x7a, 0xed, 0x92, 0xd3, 0x6f, 0x5c, 0xdd,
-	0x07, 0x16, 0x32, 0xb1, 0x73, 0x46, 0x29, 0xe5, 0x45, 0x65, 0x16, 0xf8, 0x45, 0x65, 0x6a, 0xd5,
-	0xce, 0xf5, 0x5a, 0x3f, 0xbe, 0x33, 0xf2, 0x69, 0xcd, 0xc8, 0x97, 0x35, 0x23, 0x67, 0x6b, 0x46,
-	0xbe, 0xad, 0x19, 0xf9, 0xb8, 0x61, 0xb9, 0xb3, 0x0d, 0xcb, 0x7d, 0xdd, 0xb0, 0x9c, 0x63, 0xe1,
-	0x4f, 0xe3, 0xf8, 0x67, 0x00, 0x00, 0x00, 0xff, 0xff, 0x78, 0x88, 0x60, 0xb1, 0x80, 0x04, 0x00,
-	0x00,
+	// 744 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x56, 0xc1, 0x6e, 0xd3, 0x40,
+	0x10, 0x8d, 0xed, 0xc6, 0x4d, 0xa7, 0x69, 0xa3, 0xac, 0x10, 0x8a, 0x0c, 0x38, 0xa9, 0x5b, 0x4a,
+	0x85, 0xd4, 0x14, 0xb5, 0x17, 0x40, 0x5c, 0x5a, 0x82, 0x4a, 0x20, 0x42, 0xd5, 0x8a, 0x1f, 0x68,
+	0xea, 0x8d, 0x13, 0xe1, 0x64, 0x83, 0xed, 0x80, 0x72, 0xe5, 0xc0, 0x99, 0xbf, 0x40, 0xfc, 0x05,
+	0x37, 0x38, 0x70, 0xe8, 0x81, 0x03, 0xca, 0x21, 0x82, 0xf4, 0x0b, 0xb8, 0x71, 0x44, 0x3b, 0xeb,
+	0xda, 0x71, 0xda, 0x44, 0x8d, 0x7a, 0xcb, 0xce, 0x7b, 0x33, 0x3b, 0x6f, 0x66, 0x76, 0x1c, 0x58,
+	0x09, 0x9a, 0x1e, 0x3b, 0xb6, 0xfd, 0x72, 0xd7, 0xe3, 0x01, 0x27, 0x10, 0x1d, 0xeb, 0xc6, 0xb6,
+	0xd3, 0x0a, 0x9a, 0xbd, 0x7a, 0xf9, 0x84, 0xb7, 0x77, 0x1c, 0xee, 0xf0, 0x1d, 0xa4, 0xd4, 0x7b,
+	0x0d, 0x3c, 0xe1, 0x01, 0x7f, 0x49, 0x57, 0xeb, 0xaf, 0x0a, 0x5a, 0x8d, 0x3b, 0xa4, 0x08, 0x6a,
+	0xb5, 0x52, 0x50, 0x4a, 0xca, 0x56, 0xf6, 0x20, 0x37, 0x18, 0x16, 0x97, 0x8f, 0x04, 0x7c, 0xc4,
+	0x98, 0x57, 0xad, 0x50, 0xb5, 0x5a, 0x21, 0xf7, 0x40, 0xef, 0xf6, 0xea, 0x2f, 0x59, 0xbf, 0xa0,
+	0x4e, 0x92, 0xd0, 0x4c, 0x43, 0x98, 0xdc, 0x87, 0xa5, 0x06, 0x77, 0x5d, 0xfe, 0x5e, 0x70, 0x35,
+	0xe4, 0x66, 0x07, 0xc3, 0x62, 0x06, 0xb9, 0x82, 0x18, 0xc3, 0x64, 0x13, 0x16, 0x45, 0xe2, 0x82,
+	0xb9, 0x70, 0x09, 0xf3, 0x1c, 0x24, 0xeb, 0x90, 0x3e, 0xb6, 0x6d, 0xcf, 0x2f, 0xa4, 0x4b, 0xda,
+	0x56, 0xf6, 0x60, 0x65, 0x30, 0x2c, 0x2e, 0x21, 0x6b, 0xdf, 0xb6, 0x3d, 0x2a, 0x31, 0x62, 0x41,
+	0xba, 0x29, 0xaa, 0x50, 0xd0, 0x91, 0x14, 0x87, 0x7a, 0xda, 0xb2, 0xa9, 0x84, 0x8c, 0x0f, 0x0a,
+	0xe8, 0x94, 0x9d, 0x70, 0xcf, 0x26, 0x26, 0x80, 0x87, 0xbf, 0x5e, 0x71, 0x9b, 0x49, 0xe5, 0x74,
+	0xcc, 0x42, 0x6e, 0xc3, 0x12, 0x7b, 0xc7, 0x3a, 0x01, 0xc2, 0xa8, 0x99, 0xc6, 0x06, 0xe1, 0x2d,
+	0x22, 0x32, 0x0f, 0x61, 0x4d, 0x7a, 0xc7, 0x16, 0x62, 0x40, 0xa6, 0xce, 0xed, 0x3e, 0xa2, 0x28,
+	0x8d, 0x46, 0x67, 0xeb, 0x8b, 0x02, 0xab, 0x87, 0x2c, 0xa8, 0x71, 0xc7, 0xa7, 0xec, 0x6d, 0x8f,
+	0xf9, 0x01, 0x79, 0x04, 0xba, 0x74, 0xc6, 0x44, 0x96, 0x77, 0xd7, 0xca, 0x71, 0x4b, 0xcb, 0x49,
+	0x6e, 0xf9, 0x39, 0x12, 0x69, 0xe8, 0x40, 0xb6, 0x21, 0x23, 0xb9, 0xd5, 0x4a, 0xd8, 0x9a, 0xfc,
+	0x60, 0x58, 0x5c, 0x41, 0xe5, 0xaf, 0x43, 0x80, 0x46, 0x14, 0x63, 0x1b, 0x74, 0x19, 0x80, 0xac,
+	0xc3, 0x42, 0xc3, 0xe3, 0xed, 0x69, 0x4d, 0x47, 0xd0, 0xda, 0x83, 0x6c, 0x74, 0x7d, 0xd7, 0x15,
+	0x9d, 0x58, 0x70, 0xb9, 0xe3, 0x17, 0x94, 0x92, 0xb6, 0xb5, 0xbc, 0x9b, 0x1b, 0x4f, 0xb3, 0xc6,
+	0x1d, 0x8a, 0xa0, 0xf5, 0x43, 0x81, 0xd5, 0xa3, 0x9e, 0xdf, 0x14, 0x96, 0xab, 0x08, 0x4c, 0x72,
+	0xaf, 0x27, 0x90, 0xac, 0x81, 0xe6, 0x72, 0x07, 0x5b, 0x72, 0x49, 0x82, 0x02, 0x9b, 0xb7, 0x06,
+	0xab, 0x90, 0x8d, 0x32, 0xec, 0xba, 0x7d, 0x6b, 0xa0, 0x42, 0xfe, 0x90, 0x05, 0x72, 0x8e, 0xa2,
+	0x16, 0x3e, 0x99, 0x50, 0xb8, 0x31, 0xd1, 0xc2, 0x24, 0xfd, 0x9a, 0x22, 0x1f, 0x87, 0x6d, 0xd0,
+	0xb0, 0x0d, 0x9b, 0xb3, 0xaf, 0xaa, 0x71, 0xe7, 0x59, 0x27, 0xf0, 0xfa, 0xb2, 0x3b, 0x46, 0x1b,
+	0x32, 0xe7, 0x16, 0x72, 0x17, 0xd2, 0x2e, 0x77, 0xa6, 0xbf, 0x7c, 0x89, 0x92, 0x0d, 0xd0, 0x79,
+	0xa3, 0xe1, 0xb3, 0x20, 0xcc, 0x2d, 0xf9, 0xb6, 0x42, 0x8c, 0xdc, 0x80, 0xb4, 0xdb, 0x6a, 0xb7,
+	0x02, 0xac, 0x7d, 0x9a, 0xca, 0xc3, 0xbc, 0xc5, 0xfe, 0xa9, 0x40, 0x6e, 0x5c, 0x82, 0x18, 0xba,
+	0x87, 0x89, 0xa1, 0x9b, 0x5a, 0xd8, 0xae, 0xdb, 0x9f, 0xd4, 0xfa, 0x51, 0x99, 0x5f, 0xec, 0x03,
+	0xb1, 0x94, 0x30, 0x64, 0x41, 0xc5, 0x0b, 0x6f, 0x4e, 0x0c, 0x51, 0x59, 0xde, 0x48, 0xcf, 0x69,
+	0x57, 0x18, 0x39, 0xeb, 0x9b, 0x0a, 0x79, 0x31, 0x44, 0xa1, 0xeb, 0x55, 0x66, 0xe6, 0x02, 0xfd,
+	0x9a, 0x33, 0x13, 0xc9, 0xd7, 0x66, 0xca, 0x2f, 0x83, 0x2e, 0x75, 0xe1, 0xde, 0x9a, 0xae, 0x3e,
+	0x64, 0x19, 0x9d, 0xb9, 0xfa, 0x2b, 0xd6, 0xaa, 0xdf, 0x72, 0x3a, 0xc7, 0x41, 0xcf, 0x8b, 0xd6,
+	0x6a, 0x64, 0x10, 0x95, 0x7c, 0x13, 0x7d, 0x36, 0x2e, 0x7c, 0x62, 0x04, 0x66, 0xe5, 0x21, 0x37,
+	0x5e, 0x99, 0xae, 0xdb, 0xdf, 0xfd, 0xac, 0xc2, 0xa2, 0x14, 0xec, 0x93, 0x7d, 0x58, 0x0c, 0x17,
+	0x16, 0x31, 0xa6, 0x2f, 0x51, 0xa3, 0x70, 0x29, 0x26, 0x5e, 0x77, 0x4a, 0x84, 0x08, 0xdf, 0x7b,
+	0x32, 0x44, 0x72, 0x4d, 0x25, 0x43, 0x24, 0x16, 0x44, 0x8a, 0xbc, 0x00, 0x88, 0x27, 0x93, 0xdc,
+	0x99, 0xf9, 0x3e, 0x8d, 0x5b, 0x33, 0x06, 0x5a, 0xc6, 0x8a, 0x05, 0x27, 0x63, 0x5d, 0x18, 0x91,
+	0x64, 0xac, 0x89, 0x3a, 0x59, 0xa9, 0x83, 0xd2, 0xbf, 0x3f, 0xa6, 0xf2, 0x75, 0x64, 0x2a, 0xdf,
+	0x47, 0xa6, 0x72, 0x3a, 0x32, 0x95, 0xdf, 0x23, 0x53, 0xf9, 0x74, 0x66, 0xa6, 0x4e, 0xcf, 0xcc,
+	0xd4, 0xaf, 0x33, 0x33, 0x55, 0xd7, 0xf1, 0x7f, 0xc1, 0xde, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff,
+	0xbf, 0x9a, 0xcf, 0xd8, 0x63, 0x08, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -463,10 +882,14 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ThreadsClient interface {
-	// Push a record to a thread.
-	Push(ctx context.Context, in *PushRequest, opts ...grpc.CallOption) (*PushReply, error)
-	// Pull records from a thread.
-	Pull(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PullReply, error)
+	// GetLogs from a peer.
+	GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsReply, error)
+	// PushLog to a peer.
+	PushLog(ctx context.Context, in *PushLogRequest, opts ...grpc.CallOption) (*PushLogReply, error)
+	// GetRecords from a peer.
+	GetRecords(ctx context.Context, in *GetRecordsRequest, opts ...grpc.CallOption) (*GetRecordsReply, error)
+	// PushRecord to a peer.
+	PushRecord(ctx context.Context, in *PushRecordRequest, opts ...grpc.CallOption) (*PushRecordReply, error)
 }
 
 type threadsClient struct {
@@ -477,18 +900,36 @@ func NewThreadsClient(cc *grpc.ClientConn) ThreadsClient {
 	return &threadsClient{cc}
 }
 
-func (c *threadsClient) Push(ctx context.Context, in *PushRequest, opts ...grpc.CallOption) (*PushReply, error) {
-	out := new(PushReply)
-	err := c.cc.Invoke(ctx, "/threads.pb.Threads/Push", in, out, opts...)
+func (c *threadsClient) GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsReply, error) {
+	out := new(GetLogsReply)
+	err := c.cc.Invoke(ctx, "/threads.pb.Threads/GetLogs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *threadsClient) Pull(ctx context.Context, in *PullRequest, opts ...grpc.CallOption) (*PullReply, error) {
-	out := new(PullReply)
-	err := c.cc.Invoke(ctx, "/threads.pb.Threads/Pull", in, out, opts...)
+func (c *threadsClient) PushLog(ctx context.Context, in *PushLogRequest, opts ...grpc.CallOption) (*PushLogReply, error) {
+	out := new(PushLogReply)
+	err := c.cc.Invoke(ctx, "/threads.pb.Threads/PushLog", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *threadsClient) GetRecords(ctx context.Context, in *GetRecordsRequest, opts ...grpc.CallOption) (*GetRecordsReply, error) {
+	out := new(GetRecordsReply)
+	err := c.cc.Invoke(ctx, "/threads.pb.Threads/GetRecords", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *threadsClient) PushRecord(ctx context.Context, in *PushRecordRequest, opts ...grpc.CallOption) (*PushRecordReply, error) {
+	out := new(PushRecordReply)
+	err := c.cc.Invoke(ctx, "/threads.pb.Threads/PushRecord", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -497,48 +938,88 @@ func (c *threadsClient) Pull(ctx context.Context, in *PullRequest, opts ...grpc.
 
 // ThreadsServer is the server API for Threads service.
 type ThreadsServer interface {
-	// Push a record to a thread.
-	Push(context.Context, *PushRequest) (*PushReply, error)
-	// Pull records from a thread.
-	Pull(context.Context, *PullRequest) (*PullReply, error)
+	// GetLogs from a peer.
+	GetLogs(context.Context, *GetLogsRequest) (*GetLogsReply, error)
+	// PushLog to a peer.
+	PushLog(context.Context, *PushLogRequest) (*PushLogReply, error)
+	// GetRecords from a peer.
+	GetRecords(context.Context, *GetRecordsRequest) (*GetRecordsReply, error)
+	// PushRecord to a peer.
+	PushRecord(context.Context, *PushRecordRequest) (*PushRecordReply, error)
 }
 
 func RegisterThreadsServer(s *grpc.Server, srv ThreadsServer) {
 	s.RegisterService(&_Threads_serviceDesc, srv)
 }
 
-func _Threads_Push_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PushRequest)
+func _Threads_GetLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLogsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ThreadsServer).Push(ctx, in)
+		return srv.(ThreadsServer).GetLogs(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/threads.pb.Threads/Push",
+		FullMethod: "/threads.pb.Threads/GetLogs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ThreadsServer).Push(ctx, req.(*PushRequest))
+		return srv.(ThreadsServer).GetLogs(ctx, req.(*GetLogsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Threads_Pull_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PullRequest)
+func _Threads_PushLog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PushLogRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ThreadsServer).Pull(ctx, in)
+		return srv.(ThreadsServer).PushLog(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/threads.pb.Threads/Pull",
+		FullMethod: "/threads.pb.Threads/PushLog",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ThreadsServer).Pull(ctx, req.(*PullRequest))
+		return srv.(ThreadsServer).PushLog(ctx, req.(*PushLogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Threads_GetRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRecordsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ThreadsServer).GetRecords(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/threads.pb.Threads/GetRecords",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ThreadsServer).GetRecords(ctx, req.(*GetRecordsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Threads_PushRecord_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PushRecordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ThreadsServer).PushRecord(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/threads.pb.Threads/PushRecord",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ThreadsServer).PushRecord(ctx, req.(*PushRecordRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -548,19 +1029,27 @@ var _Threads_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ThreadsServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Push",
-			Handler:    _Threads_Push_Handler,
+			MethodName: "GetLogs",
+			Handler:    _Threads_GetLogs_Handler,
 		},
 		{
-			MethodName: "Pull",
-			Handler:    _Threads_Pull_Handler,
+			MethodName: "PushLog",
+			Handler:    _Threads_PushLog_Handler,
+		},
+		{
+			MethodName: "GetRecords",
+			Handler:    _Threads_GetRecords_Handler,
+		},
+		{
+			MethodName: "PushRecord",
+			Handler:    _Threads_PushRecord_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "threads.proto",
 }
 
-func (m *Record) Marshal() (dAtA []byte, err error) {
+func (m *Log) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -570,7 +1059,89 @@ func (m *Record) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Record) MarshalTo(dAtA []byte) (int, error) {
+func (m *Log) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.ID != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.ID.Size()))
+		n1, err := m.ID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n1
+	}
+	if m.PubKey != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.PubKey.Size()))
+		n2, err := m.PubKey.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
+	}
+	if m.FollowKey != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.FollowKey.Size()))
+		n3, err := m.FollowKey.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n3
+	}
+	if m.ReadKey != nil {
+		dAtA[i] = 0x22
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.ReadKey.Size()))
+		n4, err := m.ReadKey.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n4
+	}
+	if len(m.Addrs) > 0 {
+		for _, msg := range m.Addrs {
+			dAtA[i] = 0x2a
+			i++
+			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if len(m.Heads) > 0 {
+		for _, msg := range m.Heads {
+			dAtA[i] = 0x32
+			i++
+			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *Log_Record) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Log_Record) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -602,7 +1173,7 @@ func (m *Record) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *PushRequest) Marshal() (dAtA []byte, err error) {
+func (m *GetLogsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -612,7 +1183,7 @@ func (m *PushRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *PushRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *GetLogsRequest) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -621,46 +1192,26 @@ func (m *PushRequest) MarshalTo(dAtA []byte) (int, error) {
 		dAtA[i] = 0xa
 		i++
 		i = encodeVarintThreads(dAtA, i, uint64(m.Header.Size()))
-		n1, err := m.Header.MarshalTo(dAtA[i:])
+		n5, err := m.Header.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n1
+		i += n5
 	}
 	if m.ThreadID != nil {
 		dAtA[i] = 0x12
 		i++
 		i = encodeVarintThreads(dAtA, i, uint64(m.ThreadID.Size()))
-		n2, err := m.ThreadID.MarshalTo(dAtA[i:])
+		n6, err := m.ThreadID.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
-		i += n2
-	}
-	if m.LogID != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.LogID.Size()))
-		n3, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n3
-	}
-	if m.Record != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Record.Size()))
-		n4, err := m.Record.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
+		i += n6
 	}
 	return i, nil
 }
 
-func (m *PushRequest_Header) Marshal() (dAtA []byte, err error) {
+func (m *GetLogsRequest_Header) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -670,7 +1221,7 @@ func (m *PushRequest_Header) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *PushRequest_Header) MarshalTo(dAtA []byte) (int, error) {
+func (m *GetLogsRequest_Header) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -679,39 +1230,7 @@ func (m *PushRequest_Header) MarshalTo(dAtA []byte) (int, error) {
 		dAtA[i] = 0xa
 		i++
 		i = encodeVarintThreads(dAtA, i, uint64(m.From.Size()))
-		n5, err := m.From.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n5
-	}
-	if len(m.Signature) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(len(m.Signature)))
-		i += copy(dAtA[i:], m.Signature)
-	}
-	if m.Key != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Key.Size()))
-		n6, err := m.Key.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n6
-	}
-	if len(m.FollowKey) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(len(m.FollowKey)))
-		i += copy(dAtA[i:], m.FollowKey)
-	}
-	if m.ReadKeyLogID != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.ReadKeyLogID.Size()))
-		n7, err := m.ReadKeyLogID.MarshalTo(dAtA[i:])
+		n7, err := m.From.MarshalTo(dAtA[i:])
 		if err != nil {
 			return 0, err
 		}
@@ -720,7 +1239,7 @@ func (m *PushRequest_Header) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *PushReply) Marshal() (dAtA []byte, err error) {
+func (m *GetLogsReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -730,132 +1249,13 @@ func (m *PushReply) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *PushReply) MarshalTo(dAtA []byte) (int, error) {
+func (m *GetLogsReply) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	if m.NewAddr != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.NewAddr.Size()))
-		n8, err := m.NewAddr.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n8
-	}
-	return i, nil
-}
-
-func (m *PullRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PullRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Header.Size()))
-		n9, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n9
-	}
-	if m.ThreadID != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.ThreadID.Size()))
-		n10, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n10
-	}
-	if m.LogID != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.LogID.Size()))
-		n11, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n11
-	}
-	if m.Offset != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Offset.Size()))
-		n12, err := m.Offset.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n12
-	}
-	if m.Limit != 0 {
-		dAtA[i] = 0x28
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.Limit))
-	}
-	return i, nil
-}
-
-func (m *PullRequest_Header) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PullRequest_Header) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if m.From != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintThreads(dAtA, i, uint64(m.From.Size()))
-		n13, err := m.From.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n13
-	}
-	return i, nil
-}
-
-func (m *PullReply) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *PullReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
-	if len(m.Records) > 0 {
-		for _, msg := range m.Records {
+	if len(m.Logs) > 0 {
+		for _, msg := range m.Logs {
 			dAtA[i] = 0xa
 			i++
 			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
@@ -869,6 +1269,421 @@ func (m *PullReply) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *PushLogRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PushLogRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Header != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Header.Size()))
+		n8, err := m.Header.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n8
+	}
+	if m.ThreadID != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.ThreadID.Size()))
+		n9, err := m.ThreadID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n9
+	}
+	if m.Log != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Log.Size()))
+		n10, err := m.Log.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n10
+	}
+	return i, nil
+}
+
+func (m *PushLogRequest_Header) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PushLogRequest_Header) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.From != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.From.Size()))
+		n11, err := m.From.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n11
+	}
+	return i, nil
+}
+
+func (m *PushLogReply) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PushLogReply) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
+func (m *GetRecordsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetRecordsRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Header != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Header.Size()))
+		n12, err := m.Header.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n12
+	}
+	if m.ThreadID != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.ThreadID.Size()))
+		n13, err := m.ThreadID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n13
+	}
+	if len(m.Logs) > 0 {
+		for _, msg := range m.Logs {
+			dAtA[i] = 0x1a
+			i++
+			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *GetRecordsRequest_LogEntry) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetRecordsRequest_LogEntry) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.LogID != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.LogID.Size()))
+		n14, err := m.LogID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n14
+	}
+	if m.Offset != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Offset.Size()))
+		n15, err := m.Offset.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n15
+	}
+	if m.Limit != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Limit))
+	}
+	return i, nil
+}
+
+func (m *GetRecordsRequest_Header) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetRecordsRequest_Header) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.From != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.From.Size()))
+		n16, err := m.From.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n16
+	}
+	return i, nil
+}
+
+func (m *GetRecordsReply) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetRecordsReply) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Logs) > 0 {
+		for _, msg := range m.Logs {
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *GetRecordsReply_LogEntry) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GetRecordsReply_LogEntry) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.LogID != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.LogID.Size()))
+		n17, err := m.LogID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n17
+	}
+	if len(m.Records) > 0 {
+		for _, msg := range m.Records {
+			dAtA[i] = 0x12
+			i++
+			i = encodeVarintThreads(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if m.Log != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Log.Size()))
+		n18, err := m.Log.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n18
+	}
+	return i, nil
+}
+
+func (m *PushRecordRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PushRecordRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Header != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Header.Size()))
+		n19, err := m.Header.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n19
+	}
+	if m.ThreadID != nil {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.ThreadID.Size()))
+		n20, err := m.ThreadID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n20
+	}
+	if m.LogID != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.LogID.Size()))
+		n21, err := m.LogID.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n21
+	}
+	if m.Record != nil {
+		dAtA[i] = 0x22
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Record.Size()))
+		n22, err := m.Record.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n22
+	}
+	return i, nil
+}
+
+func (m *PushRecordRequest_Header) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PushRecordRequest_Header) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.From != nil {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.From.Size()))
+		n23, err := m.From.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n23
+	}
+	if len(m.Signature) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(len(m.Signature)))
+		i += copy(dAtA[i:], m.Signature)
+	}
+	if m.Key != nil {
+		dAtA[i] = 0x1a
+		i++
+		i = encodeVarintThreads(dAtA, i, uint64(m.Key.Size()))
+		n24, err := m.Key.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n24
+	}
+	return i, nil
+}
+
+func (m *PushRecordReply) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PushRecordReply) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
 func encodeVarintThreads(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -878,26 +1693,49 @@ func encodeVarintThreads(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-func NewPopulatedRecord(r randyThreads, easy bool) *Record {
-	this := &Record{}
-	v1 := r.Intn(100)
-	this.RecordNode = make([]byte, v1)
+func NewPopulatedLog(r randyThreads, easy bool) *Log {
+	this := &Log{}
+	this.ID = NewPopulatedProtoPeerID(r)
+	this.PubKey = NewPopulatedProtoPubKey(r)
+	this.FollowKey = NewPopulatedProtoKey(r)
+	this.ReadKey = NewPopulatedProtoKey(r)
+	v1 := r.Intn(10)
+	this.Addrs = make([]ProtoAddr, v1)
 	for i := 0; i < v1; i++ {
+		v2 := NewPopulatedProtoAddr(r)
+		this.Addrs[i] = *v2
+	}
+	v3 := r.Intn(10)
+	this.Heads = make([]ProtoCid, v3)
+	for i := 0; i < v3; i++ {
+		v4 := NewPopulatedProtoCid(r)
+		this.Heads[i] = *v4
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedLog_Record(r randyThreads, easy bool) *Log_Record {
+	this := &Log_Record{}
+	v5 := r.Intn(100)
+	this.RecordNode = make([]byte, v5)
+	for i := 0; i < v5; i++ {
 		this.RecordNode[i] = byte(r.Intn(256))
 	}
-	v2 := r.Intn(100)
-	this.EventNode = make([]byte, v2)
-	for i := 0; i < v2; i++ {
+	v6 := r.Intn(100)
+	this.EventNode = make([]byte, v6)
+	for i := 0; i < v6; i++ {
 		this.EventNode[i] = byte(r.Intn(256))
 	}
-	v3 := r.Intn(100)
-	this.HeaderNode = make([]byte, v3)
-	for i := 0; i < v3; i++ {
+	v7 := r.Intn(100)
+	this.HeaderNode = make([]byte, v7)
+	for i := 0; i < v7; i++ {
 		this.HeaderNode[i] = byte(r.Intn(256))
 	}
-	v4 := r.Intn(100)
-	this.BodyNode = make([]byte, v4)
-	for i := 0; i < v4; i++ {
+	v8 := r.Intn(100)
+	this.BodyNode = make([]byte, v8)
+	for i := 0; i < v8; i++ {
 		this.BodyNode[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -905,55 +1743,88 @@ func NewPopulatedRecord(r randyThreads, easy bool) *Record {
 	return this
 }
 
-func NewPopulatedPushRequest(r randyThreads, easy bool) *PushRequest {
-	this := &PushRequest{}
+func NewPopulatedGetLogsRequest(r randyThreads, easy bool) *GetLogsRequest {
+	this := &GetLogsRequest{}
 	if r.Intn(10) != 0 {
-		this.Header = NewPopulatedPushRequest_Header(r, easy)
+		this.Header = NewPopulatedGetLogsRequest_Header(r, easy)
 	}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
-	this.LogID = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
-		this.Record = NewPopulatedRecord(r, easy)
-	}
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
 }
 
-func NewPopulatedPushRequest_Header(r randyThreads, easy bool) *PushRequest_Header {
-	this := &PushRequest_Header{}
+func NewPopulatedGetLogsRequest_Header(r randyThreads, easy bool) *GetLogsRequest_Header {
+	this := &GetLogsRequest_Header{}
 	this.From = NewPopulatedProtoPeerID(r)
-	v5 := r.Intn(100)
-	this.Signature = make([]byte, v5)
-	for i := 0; i < v5; i++ {
-		this.Signature[i] = byte(r.Intn(256))
-	}
-	this.Key = NewPopulatedProtoPubKey(r)
-	v6 := r.Intn(100)
-	this.FollowKey = make([]byte, v6)
-	for i := 0; i < v6; i++ {
-		this.FollowKey[i] = byte(r.Intn(256))
-	}
-	this.ReadKeyLogID = NewPopulatedProtoPeerID(r)
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
 }
 
-func NewPopulatedPushReply(r randyThreads, easy bool) *PushReply {
-	this := &PushReply{}
-	this.NewAddr = NewPopulatedProtoAddr(r)
-	if !easy && r.Intn(10) != 0 {
-	}
-	return this
-}
-
-func NewPopulatedPullRequest(r randyThreads, easy bool) *PullRequest {
-	this := &PullRequest{}
+func NewPopulatedGetLogsReply(r randyThreads, easy bool) *GetLogsReply {
+	this := &GetLogsReply{}
 	if r.Intn(10) != 0 {
-		this.Header = NewPopulatedPullRequest_Header(r, easy)
+		v9 := r.Intn(5)
+		this.Logs = make([]*Log, v9)
+		for i := 0; i < v9; i++ {
+			this.Logs[i] = NewPopulatedLog(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPushLogRequest(r randyThreads, easy bool) *PushLogRequest {
+	this := &PushLogRequest{}
+	if r.Intn(10) != 0 {
+		this.Header = NewPopulatedPushLogRequest_Header(r, easy)
 	}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
+	if r.Intn(10) != 0 {
+		this.Log = NewPopulatedLog(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPushLogRequest_Header(r randyThreads, easy bool) *PushLogRequest_Header {
+	this := &PushLogRequest_Header{}
+	this.From = NewPopulatedProtoPeerID(r)
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPushLogReply(r randyThreads, easy bool) *PushLogReply {
+	this := &PushLogReply{}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedGetRecordsRequest(r randyThreads, easy bool) *GetRecordsRequest {
+	this := &GetRecordsRequest{}
+	if r.Intn(10) != 0 {
+		this.Header = NewPopulatedGetRecordsRequest_Header(r, easy)
+	}
+	this.ThreadID = NewPopulatedProtoThreadID(r)
+	if r.Intn(10) != 0 {
+		v10 := r.Intn(5)
+		this.Logs = make([]*GetRecordsRequest_LogEntry, v10)
+		for i := 0; i < v10; i++ {
+			this.Logs[i] = NewPopulatedGetRecordsRequest_LogEntry(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedGetRecordsRequest_LogEntry(r randyThreads, easy bool) *GetRecordsRequest_LogEntry {
+	this := &GetRecordsRequest_LogEntry{}
 	this.LogID = NewPopulatedProtoPeerID(r)
 	this.Offset = NewPopulatedProtoCid(r)
 	this.Limit = int32(r.Int31())
@@ -965,23 +1836,77 @@ func NewPopulatedPullRequest(r randyThreads, easy bool) *PullRequest {
 	return this
 }
 
-func NewPopulatedPullRequest_Header(r randyThreads, easy bool) *PullRequest_Header {
-	this := &PullRequest_Header{}
+func NewPopulatedGetRecordsRequest_Header(r randyThreads, easy bool) *GetRecordsRequest_Header {
+	this := &GetRecordsRequest_Header{}
 	this.From = NewPopulatedProtoPeerID(r)
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
 }
 
-func NewPopulatedPullReply(r randyThreads, easy bool) *PullReply {
-	this := &PullReply{}
+func NewPopulatedGetRecordsReply(r randyThreads, easy bool) *GetRecordsReply {
+	this := &GetRecordsReply{}
 	if r.Intn(10) != 0 {
-		v7 := r.Intn(5)
-		this.Records = make([]*Record, v7)
-		for i := 0; i < v7; i++ {
-			this.Records[i] = NewPopulatedRecord(r, easy)
+		v11 := r.Intn(5)
+		this.Logs = make([]*GetRecordsReply_LogEntry, v11)
+		for i := 0; i < v11; i++ {
+			this.Logs[i] = NewPopulatedGetRecordsReply_LogEntry(r, easy)
 		}
 	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedGetRecordsReply_LogEntry(r randyThreads, easy bool) *GetRecordsReply_LogEntry {
+	this := &GetRecordsReply_LogEntry{}
+	this.LogID = NewPopulatedProtoPeerID(r)
+	if r.Intn(10) != 0 {
+		v12 := r.Intn(5)
+		this.Records = make([]*Log_Record, v12)
+		for i := 0; i < v12; i++ {
+			this.Records[i] = NewPopulatedLog_Record(r, easy)
+		}
+	}
+	if r.Intn(10) != 0 {
+		this.Log = NewPopulatedLog(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPushRecordRequest(r randyThreads, easy bool) *PushRecordRequest {
+	this := &PushRecordRequest{}
+	if r.Intn(10) != 0 {
+		this.Header = NewPopulatedPushRecordRequest_Header(r, easy)
+	}
+	this.ThreadID = NewPopulatedProtoThreadID(r)
+	this.LogID = NewPopulatedProtoPeerID(r)
+	if r.Intn(10) != 0 {
+		this.Record = NewPopulatedLog_Record(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPushRecordRequest_Header(r randyThreads, easy bool) *PushRecordRequest_Header {
+	this := &PushRecordRequest_Header{}
+	this.From = NewPopulatedProtoPeerID(r)
+	v13 := r.Intn(100)
+	this.Signature = make([]byte, v13)
+	for i := 0; i < v13; i++ {
+		this.Signature[i] = byte(r.Intn(256))
+	}
+	this.Key = NewPopulatedProtoPubKey(r)
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedPushRecordReply(r randyThreads, easy bool) *PushRecordReply {
+	this := &PushRecordReply{}
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
@@ -1006,9 +1931,9 @@ func randUTF8RuneThreads(r randyThreads) rune {
 	return rune(ru + 61)
 }
 func randStringThreads(r randyThreads) string {
-	v8 := r.Intn(100)
-	tmps := make([]rune, v8)
-	for i := 0; i < v8; i++ {
+	v14 := r.Intn(100)
+	tmps := make([]rune, v14)
+	for i := 0; i < v14; i++ {
 		tmps[i] = randUTF8RuneThreads(r)
 	}
 	return string(tmps)
@@ -1030,11 +1955,11 @@ func randFieldThreads(dAtA []byte, r randyThreads, fieldNumber int, wire int) []
 	switch wire {
 	case 0:
 		dAtA = encodeVarintPopulateThreads(dAtA, uint64(key))
-		v9 := r.Int63()
+		v15 := r.Int63()
 		if r.Intn(2) == 0 {
-			v9 *= -1
+			v15 *= -1
 		}
-		dAtA = encodeVarintPopulateThreads(dAtA, uint64(v9))
+		dAtA = encodeVarintPopulateThreads(dAtA, uint64(v15))
 	case 1:
 		dAtA = encodeVarintPopulateThreads(dAtA, uint64(key))
 		dAtA = append(dAtA, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -1059,7 +1984,44 @@ func encodeVarintPopulateThreads(dAtA []byte, v uint64) []byte {
 	dAtA = append(dAtA, uint8(v))
 	return dAtA
 }
-func (m *Record) Size() (n int) {
+func (m *Log) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ID != nil {
+		l = m.ID.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.PubKey != nil {
+		l = m.PubKey.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.FollowKey != nil {
+		l = m.FollowKey.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.ReadKey != nil {
+		l = m.ReadKey.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if len(m.Addrs) > 0 {
+		for _, e := range m.Addrs {
+			l = e.Size()
+			n += 1 + l + sovThreads(uint64(l))
+		}
+	}
+	if len(m.Heads) > 0 {
+		for _, e := range m.Heads {
+			l = e.Size()
+			n += 1 + l + sovThreads(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *Log_Record) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1084,7 +2046,189 @@ func (m *Record) Size() (n int) {
 	return n
 }
 
-func (m *PushRequest) Size() (n int) {
+func (m *GetLogsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.ThreadID != nil {
+		l = m.ThreadID.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	return n
+}
+
+func (m *GetLogsRequest_Header) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.From != nil {
+		l = m.From.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	return n
+}
+
+func (m *GetLogsReply) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Logs) > 0 {
+		for _, e := range m.Logs {
+			l = e.Size()
+			n += 1 + l + sovThreads(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *PushLogRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.ThreadID != nil {
+		l = m.ThreadID.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.Log != nil {
+		l = m.Log.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	return n
+}
+
+func (m *PushLogRequest_Header) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.From != nil {
+		l = m.From.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	return n
+}
+
+func (m *PushLogReply) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *GetRecordsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.ThreadID != nil {
+		l = m.ThreadID.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if len(m.Logs) > 0 {
+		for _, e := range m.Logs {
+			l = e.Size()
+			n += 1 + l + sovThreads(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *GetRecordsRequest_LogEntry) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.LogID != nil {
+		l = m.LogID.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.Offset != nil {
+		l = m.Offset.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if m.Limit != 0 {
+		n += 1 + sovThreads(uint64(m.Limit))
+	}
+	return n
+}
+
+func (m *GetRecordsRequest_Header) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.From != nil {
+		l = m.From.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	return n
+}
+
+func (m *GetRecordsReply) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Logs) > 0 {
+		for _, e := range m.Logs {
+			l = e.Size()
+			n += 1 + l + sovThreads(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *GetRecordsReply_LogEntry) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.LogID != nil {
+		l = m.LogID.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	if len(m.Records) > 0 {
+		for _, e := range m.Records {
+			l = e.Size()
+			n += 1 + l + sovThreads(uint64(l))
+		}
+	}
+	if m.Log != nil {
+		l = m.Log.Size()
+		n += 1 + l + sovThreads(uint64(l))
+	}
+	return n
+}
+
+func (m *PushRecordRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1109,7 +2253,7 @@ func (m *PushRequest) Size() (n int) {
 	return n
 }
 
-func (m *PushRequest_Header) Size() (n int) {
+func (m *PushRecordRequest_Header) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -1127,83 +2271,15 @@ func (m *PushRequest_Header) Size() (n int) {
 		l = m.Key.Size()
 		n += 1 + l + sovThreads(uint64(l))
 	}
-	l = len(m.FollowKey)
-	if l > 0 {
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.ReadKeyLogID != nil {
-		l = m.ReadKeyLogID.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
 	return n
 }
 
-func (m *PushReply) Size() (n int) {
+func (m *PushRecordReply) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.NewAddr != nil {
-		l = m.NewAddr.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	return n
-}
-
-func (m *PullRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Header != nil {
-		l = m.Header.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.ThreadID != nil {
-		l = m.ThreadID.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.LogID != nil {
-		l = m.LogID.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.Offset != nil {
-		l = m.Offset.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	if m.Limit != 0 {
-		n += 1 + sovThreads(uint64(m.Limit))
-	}
-	return n
-}
-
-func (m *PullRequest_Header) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.From != nil {
-		l = m.From.Size()
-		n += 1 + l + sovThreads(uint64(l))
-	}
-	return n
-}
-
-func (m *PullReply) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Records) > 0 {
-		for _, e := range m.Records {
-			l = e.Size()
-			n += 1 + l + sovThreads(uint64(l))
-		}
-	}
 	return n
 }
 
@@ -1220,7 +2296,270 @@ func sovThreads(x uint64) (n int) {
 func sozThreads(x uint64) (n int) {
 	return sovThreads(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *Record) Unmarshal(dAtA []byte) error {
+func (m *Log) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Log: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Log: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.ID = &v
+			if err := m.ID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PubKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPubKey
+			m.PubKey = &v
+			if err := m.PubKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FollowKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoKey
+			m.FollowKey = &v
+			if err := m.FollowKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ReadKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoKey
+			m.ReadKey = &v
+			if err := m.ReadKey.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Addrs", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoAddr
+			m.Addrs = append(m.Addrs, v)
+			if err := m.Addrs[len(m.Addrs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Heads", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoCid
+			m.Heads = append(m.Heads, v)
+			if err := m.Heads[len(m.Heads)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Log_Record) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1409,7 +2748,7 @@ func (m *Record) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *PushRequest) Unmarshal(dAtA []byte) error {
+func (m *GetLogsRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1432,10 +2771,10 @@ func (m *PushRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: PushRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: GetLogsRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: PushRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: GetLogsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1468,7 +2807,1240 @@ func (m *PushRequest) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Header == nil {
-				m.Header = &PushRequest_Header{}
+				m.Header = &GetLogsRequest_Header{}
+			}
+			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ThreadID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoThreadID
+			m.ThreadID = &v
+			if err := m.ThreadID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetLogsRequest_Header) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Header: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Header: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.From = &v
+			if err := m.From.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetLogsReply) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetLogsReply: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetLogsReply: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Logs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Logs = append(m.Logs, &Log{})
+			if err := m.Logs[len(m.Logs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PushLogRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PushLogRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PushLogRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &PushLogRequest_Header{}
+			}
+			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ThreadID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoThreadID
+			m.ThreadID = &v
+			if err := m.ThreadID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Log", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Log == nil {
+				m.Log = &Log{}
+			}
+			if err := m.Log.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PushLogRequest_Header) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Header: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Header: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.From = &v
+			if err := m.From.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PushLogReply) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PushLogReply: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PushLogReply: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetRecordsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetRecordsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetRecordsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &GetRecordsRequest_Header{}
+			}
+			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ThreadID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoThreadID
+			m.ThreadID = &v
+			if err := m.ThreadID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Logs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Logs = append(m.Logs, &GetRecordsRequest_LogEntry{})
+			if err := m.Logs[len(m.Logs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetRecordsRequest_LogEntry) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LogEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LogEntry: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LogID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.LogID = &v
+			if err := m.LogID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Offset", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoCid
+			m.Offset = &v
+			if err := m.Offset.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Limit", wireType)
+			}
+			m.Limit = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Limit |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetRecordsRequest_Header) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Header: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Header: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.From = &v
+			if err := m.From.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetRecordsReply) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GetRecordsReply: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GetRecordsReply: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Logs", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Logs = append(m.Logs, &GetRecordsReply_LogEntry{})
+			if err := m.Logs[len(m.Logs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GetRecordsReply_LogEntry) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: LogEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: LogEntry: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LogID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoPeerID
+			m.LogID = &v
+			if err := m.LogID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Records", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Records = append(m.Records, &Log_Record{})
+			if err := m.Records[len(m.Records)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Log", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Log == nil {
+				m.Log = &Log{}
+			}
+			if err := m.Log.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipThreads(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PushRecordRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowThreads
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PushRecordRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PushRecordRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowThreads
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthThreads
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthThreads
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &PushRecordRequest_Header{}
 			}
 			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -1574,7 +4146,7 @@ func (m *PushRequest) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Record == nil {
-				m.Record = &Record{}
+				m.Record = &Log_Record{}
 			}
 			if err := m.Record.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -1604,7 +4176,7 @@ func (m *PushRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *PushRequest_Header) Unmarshal(dAtA []byte) error {
+func (m *PushRecordRequest_Header) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1737,75 +4309,6 @@ func (m *PushRequest_Header) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FollowKey", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.FollowKey = append(m.FollowKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.FollowKey == nil {
-				m.FollowKey = []byte{}
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ReadKeyLogID", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoPeerID
-			m.ReadKeyLogID = &v
-			if err := m.ReadKeyLogID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipThreads(dAtA[iNdEx:])
@@ -1830,7 +4333,7 @@ func (m *PushRequest_Header) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *PushReply) Unmarshal(dAtA []byte) error {
+func (m *PushRecordReply) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1853,435 +4356,12 @@ func (m *PushReply) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: PushReply: wiretype end group for non-group")
+			return fmt.Errorf("proto: PushRecordReply: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: PushReply: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: PushRecordReply: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NewAddr", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoAddr
-			m.NewAddr = &v
-			if err := m.NewAddr.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipThreads(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *PullRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowThreads
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: PullRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: PullRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Header == nil {
-				m.Header = &PullRequest_Header{}
-			}
-			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ThreadID", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoThreadID
-			m.ThreadID = &v
-			if err := m.ThreadID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field LogID", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoPeerID
-			m.LogID = &v
-			if err := m.LogID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Offset", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoCid
-			m.Offset = &v
-			if err := m.Offset.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Limit", wireType)
-			}
-			m.Limit = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Limit |= int32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipThreads(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *PullRequest_Header) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowThreads
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Header: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Header: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field From", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			var v ProtoPeerID
-			m.From = &v
-			if err := m.From.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipThreads(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if skippy < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *PullReply) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowThreads
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: PullReply: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: PullReply: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Records", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowThreads
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthThreads
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthThreads
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Records = append(m.Records, &Record{})
-			if err := m.Records[len(m.Records)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipThreads(dAtA[iNdEx:])

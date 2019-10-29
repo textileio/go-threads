@@ -7,18 +7,17 @@ import (
 	"sync"
 	"time"
 
-	bserv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-cid"
+	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
-	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	tstore "github.com/textileio/go-textile-core/threadstore"
@@ -29,32 +28,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-var log = logging.Logger("threads")
-
-const (
-	// IPEL is the protocol slug.
-	IPEL = "ipel"
-	// IPELCode is the protocol code.
-	IPELCode = 406
-	// IPELVersion is the current protocol version.
-	IPELVersion = "0.0.1"
-	// IPELProtocol is the threads protocol tag.
-	IPELProtocol protocol.ID = "/" + IPEL + "/" + IPELVersion
-)
-
-var addrProtocol = ma.Protocol{
-	Name:       IPEL,
-	Code:       IPELCode,
-	VCode:      ma.CodeToVarint(IPELCode),
-	Size:       ma.LengthPrefixedVarSize,
-	Transcoder: ma.TranscoderP2P,
-}
-
 func init() {
-	if err := ma.AddProtocol(addrProtocol); err != nil {
-		panic(err)
-	}
+	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
 }
+
+var log = logging.Logger("threads")
 
 // MaxPullLimit is the maximum page size for pulling records.
 var MaxPullLimit = 10000
@@ -64,24 +42,28 @@ var PullInterval = time.Second * 10
 
 // threads is an implementation of Threadservice.
 type threads struct {
-	host       host.Host
-	blocks     bserv.BlockService
-	dagService format.DAGService
-	rpc        *grpc.Server
-	service    *service
-	bus        *broadcast.Broadcaster
-	ctx        context.Context
-	cancel     context.CancelFunc
-	tstore.Threadstore
+	format.DAGService
+	host   host.Host
+	bstore bs.Blockstore
+
+	store tstore.Threadstore
+
+	rpc     *grpc.Server
+	service *service
+	bus     *broadcast.Broadcaster
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewThreads creates an instance of threads from the given host and thread store.
 func NewThreads(
 	ctx context.Context,
 	h host.Host,
-	bs bserv.BlockService,
+	bstore bs.Blockstore,
 	ds format.DAGService,
 	ts tstore.Threadstore,
+	writer io.Writer,
 	debug bool,
 ) (tserv.Threadservice, error) {
 	var err error
@@ -89,7 +71,7 @@ func NewThreads(
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-		}, true)
+		}, writer, true)
 		if err != nil {
 			return nil, err
 		}
@@ -97,21 +79,21 @@ func NewThreads(
 
 	ctx, cancel := context.WithCancel(ctx)
 	t := &threads{
-		host:        h,
-		blocks:      bs,
-		dagService:  ds,
-		rpc:         grpc.NewServer(),
-		bus:         broadcast.NewBroadcaster(0),
-		ctx:         ctx,
-		cancel:      cancel,
-		Threadstore: ts,
+		DAGService: ds,
+		host:       h,
+		bstore:     bstore,
+		store:      ts,
+		rpc:        grpc.NewServer(),
+		bus:        broadcast.NewBroadcaster(0),
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 	t.service, err = newService(t)
 	if err != nil {
 		return nil, err
 	}
 
-	listener, err := gostream.Listen(h, IPELProtocol)
+	listener, err := gostream.Listen(h, ThreadProtocol)
 	if err != nil {
 		return nil, err
 	}
@@ -136,9 +118,9 @@ func (t *threads) Close() (err error) {
 		}
 	}
 
+	weakClose("DAGService", t.DAGService)
 	weakClose("host", t.host)
-	weakClose("dagservice", t.dagService)
-	weakClose("threadstore", t.Threadstore)
+	weakClose("threadstore", t.store)
 
 	t.bus.Discard()
 	t.cancel()
@@ -154,20 +136,192 @@ func (t *threads) Host() host.Host {
 	return t.host
 }
 
-// DAGService returns the underlying dag service.
-func (t *threads) DAGService() format.DAGService {
-	return t.dagService
+func (t *threads) Store() tstore.Threadstore {
+	return t.store
 }
 
-// Add a new record by wrapping body. See AddOption for more.
-func (t *threads) Add(
+// AddThread from a multiaddress.
+func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread.Info, err error) {
+	idstr, err := addr.ValueForProtocol(ThreadCode)
+	if err != nil {
+		return
+	}
+	id, err := thread.Decode(idstr)
+	if err != nil {
+		return
+	}
+	p, err := addr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return
+	}
+	pid, err := peer.IDB58Decode(p)
+	if err != nil {
+		return
+	}
+	if pid.String() == t.host.ID().String() {
+		return t.store.ThreadInfo(id)
+	}
+
+	lgs, err := t.service.getLogs(ctx, id, pid)
+	if err != nil {
+		return
+	}
+	// @todo: ensure does not exist? or overwrite with newer info from owner?
+	for _, l := range lgs {
+		if err = t.store.AddLog(id, l); err != nil {
+			return
+		}
+	}
+
+	go func() {
+		if err := t.PullThread(t.ctx, id); err != nil {
+			log.Errorf("error pulling thread %s: %s", id.String(), err)
+		}
+	}()
+
+	return t.store.ThreadInfo(id)
+}
+
+// PullThread for new records.
+// Logs owned by this host are traversed locally.
+// Remotely addressed logs are pulled from the network.
+func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
+	log.Debugf("pulling thread %s...", id.String())
+
+	lgs, err := t.getLogs(id)
+	if err != nil {
+		return err
+	}
+
+	// Gather offsets for each log
+	offsets := make(map[peer.ID]cid.Cid)
+	for _, lg := range lgs {
+		offsets[lg.ID] = cid.Undef
+		if len(lg.Heads) > 0 {
+			has, err := t.bstore.Has(lg.Heads[0])
+			if err != nil {
+				return err
+			}
+			if has {
+				offsets[lg.ID] = lg.Heads[0]
+			}
+		}
+	}
+
+	wg := sync.WaitGroup{}
+	for _, lg := range lgs {
+		wg.Add(1)
+		go func(lg thread.LogInfo) {
+			defer wg.Done()
+			// Pull from addresses
+			recs, err := t.service.getRecords(
+				ctx,
+				id,
+				lg.ID,
+				offsets,
+				MaxPullLimit)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			for lid, rs := range recs {
+				for _, r := range rs {
+					err = t.putRecord(
+						ctx,
+						r,
+						tserv.PutOpt.ThreadID(id),
+						tserv.PutOpt.LogID(lid))
+					if err != nil {
+						log.Error(err)
+						return
+					}
+				}
+			}
+		}(lg)
+	}
+	wg.Wait()
+	return nil
+}
+
+// Delete a thread.
+func (t *threads) DeleteThread(ctx context.Context, id thread.ID) error {
+	panic("implement me")
+}
+
+// AddFollower to a thread.
+func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
+	info, err := t.store.ThreadInfo(id)
+	if err != nil {
+		return err
+	}
+	for _, l := range info.Logs {
+		if err = t.service.pushLog(ctx, id, l, pid); err != nil {
+			return err
+		}
+	}
+
+	// Update local addresses
+	pro := ma.ProtocolWithCode(ma.P_P2P).Name
+	addr, err := ma.NewMultiaddr("/" + pro + "/" + pid.String())
+	if err != nil {
+		return err
+	}
+	ownlg, err := util.GetOwnLog(t, id)
+	if err != nil {
+		return err
+	}
+	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+		return err
+	}
+
+	// Send the updated log to peers
+	var addrs []ma.Multiaddr
+	for _, l := range info.Logs {
+		laddrs, err := t.store.Addrs(id, l)
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, laddrs...)
+	}
+
+	wg := sync.WaitGroup{}
+	for _, addr := range addrs {
+		wg.Add(1)
+		go func(addr ma.Multiaddr) {
+			defer wg.Done()
+			p, err := addr.ValueForProtocol(ma.P_P2P)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			pid, err := peer.IDB58Decode(p)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			if pid.String() == t.host.ID().String() {
+				return
+			}
+
+			if err = t.service.pushLog(ctx, id, ownlg.ID, pid); err != nil {
+				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
+			}
+		}(addr)
+	}
+
+	wg.Wait()
+	return nil
+}
+
+// AddRecord with body. See AddOption for more.
+func (t *threads) AddRecord(
 	ctx context.Context,
 	body format.Node,
 	opts ...tserv.AddOption,
 ) (r tserv.Record, err error) {
 	// Get or create a log for the new node
 	settings := tserv.AddOptions(opts...)
-	lg, err := t.getOrCreateOwnLog(settings.ThreadID)
+	lg, err := util.GetOrCreateOwnLog(t, settings.ThreadID)
 	if err != nil {
 		return
 	}
@@ -178,10 +332,10 @@ func (t *threads) Add(
 		return
 	}
 
-	log.Infof("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
 	// Push out the new record
-	err = t.service.push(ctx, rec, settings.ThreadID, lg.ID, settings)
+	err = t.service.pushRecord(ctx, rec, settings.ThreadID, lg.ID, settings)
 	if err != nil {
 		return
 	}
@@ -199,125 +353,24 @@ func (t *threads) Add(
 	return r, nil
 }
 
-// Put an existing record. See PutOption for more.
-func (t *threads) Put(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
-	knownRecord, err := t.blocks.Blockstore().Has(rec.Cid())
-	if err != nil {
-		return err
-	}
-	if knownRecord {
-		return nil
-	}
-
-	// Get or create a log for the new rec
-	settings := tserv.PutOptions(opts...)
-	lg, err := t.getOrCreateLog(settings.ThreadID, settings.LogID)
-	if err != nil {
-		return err
-	}
-
-	// Save the record locally
-	// Note: These get methods will return cached nodes.
-	block, err := rec.GetBlock(ctx, t.dagService)
-	if err != nil {
-		return err
-	}
-	event, ok := block.(*cbor.Event)
-	if !ok {
-		return fmt.Errorf("invalid event")
-	}
-	header, err := event.GetHeader(ctx, t.dagService, nil)
-	if err != nil {
-		return err
-	}
-	body, err := event.GetBody(ctx, t.dagService, nil)
-	if err != nil {
-		return err
-	}
-	err = t.dagService.AddMany(ctx, []format.Node{rec, event, header, body})
-	if err != nil {
-		return err
-	}
-
-	// Update head
-	if err = t.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
-		return err
-	}
-
-	log.Infof("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
-
-	// Notify local listeners
-	return t.bus.Send(&record{
-		Record:   rec,
-		threadID: settings.ThreadID,
-		logID:    lg.ID,
-	})
-}
-
-// Get returns the record at cid.
-func (t *threads) Get(
+// GetRecord returns the record at cid.
+func (t *threads) GetRecord(
 	ctx context.Context,
 	id thread.ID,
 	lid peer.ID,
 	rid cid.Cid,
 ) (thread.Record, error) {
-	lg, err := t.LogInfo(id, lid)
+	lg, err := t.store.LogInfo(id, lid)
 	if err != nil {
 		return nil, err
 	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
 	}
-	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
-	if err != nil {
-		return nil, err
-	}
-	return cbor.GetRecord(ctx, t.dagService, rid, fk)
+	return cbor.GetRecord(ctx, t, rid, lg.FollowKey)
 }
 
-// Pull for new records from the given thread.
-// Logs owned by this host are traversed locally.
-// Remotely addressed logs are pulled from the network.
-func (t *threads) Pull(ctx context.Context, id thread.ID) error {
-	wg := sync.WaitGroup{}
-	lgs, err := t.GetLogs(id)
-	if err != nil {
-		return err
-	}
-	for _, lg := range lgs {
-		wg.Add(1)
-		go func(lg thread.LogInfo) {
-			defer wg.Done()
-			var offset cid.Cid
-			if len(lg.Heads) > 0 {
-				offset = lg.Heads[0]
-			}
-			var recs []thread.Record
-			var err error
-			if lg.PrivKey != nil { // This is our own log
-				recs, err = t.pullLocal(ctx, id, lg.ID, offset, MaxPullLimit)
-			} else {
-				// Pull from addresses
-				recs, err = t.service.pull(ctx, id, lg.ID, offset, MaxPullLimit)
-			}
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			for _, r := range recs {
-				err = t.Put(ctx, r, tserv.PutOpt.ThreadID(id), tserv.PutOpt.LogID(lg.ID))
-				if err != nil {
-					log.Error(err)
-					return
-				}
-			}
-		}(lg)
-	}
-	wg.Wait()
-	return nil
-}
-
-// record wraps a thread.Record with thread and log context.
+// record wraps a thread.Record within a thread and log context.
 type record struct {
 	thread.Record
 	threadID thread.ID
@@ -339,32 +392,32 @@ func (r *record) LogID() peer.ID {
 	return r.logID
 }
 
-// recordListener receives record updates.
-type recordListener struct {
+// subscription receives thread record updates.
+type subscription struct {
 	l  *broadcast.Listener
 	ch chan tserv.Record
 }
 
-// Discard closes the RecordListener, disabling the reception of further records.
-func (l *recordListener) Discard() {
+// Discard closes the subscription, disabling the reception of further records.
+func (l *subscription) Discard() {
 	l.l.Discard()
 }
 
-// Channel returns the channel that receives broadcast records.
-func (l *recordListener) Channel() <-chan tserv.Record {
+// Channel returns the channel that receives records.
+func (l *subscription) Channel() <-chan tserv.Record {
 	return l.ch
 }
 
-// Listen returns a read-only channel of records.
-func (t *threads) Listen(opts ...tserv.ListenOption) tserv.RecordListener {
-	settings := tserv.ListenOptions(opts...)
+// Subscribe returns a read-only channel of records.
+func (t *threads) Subscribe(opts ...tserv.SubOption) tserv.Subscription {
+	settings := tserv.SubOptions(opts...)
 	filter := make(map[thread.ID]struct{})
-	for _, tid := range settings.ThreadIDs {
-		if tid.Defined() {
-			filter[tid] = struct{}{}
+	for _, id := range settings.ThreadIDs {
+		if id.Defined() {
+			filter[id] = struct{}{}
 		}
 	}
-	listener := &recordListener{
+	listener := &subscription{
 		l:  t.bus.Listen(),
 		ch: make(chan tserv.Record),
 	}
@@ -394,26 +447,59 @@ func (t *threads) Listen(opts ...tserv.ListenOption) tserv.RecordListener {
 	return listener
 }
 
-// GetLogs returns info about the logs in the given thread.
-func (t *threads) GetLogs(id thread.ID) ([]thread.LogInfo, error) {
-	lgs := make([]thread.LogInfo, 0)
-	ti, err := t.ThreadInfo(id)
+// putRecord adds an existing record. See PutOption for more.
+func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
+	knownRecord, err := t.bstore.Has(rec.Cid())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	for _, lid := range ti.Logs {
-		lg, err := t.LogInfo(id, lid)
-		if err != nil {
-			return nil, err
-		}
-		lgs = append(lgs, lg)
+	if knownRecord {
+		return nil
 	}
-	return lgs, nil
-}
 
-// Delete the given thread.
-func (t *threads) Delete(ctx context.Context, id thread.ID) error {
-	panic("implement me")
+	// Get or create a log for the new rec
+	settings := tserv.PutOptions(opts...)
+	lg, err := util.GetOrCreateLog(t, settings.ThreadID, settings.LogID)
+	if err != nil {
+		return err
+	}
+
+	// Save the record locally
+	// Note: These get methods will return cached nodes.
+	block, err := rec.GetBlock(ctx, t)
+	if err != nil {
+		return err
+	}
+	event, ok := block.(*cbor.Event)
+	if !ok {
+		return fmt.Errorf("invalid event")
+	}
+	header, err := event.GetHeader(ctx, t, nil)
+	if err != nil {
+		return err
+	}
+	body, err := event.GetBody(ctx, t, nil)
+	if err != nil {
+		return err
+	}
+	err = t.AddMany(ctx, []format.Node{rec, event, header, body})
+	if err != nil {
+		return err
+	}
+
+	// Update head
+	if err = t.store.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
+		return err
+	}
+
+	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+
+	// Notify local listeners
+	return t.bus.Send(&record{
+		Record:   rec,
+		threadID: settings.ThreadID,
+		logID:    lg.ID,
+	})
 }
 
 // getPrivKey returns the host's private key.
@@ -421,67 +507,9 @@ func (t *threads) getPrivKey() ic.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
 }
 
-// createLog call util.CreateLog.
+// createLog calls util.CreateLog.
 func (t *threads) createLog() (thread.LogInfo, error) {
 	return util.CreateLog(t.host.ID())
-}
-
-// getOrCreateLog returns the log with the given thread and log id
-// If no log exists, a new one is created under the given thread.
-func (t *threads) getOrCreateLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = t.LogInfo(id, lid)
-	if err != nil {
-		return
-	}
-	if info.PubKey != nil {
-		return
-	}
-	info, err = t.createLog()
-	if err != nil {
-		return
-	}
-	err = t.AddLog(id, info)
-	return
-}
-
-// getOwnLoad returns the log owned by the host under the given thread.
-func (t *threads) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := t.LogsWithKeys(id)
-	if err != nil {
-		return info, err
-	}
-	for _, lid := range logs {
-		sk, err := t.PrivKey(id, lid)
-		if err != nil {
-			return info, err
-		}
-		if sk != nil {
-			li, err := t.LogInfo(id, lid)
-			if err != nil {
-				return info, err
-			}
-			return li, nil
-		}
-	}
-	return info, nil
-}
-
-// getOrCreateOwnLoad returns the log owned by the host under the given thread.
-// If no log exists, a new one is created under the given thread.
-func (t *threads) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	info, err = t.getOwnLog(id)
-	if err != nil {
-		return info, err
-	}
-	if info.PubKey != nil {
-		return
-	}
-	info, err = t.createLog()
-	if err != nil {
-		return
-	}
-	err = t.AddLog(id, info)
-	return
 }
 
 // createRecord creates a new record with the given body as a new event body.
@@ -492,22 +520,17 @@ func (t *threads) createRecord(
 	settings *tserv.AddSettings,
 ) (thread.Record, error) {
 	if settings.Key == nil {
-		var key []byte
-		logKey, err := t.ReadKey(settings.ThreadID, settings.KeyLog)
+		logKey, err := t.store.ReadKey(settings.ThreadID, settings.KeyLog)
 		if err != nil {
 			return nil, err
 		}
 		if logKey != nil {
-			key = logKey
+			settings.Key = logKey
 		} else {
-			key = lg.ReadKey
-		}
-		settings.Key, err = crypto.ParseEncryptionKey(key)
-		if err != nil {
-			return nil, err
+			settings.Key = lg.ReadKey
 		}
 	}
-	event, err := cbor.NewEvent(ctx, t.dagService, body, settings)
+	event, err := cbor.NewEvent(ctx, t, body, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -516,44 +539,53 @@ func (t *threads) createRecord(
 	if len(lg.Heads) != 0 {
 		prev = lg.Heads[0]
 	}
-	fk, err := crypto.ParseEncryptionKey(lg.FollowKey)
-	if err != nil {
-		return nil, err
-	}
-	rec, err := cbor.NewRecord(ctx, t.dagService, event, prev, lg.PrivKey, fk)
+	rec, err := cbor.NewRecord(ctx, t, event, prev, lg.PrivKey, lg.FollowKey)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update head
-	if err = t.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
+	if err = t.store.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
 		return nil, err
 	}
 
 	return rec, nil
 }
 
-// pullLocal returns local records from the given thread that are ahead of
+// getLogs returns info about the logs in the given thread.
+func (t *threads) getLogs(id thread.ID) ([]thread.LogInfo, error) {
+	lgs := make([]thread.LogInfo, 0)
+	ti, err := t.store.ThreadInfo(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, lid := range ti.Logs {
+		lg, err := t.store.LogInfo(id, lid)
+		if err != nil {
+			return nil, err
+		}
+		lgs = append(lgs, lg)
+	}
+	return lgs, nil
+}
+
+// getLocalRecords returns local records from the given thread that are ahead of
 // offset but not farther than limit.
 // It is possible to reach limit before offset, meaning that the caller
 // will be responsible for the remaining traversal.
-func (t *threads) pullLocal(
+func (t *threads) getLocalRecords(
 	ctx context.Context,
 	id thread.ID,
 	lid peer.ID,
 	offset cid.Cid,
 	limit int,
 ) ([]thread.Record, error) {
-	lg, err := t.LogInfo(id, lid)
+	lg, err := t.store.LogInfo(id, lid)
 	if err != nil {
 		return nil, err
 	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
-	}
-	fk, err := crypto.ParseDecryptionKey(lg.FollowKey)
-	if err != nil {
-		return nil, err
 	}
 
 	var recs []thread.Record
@@ -566,10 +598,10 @@ func (t *threads) pullLocal(
 	}
 	cursor := lg.Heads[0]
 	for {
-		if cursor.String() == offset.String() {
+		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
-		r, err := cbor.GetRecord(ctx, t.dagService, cursor, fk)
+		r, err := cbor.GetRecord(ctx, t, cursor, lg.FollowKey)
 		if err != nil {
 			return nil, err
 		}
@@ -592,17 +624,17 @@ func (t *threads) startPulling() {
 	for {
 		select {
 		case <-tick.C:
-			ts, err := t.Threads()
+			ts, err := t.store.Threads()
 			if err != nil {
 				log.Errorf("error listing threads: %s", err)
 				continue
 			}
-			for _, tid := range ts {
+			for _, id := range ts {
 				go func(id thread.ID) {
-					if err := t.Pull(t.ctx, id); err != nil {
-						log.Errorf("error pulling thread %s: %s", tid.String(), err)
+					if err := t.PullThread(t.ctx, id); err != nil {
+						log.Errorf("error pulling thread %s: %s", id.String(), err)
 					}
-				}(tid)
+				}(id)
 			}
 		case <-t.ctx.Done():
 			return
@@ -612,7 +644,12 @@ func (t *threads) startPulling() {
 
 // setLogLevels sets the logging levels of the given log systems.
 // color controls whether or not color codes are included in the output.
-func setLogLevels(systems map[string]logger.Level, color bool) error {
+func setLogLevels(systems map[string]logger.Level, writer io.Writer, color bool) error {
+	if writer != nil {
+		backendFile := logger.NewLogBackend(writer, "", 0)
+		logger.SetBackend(backendFile)
+	}
+
 	var form string
 	if color {
 		form = logging.LogFormats["color"]

@@ -5,7 +5,8 @@ import (
 	"sync"
 
 	ic "github.com/libp2p/go-libp2p-core/crypto"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peer"
+	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 )
@@ -141,14 +142,17 @@ func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) erro
 	return nil
 }
 
-func (mkb *memoryKeyBook) ReadKey(t thread.ID, p peer.ID) ([]byte, error) {
+func (mkb *memoryKeyBook) ReadKey(t thread.ID, p peer.ID) (key *sym.Key, err error) {
 	mkb.RLock()
-	key, _ := getKey(mkb.rks, t, p)
+	b, _ := getKey(mkb.rks, t, p)
+	if b != nil {
+		key, err = sym.NewKey(b)
+	}
 	mkb.RUnlock()
-	return key, nil
+	return key, err
 }
 
-func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key []byte) error {
+func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key *sym.Key) error {
 	if key == nil {
 		return errors.New("key is nil (ReadKey)")
 	}
@@ -157,19 +161,22 @@ func (mkb *memoryKeyBook) AddReadKey(t thread.ID, p peer.ID, key []byte) error {
 	if mkb.rks[t] == nil {
 		mkb.rks[t] = make(map[peer.ID][]byte, 1)
 	}
-	mkb.rks[t][p] = key
+	mkb.rks[t][p] = key.Bytes()
 	mkb.Unlock()
 	return nil
 }
 
-func (mkb *memoryKeyBook) FollowKey(t thread.ID, p peer.ID) ([]byte, error) {
+func (mkb *memoryKeyBook) FollowKey(t thread.ID, p peer.ID) (key *sym.Key, err error) {
 	mkb.RLock()
-	key, _ := getKey(mkb.fks, t, p)
+	b, _ := getKey(mkb.fks, t, p)
+	if b != nil {
+		key, err = sym.NewKey(b)
+	}
 	mkb.RUnlock()
-	return key, nil
+	return
 }
 
-func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, p peer.ID, key []byte) error {
+func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, p peer.ID, key *sym.Key) error {
 	if key == nil {
 		return errors.New("key is nil (FollowKey)")
 	}
@@ -178,7 +185,7 @@ func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, p peer.ID, key []byte) error
 	if mkb.fks[t] == nil {
 		mkb.fks[t] = make(map[peer.ID][]byte, 1)
 	}
-	mkb.fks[t][p] = key
+	mkb.fks[t][p] = key.Bytes()
 	mkb.Unlock()
 	return nil
 }

@@ -3,6 +3,8 @@ package threads_pb
 import (
 	"encoding/json"
 
+	"github.com/textileio/go-textile-core/crypto/symmetric"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
@@ -36,7 +38,7 @@ func (id ProtoPeerID) Marshal() ([]byte, error) {
 }
 
 func (id ProtoPeerID) MarshalTo(data []byte) (n int, err error) {
-	return copy(data, []byte(id.ID)), nil
+	return copy(data, id.ID), nil
 }
 
 func (id ProtoPeerID) MarshalJSON() ([]byte, error) {
@@ -180,6 +182,46 @@ func (id ProtoThreadID) Size() int {
 	return len(id.Bytes())
 }
 
+// ProtoKey is a custom type used by gogo to serde raw keys into the symmetric.Key type, and back.
+type ProtoKey struct {
+	*symmetric.Key
+}
+
+var _ customGogoType = (*ProtoKey)(nil)
+
+func (k ProtoKey) Marshal() ([]byte, error) {
+	return k.Key.Marshal()
+}
+
+func (k ProtoKey) MarshalTo(data []byte) (n int, err error) {
+	b, err := k.Key.Marshal()
+	return copy(data, b), err
+}
+
+func (k ProtoKey) MarshalJSON() ([]byte, error) {
+	m, _ := k.Marshal()
+	return json.Marshal(m)
+}
+
+func (k *ProtoKey) Unmarshal(data []byte) (err error) {
+	k.Key, err = symmetric.NewKey(data)
+	return err
+}
+
+func (k *ProtoKey) UnmarshalJSON(data []byte) error {
+	v := new([]byte)
+	err := json.Unmarshal(data, v)
+	if err != nil {
+		return err
+	}
+	return k.Unmarshal(*v)
+}
+
+func (k ProtoKey) Size() int {
+	b, _ := k.Marshal()
+	return len(b)
+}
+
 // ProtoPubKey is a custom type used by gogo to serde raw public keys into the PubKey type, and back.
 type ProtoPubKey struct {
 	ic.PubKey
@@ -287,6 +329,13 @@ func NewPopulatedProtoCid(r randyThreads) *ProtoCid {
 func NewPopulatedProtoThreadID(r randyThreads) *ProtoThreadID {
 	id := thread.NewIDV1(thread.Raw, 16)
 	return &ProtoThreadID{ID: id}
+}
+
+// NewPopulatedProtoKey generates a populated instance of the custom gogo type ProtoKey.
+// It is required by gogo-generated tests.
+func NewPopulatedProtoKey(r randyThreads) *ProtoKey {
+	k, _ := symmetric.CreateKey()
+	return &ProtoKey{Key: k}
 }
 
 // NewPopulatedProtoPubKey generates a populated instance of the custom gogo type ProtoPubKey.

@@ -8,7 +8,7 @@ option (gogoproto.populate_all) = true;
 
 // AddrBookRecord represents a record for a log in the address book.
 message AddrBookRecord {
-    // Thread ID
+    // Thread ID.
     bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
 
 	// The peer ID.
@@ -31,9 +31,10 @@ message AddrBookRecord {
 
 // HeadBookRecord represents the list of heads currently in a log
 message HeadBookRecord {
-	// List of current heads of a log
+	// List of current heads of a log.
 	repeated HeadEntry heads = 1;
 
+	// HeadEntry represents a single cid.
 	message HeadEntry {
 		bytes cid = 1 [(gogoproto.customtype) = "ProtoCid"];
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 	"github.com/whyrusleeping/base32"
@@ -114,7 +115,7 @@ func (kb *dsKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) error {
 
 // ReadKey returns the read key associated with peer.ID for thread.ID thread.
 // In case it doesn't exist, it will return nil.
-func (kb *dsKeyBook) ReadKey(t thread.ID, p peer.ID) ([]byte, error) {
+func (kb *dsKeyBook) ReadKey(t thread.ID, p peer.ID) (*sym.Key, error) {
 	key := dsKey(t, p, kbBase).Child(readSuffix)
 	v, err := kb.ds.Get(key)
 	if err == ds.ErrNotFound {
@@ -123,22 +124,22 @@ func (kb *dsKeyBook) ReadKey(t thread.ID, p peer.ID) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error when getting read key from store for peer ID %v", key)
 	}
-	return v, nil
+	return sym.NewKey(v)
 }
 
 // AddReadKey adds a read key for a peer.ID
-func (kb *dsKeyBook) AddReadKey(t thread.ID, p peer.ID, rk []byte) error {
+func (kb *dsKeyBook) AddReadKey(t thread.ID, p peer.ID, rk *sym.Key) error {
 	if rk == nil {
 		return fmt.Errorf("read-key is nil")
 	}
 	key := dsKey(t, p, kbBase).Child(readSuffix)
-	if err := kb.ds.Put(key, rk); err != nil {
+	if err := kb.ds.Put(key, rk.Bytes()); err != nil {
 		return fmt.Errorf("error when adding read-key to datastore: %w", err)
 	}
 	return nil
 }
 
-func (kb *dsKeyBook) FollowKey(t thread.ID, p peer.ID) ([]byte, error) {
+func (kb *dsKeyBook) FollowKey(t thread.ID, p peer.ID) (*sym.Key, error) {
 	key := dsKey(t, p, kbBase).Child(followSuffix)
 
 	v, err := kb.ds.Get(key)
@@ -148,15 +149,15 @@ func (kb *dsKeyBook) FollowKey(t thread.ID, p peer.ID) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error when getting follow-key from datastore: %v", err)
 	}
-	return v, nil
+	return sym.NewKey(v)
 }
 
-func (kb *dsKeyBook) AddFollowKey(t thread.ID, p peer.ID, fk []byte) error {
+func (kb *dsKeyBook) AddFollowKey(t thread.ID, p peer.ID, fk *sym.Key) error {
 	if fk == nil {
 		return fmt.Errorf("follow-key is nil")
 	}
 	key := dsKey(t, p, kbBase).Child(followSuffix)
-	if err := kb.ds.Put(key, fk); err != nil {
+	if err := kb.ds.Put(key, fk.Bytes()); err != nil {
 		return fmt.Errorf("error when adding follow-key to datastore: %w", err)
 	}
 	return nil

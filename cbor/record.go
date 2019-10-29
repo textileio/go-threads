@@ -96,7 +96,7 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (thread.Record,
 
 // RecordToProto returns a proto version of a record for transport.
 // Nodes are sent encrypted.
-func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record) (*pb.Record, error) {
+func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record) (*pb.Log_Record, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record
 		return nil, err
 	}
 
-	return &pb.Record{
+	return &pb.Log_Record{
 		RecordNode: rec.RawData(),
 		EventNode:  block.RawData(),
 		HeaderNode: header.RawData(),
@@ -123,7 +123,7 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record
 }
 
 // Unmarshal returns a node from a serialized version that contains link data.
-func RecordFromProto(rec *pb.Record, key crypto.DecryptionKey) (thread.Record, error) {
+func RecordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (thread.Record, error) {
 	if key == nil {
 		return nil, fmt.Errorf("decryption key is required")
 	}
