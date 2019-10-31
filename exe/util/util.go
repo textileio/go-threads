@@ -98,7 +98,10 @@ func Build() (
 		MaxBackups: 3,
 		MaxAge:     30, // days
 	}
-	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, writer, true)
+	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
+		LogWriter: writer,
+		Debug:     true,
+	})
 	if err != nil {
 		panic(err)
 	}

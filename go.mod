@@ -8,6 +8,7 @@ require (
 	github.com/gogo/status v1.1.0
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hsanjuan/ipfs-lite v0.1.6
+	github.com/improbable-eng/grpc-web v0.11.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.2
 	github.com/ipfs/go-cid v0.0.3
@@ -32,6 +33,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.1.1
 	github.com/multiformats/go-multibase v0.0.1
 	github.com/multiformats/go-multihash v0.0.8
+	github.com/rs/cors v1.7.0 // indirect
 	github.com/textileio/go-textile-core v0.0.0-20191024183610-a22c2e62942e
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc

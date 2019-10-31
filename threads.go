@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"sync"
 	"time"
 
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -49,11 +51,20 @@ type threads struct {
 	store tstore.Threadstore
 
 	rpc     *grpc.Server
+	proxy   *http.Server
 	service *service
 	bus     *broadcast.Broadcaster
 
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+// Options is used to specify thread instance options.
+type Options struct {
+	ProxyAddr  string // defaults to 0.0.0.0:5050
+	LogWriter  io.Writer
+	NoLogColor bool
+	Debug      bool
 }
 
 // NewThreads creates an instance of threads from the given host and thread store.
@@ -63,15 +74,14 @@ func NewThreads(
 	bstore bs.Blockstore,
 	ds format.DAGService,
 	ts tstore.Threadstore,
-	writer io.Writer,
-	debug bool,
+	opts Options,
 ) (tserv.Threadservice, error) {
 	var err error
-	if debug {
+	if opts.Debug {
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-		}, writer, true)
+		}, opts.LogWriter, !opts.NoLogColor)
 		if err != nil {
 			return nil, err
 		}
@@ -100,6 +110,41 @@ func NewThreads(
 	go t.rpc.Serve(listener)
 	pb.RegisterThreadsServer(t.rpc, t.service)
 
+	webrpc := grpcweb.WrapServer(t.rpc)
+	if opts.ProxyAddr == "" {
+		opts.ProxyAddr = "0.0.0.0:5050"
+	}
+	t.proxy = &http.Server{
+		Addr: opts.ProxyAddr,
+	}
+	t.proxy.Handler = http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		if webrpc.IsGrpcWebRequest(req) {
+			webrpc.ServeHTTP(resp, req)
+		}
+		http.DefaultServeMux.ServeHTTP(resp, req) // fallback
+	})
+
+	errc := make(chan error)
+	go func() {
+		errc <- t.proxy.ListenAndServe()
+		close(errc)
+	}()
+	go func() {
+		for {
+			select {
+			case err, ok := <-errc:
+				if err != nil && err != http.ErrServerClosed {
+					log.Errorf("proxy error: %s", err)
+				}
+				if !ok {
+					log.Info("proxy was shutdown")
+					return
+				}
+			}
+		}
+	}()
+	log.Infof("proxy listening at %s", t.proxy.Addr)
+
 	go t.startPulling()
 
 	return t, nil
@@ -107,6 +152,12 @@ func NewThreads(
 
 // Close the threads instance.
 func (t *threads) Close() (err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := t.proxy.Shutdown(ctx); err != nil {
+		log.Errorf("error shutting down proxy: %s", err)
+	}
+
 	t.rpc.GracefulStop()
 
 	var errs []error
