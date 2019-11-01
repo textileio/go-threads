@@ -334,12 +334,6 @@ func (t *threads) AddRecord(
 
 	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
-	// Push out the new record
-	err = t.service.pushRecord(ctx, rec, settings.ThreadID, lg.ID, settings)
-	if err != nil {
-		return
-	}
-
 	// Notify local listeners
 	r = &record{
 		Record:   rec,
@@ -347,6 +341,12 @@ func (t *threads) AddRecord(
 		logID:    lg.ID,
 	}
 	if err = t.bus.Send(r); err != nil {
+		return
+	}
+
+	// Push out the new record
+	err = t.service.pushRecord(ctx, rec, settings.ThreadID, lg.ID, settings)
+	if err != nil {
 		return
 	}
 
