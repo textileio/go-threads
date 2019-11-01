@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/chzyer/readline"
 	"github.com/fatih/color"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -51,6 +53,7 @@ var (
 const (
 	msgTimeout      = time.Second * 10
 	findPeerTimeout = time.Second * 30
+	timeLayout      = "3:4:5 PM"
 )
 
 func init() {
@@ -83,16 +86,9 @@ func main() {
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))
 	fmt.Println(grey("Your peer ID is ") + yellow(h.ID().String()))
-
-	sep := "  "
-	rl, err := readline.New(green(shortID(h.ID()) + sep))
-	if err != nil {
-		panic(err)
-	}
-	defer rl.Close()
+	cursor := green(">  ")
 
 	sub := api.Subscribe()
-	last := true
 	go func() {
 		for {
 			select {
@@ -102,16 +98,6 @@ func main() {
 				}
 				if rec.ThreadID().String() != threadID.String() {
 					continue
-				}
-
-				lg, err := tutil.GetOwnLog(api, threadID)
-				if err != nil {
-					logError(err)
-					continue
-				}
-
-				if lg.ID.String() == rec.LogID().String() {
-					continue // This is our record
 				}
 
 				event, err := cbor.EventFromRecord(ctx, api, rec.Value())
@@ -136,31 +122,54 @@ func main() {
 				if err != nil {
 					continue // Not one of our messages
 				}
-
-				if last {
-					fmt.Println()
+				header, err := event.GetHeader(ctx, api, key)
+				if err != nil {
+					logError(err)
+					continue
 				}
-				fmt.Println(cyan(shortID(rec.LogID())) + sep + grey(m.Txt))
-				last = false
+				msgTime, err := header.Time()
+				if err != nil {
+					logError(err)
+					continue
+				}
+
+				fmt.Println(grey(msgTime.Format(timeLayout)+" ") +
+					cyan(shortID(rec.LogID())+"  ") +
+					grey(m.Txt))
+
+				fmt.Print(cursor)
 			}
 		}
 	}()
 
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		line, err := rl.Readline()
+		fmt.Print(cursor)
+		line, err := reader.ReadString('\n')
 		if err != nil {
-			break
+			panic(err)
 		}
+		clean(1)
 
 		out, err := handleLine(line)
 		if err != nil {
 			logError(err)
 		}
 		if out != "" {
-			fmt.Println(grey(out))
+			fmt.Println(green(out))
 		}
-		last = true
 	}
+}
+
+func clean(lineCnt int) {
+	buf := bufio.NewWriter(os.Stdout)
+	_, _ = buf.Write([]byte("\033[J"))
+	for i := 0; i < lineCnt; i++ {
+		_, _ = io.WriteString(buf, "\033[2K\r\033[A")
+	}
+	_, _ = io.WriteString(buf, "\033[2K\r")
+	_ = buf.Flush()
+	return
 }
 
 func handleLine(line string) (out string, err error) {

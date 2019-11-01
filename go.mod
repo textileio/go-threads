@@ -3,9 +3,6 @@ module github.com/textileio/go-textile-threads
 go 1.13
 
 require (
-	github.com/chzyer/logex v1.1.10 // indirect
-	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
-	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect
 	github.com/fatih/color v1.7.0
 	github.com/gogo/protobuf v1.3.0
 	github.com/gogo/status v1.1.0
@@ -26,7 +23,6 @@ require (
 	github.com/libp2p/go-libp2p v0.4.0
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
 	github.com/libp2p/go-libp2p-core v0.2.3
-	github.com/libp2p/go-libp2p-crypto v0.1.0
 	github.com/libp2p/go-libp2p-gostream v0.2.0
 	github.com/libp2p/go-libp2p-kad-dht v0.2.1
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
