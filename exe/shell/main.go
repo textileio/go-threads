@@ -53,7 +53,7 @@ var (
 const (
 	msgTimeout      = time.Second * 10
 	findPeerTimeout = time.Second * 30
-	timeLayout      = "3:4:5 PM"
+	timeLayout      = "03:04:05 PM"
 )
 
 func init() {
@@ -156,7 +156,7 @@ func main() {
 			logError(err)
 		}
 		if out != "" {
-			fmt.Println(green(out))
+			fmt.Println(grey(out))
 		}
 	}
 }
