@@ -27,8 +27,15 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// BootstrapPeers to bootstrap from.
+var bootstrapPeers = []string{
+	"/ip4/104.210.43.77/tcp/4001/ipfs/12D3KooWSdGmRz5JQidqrtmiPGVHkStXpbSAMnbCcW8abq6zuiDP", // us-west
+	"/ip4/20.39.232.27/tcp/4001/ipfs/12D3KooWLnUv9MWuRM6uHirRPBM4NwRj54n4gNNnBtiFiwPiv3Up",  // eu-west
+	"/ip4/34.87.103.105/tcp/4001/ipfs/12D3KooWA5z2C3z1PNKi36Bw1MxZhBD8nv7UbB7YQP6WcSWYNwRQ", // as-southeast
+}
+
 // Build an instance of threads.
-func Build(bootpeers []string) (
+func Build() (
 	ctx context.Context,
 	cancel context.CancelFunc,
 	ds datastore.Batching,
@@ -97,11 +104,10 @@ func Build(bootpeers []string) (
 	}
 
 	// Bootstrap to textile peers
-	err = logging.SetLogLevel("ipfslite", "debug")
-	if err != nil {
+	if err = logging.SetLogLevel("ipfslite", "debug"); err != nil {
 		panic(err)
 	}
-	boots, err := ParseBootstrapPeers(bootpeers)
+	boots, err := ParseBootstrapPeers(bootstrapPeers)
 	if err != nil {
 		panic(err)
 	}

@@ -37,17 +37,15 @@ var (
 	api      tserv.Threadservice
 	threadID thread.ID
 
-	grey   = color.New(color.FgHiBlack).SprintFunc()
-	green  = color.New(color.FgHiGreen).SprintFunc()
-	cyan   = color.New(color.FgHiCyan).SprintFunc()
-	yellow = color.New(color.FgHiYellow).SprintFunc()
-	red    = color.New(color.FgHiRed).SprintFunc()
+	grey  = color.New(color.FgHiBlack).SprintFunc()
+	green = color.New(color.FgHiGreen).SprintFunc()
+	cyan  = color.New(color.FgHiCyan).SprintFunc()
+	blue  = color.New(color.FgHiBlue).SprintFunc()
+	red   = color.New(color.FgHiRed).SprintFunc()
 
-	bootstrapPeers = []string{
-		"/ip4/104.210.43.77/tcp/4001/ipfs/12D3KooWSdGmRz5JQidqrtmiPGVHkStXpbSAMnbCcW8abq6zuiDP", // us-west
-		"/ip4/20.39.232.27/tcp/4001/ipfs/12D3KooWLnUv9MWuRM6uHirRPBM4NwRj54n4gNNnBtiFiwPiv3Up",  // eu-west
-		"/ip4/34.87.103.105/tcp/4001/ipfs/12D3KooWA5z2C3z1PNKi36Bw1MxZhBD8nv7UbB7YQP6WcSWYNwRQ", // as-southeast
-	}
+	cursor = green(">  ")
+
+	log = logging.Logger("shell")
 )
 
 const (
@@ -60,16 +58,18 @@ func init() {
 	cbornode.RegisterCborType(msg{})
 }
 
-var log = logging.Logger("shell")
-
 type msg struct {
 	Txt string
 }
 
 func main() {
+	if err := logging.SetLogLevel("shell", "debug"); err != nil {
+		panic(err)
+	}
+
 	var cancel context.CancelFunc
 	var h host.Host
-	ctx, cancel, ds, h, dht, api = util.Build(bootstrapPeers)
+	ctx, cancel, ds, h, dht, api = util.Build()
 
 	defer cancel()
 	defer h.Close()
@@ -85,8 +85,7 @@ func main() {
 
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))
-	fmt.Println(grey("Your peer ID is ") + yellow(h.ID().String()))
-	cursor := green(">  ")
+	fmt.Println(grey("Your peer ID is ") + green(h.ID().String()))
 
 	sub := api.Subscribe()
 	go func() {
@@ -96,10 +95,12 @@ func main() {
 				if !ok {
 					return
 				}
-				if rec.ThreadID().String() != threadID.String() {
+
+				name, err := threadName(rec.ThreadID().String())
+				if err != nil {
+					logError(err)
 					continue
 				}
-
 				event, err := cbor.EventFromRecord(ctx, api, rec.Value())
 				if err != nil {
 					logError(err)
@@ -133,7 +134,10 @@ func main() {
 					continue
 				}
 
-				fmt.Println(grey(msgTime.Format(timeLayout)+" ") +
+				clean(0)
+
+				fmt.Println(grey(name+"> ") +
+					grey(msgTime.Format(timeLayout)+" ") +
 					cyan(shortID(rec.LogID())+"  ") +
 					grey(m.Txt))
 
@@ -141,6 +145,8 @@ func main() {
 			}
 		}
 	}()
+
+	log.Debug("shell started")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
@@ -164,10 +170,15 @@ func main() {
 func clean(lineCnt int) {
 	buf := bufio.NewWriter(os.Stdout)
 	_, _ = buf.Write([]byte("\033[J"))
-	for i := 0; i < lineCnt; i++ {
-		_, _ = io.WriteString(buf, "\033[2K\r\033[A")
+	if lineCnt == 0 {
+		_, _ = buf.WriteString("\033[2K")
+		_, _ = buf.WriteString("\r")
+	} else {
+		for i := 0; i < lineCnt; i++ {
+			_, _ = io.WriteString(buf, "\033[2K\r\033[A")
+		}
+		_, _ = io.WriteString(buf, "\033[2K\r")
 	}
-	_, _ = io.WriteString(buf, "\033[2K\r")
 	_ = buf.Flush()
 	return
 }
@@ -179,25 +190,65 @@ func handleLine(line string) (out string, err error) {
 	}
 
 	if strings.HasPrefix(line, ":") {
-		args := strings.Split(line[1:], " ")
-		switch args[0] {
+		parts := strings.SplitN(line, " ", 2)
+		cmds := strings.Split(parts[0], ":")
+		cmds = cmds[1:]
+		switch cmds[0] {
+		case "help":
+			return cmdCmd()
 		case "address":
 			return addressCmd()
-		case "thread":
-			return threadCmd(args[1:])
 		case "threads":
 			return threadsCmd()
-		case "thread-address":
-			return threadAddressCmd()
-		case "add-follower":
-			return addFollowerCmd(args[1:])
-		default:
-			err = fmt.Errorf("unknown command: %s", args[0])
+		case "enter":
+			if len(parts) == 1 {
+				err = fmt.Errorf("missing thread name")
+				return
+			}
+			return enterCmd(parts[1])
+		case "exit":
+			threadID = thread.Undef
+			cursor = green(">  ")
 			return
+		case "add":
+			if len(parts) == 1 {
+				err = fmt.Errorf("missing thread name")
+				return
+			}
+			args := strings.Split(parts[1], " ")
+			return addCmd(args)
+		case "":
+			err = fmt.Errorf("missing command")
+			return
+		default:
+			var input string
+			if len(parts) > 1 {
+				input = parts[1]
+			}
+			return threadCmd(cmds, input)
 		}
 	}
 
-	err = sendMessage(line)
+	if threadID.Defined() {
+		err = sendMessage(threadID, line)
+	} else {
+		err = fmt.Errorf("enter a thread with `:enter` or specify thread name with :<name>")
+	}
+	return
+}
+
+func cmdCmd() (out string, err error) {
+	out = blue(":help  ") + grey("Show available commands.\n")
+	out += blue(":address  ") + grey("Show host addresses.\n")
+	out += blue(":threads  ") + grey("Show threads.\n")
+	out += blue(":add <name>  ") + grey("Add a new thread with name.\n")
+	out += blue(":add <name> <address>  ") + grey("Add an existing thread with name at address.\n")
+	out += blue(":<name> <message>  ") + grey("Send a message to thread with name.\n")
+	out += blue(":<name>:address  ") + grey("Show thread address.\n")
+	out += blue(":<name>:follower <address>  ") + grey("Add a follower at address.\n")
+	out += blue(":enter <name>  ") + grey("Enter thread with name.\n")
+	out += blue(":exit  ") + grey("Exit the active thread.\n")
+	out += blue("<message>  ") + grey("Send a message to the active thread.")
 	return
 }
 
@@ -218,52 +269,6 @@ func addressCmd() (out string, err error) {
 	return
 }
 
-func threadCmd(args []string) (out string, err error) {
-	if len(args) == 0 {
-		err = fmt.Errorf("enter a thread name to use")
-		return
-	}
-	name := args[0]
-
-	var addr ma.Multiaddr
-	if len(args) > 1 {
-		addr, err = ma.NewMultiaddr(args[1])
-		if err != nil {
-			return
-		}
-		if !canDial(addr) {
-			return "", fmt.Errorf("address is not dialable")
-		}
-	}
-
-	x, err := ds.Get(datastore.NewKey("/names/" + name))
-	if err == datastore.ErrNotFound {
-		if addr != nil {
-			info, err := api.AddThread(ctx, addr)
-			if err != nil {
-				return "", err
-			}
-			threadID = info.ID
-		} else {
-			threadID = thread.NewIDV1(thread.Raw, 32)
-		}
-		err = ds.Put(datastore.NewKey("/names/"+name), threadID.Bytes())
-		if err != nil {
-			return
-		}
-	} else if err != nil {
-		return
-	} else {
-		threadID, err = thread.Cast(x)
-		if err != nil {
-			return
-		}
-	}
-
-	out = fmt.Sprintf("Using thread %s", threadID.String())
-	return
-}
-
 func threadsCmd() (out string, err error) {
 	q, err := ds.Query(query.Query{Prefix: "/names"})
 	if err != nil {
@@ -281,7 +286,7 @@ func threadsCmd() (out string, err error) {
 			return
 		}
 		name := e.Key[strings.LastIndex(e.Key, "/")+1:]
-		out += name + ": " + id.String()
+		out += blue(name) + grey(" ("+id.String()+")")
 		if i != len(all)-1 {
 			out += "\n"
 		}
@@ -289,17 +294,98 @@ func threadsCmd() (out string, err error) {
 	return
 }
 
-func threadAddressCmd() (out string, err error) {
-	if !threadID.Defined() {
-		err = fmt.Errorf("choose a thread to use with `:thread`")
+func enterCmd(name string) (out string, err error) {
+	idv, err := ds.Get(datastore.NewKey("/names/" + name))
+	if err != nil {
+		err = fmt.Errorf("thread not found")
 		return
 	}
-
-	lg, err := tutil.GetOwnLog(api, threadID)
+	threadID, err = thread.Cast(idv)
 	if err != nil {
 		return
 	}
-	ta, err := ma.NewMultiaddr("/" + t.Thread + "/" + threadID.String())
+
+	cursor = green(name + "> ")
+	return
+}
+
+func addCmd(args []string) (out string, err error) {
+	name := args[0]
+	var addr ma.Multiaddr
+	if len(args) > 1 {
+		addr, err = ma.NewMultiaddr(args[1])
+		if err != nil {
+			return
+		}
+	}
+
+	x, err := ds.Has(datastore.NewKey("/names/" + name))
+	if err != nil {
+		return
+	}
+	if x {
+		err = fmt.Errorf("thread name exists")
+		return
+	}
+
+	var id thread.ID
+	if addr != nil {
+		if !canDial(addr) {
+			return "", fmt.Errorf("address is not dialable")
+		}
+		info, err := api.AddThread(ctx, addr)
+		if err != nil {
+			return "", err
+		}
+		id = info.ID
+	} else {
+		id = thread.NewIDV1(thread.Raw, 32)
+	}
+	if err = ds.Put(datastore.NewKey("/names/"+name), id.Bytes()); err != nil {
+		return
+	}
+
+	cursor = green(name + "> ")
+
+	out = fmt.Sprintf("Added thread %s", id.String())
+	return
+}
+
+func threadCmd(cmds []string, input string) (out string, err error) {
+	name := cmds[0]
+
+	idv, err := ds.Get(datastore.NewKey("/names/" + name))
+	if err != nil {
+		err = fmt.Errorf("thread not found")
+		return
+	}
+	id, err := thread.Cast(idv)
+	if err != nil {
+		return
+	}
+
+	if len(cmds) > 1 {
+		switch cmds[1] {
+		case "address":
+			return threadAddressCmd(id)
+		case "follower":
+			return addFollowerCmd(id, input)
+		default:
+			err = fmt.Errorf("unknown command: %s", cmds[1])
+			return
+		}
+	}
+
+	err = sendMessage(id, input)
+	return
+}
+
+func threadAddressCmd(id thread.ID) (out string, err error) {
+	lg, err := tutil.GetOwnLog(api, id)
+	if err != nil {
+		return
+	}
+	ta, err := ma.NewMultiaddr("/" + t.Thread + "/" + id.String())
 	if err != nil {
 		return
 	}
@@ -326,6 +412,11 @@ func threadAddressCmd() (out string, err error) {
 		}
 	}
 
+	if len(addrs) == 0 {
+		err = fmt.Errorf("thread is empty")
+		return
+	}
+
 	for i, a := range addrs {
 		out += a.String()
 		if i != len(addrs)-1 {
@@ -336,18 +427,13 @@ func threadAddressCmd() (out string, err error) {
 	return
 }
 
-func addFollowerCmd(args []string) (out string, err error) {
-	if !threadID.Defined() {
-		err = fmt.Errorf("choose a thread to use with `:thread`")
-		return
-	}
-
-	if len(args) == 0 {
+func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
+	if addrStr == "" {
 		err = fmt.Errorf("enter a peer address")
 		return
 	}
 
-	addr, err := ma.NewMultiaddr(args[0])
+	addr, err := ma.NewMultiaddr(addrStr)
 	if err != nil {
 		return
 	}
@@ -377,13 +463,15 @@ func addFollowerCmd(args []string) (out string, err error) {
 		api.Host().Peerstore().AddAddrs(pid, pinfo.Addrs, peerstore.PermanentAddrTTL)
 	}
 
-	err = api.AddFollower(ctx, threadID, pid)
-	return
+	if err = api.AddFollower(ctx, id, pid); err != nil {
+		return
+	}
+	return "Added follower " + p2p, nil
 }
 
-func sendMessage(txt string) error {
-	if !threadID.Defined() {
-		return fmt.Errorf("choose a thread to use with `:thread`")
+func sendMessage(id thread.ID, txt string) error {
+	if strings.TrimSpace(txt) == "" {
+		return fmt.Errorf("missing message")
 	}
 
 	body, err := cbornode.WrapObject(&msg{Txt: txt}, mh.SHA2_256, -1)
@@ -393,12 +481,34 @@ func sendMessage(txt string) error {
 	go func() {
 		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
 		defer cancel()
-		_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(threadID))
+		_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(id))
 		if err != nil {
 			log.Errorf("error writing message: %s", err)
 		}
 	}()
 	return nil
+}
+
+func threadName(id string) (name string, err error) {
+	q, err := ds.Query(query.Query{Prefix: "/names"})
+	if err != nil {
+		return
+	}
+	all, err := q.Rest()
+	if err != nil {
+		return
+	}
+
+	for _, e := range all {
+		i, err := thread.Cast(e.Value)
+		if err != nil {
+			return "", err
+		}
+		if i.String() == id {
+			return e.Key[strings.LastIndex(e.Key, "/")+1:], nil
+		}
+	}
+	return
 }
 
 func shortID(id peer.ID) string {
