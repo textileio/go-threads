@@ -136,6 +136,7 @@ func (t *threads) Host() host.Host {
 	return t.host
 }
 
+// Store returns the threadstore.
 func (t *threads) Store() tstore.Threadstore {
 	return t.store
 }
@@ -254,6 +255,10 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	if err != nil {
 		return err
 	}
+	if info.Logs.Len() == 0 {
+		return fmt.Errorf("thread not found")
+	}
+
 	for _, l := range info.Logs {
 		if err = t.service.pushLog(ctx, id, l, pid); err != nil {
 			return err
