@@ -40,7 +40,7 @@ var (
 	grey  = color.New(color.FgHiBlack).SprintFunc()
 	green = color.New(color.FgHiGreen).SprintFunc()
 	cyan  = color.New(color.FgHiCyan).SprintFunc()
-	blue  = color.New(color.FgHiBlue).SprintFunc()
+	pink  = color.New(color.FgHiMagenta).SprintFunc()
 	red   = color.New(color.FgHiRed).SprintFunc()
 
 	cursor = green(">  ")
@@ -136,7 +136,7 @@ func main() {
 
 				clean(0)
 
-				fmt.Println(grey(name+"> ") +
+				fmt.Println(pink(name+"> ") +
 					grey(msgTime.Format(timeLayout)+" ") +
 					cyan(shortID(rec.LogID())+"  ") +
 					grey(m.Txt))
@@ -197,7 +197,11 @@ func handleLine(line string) (out string, err error) {
 		case "help":
 			return cmdCmd()
 		case "address":
-			return addressCmd()
+			if threadID.Defined() {
+				return threadAddressCmd(threadID)
+			} else {
+				return addressCmd()
+			}
 		case "threads":
 			return threadsCmd()
 		case "enter":
@@ -217,6 +221,15 @@ func handleLine(line string) (out string, err error) {
 			}
 			args := strings.Split(parts[1], " ")
 			return addCmd(args)
+		case "add-follower":
+			if !threadID.Defined() {
+				err = fmt.Errorf("enter a thread with `:enter` or specify thread name with :<name>")
+			}
+			if len(parts) == 1 {
+				err = fmt.Errorf("missing peer address")
+				return
+			}
+			return addFollowerCmd(threadID, parts[1])
 		case "":
 			err = fmt.Errorf("missing command")
 			return
@@ -238,17 +251,18 @@ func handleLine(line string) (out string, err error) {
 }
 
 func cmdCmd() (out string, err error) {
-	out = blue(":help  ") + grey("Show available commands.\n")
-	out += blue(":address  ") + grey("Show host addresses.\n")
-	out += blue(":threads  ") + grey("Show threads.\n")
-	out += blue(":add <name>  ") + grey("Add a new thread with name.\n")
-	out += blue(":add <name> <address>  ") + grey("Add an existing thread with name at address.\n")
-	out += blue(":<name> <message>  ") + grey("Send a message to thread with name.\n")
-	out += blue(":<name>:address  ") + grey("Show thread address.\n")
-	out += blue(":<name>:follower <address>  ") + grey("Add a follower at address.\n")
-	out += blue(":enter <name>  ") + grey("Enter thread with name.\n")
-	out += blue(":exit  ") + grey("Exit the active thread.\n")
-	out += blue("<message>  ") + grey("Send a message to the active thread.")
+	out = pink(":help  ") + grey("Show available commands.\n")
+	out += pink(":address  ") + grey("Show host or active thread addresses.\n")
+	out += pink(":threads  ") + grey("Show threads.\n")
+	out += pink(":add <name>  ") + grey("Add a new thread with name.\n")
+	out += pink(":add <name> <address>  ") + grey("Add an existing thread with name at address.\n")
+	out += pink(":<name> <message>  ") + grey("Send a message to thread with name.\n")
+	out += pink(":<name>:address  ") + grey("Show thread address.\n")
+	out += pink(":<name>:add-follower <address>  ") + grey("Add a follower at address.\n")
+	out += pink(":enter <name>  ") + grey("Enter thread with name.\n")
+	out += pink(":exit  ") + grey("Exit the active thread.\n")
+	out += pink(":add-follower <address>  ") + grey("Add a follower at address to active thread.\n")
+	out += pink("<message>  ") + grey("Send a message to the active thread.")
 	return
 }
 
@@ -286,7 +300,7 @@ func threadsCmd() (out string, err error) {
 			return
 		}
 		name := e.Key[strings.LastIndex(e.Key, "/")+1:]
-		out += blue(name) + grey(" ("+id.String()+")")
+		out += pink(name) + grey(" ("+id.String()+")")
 		if i != len(all)-1 {
 			out += "\n"
 		}
@@ -345,8 +359,6 @@ func addCmd(args []string) (out string, err error) {
 		return
 	}
 
-	cursor = green(name + "> ")
-
 	out = fmt.Sprintf("Added thread %s", id.String())
 	return
 }
@@ -368,7 +380,7 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 		switch cmds[1] {
 		case "address":
 			return threadAddressCmd(id)
-		case "follower":
+		case "add-follower":
 			return addFollowerCmd(id, input)
 		default:
 			err = fmt.Errorf("unknown command: %s", cmds[1])
@@ -446,13 +458,10 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 		return
 	}
 	dialable, err := getDialable(addr)
-	if err != nil {
-		return
-	}
-
-	if dialable != nil {
+	if err == nil {
 		api.Host().Peerstore().AddAddr(pid, dialable, peerstore.PermanentAddrTTL)
 	}
+
 	if len(api.Host().Peerstore().Addrs(pid)) == 0 {
 		pctx, cancel := context.WithTimeout(ctx, findPeerTimeout)
 		defer cancel()
