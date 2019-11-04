@@ -35,7 +35,7 @@ var bootstrapPeers = []string{
 }
 
 // Build an instance of threads.
-func Build() (
+func Build(debug bool) (
 	ctx context.Context,
 	cancel context.CancelFunc,
 	ds datastore.Batching,
@@ -98,7 +98,10 @@ func Build() (
 		MaxBackups: 3,
 		MaxAge:     30, // days
 	}
-	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, writer, true)
+	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
+		LogWriter: writer,
+		Debug:     debug,
+	})
 	if err != nil {
 		panic(err)
 	}

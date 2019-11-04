@@ -25,7 +25,7 @@ func main() {
 
 	var cancel context.CancelFunc
 	var h host.Host
-	_, cancel, _, h, dht, api = util.Build()
+	_, cancel, _, h, dht, api = util.Build(true)
 
 	defer cancel()
 	defer h.Close()
