@@ -224,6 +224,7 @@ func handleLine(line string) (out string, err error) {
 		case "add-follower":
 			if !threadID.Defined() {
 				err = fmt.Errorf("enter a thread with `:enter` or specify thread name with :<name>")
+				return
 			}
 			if len(parts) == 1 {
 				err = fmt.Errorf("missing peer address")
@@ -356,6 +357,10 @@ func addCmd(args []string) (out string, err error) {
 		id = thread.NewIDV1(thread.Raw, 32)
 	}
 	if err = ds.Put(datastore.NewKey("/names/"+name), id.Bytes()); err != nil {
+		return
+	}
+
+	if err = sendMessage(id, "👋"); err != nil {
 		return
 	}
 
