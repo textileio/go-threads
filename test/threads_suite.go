@@ -34,10 +34,10 @@ var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) fun
 func ThreadsTest(t *testing.T) {
 	for name, test := range threadsSuite {
 		// Create two thread services.
-		m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10000")
-		ts1 := newService(t, m1)
-		m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/10001")
-		ts2 := newService(t, m2)
+		m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4006")
+		ts1 := newService(t, m1, "127.0.0.1:5050")
+		m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4007")
+		ts2 := newService(t, m2, "127.0.0.1:5051")
 
 		ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 		ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
@@ -47,7 +47,7 @@ func ThreadsTest(t *testing.T) {
 	}
 }
 
-func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
+func newService(t *testing.T, listen ma.Multiaddr, proxyAddr string) tserv.Threadservice {
 	sk, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
 	check(t, err)
 	host, err := libp2p.New(
@@ -65,7 +65,7 @@ func newService(t *testing.T, listen ma.Multiaddr) tserv.Threadservice {
 		bsrv.Blockstore(),
 		dag.NewDAGService(bsrv),
 		tstore.NewThreadstore(),
-		threads.Options{Debug: true})
+		threads.Options{ProxyAddr: proxyAddr, Debug: true})
 	check(t, err)
 	return ts
 }
