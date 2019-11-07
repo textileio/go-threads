@@ -399,7 +399,7 @@ func (t *threads) AddRecord(
 		threadID: settings.ThreadID,
 		logID:    lg.ID,
 	}
-	if err = t.bus.Send(r); err != nil {
+	if err = t.bus.SendWithTimeout(r, time.Second); err != nil {
 		return
 	}
 
@@ -554,21 +554,16 @@ func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tser
 	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
 	// Notify local listeners
-	return t.bus.Send(&record{
+	return t.bus.SendWithTimeout(&record{
 		Record:   rec,
 		threadID: settings.ThreadID,
 		logID:    lg.ID,
-	})
+	}, time.Second)
 }
 
 // getPrivKey returns the host's private key.
 func (t *threads) getPrivKey() ic.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
-}
-
-// createLog calls util.CreateLog.
-func (t *threads) createLog() (thread.LogInfo, error) {
-	return util.CreateLog(t.host.ID())
 }
 
 // createRecord creates a new record with the given body as a new event body.
@@ -579,7 +574,7 @@ func (t *threads) createRecord(
 	settings *tserv.AddSettings,
 ) (thread.Record, error) {
 	if settings.Key == nil {
-		logKey, err := t.store.ReadKey(settings.ThreadID, settings.KeyLog)
+		logKey, err := t.store.ReadKey(settings.ThreadID)
 		if err != nil {
 			return nil, err
 		}

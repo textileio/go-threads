@@ -127,3 +127,14 @@ func uniqueLogIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Re
 	}
 	return ids, nil
 }
+
+func dsThreadKey(t thread.ID, baseKey ds.Key) ds.Key {
+	key := baseKey.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
+	return key
+}
+
+func dsLogKey(t thread.ID, p peer.ID, baseKey ds.Key) ds.Key {
+	key := baseKey.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
+	key = key.ChildString(base32.RawStdEncoding.EncodeToString([]byte(p)))
+	return key
+}

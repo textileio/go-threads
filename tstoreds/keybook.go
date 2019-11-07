@@ -18,7 +18,9 @@ type dsKeyBook struct {
 }
 
 // Public and private keys are stored under the following db key pattern:
-// /threads/keys/<b32 thread id no padding>/<b32 log id no padding>/(pub|priv|read|follow)
+// /threads/keys/<b32 thread id no padding>/<b32 log id no padding>/(pub|priv)
+// Follow and read keys are stored under the following db key pattern:
+// /threads/keys/<b32 thread id no padding>/(follow|read)
 var (
 	kbBase       = ds.NewKey("/thread/keys")
 	pubSuffix    = ds.NewKey("/pub")
@@ -39,7 +41,7 @@ func NewKeyBook(store ds.Datastore) (tstore.KeyBook, error) {
 // assumes the key is in the store with the exception that peer.ID is an
 // Identity multihash. If the public key can't be resolved, nil is returned.
 func (kb *dsKeyBook) PubKey(t thread.ID, p peer.ID) (ic.PubKey, error) {
-	key := dsKey(t, p, kbBase).Child(pubSuffix)
+	key := dsLogKey(t, p, kbBase).Child(pubSuffix)
 
 	v, err := kb.ds.Get(key)
 	if err == ds.ErrNotFound {
@@ -69,7 +71,7 @@ func (kb *dsKeyBook) AddPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error {
 	if err != nil {
 		return fmt.Errorf("error when getting bytes from public key: %w", err)
 	}
-	key := dsKey(t, p, kbBase).Child(pubSuffix)
+	key := dsLogKey(t, p, kbBase).Child(pubSuffix)
 	if kb.ds.Put(key, val) != nil {
 		return fmt.Errorf("error when putting public key in store: %w", err)
 	}
@@ -79,7 +81,7 @@ func (kb *dsKeyBook) AddPubKey(t thread.ID, p peer.ID, pk ic.PubKey) error {
 // PrivKey returns the private key of (thread.ID, peer.ID). If not private key
 // is stored, returns nil.
 func (kb *dsKeyBook) PrivKey(t thread.ID, p peer.ID) (ic.PrivKey, error) {
-	key := dsKey(t, p, kbBase).Child(privSuffix)
+	key := dsLogKey(t, p, kbBase).Child(privSuffix)
 	v, err := kb.ds.Get(key)
 	if err == ds.ErrNotFound {
 		return nil, nil
@@ -106,41 +108,43 @@ func (kb *dsKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) error {
 	if err != nil {
 		return fmt.Errorf("error when getting private key bytes: %w", err)
 	}
-	key := dsKey(t, p, kbBase).Child(privSuffix)
+	key := dsLogKey(t, p, kbBase).Child(privSuffix)
 	if err = kb.ds.Put(key, skb); err != nil {
 		return fmt.Errorf("error when putting key %v in datastore: %w", key, err)
 	}
 	return nil
 }
 
-// ReadKey returns the read key associated with peer.ID for thread.ID thread.
+// ReadKey returns the read-key associated with thread.ID thread.
 // In case it doesn't exist, it will return nil.
-func (kb *dsKeyBook) ReadKey(t thread.ID, p peer.ID) (*sym.Key, error) {
-	key := dsKey(t, p, kbBase).Child(readSuffix)
+func (kb *dsKeyBook) ReadKey(t thread.ID) (*sym.Key, error) {
+	key := dsThreadKey(t, kbBase).Child(readSuffix)
 	v, err := kb.ds.Get(key)
 	if err == ds.ErrNotFound {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error when getting read key from store for peer ID %v", key)
+		return nil, fmt.Errorf("error when getting read-key from datastore: %v", err)
 	}
 	return sym.NewKey(v)
 }
 
-// AddReadKey adds a read key for a peer.ID
-func (kb *dsKeyBook) AddReadKey(t thread.ID, p peer.ID, rk *sym.Key) error {
+// AddReadKey adds a read-key for a peer.ID
+func (kb *dsKeyBook) AddReadKey(t thread.ID, rk *sym.Key) error {
 	if rk == nil {
 		return fmt.Errorf("read-key is nil")
 	}
-	key := dsKey(t, p, kbBase).Child(readSuffix)
+	key := dsThreadKey(t, kbBase).Child(readSuffix)
 	if err := kb.ds.Put(key, rk.Bytes()); err != nil {
 		return fmt.Errorf("error when adding read-key to datastore: %w", err)
 	}
 	return nil
 }
 
-func (kb *dsKeyBook) FollowKey(t thread.ID, p peer.ID) (*sym.Key, error) {
-	key := dsKey(t, p, kbBase).Child(followSuffix)
+// FollowKey returns the follow-key associated with thread.ID thread.
+// In case it doesn't exist, it will return nil.
+func (kb *dsKeyBook) FollowKey(t thread.ID) (*sym.Key, error) {
+	key := dsThreadKey(t, kbBase).Child(followSuffix)
 
 	v, err := kb.ds.Get(key)
 	if err == ds.ErrNotFound {
@@ -152,17 +156,19 @@ func (kb *dsKeyBook) FollowKey(t thread.ID, p peer.ID) (*sym.Key, error) {
 	return sym.NewKey(v)
 }
 
-func (kb *dsKeyBook) AddFollowKey(t thread.ID, p peer.ID, fk *sym.Key) error {
+// AddFollowKey adds a follow-key for a peer.ID
+func (kb *dsKeyBook) AddFollowKey(t thread.ID, fk *sym.Key) error {
 	if fk == nil {
 		return fmt.Errorf("follow-key is nil")
 	}
-	key := dsKey(t, p, kbBase).Child(followSuffix)
+	key := dsThreadKey(t, kbBase).Child(followSuffix)
 	if err := kb.ds.Put(key, fk.Bytes()); err != nil {
 		return fmt.Errorf("error when adding follow-key to datastore: %w", err)
 	}
 	return nil
 }
 
+// LogsWithKeys returns a list of log IDs for a thread.
 func (kb *dsKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
 	ids, err := uniqueLogIds(kb.ds, kbBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())),
 		func(result query.Result) string {
@@ -174,6 +180,7 @@ func (kb *dsKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
 	return ids, nil
 }
 
+// ThreadsFromKeys returns a list of threads referenced in the book.
 func (kb *dsKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
 	ids, err := uniqueThreadIds(kb.ds, kbBase, func(result query.Result) string {
 		return ds.RawKey(result.Key).Parent().Parent().Name()

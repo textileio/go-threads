@@ -125,27 +125,17 @@ func testKeyBookReadKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
-		if err != nil {
-			t.Error(err)
-		}
-
-		id, err := peer.IDFromPublicKey(pub)
-		if err != nil {
-			t.Error(err)
-		}
-
 		key, err := symmetric.CreateKey()
 		if err != nil {
 			t.Error(err)
 		}
 
-		err = kb.AddReadKey(tid, id, key)
+		err = kb.AddReadKey(tid, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res, err := kb.ReadKey(tid, id); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
+		if res, err := kb.ReadKey(tid); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
@@ -159,27 +149,17 @@ func testKeyBookFollowKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
-		if err != nil {
-			t.Error(err)
-		}
-
-		id, err := peer.IDFromPublicKey(pub)
-		if err != nil {
-			t.Error(err)
-		}
-
 		key, err := symmetric.CreateKey()
 		if err != nil {
 			t.Error(err)
 		}
 
-		err = kb.AddFollowKey(tid, id, key)
+		err = kb.AddFollowKey(tid, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res, err := kb.FollowKey(tid, id); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
+		if res, err := kb.FollowKey(tid); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
