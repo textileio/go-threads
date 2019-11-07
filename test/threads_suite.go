@@ -32,16 +32,16 @@ var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) fun
 }
 
 func ThreadsTest(t *testing.T) {
+	// Create two thread services.
+	m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4006")
+	ts1 := newService(t, m1, "127.0.0.1:5050")
+	m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4007")
+	ts2 := newService(t, m2, "127.0.0.1:5051")
+
+	ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
+	ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
+
 	for name, test := range threadsSuite {
-		// Create two thread services.
-		m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4006")
-		ts1 := newService(t, m1, "127.0.0.1:5050")
-		m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4007")
-		ts2 := newService(t, m2, "127.0.0.1:5051")
-
-		ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
-		ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
-
 		// Run the test.
 		t.Run(name, test(ts1, ts2))
 	}
