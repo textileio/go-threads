@@ -119,13 +119,13 @@ func (ts *threadstore) AddLog(id thread.ID, log thread.LogInfo) error {
 		}
 	}
 	if log.FollowKey != nil {
-		err = ts.AddFollowKey(id, log.ID, log.FollowKey)
+		err = ts.AddFollowKey(id, log.FollowKey)
 		if err != nil {
 			return err
 		}
 	}
 	if log.ReadKey != nil {
-		err = ts.AddReadKey(id, log.ID, log.ReadKey)
+		err = ts.AddReadKey(id, log.ReadKey)
 		if err != nil {
 			return err
 		}
@@ -153,11 +153,11 @@ func (ts *threadstore) LogInfo(id thread.ID, lid peer.ID) (li thread.LogInfo, er
 	if err != nil {
 		return
 	}
-	fk, err := ts.FollowKey(id, lid)
+	fk, err := ts.FollowKey(id)
 	if err != nil {
 		return
 	}
-	rk, err := ts.ReadKey(id, lid)
+	rk, err := ts.ReadKey(id)
 	if err != nil {
 		return
 	}

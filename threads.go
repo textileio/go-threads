@@ -579,7 +579,7 @@ func (t *threads) createRecord(
 	settings *tserv.AddSettings,
 ) (thread.Record, error) {
 	if settings.Key == nil {
-		logKey, err := t.store.ReadKey(settings.ThreadID, settings.KeyLog)
+		logKey, err := t.store.ReadKey(settings.ThreadID)
 		if err != nil {
 			return nil, err
 		}

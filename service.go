@@ -207,7 +207,7 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 	}
 
 	// A follow-key is required to accept new records
-	key, err := s.threads.store.FollowKey(req.ThreadID.ID, req.LogID.ID)
+	key, err := s.threads.store.FollowKey(req.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
