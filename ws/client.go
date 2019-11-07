@@ -1,3 +1,5 @@
+// Inspired by https://github.com/gorilla/websocket/tree/master/examples/chat with
+// adaptations for multiple rooms ("threads" in Textile parlance) and authentication.
 package ws
 
 import (
@@ -112,6 +114,7 @@ func (c *Client) readPump() {
 // A goroutine running writePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
+// @todo: Handle write errors.
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {

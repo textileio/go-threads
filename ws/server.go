@@ -13,12 +13,13 @@ var log = logging.Logger("ws")
 
 // Server wraps a connection hub and http server.
 type Server struct {
-	hub *Hub
-	s   *http.Server
+	service tserv.Threadservice
+	hub     *Hub
+	s       *http.Server
 }
 
 // NewServer returns a web socket server.
-func NewServer(addr string) *Server {
+func NewServer(service tserv.Threadservice, addr string) *Server {
 	s := &Server{
 		hub: newHub(),
 	}
@@ -50,14 +51,23 @@ func NewServer(addr string) *Server {
 			}
 		}
 	}()
+
+	sub := service.Subscribe()
+	go func() {
+		for {
+			select {
+			case rec, ok := <-sub.Channel():
+				if !ok {
+					return
+				}
+				s.hub.broadcast <- rec
+			}
+		}
+	}()
+
 	log.Infof("ws server listening at %s", s.s.Addr)
 
 	return s
-}
-
-// Send a message to the hub.
-func (s *Server) Send(r tserv.Record) {
-	s.hub.broadcast <- r
 }
 
 // Close the server.

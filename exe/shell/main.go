@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 	"github.com/textileio/go-textile-threads/exe/util"
 	tutil "github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-textile-threads/ws"
 )
 
 var (
@@ -70,13 +72,18 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 }
 
 func main() {
+	repo := flag.String("repo", ".threads", "repo location")
+	port := flag.Int("port", 4006, "host port")
+	wsAddr := flag.String("socks", "", "web socket server address")
+	flag.Parse()
+
 	if err := logging.SetLogLevel("shell", "debug"); err != nil {
 		panic(err)
 	}
 
 	var cancel context.CancelFunc
 	var h host.Host
-	ctx, cancel, ds, h, dht, api = util.Build(true)
+	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, true)
 
 	defer cancel()
 	defer h.Close()
@@ -90,6 +97,16 @@ func main() {
 	}
 	defer mdns.Close()
 	mdns.RegisterNotifee(&notifee{})
+
+	// Start a web socket server
+	if *wsAddr == "" {
+		*wsAddr = "0.0.0.0:8080"
+	}
+	wsServer := ws.NewServer(api, *wsAddr)
+	defer wsServer.Close()
+	if err = logging.SetLogLevel("ws", "debug"); err != nil {
+		panic(err)
+	}
 
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))
