@@ -371,7 +371,7 @@ if (goog.DEBUG && !COMPILED) {
  * @private {!Array<number>}
  * @const
  */
-proto.threads.pb.Log.repeatedFields_ = [5,6];
+proto.threads.pb.Log.repeatedFields_ = [3,4];
 
 
 
@@ -404,8 +404,6 @@ proto.threads.pb.Log.toObject = function(includeInstance, msg) {
   var obj = {
     id: msg.getId_asB64(),
     pubkey: msg.getPubkey_asB64(),
-    followkey: msg.getFollowkey_asB64(),
-    readkey: msg.getReadkey_asB64(),
     addrsList: msg.getAddrsList_asB64(),
     headsList: msg.getHeadsList_asB64()
   };
@@ -454,17 +452,9 @@ proto.threads.pb.Log.deserializeBinaryFromReader = function(msg, reader) {
       break;
     case 3:
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
-      msg.setFollowkey(value);
-      break;
-    case 4:
-      var value = /** @type {!Uint8Array} */ (reader.readBytes());
-      msg.setReadkey(value);
-      break;
-    case 5:
-      var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.addAddrs(value);
       break;
-    case 6:
+    case 4:
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.addHeads(value);
       break;
@@ -511,31 +501,17 @@ proto.threads.pb.Log.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getFollowkey_asU8();
-  if (f.length > 0) {
-    writer.writeBytes(
-      3,
-      f
-    );
-  }
-  f = message.getReadkey_asU8();
-  if (f.length > 0) {
-    writer.writeBytes(
-      4,
-      f
-    );
-  }
   f = message.getAddrsList_asU8();
   if (f.length > 0) {
     writer.writeRepeatedBytes(
-      5,
+      3,
       f
     );
   }
   f = message.getHeadsList_asU8();
   if (f.length > 0) {
     writer.writeRepeatedBytes(
-      6,
+      4,
       f
     );
   }
@@ -923,94 +899,16 @@ proto.threads.pb.Log.prototype.setPubkey = function(value) {
 
 
 /**
- * optional bytes followKey = 3;
- * @return {!(string|Uint8Array)}
- */
-proto.threads.pb.Log.prototype.getFollowkey = function() {
-  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
-};
-
-
-/**
- * optional bytes followKey = 3;
- * This is a type-conversion wrapper around `getFollowkey()`
- * @return {string}
- */
-proto.threads.pb.Log.prototype.getFollowkey_asB64 = function() {
-  return /** @type {string} */ (jspb.Message.bytesAsB64(
-      this.getFollowkey()));
-};
-
-
-/**
- * optional bytes followKey = 3;
- * Note that Uint8Array is not supported on all browsers.
- * @see http://caniuse.com/Uint8Array
- * This is a type-conversion wrapper around `getFollowkey()`
- * @return {!Uint8Array}
- */
-proto.threads.pb.Log.prototype.getFollowkey_asU8 = function() {
-  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
-      this.getFollowkey()));
-};
-
-
-/** @param {!(string|Uint8Array)} value */
-proto.threads.pb.Log.prototype.setFollowkey = function(value) {
-  jspb.Message.setProto3BytesField(this, 3, value);
-};
-
-
-/**
- * optional bytes readKey = 4;
- * @return {!(string|Uint8Array)}
- */
-proto.threads.pb.Log.prototype.getReadkey = function() {
-  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
-};
-
-
-/**
- * optional bytes readKey = 4;
- * This is a type-conversion wrapper around `getReadkey()`
- * @return {string}
- */
-proto.threads.pb.Log.prototype.getReadkey_asB64 = function() {
-  return /** @type {string} */ (jspb.Message.bytesAsB64(
-      this.getReadkey()));
-};
-
-
-/**
- * optional bytes readKey = 4;
- * Note that Uint8Array is not supported on all browsers.
- * @see http://caniuse.com/Uint8Array
- * This is a type-conversion wrapper around `getReadkey()`
- * @return {!Uint8Array}
- */
-proto.threads.pb.Log.prototype.getReadkey_asU8 = function() {
-  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
-      this.getReadkey()));
-};
-
-
-/** @param {!(string|Uint8Array)} value */
-proto.threads.pb.Log.prototype.setReadkey = function(value) {
-  jspb.Message.setProto3BytesField(this, 4, value);
-};
-
-
-/**
- * repeated bytes addrs = 5;
+ * repeated bytes addrs = 3;
  * @return {!(Array<!Uint8Array>|Array<string>)}
  */
 proto.threads.pb.Log.prototype.getAddrsList = function() {
-  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 5));
+  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 3));
 };
 
 
 /**
- * repeated bytes addrs = 5;
+ * repeated bytes addrs = 3;
  * This is a type-conversion wrapper around `getAddrsList()`
  * @return {!Array<string>}
  */
@@ -1021,7 +919,7 @@ proto.threads.pb.Log.prototype.getAddrsList_asB64 = function() {
 
 
 /**
- * repeated bytes addrs = 5;
+ * repeated bytes addrs = 3;
  * Note that Uint8Array is not supported on all browsers.
  * @see http://caniuse.com/Uint8Array
  * This is a type-conversion wrapper around `getAddrsList()`
@@ -1035,7 +933,7 @@ proto.threads.pb.Log.prototype.getAddrsList_asU8 = function() {
 
 /** @param {!(Array<!Uint8Array>|Array<string>)} value */
 proto.threads.pb.Log.prototype.setAddrsList = function(value) {
-  jspb.Message.setField(this, 5, value || []);
+  jspb.Message.setField(this, 3, value || []);
 };
 
 
@@ -1044,7 +942,7 @@ proto.threads.pb.Log.prototype.setAddrsList = function(value) {
  * @param {number=} opt_index
  */
 proto.threads.pb.Log.prototype.addAddrs = function(value, opt_index) {
-  jspb.Message.addToRepeatedField(this, 5, value, opt_index);
+  jspb.Message.addToRepeatedField(this, 3, value, opt_index);
 };
 
 
@@ -1057,16 +955,16 @@ proto.threads.pb.Log.prototype.clearAddrsList = function() {
 
 
 /**
- * repeated bytes heads = 6;
+ * repeated bytes heads = 4;
  * @return {!(Array<!Uint8Array>|Array<string>)}
  */
 proto.threads.pb.Log.prototype.getHeadsList = function() {
-  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 6));
+  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 4));
 };
 
 
 /**
- * repeated bytes heads = 6;
+ * repeated bytes heads = 4;
  * This is a type-conversion wrapper around `getHeadsList()`
  * @return {!Array<string>}
  */
@@ -1077,7 +975,7 @@ proto.threads.pb.Log.prototype.getHeadsList_asB64 = function() {
 
 
 /**
- * repeated bytes heads = 6;
+ * repeated bytes heads = 4;
  * Note that Uint8Array is not supported on all browsers.
  * @see http://caniuse.com/Uint8Array
  * This is a type-conversion wrapper around `getHeadsList()`
@@ -1091,7 +989,7 @@ proto.threads.pb.Log.prototype.getHeadsList_asU8 = function() {
 
 /** @param {!(Array<!Uint8Array>|Array<string>)} value */
 proto.threads.pb.Log.prototype.setHeadsList = function(value) {
-  jspb.Message.setField(this, 6, value || []);
+  jspb.Message.setField(this, 4, value || []);
 };
 
 
@@ -1100,7 +998,7 @@ proto.threads.pb.Log.prototype.setHeadsList = function(value) {
  * @param {number=} opt_index
  */
 proto.threads.pb.Log.prototype.addHeads = function(value, opt_index) {
-  jspb.Message.addToRepeatedField(this, 6, value, opt_index);
+  jspb.Message.addToRepeatedField(this, 4, value, opt_index);
 };
 
 
@@ -1143,7 +1041,8 @@ proto.threads.pb.GetLogsRequest.prototype.toObject = function(opt_includeInstanc
 proto.threads.pb.GetLogsRequest.toObject = function(includeInstance, msg) {
   var obj = {
     header: (f = msg.getHeader()) && proto.threads.pb.GetLogsRequest.Header.toObject(includeInstance, f),
-    threadid: msg.getThreadid_asB64()
+    threadid: msg.getThreadid_asB64(),
+    followkey: msg.getFollowkey_asB64()
   };
 
   if (includeInstance) {
@@ -1189,6 +1088,10 @@ proto.threads.pb.GetLogsRequest.deserializeBinaryFromReader = function(msg, read
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setThreadid(value);
       break;
+    case 3:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setFollowkey(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -1230,6 +1133,13 @@ proto.threads.pb.GetLogsRequest.serializeBinaryToWriter = function(message, writ
   if (f.length > 0) {
     writer.writeBytes(
       2,
+      f
+    );
+  }
+  f = message.getFollowkey_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      3,
       f
     );
   }
@@ -1457,6 +1367,45 @@ proto.threads.pb.GetLogsRequest.prototype.setThreadid = function(value) {
 };
 
 
+/**
+ * optional bytes followKey = 3;
+ * @return {!(string|Uint8Array)}
+ */
+proto.threads.pb.GetLogsRequest.prototype.getFollowkey = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {string}
+ */
+proto.threads.pb.GetLogsRequest.prototype.getFollowkey_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getFollowkey()));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {!Uint8Array}
+ */
+proto.threads.pb.GetLogsRequest.prototype.getFollowkey_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getFollowkey()));
+};
+
+
+/** @param {!(string|Uint8Array)} value */
+proto.threads.pb.GetLogsRequest.prototype.setFollowkey = function(value) {
+  jspb.Message.setProto3BytesField(this, 3, value);
+};
+
+
 
 /**
  * List of repeated fields within this message type.
@@ -1643,6 +1592,8 @@ proto.threads.pb.PushLogRequest.toObject = function(includeInstance, msg) {
   var obj = {
     header: (f = msg.getHeader()) && proto.threads.pb.PushLogRequest.Header.toObject(includeInstance, f),
     threadid: msg.getThreadid_asB64(),
+    followkey: msg.getFollowkey_asB64(),
+    readkey: msg.getReadkey_asB64(),
     log: (f = msg.getLog()) && proto.threads.pb.Log.toObject(includeInstance, f)
   };
 
@@ -1690,6 +1641,14 @@ proto.threads.pb.PushLogRequest.deserializeBinaryFromReader = function(msg, read
       msg.setThreadid(value);
       break;
     case 3:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setFollowkey(value);
+      break;
+    case 4:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setReadkey(value);
+      break;
+    case 5:
       var value = new proto.threads.pb.Log;
       reader.readMessage(value,proto.threads.pb.Log.deserializeBinaryFromReader);
       msg.setLog(value);
@@ -1738,10 +1697,24 @@ proto.threads.pb.PushLogRequest.serializeBinaryToWriter = function(message, writ
       f
     );
   }
+  f = message.getFollowkey_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      3,
+      f
+    );
+  }
+  f = message.getReadkey_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      4,
+      f
+    );
+  }
   f = message.getLog();
   if (f != null) {
     writer.writeMessage(
-      3,
+      5,
       f,
       proto.threads.pb.Log.serializeBinaryToWriter
     );
@@ -1971,18 +1944,96 @@ proto.threads.pb.PushLogRequest.prototype.setThreadid = function(value) {
 
 
 /**
- * optional Log log = 3;
+ * optional bytes followKey = 3;
+ * @return {!(string|Uint8Array)}
+ */
+proto.threads.pb.PushLogRequest.prototype.getFollowkey = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {string}
+ */
+proto.threads.pb.PushLogRequest.prototype.getFollowkey_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getFollowkey()));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {!Uint8Array}
+ */
+proto.threads.pb.PushLogRequest.prototype.getFollowkey_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getFollowkey()));
+};
+
+
+/** @param {!(string|Uint8Array)} value */
+proto.threads.pb.PushLogRequest.prototype.setFollowkey = function(value) {
+  jspb.Message.setProto3BytesField(this, 3, value);
+};
+
+
+/**
+ * optional bytes readKey = 4;
+ * @return {!(string|Uint8Array)}
+ */
+proto.threads.pb.PushLogRequest.prototype.getReadkey = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
+};
+
+
+/**
+ * optional bytes readKey = 4;
+ * This is a type-conversion wrapper around `getReadkey()`
+ * @return {string}
+ */
+proto.threads.pb.PushLogRequest.prototype.getReadkey_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getReadkey()));
+};
+
+
+/**
+ * optional bytes readKey = 4;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getReadkey()`
+ * @return {!Uint8Array}
+ */
+proto.threads.pb.PushLogRequest.prototype.getReadkey_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getReadkey()));
+};
+
+
+/** @param {!(string|Uint8Array)} value */
+proto.threads.pb.PushLogRequest.prototype.setReadkey = function(value) {
+  jspb.Message.setProto3BytesField(this, 4, value);
+};
+
+
+/**
+ * optional Log log = 5;
  * @return {?proto.threads.pb.Log}
  */
 proto.threads.pb.PushLogRequest.prototype.getLog = function() {
   return /** @type{?proto.threads.pb.Log} */ (
-    jspb.Message.getWrapperField(this, proto.threads.pb.Log, 3));
+    jspb.Message.getWrapperField(this, proto.threads.pb.Log, 5));
 };
 
 
 /** @param {?proto.threads.pb.Log|undefined} value */
 proto.threads.pb.PushLogRequest.prototype.setLog = function(value) {
-  jspb.Message.setWrapperField(this, 3, value);
+  jspb.Message.setWrapperField(this, 5, value);
 };
 
 
@@ -1999,7 +2050,7 @@ proto.threads.pb.PushLogRequest.prototype.clearLog = function() {
  * @return {boolean}
  */
 proto.threads.pb.PushLogRequest.prototype.hasLog = function() {
-  return jspb.Message.getField(this, 3) != null;
+  return jspb.Message.getField(this, 5) != null;
 };
 
 
@@ -2108,7 +2159,7 @@ proto.threads.pb.PushLogReply.serializeBinaryToWriter = function(message, writer
  * @private {!Array<number>}
  * @const
  */
-proto.threads.pb.GetRecordsRequest.repeatedFields_ = [3];
+proto.threads.pb.GetRecordsRequest.repeatedFields_ = [4];
 
 
 
@@ -2141,6 +2192,7 @@ proto.threads.pb.GetRecordsRequest.toObject = function(includeInstance, msg) {
   var obj = {
     header: (f = msg.getHeader()) && proto.threads.pb.GetRecordsRequest.Header.toObject(includeInstance, f),
     threadid: msg.getThreadid_asB64(),
+    followkey: msg.getFollowkey_asB64(),
     logsList: jspb.Message.toObjectList(msg.getLogsList(),
     proto.threads.pb.GetRecordsRequest.LogEntry.toObject, includeInstance)
   };
@@ -2189,6 +2241,10 @@ proto.threads.pb.GetRecordsRequest.deserializeBinaryFromReader = function(msg, r
       msg.setThreadid(value);
       break;
     case 3:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setFollowkey(value);
+      break;
+    case 4:
       var value = new proto.threads.pb.GetRecordsRequest.LogEntry;
       reader.readMessage(value,proto.threads.pb.GetRecordsRequest.LogEntry.deserializeBinaryFromReader);
       msg.addLogs(value);
@@ -2237,10 +2293,17 @@ proto.threads.pb.GetRecordsRequest.serializeBinaryToWriter = function(message, w
       f
     );
   }
+  f = message.getFollowkey_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      3,
+      f
+    );
+  }
   f = message.getLogsList();
   if (f.length > 0) {
     writer.writeRepeatedMessage(
-      3,
+      4,
       f,
       proto.threads.pb.GetRecordsRequest.LogEntry.serializeBinaryToWriter
     );
@@ -2697,18 +2760,57 @@ proto.threads.pb.GetRecordsRequest.prototype.setThreadid = function(value) {
 
 
 /**
- * repeated LogEntry logs = 3;
+ * optional bytes followKey = 3;
+ * @return {!(string|Uint8Array)}
+ */
+proto.threads.pb.GetRecordsRequest.prototype.getFollowkey = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {string}
+ */
+proto.threads.pb.GetRecordsRequest.prototype.getFollowkey_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getFollowkey()));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {!Uint8Array}
+ */
+proto.threads.pb.GetRecordsRequest.prototype.getFollowkey_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getFollowkey()));
+};
+
+
+/** @param {!(string|Uint8Array)} value */
+proto.threads.pb.GetRecordsRequest.prototype.setFollowkey = function(value) {
+  jspb.Message.setProto3BytesField(this, 3, value);
+};
+
+
+/**
+ * repeated LogEntry logs = 4;
  * @return {!Array<!proto.threads.pb.GetRecordsRequest.LogEntry>}
  */
 proto.threads.pb.GetRecordsRequest.prototype.getLogsList = function() {
   return /** @type{!Array<!proto.threads.pb.GetRecordsRequest.LogEntry>} */ (
-    jspb.Message.getRepeatedWrapperField(this, proto.threads.pb.GetRecordsRequest.LogEntry, 3));
+    jspb.Message.getRepeatedWrapperField(this, proto.threads.pb.GetRecordsRequest.LogEntry, 4));
 };
 
 
 /** @param {!Array<!proto.threads.pb.GetRecordsRequest.LogEntry>} value */
 proto.threads.pb.GetRecordsRequest.prototype.setLogsList = function(value) {
-  jspb.Message.setRepeatedWrapperField(this, 3, value);
+  jspb.Message.setRepeatedWrapperField(this, 4, value);
 };
 
 
@@ -2718,7 +2820,7 @@ proto.threads.pb.GetRecordsRequest.prototype.setLogsList = function(value) {
  * @return {!proto.threads.pb.GetRecordsRequest.LogEntry}
  */
 proto.threads.pb.GetRecordsRequest.prototype.addLogs = function(opt_value, opt_index) {
-  return jspb.Message.addToRepeatedWrapperField(this, 3, opt_value, proto.threads.pb.GetRecordsRequest.LogEntry, opt_index);
+  return jspb.Message.addToRepeatedWrapperField(this, 4, opt_value, proto.threads.pb.GetRecordsRequest.LogEntry, opt_index);
 };
 
 

@@ -8,17 +8,17 @@ option (gogoproto.populate_all) = true;
 
 // Log represents a thread log.
 message Log {
+    // ID of the log.
     bytes ID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
 
+    // pubKey of the log.
     bytes pubKey = 2 [(gogoproto.customtype) = "ProtoPubKey"];
 
-    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+    // addrs of the log.
+    repeated bytes addrs = 3 [(gogoproto.customtype) = "ProtoAddr"];
 
-    bytes readKey = 4 [(gogoproto.customtype) = "ProtoKey"];
-
-    repeated bytes addrs = 5 [(gogoproto.customtype) = "ProtoAddr"];
-
-    repeated bytes heads = 6 [(gogoproto.customtype) = "ProtoCid"];
+    // heads of the log.
+    repeated bytes heads = 4 [(gogoproto.customtype) = "ProtoCid"];
 
     // Record is a thread record containing link data.
     message Record {
@@ -44,6 +44,9 @@ message GetLogsRequest {
     // threadID is the target thread's ID.
     bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
+    // followKey for the thread.
+    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+
     // Header holds sender information.
     message Header {
         bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
@@ -64,8 +67,14 @@ message PushLogRequest {
     // threadID is the target thread's ID.
     bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
+    // followKey for the thread.
+    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+
+    // readKey for the thread.
+    bytes readKey = 4 [(gogoproto.customtype) = "ProtoKey"];
+
     // log is the actual log payload.
-    Log log = 3;
+    Log log = 5;
 
     // Header holds sender information.
     message Header {
@@ -84,8 +93,11 @@ message GetRecordsRequest {
     // threadID is the target thread's ID.
     bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
+    // followKey for the thread.
+    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+
     // List of requested logs.
-    repeated LogEntry logs = 3;
+    repeated LogEntry logs = 4;
 
     // LogEntry represents a single log.
     message LogEntry {
