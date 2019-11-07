@@ -206,15 +206,19 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// A follow-key is required to accept new records
+	// A log is required to accept new records
+	logpk, err := s.threads.store.PubKey(req.ThreadID.ID, req.LogID.ID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if logpk == nil {
+		return nil, status.Error(codes.NotFound, "log not found")
+	}
+
 	key, err := s.threads.store.FollowKey(req.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if key == nil {
-		return nil, status.Error(codes.NotFound, "log not found")
-	}
-
 	rec, err := recordFromProto(req.Record, key)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -228,10 +232,6 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 	}
 
 	// Verify node
-	logpk, err := s.threads.store.PubKey(req.ThreadID.ID, req.LogID.ID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

@@ -131,7 +131,7 @@ func main() {
 					logError(err)
 					continue
 				}
-				key, err := api.Store().ReadKey(rec.ThreadID(), rec.LogID())
+				key, err := api.Store().ReadKey(rec.ThreadID())
 				if err != nil {
 					logError(err)
 					continue
