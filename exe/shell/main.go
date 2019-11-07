@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
@@ -62,6 +63,12 @@ type msg struct {
 	Txt string
 }
 
+type notifee struct{}
+
+func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
+	api.Host().Peerstore().AddAddrs(p.ID, p.Addrs, pstore.ConnectedAddrTTL)
+}
+
 func main() {
 	if err := logging.SetLogLevel("shell", "debug"); err != nil {
 		panic(err)
@@ -82,6 +89,7 @@ func main() {
 		panic(err)
 	}
 	defer mdns.Close()
+	mdns.RegisterNotifee(&notifee{})
 
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))

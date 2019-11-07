@@ -1,0 +1,25 @@
+<!--
+This is an example of a web client opening a ws connection to Threads.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <script>
+        window.addEventListener('load', function() {
+            const socket = new WebSocket('ws://localhost:8080');
+            socket.addEventListener('open', function (e) {
+                console.log('Connection started.')
+            });
+            socket.addEventListener('message', function (e) {
+                console.log('Record: ', e.data);
+            });
+            socket.addEventListener('error', function (e) {
+                console.error("Error: ", e);
+            });
+        });
+    </script>
+    <title>Threads</title>
+</head>
+<body></body>
+</html>

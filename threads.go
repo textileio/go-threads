@@ -2,6 +2,7 @@ package threads
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
 	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-textile-threads/ws"
 	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
 )
@@ -34,13 +36,15 @@ func init() {
 	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
 }
 
-var log = logging.Logger("threads")
+var (
+	log = logging.Logger("threads")
 
-// MaxPullLimit is the maximum page size for pulling records.
-var MaxPullLimit = 10000
+	// MaxPullLimit is the maximum page size for pulling records.
+	MaxPullLimit = 10000
 
-// PullInterval is the interval between automatic log pulls.
-var PullInterval = time.Second * 10
+	// PullInterval is the interval between automatic log pulls.
+	PullInterval = time.Second * 10
+)
 
 // threads is an implementation of Threadservice.
 type threads struct {
@@ -54,6 +58,7 @@ type threads struct {
 	proxy   *http.Server
 	service *service
 	bus     *broadcast.Broadcaster
+	ws      *ws.Server
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -61,10 +66,11 @@ type threads struct {
 
 // Options is used to specify thread instance options.
 type Options struct {
-	ProxyAddr  string // defaults to 0.0.0.0:5050
-	LogWriter  io.Writer
-	NoLogColor bool
-	Debug      bool
+	ProxyAddr     string // defaults to 0.0.0.0:5050
+	WebSocketAddr string // defaults to 0.0.0.0:8080
+	LogWriter     io.Writer
+	NoLogColor    bool
+	Debug         bool
 }
 
 // NewThreads creates an instance of threads from the given host and thread store.
@@ -81,6 +87,7 @@ func NewThreads(
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
+			"ws":          logger.DEBUG,
 		}, opts.LogWriter, !opts.NoLogColor)
 		if err != nil {
 			return nil, err
@@ -110,6 +117,7 @@ func NewThreads(
 	go t.rpc.Serve(listener)
 	pb.RegisterThreadsServer(t.rpc, t.service)
 
+	// Start a web RPC proxy
 	webrpc := grpcweb.WrapServer(t.rpc)
 	if opts.ProxyAddr == "" {
 		opts.ProxyAddr = "0.0.0.0:5050"
@@ -117,11 +125,11 @@ func NewThreads(
 	t.proxy = &http.Server{
 		Addr: opts.ProxyAddr,
 	}
-	t.proxy.Handler = http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		if webrpc.IsGrpcWebRequest(req) {
-			webrpc.ServeHTTP(resp, req)
+	t.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if webrpc.IsGrpcWebRequest(r) {
+			webrpc.ServeHTTP(w, r)
 		}
-		http.DefaultServeMux.ServeHTTP(resp, req) // fallback
+		http.DefaultServeMux.ServeHTTP(w, r) // fallback
 	})
 
 	errc := make(chan error)
@@ -145,6 +153,12 @@ func NewThreads(
 	}()
 	log.Infof("proxy listening at %s", t.proxy.Addr)
 
+	// Start a web socket server
+	if opts.WebSocketAddr == "" {
+		opts.WebSocketAddr = "0.0.0.0:8080"
+	}
+	t.ws = ws.NewServer(opts.WebSocketAddr)
+
 	go t.startPulling()
 
 	return t, nil
@@ -159,6 +173,8 @@ func (t *threads) Close() (err error) {
 	}
 
 	t.rpc.GracefulStop()
+
+	t.ws.Close()
 
 	var errs []error
 	weakClose := func(name string, c interface{}) {
@@ -390,13 +406,13 @@ func (t *threads) AddRecord(
 
 	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
-	// Notify local listeners
+	// Notify local and socket-connected listeners
 	r = &record{
 		Record:   rec,
 		threadID: settings.ThreadID,
 		logID:    lg.ID,
 	}
-	if err = t.bus.Send(r); err != nil {
+	if err = t.broadcast(r); err != nil {
 		return
 	}
 
@@ -550,8 +566,8 @@ func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tser
 
 	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
 
-	// Notify local listeners
-	return t.bus.Send(&record{
+	// Notify local and socket-connected listeners
+	return t.broadcast(&record{
 		Record:   rec,
 		threadID: settings.ThreadID,
 		logID:    lg.ID,
@@ -696,6 +712,19 @@ func (t *threads) startPulling() {
 			return
 		}
 	}
+}
+
+// broadcast sends a record to connected web socket clients.
+func (t *threads) broadcast(r tserv.Record) error {
+	if err := t.bus.Send(r); err != nil {
+		return err
+	}
+
+	data := r.Value().RawData()
+	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
+	base64.StdEncoding.Encode(encoded, data)
+	t.ws.Send(encoded)
+	return nil
 }
 
 // setLogLevels sets the logging levels of the given log systems.

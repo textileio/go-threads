@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	"github.com/mitchellh/go-homedir"
 	ma "github.com/multiformats/go-multiaddr"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -63,6 +64,10 @@ func Build(debug bool) (
 	if err != nil {
 		panic(err)
 	}
+	pstore, err := pstoreds.NewPeerstore(ctx, ds, pstoreds.DefaultOpts())
+	if err != nil {
+		panic(err)
+	}
 
 	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", *port))
 	if err != nil {
@@ -75,6 +80,7 @@ func Build(debug bool) (
 		nil,
 		[]ma.Multiaddr{listen},
 		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
+		libp2p.Peerstore(pstore),
 	)
 	if err != nil {
 		panic(err)
