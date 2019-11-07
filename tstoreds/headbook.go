@@ -10,7 +10,6 @@ import (
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 	pb "github.com/textileio/go-textile-threads/pb"
-	"github.com/whyrusleeping/base32"
 )
 
 type dsHeadBook struct {
@@ -43,7 +42,7 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 		return fmt.Errorf("error when creating txn in datastore: %w", err)
 	}
 	defer txn.Discard()
-	key := dsKey(t, p, hbBase)
+	key := dsLogKey(t, p, hbBase)
 	hr := pb.HeadBookRecord{}
 	v, err := txn.Get(key)
 	if err == nil {
@@ -84,7 +83,7 @@ func (hb *dsHeadBook) SetHead(t thread.ID, p peer.ID, c cid.Cid) error {
 }
 
 func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
-	key := dsKey(t, p, hbBase)
+	key := dsLogKey(t, p, hbBase)
 	hr := pb.HeadBookRecord{}
 	for i := range heads {
 		if !heads[i].Defined() {
@@ -106,7 +105,7 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 }
 
 func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
-	key := dsKey(t, p, hbBase)
+	key := dsLogKey(t, p, hbBase)
 	v, err := hb.ds.Get(key)
 	if err == ds.ErrNotFound {
 		return nil, nil
@@ -126,15 +125,9 @@ func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 }
 
 func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
-	key := dsKey(t, p, hbBase)
+	key := dsLogKey(t, p, hbBase)
 	if err := hb.ds.Delete(key); err != nil {
 		return fmt.Errorf("error when deleting heads from %s", key)
 	}
 	return nil
-}
-
-func dsKey(t thread.ID, p peer.ID, baseKey ds.Key) ds.Key {
-	key := baseKey.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
-	key = key.ChildString(base32.RawStdEncoding.EncodeToString([]byte(p)))
-	return key
 }
