@@ -2,7 +2,6 @@ package threads
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -720,10 +719,7 @@ func (t *threads) broadcast(r tserv.Record) error {
 		return err
 	}
 
-	data := r.Value().RawData()
-	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
-	base64.StdEncoding.Encode(encoded, data)
-	t.ws.Send(encoded)
+	t.ws.Send(r)
 	return nil
 }
 

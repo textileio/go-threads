@@ -6,6 +6,7 @@ import (
 	"time"
 
 	logging "github.com/ipfs/go-log"
+	tserv "github.com/textileio/go-textile-core/threadservice"
 )
 
 var log = logging.Logger("ws")
@@ -55,8 +56,8 @@ func NewServer(addr string) *Server {
 }
 
 // Send a message to the hub.
-func (s *Server) Send(message []byte) {
-	s.hub.broadcast <- message
+func (s *Server) Send(r tserv.Record) {
+	s.hub.broadcast <- r
 }
 
 // Close the server.

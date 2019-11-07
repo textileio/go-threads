@@ -2,10 +2,12 @@ package ws
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/textileio/go-textile-core/thread"
 )
 
 const (
@@ -36,6 +38,11 @@ var (
 	space   = []byte{' '}
 )
 
+type msg struct {
+	Type    string   `json:"type"`
+	Threads []string `json:"threads"`
+}
+
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
 	hub *Hub
@@ -45,6 +52,9 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// Active threads.
+	threads map[thread.ID]struct{}
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -70,13 +80,30 @@ func (c *Client) readPump() {
 				err,
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure) {
-				log.Errorf("error: %v", err)
+				log.Errorf("error reading message: %s", err)
 			}
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		// @todo: don't echo message—it should hit AddRecord instead
-		c.hub.broadcast <- message
+
+		var m msg
+		err = json.Unmarshal(message, &m)
+		if err != nil {
+			log.Errorf("error unmarshaling message: %s", err)
+			break
+		}
+
+		switch m.Type {
+		case "subscribe":
+			for _, t := range m.Threads {
+				id, err := thread.Decode(t)
+				if err == nil {
+					log.Debugf("client requested thread %s", id.String())
+
+					c.threads[id] = struct{}{}
+				}
+			}
+		}
 	}
 }
 
@@ -133,7 +160,12 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{
+		hub:     hub,
+		conn:    conn,
+		send:    make(chan []byte, 256),
+		threads: make(map[thread.ID]struct{}),
+	}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
