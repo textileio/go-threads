@@ -1,0 +1,37 @@
+<!--
+This is an example of a web client opening a ws connection to Threads.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <script>
+        window.addEventListener('load', function() {
+            const socket = new WebSocket('ws://localhost:8080')
+            socket.addEventListener('open', function (e) {
+                console.log('Connection started.')
+
+                // Subscribe to thread in URL query
+                let threads
+                let params = new URLSearchParams(window.location.search);
+                if (params.has('thread')) {
+                    threads = params.getAll('thread')
+                }
+                let msg = {
+                    type: 'subscribe',
+                    threads: threads
+                }
+                socket.send(JSON.stringify(msg))
+            })
+            socket.addEventListener('message', function (e) {
+                console.log('Record: ', e.data)
+            })
+            socket.addEventListener('error', function (e) {
+                console.error("Error: ", e)
+            })
+        });
+    </script>
+    <title>Threads</title>
+</head>
+<body></body>
+</html>

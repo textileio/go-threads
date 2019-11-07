@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 
 	logging "github.com/ipfs/go-log"
@@ -19,13 +20,17 @@ var (
 )
 
 func main() {
+	repo := flag.String("repo", ".threads", "repo location")
+	port := flag.Int("port", 4006, "host port")
+	flag.Parse()
+
 	if err := logging.SetLogLevel("daemon", "debug"); err != nil {
 		panic(err)
 	}
 
 	var cancel context.CancelFunc
 	var h host.Host
-	_, cancel, _, h, dht, api = util.Build(true)
+	_, cancel, _, h, dht, api = util.Build(*repo, *port, true)
 
 	defer cancel()
 	defer h.Close()

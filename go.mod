@@ -9,6 +9,7 @@ require (
 	github.com/gogo/protobuf v1.3.0
 	github.com/gogo/status v1.1.0
 	github.com/google/uuid v1.1.1
+	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hsanjuan/ipfs-lite v0.1.6
 	github.com/improbable-eng/grpc-web v0.11.0

@@ -34,13 +34,15 @@ func init() {
 	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
 }
 
-var log = logging.Logger("threads")
+var (
+	log = logging.Logger("threads")
 
-// MaxPullLimit is the maximum page size for pulling records.
-var MaxPullLimit = 10000
+	// MaxPullLimit is the maximum page size for pulling records.
+	MaxPullLimit = 10000
 
-// PullInterval is the interval between automatic log pulls.
-var PullInterval = time.Second * 10
+	// PullInterval is the interval between automatic log pulls.
+	PullInterval = time.Second * 10
+)
 
 // threads is an implementation of Threadservice.
 type threads struct {
@@ -110,6 +112,7 @@ func NewThreads(
 	go t.rpc.Serve(listener)
 	pb.RegisterThreadsServer(t.rpc, t.service)
 
+	// Start a web RPC proxy
 	webrpc := grpcweb.WrapServer(t.rpc)
 	if opts.ProxyAddr == "" {
 		opts.ProxyAddr = "0.0.0.0:5050"
@@ -117,11 +120,11 @@ func NewThreads(
 	t.proxy = &http.Server{
 		Addr: opts.ProxyAddr,
 	}
-	t.proxy.Handler = http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		if webrpc.IsGrpcWebRequest(req) {
-			webrpc.ServeHTTP(resp, req)
+	t.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if webrpc.IsGrpcWebRequest(r) {
+			webrpc.ServeHTTP(w, r)
 		}
-		http.DefaultServeMux.ServeHTTP(resp, req) // fallback
+		http.DefaultServeMux.ServeHTTP(w, r) // fallback
 	})
 
 	errc := make(chan error)
