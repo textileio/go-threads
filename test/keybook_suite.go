@@ -231,12 +231,13 @@ func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 
 		kbThreads, err := kb.ThreadsFromKeys()
 		if err != nil {
-			t.Fatalf("error when getting threas from keys: %v", err)
+			t.Fatalf("error when getting thread from keys: %v", err)
 		}
 		sort.Sort(kbThreads)
 		sort.Sort(threads)
 
 		for i, p := range kbThreads {
+			t.Logf("%d: kb: %s, mem: %s", i, p.String(), threads[i].String())
 			if p != threads[i] {
 				t.Errorf("mismatch of thread at index %d", i)
 			}

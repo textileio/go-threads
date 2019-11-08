@@ -4,12 +4,17 @@ package ws
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mr-tron/base58"
+	ma "github.com/multiformats/go-multiaddr"
+	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 const (
@@ -24,6 +29,9 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 512
+
+	// Duration to wait for a message request to complete.
+	messageTimeout = time.Second * 10
 )
 
 var (
@@ -40,8 +48,18 @@ var (
 	space   = []byte{' '}
 )
 
-type msg struct {
-	Type    string   `json:"type"`
+type req struct {
+	Type string `json:"type"`
+	Msg  string `json:"msg"`
+}
+
+type addThreadMsg struct {
+	Addr      string `json:"address"`
+	FollowKey string `json:"follow_key"`
+	ReadKey   string `json:"read_key"`
+}
+
+type subscribeMsg struct {
 	Threads []string `json:"threads"`
 }
 
@@ -88,24 +106,94 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 
-		var m msg
-		err = json.Unmarshal(message, &m)
-		if err != nil {
-			log.Errorf("error unmarshaling message: %s", err)
-			break
+		var r req
+		if err = json.Unmarshal(message, &r); err != nil {
+			c.send <- []byte(err.Error())
+			continue
 		}
 
-		switch m.Type {
+		ctx, cancel := context.WithTimeout(context.Background(), messageTimeout)
+		switch r.Type {
+		case "add-thread":
+			var m addThreadMsg
+			if err = json.Unmarshal([]byte(r.Msg), &m); err != nil {
+				c.send <- []byte(err.Error())
+				continue
+			}
+
+			var info thread.Info
+			if m.Addr != "" {
+				if m.FollowKey == "" {
+					c.send <- []byte("follow key is required with address")
+					continue
+				}
+
+				fk, err := parseKey(m.FollowKey)
+				if err != nil {
+					c.send <- []byte(err.Error())
+					continue
+				}
+				var rk *sym.Key
+				if m.ReadKey != "" {
+					rk, err = parseKey(m.ReadKey)
+					if err != nil {
+						c.send <- []byte(err.Error())
+						continue
+					}
+				}
+				maddr, err := ma.NewMultiaddr(m.Addr)
+				if err != nil {
+					c.send <- []byte(err.Error())
+					continue
+				}
+
+				info, err = c.hub.service.AddThread(ctx, maddr, fk, rk)
+				if err != nil {
+					c.send <- []byte(err.Error())
+					continue
+				}
+			} else {
+				info, err = util.CreateThread(c.hub.service, thread.NewIDV1(thread.Raw, 32))
+				if err != nil {
+					c.send <- []byte(err.Error())
+					continue
+				}
+			}
+
+			log.Debugf("added thread %s", info.ID)
+
+		case "pull-thread":
+			c.send <- []byte("todo")
+		case "delete-thread":
+			c.send <- []byte("todo")
+		case "add-follower":
+			c.send <- []byte("todo")
+		case "add-record":
+			c.send <- []byte("todo")
+		case "get-record":
+			c.send <- []byte("todo")
 		case "subscribe":
+			var m subscribeMsg
+			if err = json.Unmarshal([]byte(r.Msg), &m); err != nil {
+				c.send <- []byte(err.Error())
+				continue
+			}
+
 			for _, t := range m.Threads {
 				id, err := thread.Decode(t)
-				if err == nil {
+				if err != nil {
+					c.send <- []byte(err.Error())
+				} else {
 					log.Debugf("client requested thread %s", id.String())
 
 					c.threads[id] = struct{}{}
 				}
 			}
+		default:
+			c.send <- []byte("invalid message 'type'")
 		}
+
+		cancel()
 	}
 }
 
@@ -175,4 +263,12 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+}
+
+func parseKey(k string) (*sym.Key, error) {
+	b, err := base58.Decode(k)
+	if err != nil {
+		return nil, err
+	}
+	return sym.NewKey(b)
 }

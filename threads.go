@@ -20,6 +20,7 @@ import (
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
+	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	tstore "github.com/textileio/go-textile-core/threadstore"
@@ -39,6 +40,9 @@ var (
 
 	// MaxPullLimit is the maximum page size for pulling records.
 	MaxPullLimit = 10000
+
+	// InitialPullInterval is the interval between automatic log pulls.
+	InitialPullInterval = time.Second
 
 	// PullInterval is the interval between automatic log pulls.
 	PullInterval = time.Second * 10
@@ -196,7 +200,7 @@ func (t *threads) Store() tstore.Threadstore {
 }
 
 // AddThread from a multiaddress.
-func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread.Info, err error) {
+func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr, fk *sym.Key, rk *sym.Key) (info thread.Info, err error) {
 	idstr, err := addr.ValueForProtocol(ThreadCode)
 	if err != nil {
 		return
@@ -215,6 +219,14 @@ func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr) (info thread
 	}
 	if pid.String() == t.host.ID().String() {
 		return t.store.ThreadInfo(id)
+	}
+
+	if err = t.store.AddThread(thread.Info{
+		ID:        id,
+		FollowKey: fk,
+		ReadKey:   rk,
+	}); err != nil {
+		return
 	}
 
 	lgs, err := t.service.getLogs(ctx, id, pid)
@@ -309,12 +321,12 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	if err != nil {
 		return err
 	}
-	if info.Logs.Len() == 0 {
+	if info.FollowKey == nil {
 		return fmt.Errorf("thread not found")
 	}
 
 	for _, l := range info.Logs {
-		if err = t.service.pushLog(ctx, id, l, pid); err != nil {
+		if err = t.service.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
 			return err
 		}
 	}
@@ -362,7 +374,7 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 				return
 			}
 
-			if err = t.service.pushLog(ctx, id, ownlg.ID, pid); err != nil {
+			if err = t.service.pushLog(ctx, id, ownlg.ID, pid, nil, nil); err != nil {
 				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
 			}
 		}(addr)
@@ -426,7 +438,14 @@ func (t *threads) GetRecord(
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
 	}
-	return cbor.GetRecord(ctx, t, rid, lg.FollowKey)
+	fk, err := t.store.FollowKey(id)
+	if err != nil {
+		return nil, err
+	}
+	if fk == nil {
+		return nil, fmt.Errorf("a follow-key is required to get records")
+	}
+	return cbor.GetRecord(ctx, t, rid, fk)
 }
 
 // record wraps a thread.Record within a thread and log context.
@@ -573,16 +592,22 @@ func (t *threads) createRecord(
 	lg thread.LogInfo,
 	settings *tserv.AddSettings,
 ) (thread.Record, error) {
+	fk, err := t.store.FollowKey(settings.ThreadID)
+	if err != nil {
+		return nil, err
+	}
+	if fk == nil {
+		return nil, fmt.Errorf("a follow-key is required to create records")
+	}
 	if settings.Key == nil {
-		logKey, err := t.store.ReadKey(settings.ThreadID)
+		rk, err := t.store.ReadKey(settings.ThreadID)
 		if err != nil {
 			return nil, err
 		}
-		if logKey != nil {
-			settings.Key = logKey
-		} else {
-			settings.Key = lg.ReadKey
+		if rk == nil {
+			return nil, fmt.Errorf("a read-key is required to create records")
 		}
+		settings.Key = rk
 	}
 	event, err := cbor.NewEvent(ctx, t, body, settings)
 	if err != nil {
@@ -593,7 +618,7 @@ func (t *threads) createRecord(
 	if len(lg.Heads) != 0 {
 		prev = lg.Heads[0]
 	}
-	rec, err := cbor.NewRecord(ctx, t, event, prev, lg.PrivKey, lg.FollowKey)
+	rec, err := cbor.NewRecord(ctx, t, event, prev, lg.PrivKey, fk)
 	if err != nil {
 		return nil, err
 	}
@@ -641,6 +666,13 @@ func (t *threads) getLocalRecords(
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
 	}
+	fk, err := t.store.FollowKey(id)
+	if err != nil {
+		return nil, err
+	}
+	if fk == nil {
+		return nil, fmt.Errorf("a follow-key is required to get records")
+	}
 
 	var recs []thread.Record
 	if limit <= 0 {
@@ -655,7 +687,7 @@ func (t *threads) getLocalRecords(
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
-		r, err := cbor.GetRecord(ctx, t, cursor, lg.FollowKey)
+		r, err := cbor.GetRecord(ctx, t, cursor, fk)
 		if err != nil {
 			return nil, err
 		}
@@ -672,24 +704,33 @@ func (t *threads) getLocalRecords(
 // startPulling periodically pulls on all threads.
 // @todo: Ensure that a thread is not pulled concurrently (#26).
 func (t *threads) startPulling() {
+	pull := func() {
+		ts, err := t.store.Threads()
+		if err != nil {
+			log.Errorf("error listing threads: %s", err)
+			return
+		}
+		for _, id := range ts {
+			go func(id thread.ID) {
+				if err := t.PullThread(t.ctx, id); err != nil {
+					log.Errorf("error pulling thread %s: %s", id.String(), err)
+				}
+			}(id)
+		}
+	}
+	timer := time.NewTimer(InitialPullInterval)
+	select {
+	case <-timer.C:
+		pull()
+	}
+
 	tick := time.NewTicker(PullInterval)
 	defer tick.Stop()
 
 	for {
 		select {
 		case <-tick.C:
-			ts, err := t.store.Threads()
-			if err != nil {
-				log.Errorf("error listing threads: %s", err)
-				continue
-			}
-			for _, id := range ts {
-				go func(id thread.ID) {
-					if err := t.PullThread(t.ctx, id); err != nil {
-						log.Errorf("error pulling thread %s: %s", id.String(), err)
-					}
-				}(id)
-			}
+			pull()
 		case <-t.ctx.Done():
 			return
 		}

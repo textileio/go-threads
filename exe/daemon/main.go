@@ -22,6 +22,7 @@ var (
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	port := flag.Int("port", 4006, "host port")
+	proxyAddr := flag.String("proxy", "", "proxy server address")
 	flag.Parse()
 
 	if err := logging.SetLogLevel("daemon", "debug"); err != nil {
@@ -30,7 +31,7 @@ func main() {
 
 	var cancel context.CancelFunc
 	var h host.Host
-	_, cancel, _, h, dht, api = util.Build(*repo, *port, true)
+	_, cancel, _, h, dht, api = util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
 	defer h.Close()

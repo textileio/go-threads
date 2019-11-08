@@ -15,16 +15,6 @@ export class Log extends jspb.Message {
   getPubkey_asB64(): string;
   setPubkey(value: Uint8Array | string): void;
 
-  getFollowkey(): Uint8Array | string;
-  getFollowkey_asU8(): Uint8Array;
-  getFollowkey_asB64(): string;
-  setFollowkey(value: Uint8Array | string): void;
-
-  getReadkey(): Uint8Array | string;
-  getReadkey_asU8(): Uint8Array;
-  getReadkey_asB64(): string;
-  setReadkey(value: Uint8Array | string): void;
-
   clearAddrsList(): void;
   getAddrsList(): Array<Uint8Array | string>;
   getAddrsList_asU8(): Array<Uint8Array>;
@@ -53,8 +43,6 @@ export namespace Log {
   export type AsObject = {
     id: Uint8Array | string,
     pubkey: Uint8Array | string,
-    followkey: Uint8Array | string,
-    readkey: Uint8Array | string,
     addrsList: Array<Uint8Array | string>,
     headsList: Array<Uint8Array | string>,
   }
@@ -111,6 +99,11 @@ export class GetLogsRequest extends jspb.Message {
   getThreadid_asB64(): string;
   setThreadid(value: Uint8Array | string): void;
 
+  getFollowkey(): Uint8Array | string;
+  getFollowkey_asU8(): Uint8Array;
+  getFollowkey_asB64(): string;
+  setFollowkey(value: Uint8Array | string): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): GetLogsRequest.AsObject;
   static toObject(includeInstance: boolean, msg: GetLogsRequest): GetLogsRequest.AsObject;
@@ -125,6 +118,7 @@ export namespace GetLogsRequest {
   export type AsObject = {
     header?: GetLogsRequest.Header.AsObject,
     threadid: Uint8Array | string,
+    followkey: Uint8Array | string,
   }
 
   export class Header extends jspb.Message {
@@ -183,6 +177,16 @@ export class PushLogRequest extends jspb.Message {
   getThreadid_asB64(): string;
   setThreadid(value: Uint8Array | string): void;
 
+  getFollowkey(): Uint8Array | string;
+  getFollowkey_asU8(): Uint8Array;
+  getFollowkey_asB64(): string;
+  setFollowkey(value: Uint8Array | string): void;
+
+  getReadkey(): Uint8Array | string;
+  getReadkey_asU8(): Uint8Array;
+  getReadkey_asB64(): string;
+  setReadkey(value: Uint8Array | string): void;
+
   hasLog(): boolean;
   clearLog(): void;
   getLog(): Log | undefined;
@@ -202,6 +206,8 @@ export namespace PushLogRequest {
   export type AsObject = {
     header?: PushLogRequest.Header.AsObject,
     threadid: Uint8Array | string,
+    followkey: Uint8Array | string,
+    readkey: Uint8Array | string,
     log?: Log.AsObject,
   }
 
@@ -255,6 +261,11 @@ export class GetRecordsRequest extends jspb.Message {
   getThreadid_asB64(): string;
   setThreadid(value: Uint8Array | string): void;
 
+  getFollowkey(): Uint8Array | string;
+  getFollowkey_asU8(): Uint8Array;
+  getFollowkey_asB64(): string;
+  setFollowkey(value: Uint8Array | string): void;
+
   clearLogsList(): void;
   getLogsList(): Array<GetRecordsRequest.LogEntry>;
   setLogsList(value: Array<GetRecordsRequest.LogEntry>): void;
@@ -274,6 +285,7 @@ export namespace GetRecordsRequest {
   export type AsObject = {
     header?: GetRecordsRequest.Header.AsObject,
     threadid: Uint8Array | string,
+    followkey: Uint8Array | string,
     logsList: Array<GetRecordsRequest.LogEntry.AsObject>,
   }
 

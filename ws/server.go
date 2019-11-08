@@ -21,7 +21,7 @@ type Server struct {
 // NewServer returns a web socket server.
 func NewServer(service tserv.Threadservice, addr string) *Server {
 	s := &Server{
-		hub: newHub(),
+		hub: newHub(service),
 	}
 	go s.hub.run()
 

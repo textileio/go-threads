@@ -11,8 +11,23 @@ import (
 	tserv "github.com/textileio/go-textile-core/threadservice"
 )
 
+// CreateThread creates a new set of keys.
+func CreateThread(t tserv.Threadservice, id thread.ID) (info thread.Info, err error) {
+	info.ID = id
+	info.FollowKey, err = sym.CreateKey()
+	if err != nil {
+		return
+	}
+	info.ReadKey, err = sym.CreateKey()
+	if err != nil {
+		return
+	}
+	err = t.Store().AddThread(info)
+	return
+}
+
 // CreateLog creates a new log with the given peer as host.
-func CreateLog(host peer.ID, fk *sym.Key, rk *sym.Key) (info thread.LogInfo, err error) {
+func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return
@@ -27,12 +42,10 @@ func CreateLog(host peer.ID, fk *sym.Key, rk *sym.Key) (info thread.LogInfo, err
 		return
 	}
 	return thread.LogInfo{
-		ID:        id,
-		PubKey:    pk,
-		PrivKey:   sk,
-		ReadKey:   rk,
-		FollowKey: fk,
-		Addrs:     []ma.Multiaddr{addr},
+		ID:      id,
+		PubKey:  pk,
+		PrivKey: sk,
+		Addrs:   []ma.Multiaddr{addr},
 	}, nil
 }
 
@@ -46,11 +59,7 @@ func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thre
 	if info.PubKey != nil {
 		return
 	}
-	fk, rk, err := GetOrCreateThreadKeys(t, id)
-	if err != nil {
-		return
-	}
-	info, err = CreateLog(t.Host().ID(), fk, rk)
+	info, err = CreateLog(t.Host().ID())
 	if err != nil {
 		return
 	}
@@ -86,39 +95,10 @@ func GetOrCreateOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo
 	if info.PubKey != nil {
 		return
 	}
-	fk, rk, err := GetOrCreateThreadKeys(t, id)
-	if err != nil {
-		return
-	}
-	info, err = CreateLog(t.Host().ID(), fk, rk)
+	info, err = CreateLog(t.Host().ID())
 	if err != nil {
 		return
 	}
 	err = t.Store().AddLog(id, info)
 	return info, err
-}
-
-// GetOrCreateThreadKeys for a thread.
-func GetOrCreateThreadKeys(t tserv.Threadservice, id thread.ID) (fk *sym.Key, rk *sym.Key, err error) {
-	fk, err = t.Store().FollowKey(id)
-	if err != nil {
-		return
-	}
-	if fk == nil {
-		fk, err = sym.CreateKey()
-		if err != nil {
-			return
-		}
-	}
-	rk, err = t.Store().ReadKey(id)
-	if err != nil {
-		return
-	}
-	if rk == nil {
-		rk, err = sym.CreateKey()
-		if err != nil {
-			return
-		}
-	}
-	return fk, rk, err
 }

@@ -1,6 +1,7 @@
 package threads
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -55,21 +56,25 @@ func newService(t *threads) (*service, error) {
 }
 
 // GetLogs receives a get logs request.
-// @todo: Verification, authentication
+// @todo: Verification
 func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
 	log.Debugf("received get logs request from %s", req.Header.From.ID.String())
 
+	pblgs := &pb.GetLogsReply{}
+
+	if err := s.checkFollowKey(req.ThreadID.ID, req.FollowKey); err != nil {
+		return pblgs, err
+	}
+
 	lgs, err := s.threads.getLogs(req.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	pblgs := &pb.GetLogsReply{
-		Logs: make([]*pb.Log, len(lgs)),
-	}
+	pblgs.Logs = make([]*pb.Log, len(lgs))
 	for i, l := range lgs {
 		pblgs.Logs[i] = logToProto(l)
 	}
@@ -80,13 +85,35 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 }
 
 // PushLog receives a push log request.
-// @todo: Verification, authentication
+// @todo: Verification
 // @todo: Don't overwrite info from non-owners
 func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
 	log.Debugf("received push log request from %s", req.Header.From.ID.String())
+
+	// Pick up missing keys
+	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if info.FollowKey == nil {
+		if req.FollowKey != nil && req.FollowKey.Key != nil {
+			if err = s.threads.store.AddFollowKey(req.ThreadID.ID, req.FollowKey.Key); err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		} else {
+			return nil, status.Error(codes.NotFound, "thread not found")
+		}
+	}
+	if info.ReadKey == nil {
+		if req.ReadKey != nil && req.ReadKey.Key != nil {
+			if err = s.threads.store.AddReadKey(req.ThreadID.ID, req.ReadKey.Key); err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+	}
 
 	lg := logFromProto(req.Log)
 	if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
@@ -124,12 +151,18 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 }
 
 // GetRecords receives a get records request.
-// @todo: Verification, authentication
+// @todo: Verification
 func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
 	log.Debugf("received get records request from %s", req.Header.From.ID.String())
+
+	pbrecs := &pb.GetRecordsReply{}
+
+	if err := s.checkFollowKey(req.ThreadID.ID, req.FollowKey); err != nil {
+		return pbrecs, err
+	}
 
 	reqd := make(map[peer.ID]*pb.GetRecordsRequest_LogEntry)
 	for _, l := range req.Logs {
@@ -139,9 +172,7 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 	if err != nil {
 		return nil, err
 	}
-	pbrecs := &pb.GetRecordsReply{
-		Logs: make([]*pb.GetRecordsReply_LogEntry, info.Logs.Len()),
-	}
+	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, info.Logs.Len())
 
 	for i, lid := range info.Logs {
 		var offset cid.Cid
@@ -288,6 +319,24 @@ func (s *service) subscribe(id thread.ID) {
 	}
 }
 
+// checkFollowKey compares a key with the one stored under thread.
+func (s *service) checkFollowKey(id thread.ID, pfk *pb.ProtoKey) error {
+	if pfk == nil || pfk.Key == nil {
+		return status.Error(codes.Unauthenticated, "a follow-key is required to get logs")
+	}
+	fk, err := s.threads.store.FollowKey(id)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	if fk == nil {
+		return status.Error(codes.NotFound, "thread not found")
+	}
+	if !bytes.Equal(pfk.Key.Bytes(), fk.Bytes()) {
+		return status.Error(codes.PermissionDenied, "invalid follow-key")
+	}
+	return nil
+}
+
 // requestPubKey returns the key associated with a request.
 func requestPubKey(r *pb.PushRecordRequest) (ic.PubKey, error) {
 	var pubk ic.PubKey
@@ -342,12 +391,10 @@ func logToProto(l thread.LogInfo) *pb.Log {
 		pbheads[k] = pb.ProtoCid{Cid: h}
 	}
 	return &pb.Log{
-		ID:        &pb.ProtoPeerID{ID: l.ID},
-		PubKey:    &pb.ProtoPubKey{PubKey: l.PubKey},
-		FollowKey: &pb.ProtoKey{Key: l.FollowKey},
-		ReadKey:   &pb.ProtoKey{Key: l.ReadKey},
-		Addrs:     pbaddrs,
-		Heads:     pbheads,
+		ID:     &pb.ProtoPeerID{ID: l.ID},
+		PubKey: &pb.ProtoPubKey{PubKey: l.PubKey},
+		Addrs:  pbaddrs,
+		Heads:  pbheads,
 	}
 }
 
@@ -362,11 +409,9 @@ func logFromProto(l *pb.Log) thread.LogInfo {
 		heads[k] = h.Cid
 	}
 	return thread.LogInfo{
-		ID:        l.ID.ID,
-		PubKey:    l.PubKey.PubKey,
-		FollowKey: l.FollowKey.Key,
-		ReadKey:   l.ReadKey.Key,
-		Addrs:     addrs,
-		Heads:     heads,
+		ID:     l.ID.ID,
+		PubKey: l.PubKey.PubKey,
+		Addrs:  addrs,
+		Heads:  heads,
 	}
 }

@@ -22,6 +22,7 @@ import (
 	threads "github.com/textileio/go-textile-threads"
 	"github.com/textileio/go-textile-threads/cbor"
 	tstore "github.com/textileio/go-textile-threads/tstoremem"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
@@ -82,7 +83,8 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}()
 
 		ctx := context.Background()
-		id := thread.NewIDV1(thread.Raw, 32)
+		th, err := util.CreateThread(ts1, thread.NewIDV1(thread.Raw, 32))
+		check(t, err)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"foo": "bar",
@@ -90,13 +92,13 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}, mh.SHA2_256, -1)
 		check(t, err)
 
-		r1, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
+		r1, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
 		check(t, err)
 		if r1.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
+		r2, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
 		check(t, err)
 		if r2.Value() == nil {
 			t.Fatalf("expected node to not be nil")
@@ -107,22 +109,20 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}
 
 		// Pull from the origin
-		err = ts1.PullThread(ctx, id)
+		err = ts1.PullThread(ctx, th.ID)
 		check(t, err)
 		time.Sleep(time.Second)
 		if rcount != 2 {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
 
-		r1b, err := ts1.GetRecord(ctx, id, r1.LogID(), r1.Value().Cid())
+		r1b, err := ts1.GetRecord(ctx, th.ID, r1.LogID(), r1.Value().Cid())
 		check(t, err)
 
 		event, err := cbor.GetEvent(ctx, ts1, r1b.BlockID())
 		check(t, err)
 
-		lg, err := ts1.Store().LogInfo(id, r1.LogID())
-		check(t, err)
-		back, err := event.GetBody(ctx, ts1, lg.ReadKey)
+		back, err := event.GetBody(ctx, ts1, th.ReadKey)
 		check(t, err)
 
 		if body.String() != back.String() {
@@ -134,19 +134,20 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
-		id := thread.NewIDV1(thread.Raw, 32)
+		th, err := util.CreateThread(ts1, thread.NewIDV1(thread.Raw, 32))
+		check(t, err)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		_, err = ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
+		_, err = ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
 		check(t, err)
 
-		addr, err := ma.NewMultiaddr("/p2p/" + ts1.Host().ID().String() + "/thread/" + id.String())
+		addr, err := ma.NewMultiaddr("/p2p/" + ts1.Host().ID().String() + "/thread/" + th.ID.String())
 		check(t, err)
 
-		info, err := ts2.AddThread(ctx, addr)
+		info, err := ts2.AddThread(ctx, addr, th.FollowKey, th.ReadKey)
 		check(t, err)
 		if info.Logs.Len() != 1 {
 			t.Fatalf("expected 1 log got %d", info.Logs.Len())
@@ -156,10 +157,10 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			"msg": "yo back!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		_, err = ts2.AddRecord(ctx, body2, tserv.AddOpt.ThreadID(id))
+		_, err = ts2.AddRecord(ctx, body2, tserv.AddOpt.ThreadID(th.ID))
 		check(t, err)
 
-		info2, err := ts1.Store().ThreadInfo(id)
+		info2, err := ts1.Store().ThreadInfo(th.ID)
 		check(t, err)
 		if info2.Logs.Len() != 2 {
 			t.Fatalf("expected 2 logs got %d", info2.Logs.Len())
@@ -170,32 +171,33 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 func testAddFollower(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
-		id := thread.NewIDV1(thread.Raw, 32)
+		th, err := util.CreateThread(ts1, thread.NewIDV1(thread.Raw, 32))
+		check(t, err)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		r, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(id))
+		r, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
 		check(t, err)
 
 		t.Logf("adding follower %s", ts2.Host().ID().String())
-		err = ts1.AddFollower(ctx, id, ts2.Host().ID())
+		err = ts1.AddFollower(ctx, th.ID, ts2.Host().ID())
 		check(t, err)
 
-		info, err := ts2.Store().ThreadInfo(id)
+		info, err := ts2.Store().ThreadInfo(th.ID)
 		check(t, err)
 		if info.Logs.Len() != 1 {
 			t.Fatalf("expected 1 log got %d", info.Logs.Len())
 		}
 
-		addrs, err := ts1.Store().Addrs(id, r.LogID())
+		addrs, err := ts1.Store().Addrs(th.ID, r.LogID())
 		check(t, err)
 		if len(addrs) != 2 {
 			t.Fatalf("expected 2 addresses got %d", len(addrs))
 		}
 
-		addrs2, err := ts2.Store().Addrs(id, r.LogID())
+		addrs2, err := ts2.Store().Addrs(th.ID, r.LogID())
 		check(t, err)
 		if len(addrs2) != 2 {
 			t.Fatalf("expected 2 addresses got %d", len(addrs2))

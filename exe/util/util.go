@@ -35,7 +35,7 @@ var bootstrapPeers = []string{
 }
 
 // Build an instance of threads.
-func Build(repo string, port int, debug bool) (
+func Build(repo string, port int, proxyAddr string, debug bool) (
 	ctx context.Context,
 	cancel context.CancelFunc,
 	ds datastore.Batching,
@@ -101,6 +101,7 @@ func Build(repo string, port int, debug bool) (
 		MaxAge:     30, // days
 	}
 	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
+		ProxyAddr: proxyAddr,
 		LogWriter: writer,
 		Debug:     debug,
 	})

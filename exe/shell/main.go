@@ -22,8 +22,10 @@ import (
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
+	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
@@ -74,7 +76,8 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	port := flag.Int("port", 4006, "host port")
-	wsAddr := flag.String("socks", "", "web socket server address")
+	proxyAddr := flag.String("proxy", "", "proxy server address")
+	wsAddr := flag.String("ws", "", "web socket server address")
 	flag.Parse()
 
 	if err := logging.SetLogLevel("shell", "debug"); err != nil {
@@ -83,7 +86,7 @@ func main() {
 
 	var cancel context.CancelFunc
 	var h host.Host
-	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, true)
+	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
 	defer h.Close()
@@ -227,6 +230,12 @@ func handleLine(line string) (out string, err error) {
 			} else {
 				return addressCmd()
 			}
+		case "keys":
+			if !threadID.Defined() {
+				err = fmt.Errorf("enter a thread with `:enter` or specify thread name with :<name>")
+				return
+			}
+			return threadKeysCmd(threadID)
 		case "threads":
 			return threadsCmd()
 		case "enter":
@@ -278,15 +287,18 @@ func handleLine(line string) (out string, err error) {
 
 func cmdCmd() (out string, err error) {
 	out = pink(":help  ") + grey("Show available commands.\n")
-	out += pink(":address  ") + grey("Show host or active thread addresses.\n")
+	out += pink(":address  ") + grey("Show the host or active thread addresses.\n")
 	out += pink(":threads  ") + grey("Show threads.\n")
 	out += pink(":add <name>  ") + grey("Add a new thread with name.\n")
-	out += pink(":add <name> <address>  ") + grey("Add an existing thread with name at address.\n")
+	out += pink(":add <name> <address> <follow-key> <read-key>  ") +
+		grey("Add an existing thread with name at address using a base58-encoded follow and read key.\n")
 	out += pink(":<name> <message>  ") + grey("Send a message to thread with name.\n")
 	out += pink(":<name>:address  ") + grey("Show thread address.\n")
+	out += pink(":<name>:keys  ") + grey("Show thread keys.\n")
 	out += pink(":<name>:add-follower <address>  ") + grey("Add a follower at address.\n")
 	out += pink(":enter <name>  ") + grey("Enter thread with name.\n")
 	out += pink(":exit  ") + grey("Exit the active thread.\n")
+	out += pink(":keys  ") + grey("Show the active thread's keys.\n")
 	out += pink(":add-follower <address>  ") + grey("Add a follower at address to active thread.\n")
 	out += pink("<message>  ") + grey("Send a message to the active thread.")
 	return
@@ -359,6 +371,28 @@ func addCmd(args []string) (out string, err error) {
 		}
 	}
 
+	var fk, rk *sym.Key
+	if len(args) > 2 {
+		fkb, err := base58.Decode(args[2])
+		if err != nil {
+			return "", err
+		}
+		fk, err = sym.NewKey(fkb)
+		if err != nil {
+			return "", err
+		}
+	}
+	if len(args) > 3 {
+		rkb, err := base58.Decode(args[3])
+		if err != nil {
+			return "", err
+		}
+		rk, err = sym.NewKey(rkb)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	x, err := ds.Has(datastore.NewKey("/names/" + name))
 	if err != nil {
 		return
@@ -373,13 +407,17 @@ func addCmd(args []string) (out string, err error) {
 		if !canDial(addr) {
 			return "", fmt.Errorf("address is not dialable")
 		}
-		info, err := api.AddThread(ctx, addr)
+		info, err := api.AddThread(ctx, addr, fk, rk)
 		if err != nil {
 			return "", err
 		}
 		id = info.ID
 	} else {
-		id = thread.NewIDV1(thread.Raw, 32)
+		th, err := tutil.CreateThread(api, thread.NewIDV1(thread.Raw, 32))
+		if err != nil {
+			return "", err
+		}
+		id = th.ID
 	}
 	if err = ds.Put(datastore.NewKey("/names/"+name), id.Bytes()); err != nil {
 		return
@@ -410,6 +448,8 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 		switch cmds[1] {
 		case "address":
 			return threadAddressCmd(id)
+		case "keys":
+			return threadKeysCmd(id)
 		case "add-follower":
 			return addFollowerCmd(id, input)
 		default:
@@ -464,6 +504,23 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 		if i != len(addrs)-1 {
 			out += "\n"
 		}
+	}
+
+	return
+}
+
+func threadKeysCmd(id thread.ID) (out string, err error) {
+	info, err := api.Store().ThreadInfo(id)
+	if err != nil {
+		return
+	}
+
+	if info.FollowKey != nil {
+		out += grey(base58.Encode(info.FollowKey.Bytes())) + cyan(" (follow-key)")
+	}
+	if info.ReadKey != nil {
+		out += "\n"
+		out += grey(base58.Encode(info.ReadKey.Bytes())) + red(" (read-key)")
 	}
 
 	return

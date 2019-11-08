@@ -37,7 +37,7 @@ jobs:
       - run:
           name: run tests
           command: |
-            go test ./...
+            go test -v ./...
 
 workflows:
   version: 2
