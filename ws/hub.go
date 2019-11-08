@@ -11,6 +11,9 @@ import (
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
+	// service provides thread access.
+	service tserv.Threadservice
+
 	// clients currently registered.
 	clients map[*Client]struct{}
 
@@ -25,8 +28,9 @@ type Hub struct {
 }
 
 // NewHub creates a new client hub.
-func newHub() *Hub {
+func newHub(ts tserv.Threadservice) *Hub {
 	return &Hub{
+		service:    ts,
 		broadcast:  make(chan tserv.Record),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),

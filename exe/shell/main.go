@@ -76,7 +76,8 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	port := flag.Int("port", 4006, "host port")
-	wsAddr := flag.String("socks", "", "web socket server address")
+	proxyAddr := flag.String("proxy", "", "proxy server address")
+	wsAddr := flag.String("ws", "", "web socket server address")
 	flag.Parse()
 
 	if err := logging.SetLogLevel("shell", "debug"); err != nil {
@@ -85,7 +86,7 @@ func main() {
 
 	var cancel context.CancelFunc
 	var h host.Host
-	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, true)
+	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
 	defer h.Close()
@@ -373,21 +374,21 @@ func addCmd(args []string) (out string, err error) {
 	if len(args) > 2 {
 		fkb, err := base58.Decode(args[2])
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 		fk, err = sym.NewKey(fkb)
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 	}
 	if len(args) > 3 {
 		rkb, err := base58.Decode(args[3])
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 		rk, err = sym.NewKey(rkb)
 		if err != nil {
-			return "", nil
+			return "", err
 		}
 	}
 

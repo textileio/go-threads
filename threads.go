@@ -31,6 +31,14 @@ import (
 	"google.golang.org/grpc"
 )
 
+// pull over JWT stuff
+// create thread over websocket
+// sk for log stays in on the proxy, but a jwt is returned
+// read key client only?
+// use jwt for
+
+// in relay mode, add records like they are added locally
+
 func init() {
 	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
 }
