@@ -41,6 +41,9 @@ var (
 	// MaxPullLimit is the maximum page size for pulling records.
 	MaxPullLimit = 10000
 
+	// InitialPullInterval is the interval between automatic log pulls.
+	InitialPullInterval = time.Second
+
 	// PullInterval is the interval between automatic log pulls.
 	PullInterval = time.Second * 10
 )
@@ -704,21 +707,30 @@ func (t *threads) startPulling() {
 	tick := time.NewTicker(PullInterval)
 	defer tick.Stop()
 
+	pull := func() {
+		ts, err := t.store.Threads()
+		if err != nil {
+			log.Errorf("error listing threads: %s", err)
+			return
+		}
+		for _, id := range ts {
+			go func(id thread.ID) {
+				if err := t.PullThread(t.ctx, id); err != nil {
+					log.Errorf("error pulling thread %s: %s", id.String(), err)
+				}
+			}(id)
+		}
+	}
+	timer := time.NewTimer(InitialPullInterval)
+	select {
+	case <-timer.C:
+		pull()
+	}
+
 	for {
 		select {
 		case <-tick.C:
-			ts, err := t.store.Threads()
-			if err != nil {
-				log.Errorf("error listing threads: %s", err)
-				continue
-			}
-			for _, id := range ts {
-				go func(id thread.ID) {
-					if err := t.PullThread(t.ctx, id); err != nil {
-						log.Errorf("error pulling thread %s: %s", id.String(), err)
-					}
-				}(id)
-			}
+			pull()
 		case <-t.ctx.Done():
 			return
 		}

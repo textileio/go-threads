@@ -88,8 +88,10 @@ func uniqueThreadIds(ds ds.Datastore, prefix ds.Key, extractor func(result query
 	ids := make(thread.IDSlice, 0, len(idset))
 	for id := range idset {
 		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, _ := thread.Cast(pid)
-		ids = append(ids, id)
+		id, err := thread.Cast(pid)
+		if err == nil {
+			ids = append(ids, id)
+		}
 	}
 	return ids, nil
 }
@@ -122,8 +124,10 @@ func uniqueLogIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Re
 	ids := make(peer.IDSlice, 0, len(idset))
 	for id := range idset {
 		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, _ := peer.IDFromBytes(pid)
-		ids = append(ids, id)
+		id, err := peer.IDFromBytes(pid)
+		if err == nil {
+			ids = append(ids, id)
+		}
 	}
 	return ids, nil
 }
