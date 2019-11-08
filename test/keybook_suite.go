@@ -231,7 +231,7 @@ func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 
 		kbThreads, err := kb.ThreadsFromKeys()
 		if err != nil {
-			t.Fatalf("error when getting threas from keys: %v", err)
+			t.Fatalf("error when getting thread from keys: %v", err)
 		}
 		sort.Sort(kbThreads)
 		sort.Sort(threads)

@@ -290,7 +290,8 @@ func cmdCmd() (out string, err error) {
 	out += pink(":address  ") + grey("Show the host or active thread addresses.\n")
 	out += pink(":threads  ") + grey("Show threads.\n")
 	out += pink(":add <name>  ") + grey("Add a new thread with name.\n")
-	out += pink(":add <name> <address> <follow-key> <read-key>  ") + grey("Add an existing thread with name at address using follow and read keys.\n")
+	out += pink(":add <name> <address> <follow-key> <read-key>  ") +
+		grey("Add an existing thread with name at address using a base58-encoded follow and read key.\n")
 	out += pink(":<name> <message>  ") + grey("Send a message to thread with name.\n")
 	out += pink(":<name>:address  ") + grey("Show thread address.\n")
 	out += pink(":<name>:keys  ") + grey("Show thread keys.\n")

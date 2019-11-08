@@ -31,14 +31,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// pull over JWT stuff
-// create thread over websocket
-// sk for log stays in on the proxy, but a jwt is returned
-// read key client only?
-// use jwt for
-
-// in relay mode, add records like they are added locally
-
 func init() {
 	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
 }
@@ -712,9 +704,6 @@ func (t *threads) getLocalRecords(
 // startPulling periodically pulls on all threads.
 // @todo: Ensure that a thread is not pulled concurrently (#26).
 func (t *threads) startPulling() {
-	tick := time.NewTicker(PullInterval)
-	defer tick.Stop()
-
 	pull := func() {
 		ts, err := t.store.Threads()
 		if err != nil {
@@ -734,6 +723,9 @@ func (t *threads) startPulling() {
 	case <-timer.C:
 		pull()
 	}
+
+	tick := time.NewTicker(PullInterval)
+	defer tick.Stop()
 
 	for {
 		select {
