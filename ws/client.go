@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
-	"github.com/textileio/go-textile-threads/util"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 	maxMessageSize = 512
 
 	// Duration to wait for a message request to complete.
-	messageTimeout = time.Second * 10
+	rpcCallTimeout = time.Second * 10
 )
 
 var (
@@ -48,19 +48,19 @@ var (
 	space   = []byte{' '}
 )
 
-type req struct {
-	Type string `json:"type"`
-	Msg  string `json:"msg"`
+// rpcCaller defines a method name and an arg list for an rpc method.
+type rpcCaller struct {
+	ID     string   `json:"id"`
+	Method string   `json:"method"`
+	Args   []string `json:"args"`
 }
 
-type addThreadMsg struct {
-	Addr      string `json:"address"`
-	FollowKey string `json:"follow_key"`
-	ReadKey   string `json:"read_key"`
-}
-
-type subscribeMsg struct {
-	Threads []string `json:"threads"`
+// rpcResponse wraps an rpc method response and error.
+type rpcResponse struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Body   string `json:"body,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -75,6 +75,52 @@ type Client struct {
 
 	// Active threads.
 	threads map[thread.ID]struct{}
+}
+
+// addThread from an address.
+func (c *Client) addThread(ctx context.Context, arg ...string) (interface{}, error) {
+	if arg[1] == "" {
+		return nil, fmt.Errorf("follow key is required with address")
+	}
+
+	followKey, err := decodeKey(arg[1])
+	if err != nil {
+		return nil, err
+	}
+	var readKey *sym.Key
+	if arg[2] != "" {
+		readKey, err = decodeKey(arg[2])
+		if err != nil {
+			return nil, err
+		}
+	}
+	maddr, err := ma.NewMultiaddr(arg[0])
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := c.hub.service.AddThread(ctx, maddr, followKey, readKey)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("added thread %s", info.ID)
+	return info, err
+}
+
+// subscribe to thread updates.
+func (c *Client) subscribe(ctx context.Context, arg ...string) (interface{}, error) {
+	for _, t := range arg {
+		id, err := thread.Decode(t)
+		if err != nil {
+			return nil, err
+		} else {
+			c.threads[id] = struct{}{}
+
+			log.Debugf("client requested thread %s", id.String())
+		}
+	}
+	return nil, nil
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -106,94 +152,49 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 
-		var r req
-		if err = json.Unmarshal(message, &r); err != nil {
-			c.send <- []byte(err.Error())
-			continue
+		callerID := "unknown"
+		var caller rpcCaller
+		var result interface{}
+		if err = json.Unmarshal(message, &caller); err == nil {
+			callerID = caller.ID
+
+			ctx, cancel := context.WithTimeout(context.Background(), rpcCallTimeout)
+			switch caller.Method {
+			case "addThread":
+				result, err = c.addThread(ctx, caller.Args...)
+			case "pullThread":
+				err = fmt.Errorf("todo")
+			case "deleteThread":
+				err = fmt.Errorf("todo")
+			case "addFollower":
+				err = fmt.Errorf("todo")
+			case "addRecord":
+				err = fmt.Errorf("todo")
+			case "getRecord":
+				err = fmt.Errorf("todo")
+			case "subscribe":
+				result, err = c.subscribe(ctx, caller.Args...)
+			default:
+				err = fmt.Errorf("unknown method: %s", caller.Method)
+			}
+
+			cancel()
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), messageTimeout)
-		switch r.Type {
-		case "add-thread":
-			var m addThreadMsg
-			if err = json.Unmarshal([]byte(r.Msg), &m); err != nil {
-				c.send <- []byte(err.Error())
-				continue
+		res := &rpcResponse{ID: callerID}
+		if err != nil {
+			res.Status = "error"
+			res.Error = err.Error()
+		} else {
+			res.Status = "ok"
+			if result != nil {
+				body, _ := json.Marshal(result)
+				res.Body = string(body)
 			}
-
-			var info thread.Info
-			if m.Addr != "" {
-				if m.FollowKey == "" {
-					c.send <- []byte("follow key is required with address")
-					continue
-				}
-
-				fk, err := parseKey(m.FollowKey)
-				if err != nil {
-					c.send <- []byte(err.Error())
-					continue
-				}
-				var rk *sym.Key
-				if m.ReadKey != "" {
-					rk, err = parseKey(m.ReadKey)
-					if err != nil {
-						c.send <- []byte(err.Error())
-						continue
-					}
-				}
-				maddr, err := ma.NewMultiaddr(m.Addr)
-				if err != nil {
-					c.send <- []byte(err.Error())
-					continue
-				}
-
-				info, err = c.hub.service.AddThread(ctx, maddr, fk, rk)
-				if err != nil {
-					c.send <- []byte(err.Error())
-					continue
-				}
-			} else {
-				info, err = util.CreateThread(c.hub.service, thread.NewIDV1(thread.Raw, 32))
-				if err != nil {
-					c.send <- []byte(err.Error())
-					continue
-				}
-			}
-
-			log.Debugf("added thread %s", info.ID)
-
-		case "pull-thread":
-			c.send <- []byte("todo")
-		case "delete-thread":
-			c.send <- []byte("todo")
-		case "add-follower":
-			c.send <- []byte("todo")
-		case "add-record":
-			c.send <- []byte("todo")
-		case "get-record":
-			c.send <- []byte("todo")
-		case "subscribe":
-			var m subscribeMsg
-			if err = json.Unmarshal([]byte(r.Msg), &m); err != nil {
-				c.send <- []byte(err.Error())
-				continue
-			}
-
-			for _, t := range m.Threads {
-				id, err := thread.Decode(t)
-				if err != nil {
-					c.send <- []byte(err.Error())
-				} else {
-					log.Debugf("client requested thread %s", id.String())
-
-					c.threads[id] = struct{}{}
-				}
-			}
-		default:
-			c.send <- []byte("invalid message 'type'")
 		}
 
-		cancel()
+		resb, _ := json.Marshal(res)
+		c.send <- resb
 	}
 }
 
@@ -259,13 +260,16 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 	client.hub.register <- client
 
+	log.Debug("client connected")
+
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
 }
 
-func parseKey(k string) (*sym.Key, error) {
+// decodeKey from a string into a symmetric key.
+func decodeKey(k string) (*sym.Key, error) {
 	b, err := base58.Decode(k)
 	if err != nil {
 		return nil, err

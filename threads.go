@@ -428,16 +428,8 @@ func (t *threads) AddRecord(
 func (t *threads) GetRecord(
 	ctx context.Context,
 	id thread.ID,
-	lid peer.ID,
 	rid cid.Cid,
 ) (thread.Record, error) {
-	lg, err := t.store.LogInfo(id, lid)
-	if err != nil {
-		return nil, err
-	}
-	if lg.PubKey == nil {
-		return nil, fmt.Errorf("log not found")
-	}
 	fk, err := t.store.FollowKey(id)
 	if err != nil {
 		return nil, err

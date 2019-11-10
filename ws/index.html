@@ -15,15 +15,14 @@ This is an example of a web client opening a ws connection to Threads.
                 let params = new URLSearchParams(window.location.search);
                 if (params.has('thread')) {
                     socket.send(JSON.stringify({
-                        type: 'subscribe',
-                        msg: JSON.stringify({
-                            threads: params.getAll('thread')
-                        })
+                        id: 'abc',
+                        method: 'subscribe',
+                        args: params.getAll('thread')
                     }))
                 }
             })
             socket.addEventListener('message', function (e) {
-                console.log('Record: ', e.data)
+                console.log('Response: ', e.data)
             })
             socket.addEventListener('error', function (e) {
                 console.error("Error: ", e)
