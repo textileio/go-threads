@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	threads "github.com/textileio/go-textile-threads"
@@ -92,13 +93,13 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 		}, mh.SHA2_256, -1)
 		check(t, err)
 
-		r1, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
+		r1, err := ts1.AddRecord(ctx, th.ID, body)
 		check(t, err)
 		if r1.Value() == nil {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
+		r2, err := ts1.AddRecord(ctx, th.ID, body)
 		check(t, err)
 		if r2.Value() == nil {
 			t.Fatalf("expected node to not be nil")
@@ -116,7 +117,7 @@ func testAddPull(ts1, _ tserv.Threadservice) func(t *testing.T) {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
 
-		r1b, err := ts1.GetRecord(ctx, th.ID, r1.LogID(), r1.Value().Cid())
+		r1b, err := ts1.GetRecord(ctx, th.ID, r1.Value().Cid())
 		check(t, err)
 
 		event, err := cbor.GetEvent(ctx, ts1, r1b.BlockID())
@@ -141,13 +142,13 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		_, err = ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
+		_, err = ts1.AddRecord(ctx, th.ID, body)
 		check(t, err)
 
 		addr, err := ma.NewMultiaddr("/p2p/" + ts1.Host().ID().String() + "/thread/" + th.ID.String())
 		check(t, err)
 
-		info, err := ts2.AddThread(ctx, addr, th.FollowKey, th.ReadKey)
+		info, err := ts2.AddThread(ctx, addr, options.FollowKey(th.FollowKey), options.ReadKey(th.ReadKey))
 		check(t, err)
 		if info.Logs.Len() != 1 {
 			t.Fatalf("expected 1 log got %d", info.Logs.Len())
@@ -157,7 +158,7 @@ func testAddPeer(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			"msg": "yo back!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		_, err = ts2.AddRecord(ctx, body2, tserv.AddOpt.ThreadID(th.ID))
+		_, err = ts2.AddRecord(ctx, th.ID, body2)
 		check(t, err)
 
 		info2, err := ts1.Store().ThreadInfo(th.ID)
@@ -178,7 +179,7 @@ func testAddFollower(ts1, ts2 tserv.Threadservice) func(t *testing.T) {
 			"msg": "yo!",
 		}, mh.SHA2_256, -1)
 		check(t, err)
-		r, err := ts1.AddRecord(ctx, body, tserv.AddOpt.ThreadID(th.ID))
+		r, err := ts1.AddRecord(ctx, th.ID, body)
 		check(t, err)
 
 		t.Logf("adding follower %s", ts2.Host().ID().String())

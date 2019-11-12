@@ -14,7 +14,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
 	"google.golang.org/grpc/codes"
@@ -134,12 +133,7 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 		}
 		for lid, rs := range recs {
 			for _, r := range rs {
-				err = s.threads.putRecord(
-					s.threads.ctx,
-					r,
-					tserv.PutOpt.ThreadID(req.ThreadID.ID),
-					tserv.PutOpt.LogID(lid))
-				if err != nil {
+				if err = s.threads.putRecord(s.threads.ctx, req.ThreadID.ID, lid, r); err != nil {
 					log.Error(err)
 					return
 				}
@@ -267,11 +261,7 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if err = s.threads.putRecord(
-		ctx,
-		rec,
-		tserv.PutOpt.ThreadID(req.ThreadID.ID),
-		tserv.PutOpt.LogID(req.LogID.ID)); err != nil {
+	if err = s.threads.putRecord(ctx, req.ThreadID.ID, req.LogID.ID, rec); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

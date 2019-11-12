@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/textileio/go-textile-core/options"
+
 	"github.com/fatih/color"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -407,7 +409,7 @@ func addCmd(args []string) (out string, err error) {
 		if !canDial(addr) {
 			return "", fmt.Errorf("address is not dialable")
 		}
-		info, err := api.AddThread(ctx, addr, fk, rk)
+		info, err := api.AddThread(ctx, addr, options.FollowKey(fk), options.ReadKey(rk))
 		if err != nil {
 			return "", err
 		}
@@ -577,7 +579,7 @@ func sendMessage(id thread.ID, txt string) error {
 	go func() {
 		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
 		defer cancel()
-		_, err = api.AddRecord(mctx, body, tserv.AddOpt.ThreadID(id))
+		_, err = api.AddRecord(mctx, id, body)
 		if err != nil {
 			log.Errorf("error writing message: %s", err)
 		}
