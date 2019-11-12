@@ -32,7 +32,7 @@ type eventHeader struct {
 }
 
 // NewEvent create a new event by wrapping the body node.
-func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, key crypto.EncryptionKey) (thread.Event, error) {
+func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (thread.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, key 
 	if err != nil {
 		return nil, err
 	}
-	codedHeader, err := EncodeBlock(header, key)
+	codedHeader, err := EncodeBlock(header, rkey)
 	if err != nil {
 		return nil, err
 	}
