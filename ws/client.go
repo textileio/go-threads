@@ -188,6 +188,7 @@ func (c *Client) addRecord(ctx context.Context, args ...string) (interface{}, er
 		return nil, err
 	}
 
+	// @todo: Return a thread and log ID as well.
 	return map[string]string{
 		"record": rec.Value().Cid().String(),
 	}, err
@@ -212,6 +213,7 @@ func (c *Client) getRecord(ctx context.Context, args ...string) (interface{}, er
 		return nil, err
 	}
 
+	// @todo: Return a threadservice record.
 	return map[string]string{
 		"record": string(encodeRecord(rec)),
 	}, err
@@ -272,15 +274,15 @@ func (c *Client) readPump() {
 			case "addThread":
 				result, err = c.addThread(ctx, caller.Args...)
 			case "pullThread":
-				err = fmt.Errorf("todo")
+				result, err = c.pullThread(ctx, caller.Args...)
 			case "deleteThread":
-				err = fmt.Errorf("todo")
+				result, err = c.deleteThread(ctx, caller.Args...)
 			case "addFollower":
-				err = fmt.Errorf("todo")
+				result, err = c.addFollower(ctx, caller.Args...)
 			case "addRecord":
-				err = fmt.Errorf("todo")
+				result, err = c.addRecord(ctx, caller.Args...)
 			case "getRecord":
-				err = fmt.Errorf("todo")
+				result, err = c.getRecord(ctx, caller.Args...)
 			case "subscribe":
 				result, err = c.subscribe(ctx, caller.Args...)
 			default:
