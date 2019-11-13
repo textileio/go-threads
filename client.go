@@ -14,7 +14,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	"github.com/textileio/go-textile-threads/cbor"
 	pb "github.com/textileio/go-textile-threads/pb"
 	"google.golang.org/grpc"
@@ -259,29 +258,20 @@ func (s *service) getRecords(
 }
 
 // pushRecord to log addresses and thread topic.
-func (s *service) pushRecord(
-	ctx context.Context,
-	rec thread.Record,
-	id thread.ID,
-	lid peer.ID,
-	settings *tserv.AddSettings,
-) error {
+func (s *service) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
 	// Collect known writers
-	addrs := make([]ma.Multiaddr, 0, len(settings.Addrs))
-	info, err := s.threads.store.ThreadInfo(settings.ThreadID)
+	addrs := make([]ma.Multiaddr, 0)
+	info, err := s.threads.store.ThreadInfo(id)
 	if err != nil {
 		return err
 	}
 	for _, l := range info.Logs {
-		laddrs, err := s.threads.store.Addrs(settings.ThreadID, l)
+		laddrs, err := s.threads.store.Addrs(id, l)
 		if err != nil {
 			return err
 		}
 		addrs = append(addrs, laddrs...)
 	}
-
-	// Add additional addresses
-	addrs = append(addrs, settings.Addrs...)
 
 	// Serialize and sign the record for transport
 	pbrec, err := cbor.RecordToProto(ctx, s.threads, rec)

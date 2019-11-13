@@ -5,6 +5,7 @@ package ws
 import (
 	"encoding/base64"
 
+	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 )
 
@@ -50,9 +51,7 @@ func (h *Hub) run() {
 				close(client.send)
 			}
 		case rec := <-h.broadcast:
-			data := rec.Value().RawData()
-			msg := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
-			base64.StdEncoding.Encode(msg, data)
+			msg := encodeRecord(rec.Value())
 			for client := range h.clients {
 				if _, ok := client.threads[rec.ThreadID()]; !ok {
 					continue
@@ -66,4 +65,12 @@ func (h *Hub) run() {
 			}
 		}
 	}
+}
+
+// encodeRecord base64 encodes a thread record.
+func encodeRecord(rec thread.Record) []byte {
+	data := rec.RawData()
+	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
+	base64.StdEncoding.Encode(encoded, data)
+	return encoded
 }

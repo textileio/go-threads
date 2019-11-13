@@ -2,7 +2,7 @@
 
 [![Made by Textile](https://img.shields.io/badge/made%20by-Textile-informational.svg?style=popout-square)](https://textile.io)
 [![Chat on Slack](https://img.shields.io/badge/slack-slack.textile.io-informational.svg?style=popout-square)](https://slack.textile.io)
-[![GitHub license](https://img.shields.io/github/license/textileio/photos-desktop.svg?style=popout-square)](./LICENSE)
+[![GitHub license](https://img.shields.io/github/license/textileio/go-textile-threads.svg?style=popout-square)](./LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/textileio/go-textile-threads?style=flat-square)](https://goreportcard.com/report/github.com/textileio/go-textile-threads?style=flat-square)
 [![CircleCI branch](https://img.shields.io/circleci/project/github/textileio/go-textile-threads/master.svg?style=popout-square)](https://circleci.com/gh/textileio/go-textile-threads)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=popout-square)](https://github.com/RichardLitt/standard-readme)

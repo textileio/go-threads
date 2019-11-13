@@ -12,7 +12,6 @@ import (
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 )
 
 func init() {
@@ -33,7 +32,7 @@ type eventHeader struct {
 }
 
 // NewEvent create a new event by wrapping the body node.
-func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, settings *tserv.AddSettings) (thread.Event, error) {
+func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (thread.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err
@@ -47,14 +46,14 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, sett
 		return nil, err
 	}
 	eventHeader := &eventHeader{
-		Time: settings.Time.Unix(),
+		Time: time.Now().Unix(),
 		Key:  keyb,
 	}
 	header, err := cbornode.WrapObject(eventHeader, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
-	codedHeader, err := EncodeBlock(header, settings.Key)
+	codedHeader, err := EncodeBlock(header, rkey)
 	if err != nil {
 		return nil, err
 	}

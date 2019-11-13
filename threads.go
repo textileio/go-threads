@@ -20,7 +20,7 @@ import (
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
-	sym "github.com/textileio/go-textile-core/crypto/symmetric"
+	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	tstore "github.com/textileio/go-textile-core/threadstore"
@@ -200,7 +200,16 @@ func (t *threads) Store() tstore.Threadstore {
 }
 
 // AddThread from a multiaddress.
-func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr, fk *sym.Key, rk *sym.Key) (info thread.Info, err error) {
+func (t *threads) AddThread(
+	ctx context.Context,
+	addr ma.Multiaddr,
+	opts ...options.AddOption,
+) (info thread.Info, err error) {
+	args := &options.AddOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+
 	idstr, err := addr.ValueForProtocol(ThreadCode)
 	if err != nil {
 		return
@@ -223,8 +232,8 @@ func (t *threads) AddThread(ctx context.Context, addr ma.Multiaddr, fk *sym.Key,
 
 	if err = t.store.AddThread(thread.Info{
 		ID:        id,
-		FollowKey: fk,
-		ReadKey:   rk,
+		FollowKey: args.FollowKey,
+		ReadKey:   args.ReadKey,
 	}); err != nil {
 		return
 	}
@@ -293,12 +302,7 @@ func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 			}
 			for lid, rs := range recs {
 				for _, r := range rs {
-					err = t.putRecord(
-						ctx,
-						r,
-						tserv.PutOpt.ThreadID(id),
-						tserv.PutOpt.LogID(lid))
-					if err != nil {
+					if err = t.putRecord(ctx, id, lid, r); err != nil {
 						log.Error(err)
 						return
 					}
@@ -385,30 +389,25 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 }
 
 // AddRecord with body. See AddOption for more.
-func (t *threads) AddRecord(
-	ctx context.Context,
-	body format.Node,
-	opts ...tserv.AddOption,
-) (r tserv.Record, err error) {
+func (t *threads) AddRecord(ctx context.Context, id thread.ID, body format.Node) (r tserv.Record, err error) {
 	// Get or create a log for the new node
-	settings := tserv.AddOptions(opts...)
-	lg, err := util.GetOrCreateOwnLog(t, settings.ThreadID)
+	lg, err := util.GetOrCreateOwnLog(t, id)
 	if err != nil {
 		return
 	}
 
 	// Write a record locally
-	rec, err := t.createRecord(ctx, body, lg, settings)
+	rec, err := t.createRecord(ctx, id, lg, body)
 	if err != nil {
 		return
 	}
 
-	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
 
 	// Notify local listeners
 	r = &record{
 		Record:   rec,
-		threadID: settings.ThreadID,
+		threadID: id,
 		logID:    lg.ID,
 	}
 	if err = t.bus.SendWithTimeout(r, time.Second); err != nil {
@@ -416,7 +415,7 @@ func (t *threads) AddRecord(
 	}
 
 	// Push out the new record
-	err = t.service.pushRecord(ctx, rec, settings.ThreadID, lg.ID, settings)
+	err = t.service.pushRecord(ctx, id, lg.ID, rec)
 	if err != nil {
 		return
 	}
@@ -425,19 +424,7 @@ func (t *threads) AddRecord(
 }
 
 // GetRecord returns the record at cid.
-func (t *threads) GetRecord(
-	ctx context.Context,
-	id thread.ID,
-	lid peer.ID,
-	rid cid.Cid,
-) (thread.Record, error) {
-	lg, err := t.store.LogInfo(id, lid)
-	if err != nil {
-		return nil, err
-	}
-	if lg.PubKey == nil {
-		return nil, fmt.Errorf("log not found")
-	}
+func (t *threads) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (thread.Record, error) {
 	fk, err := t.store.FollowKey(id)
 	if err != nil {
 		return nil, err
@@ -487,10 +474,13 @@ func (l *subscription) Channel() <-chan tserv.Record {
 }
 
 // Subscribe returns a read-only channel of records.
-func (t *threads) Subscribe(opts ...tserv.SubOption) tserv.Subscription {
-	settings := tserv.SubOptions(opts...)
+func (t *threads) Subscribe(opts ...options.SubOption) tserv.Subscription {
+	args := &options.SubOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
 	filter := make(map[thread.ID]struct{})
-	for _, id := range settings.ThreadIDs {
+	for _, id := range args.ThreadIDs {
 		if id.Defined() {
 			filter[id] = struct{}{}
 		}
@@ -526,7 +516,7 @@ func (t *threads) Subscribe(opts ...tserv.SubOption) tserv.Subscription {
 }
 
 // putRecord adds an existing record. See PutOption for more.
-func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tserv.PutOption) error {
+func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
 	knownRecord, err := t.bstore.Has(rec.Cid())
 	if err != nil {
 		return err
@@ -536,8 +526,7 @@ func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tser
 	}
 
 	// Get or create a log for the new rec
-	settings := tserv.PutOptions(opts...)
-	lg, err := util.GetOrCreateLog(t, settings.ThreadID, settings.LogID)
+	lg, err := util.GetOrCreateLog(t, id, lid)
 	if err != nil {
 		return err
 	}
@@ -566,16 +555,16 @@ func (t *threads) putRecord(ctx context.Context, rec thread.Record, opts ...tser
 	}
 
 	// Update head
-	if err = t.store.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
+	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
 		return err
 	}
 
-	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), settings.ThreadID, lg.ID)
+	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
 
 	// Notify local listeners
 	return t.bus.SendWithTimeout(&record{
 		Record:   rec,
-		threadID: settings.ThreadID,
+		threadID: id,
 		logID:    lg.ID,
 	}, time.Second)
 }
@@ -588,28 +577,25 @@ func (t *threads) getPrivKey() ic.PrivKey {
 // createRecord creates a new record with the given body as a new event body.
 func (t *threads) createRecord(
 	ctx context.Context,
-	body format.Node,
+	id thread.ID,
 	lg thread.LogInfo,
-	settings *tserv.AddSettings,
+	body format.Node,
 ) (thread.Record, error) {
-	fk, err := t.store.FollowKey(settings.ThreadID)
+	fk, err := t.store.FollowKey(id)
 	if err != nil {
 		return nil, err
 	}
 	if fk == nil {
 		return nil, fmt.Errorf("a follow-key is required to create records")
 	}
-	if settings.Key == nil {
-		rk, err := t.store.ReadKey(settings.ThreadID)
-		if err != nil {
-			return nil, err
-		}
-		if rk == nil {
-			return nil, fmt.Errorf("a read-key is required to create records")
-		}
-		settings.Key = rk
+	rk, err := t.store.ReadKey(id)
+	if err != nil {
+		return nil, err
 	}
-	event, err := cbor.NewEvent(ctx, t, body, settings)
+	if rk == nil {
+		return nil, fmt.Errorf("a read-key is required to create records")
+	}
+	event, err := cbor.NewEvent(ctx, t, body, rk)
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +610,7 @@ func (t *threads) createRecord(
 	}
 
 	// Update head
-	if err = t.store.SetHead(settings.ThreadID, lg.ID, rec.Cid()); err != nil {
+	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
 		return nil, err
 	}
 
