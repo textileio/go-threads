@@ -90,6 +90,7 @@ func main() {
 	defer cancel()
 	defer dht.Close()
 	defer api.Close()
+	defer ds.Close()
 
 	// Build a MDNS service
 	mdns, err := discovery.NewMdnsService(ctx, h, time.Second, "")

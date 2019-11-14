@@ -20,11 +20,12 @@ func main() {
 		panic(err)
 	}
 
-	_, cancel, _, h, dht, api := util.Build(*repo, *port, *proxyAddr, true)
+	_, cancel, ds, h, dht, api := util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
 	defer dht.Close()
 	defer api.Close()
+	defer ds.Close()
 
 	fmt.Println("Welcome to Threads!")
 	fmt.Println("Your peer ID is " + h.ID().String())
