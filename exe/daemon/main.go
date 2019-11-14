@@ -1,20 +1,14 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 
 	logging "github.com/ipfs/go-log"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	"github.com/textileio/go-textile-threads/exe/util"
 )
 
-var (
-	api tserv.Threadservice
-
-	log = logging.Logger("shell")
-)
+var log = logging.Logger("daemon")
 
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
@@ -26,14 +20,14 @@ func main() {
 		panic(err)
 	}
 
-	var cancel context.CancelFunc
-	_, cancel, _, api = util.Build(*repo, *port, *proxyAddr, true)
+	_, cancel, _, h, dht, api := util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
+	defer dht.Close()
 	defer api.Close()
 
 	fmt.Println("Welcome to Threads!")
-	fmt.Println("Your peer ID is " + api.DHT().Host().ID().String())
+	fmt.Println("Your peer ID is " + h.ID().String())
 
 	log.Debug("daemon started")
 

@@ -192,12 +192,17 @@ func testKeyBookLogs(kb tstore.KeyBook) func(t *testing.T) {
 		if err != nil {
 			t.Fatalf("getting logs with keys failed: %v", err)
 		}
-		sort.Sort(kbLogs)
-		sort.Sort(logs)
 
-		for i, p := range kbLogs {
-			if p != logs[i] {
-				t.Errorf("mismatch of log at index %d", i)
+		for _, kbid := range kbLogs {
+			found := false
+			for _, id := range logs {
+				if kbid.String() == id.String() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%s not found in store list", kbid.String())
 			}
 		}
 	}
@@ -233,13 +238,17 @@ func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error when getting thread from keys: %v", err)
 		}
-		sort.Sort(kbThreads)
-		sort.Sort(threads)
 
-		for i, p := range kbThreads {
-			t.Logf("%d: kb: %s, mem: %s", i, p.String(), threads[i].String())
-			if p != threads[i] {
-				t.Errorf("mismatch of thread at index %d", i)
+		for _, kbid := range kbThreads {
+			found := false
+			for _, id := range threads {
+				if kbid.String() == id.String() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%s not found in store list", kbid.String())
 			}
 		}
 	}

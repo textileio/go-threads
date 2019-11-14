@@ -38,7 +38,6 @@ import (
 var (
 	ctx      context.Context
 	ds       datastore.Batching
-	dht      *kaddht.IpfsDHT
 	api      tserv.Threadservice
 	threadID thread.ID
 
@@ -85,10 +84,10 @@ func main() {
 
 	var cancel context.CancelFunc
 	var h host.Host
+	var dht *kaddht.IpfsDHT
 	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
-	defer h.Close()
 	defer dht.Close()
 	defer api.Close()
 
