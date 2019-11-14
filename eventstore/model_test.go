@@ -2,14 +2,13 @@ package eventstore
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 
-	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log"
 	"github.com/textileio/go-textile-threads/core"
-	"github.com/textileio/go-textile-threads/jsonpatcher"
 )
 
 const (
@@ -40,13 +39,15 @@ func TestSchemaRegistration(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		_, err := store.Register("Dog", &Dog{})
 		checkErr(t, err)
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		_, err := store.Register("Dog", &Dog{})
 		checkErr(t, err)
 		_, err = store.Register("Person", &Person{})
@@ -57,7 +58,8 @@ func TestSchemaRegistration(t *testing.T) {
 		type FailingModel struct {
 			IDontHaveAnIDField int
 		}
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		if _, err := store.Register("FailingModel", &FailingModel{}); err != ErrInvalidModel {
 			t.Fatal("the model should be invalid")
 		}
@@ -68,7 +70,8 @@ func TestCreateInstance(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		model, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
@@ -89,7 +92,8 @@ func TestCreateInstance(t *testing.T) {
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		model, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
@@ -109,7 +113,8 @@ func TestCreateInstance(t *testing.T) {
 
 	t.Run("WithDefinedID", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		model, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
@@ -127,7 +132,8 @@ func TestCreateInstance(t *testing.T) {
 
 	t.Run("Re-Create", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		m, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
@@ -145,7 +151,8 @@ func TestReadTxnValidation(t *testing.T) {
 
 	t.Run("TryCreate", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		m, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
@@ -158,7 +165,8 @@ func TestReadTxnValidation(t *testing.T) {
 	})
 	t.Run("TrySave", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		m, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
@@ -172,7 +180,8 @@ func TestReadTxnValidation(t *testing.T) {
 	})
 	t.Run("TryDelete", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		m, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
@@ -189,7 +198,8 @@ func TestReadTxnValidation(t *testing.T) {
 func TestVariadic(t *testing.T) {
 	t.Parallel()
 
-	store := createTestStore()
+	store, clean := createTestStore(t)
+	defer clean()
 	m, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 
@@ -222,7 +232,8 @@ func TestVariadic(t *testing.T) {
 func TestGetInstance(t *testing.T) {
 	t.Parallel()
 
-	store := createTestStore()
+	store, clean := createTestStore(t)
+	defer clean()
 	model, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 
@@ -269,7 +280,8 @@ func TestSaveInstance(t *testing.T) {
 
 	t.Run("Simple", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		model, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
@@ -298,7 +310,8 @@ func TestSaveInstance(t *testing.T) {
 	})
 	t.Run("SaveNonExistant", func(t *testing.T) {
 		t.Parallel()
-		store := createTestStore()
+		store, clean := createTestStore(t)
+		defer clean()
 		m, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
@@ -312,7 +325,8 @@ func TestSaveInstance(t *testing.T) {
 func TestDeleteInstance(t *testing.T) {
 	t.Parallel()
 
-	store := createTestStore()
+	store, clean := createTestStore(t)
+	defer clean()
 	model, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 
@@ -346,7 +360,8 @@ type PersonFake struct {
 func TestInvalidActions(t *testing.T) {
 	t.Parallel()
 
-	store := createTestStore()
+	store, clean := createTestStore(t)
+	defer clean()
 	model, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
@@ -381,9 +396,10 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 	}
 }
 
-func createTestStore() *Store {
-	datastore := ds.NewMapDatastore()
-	dispatcher := NewDispatcher(NewTxMapDatastore())
-	eventcodec := jsonpatcher.New()
-	return NewStore(datastore, dispatcher, eventcodec)
+func createTestStore(t *testing.T) (*Store, func()) {
+	dir, err := ioutil.TempDir("", "")
+	checkErr(t, err)
+	s, err := NewStore(WithRepoPath(dir))
+	checkErr(t, err)
+	return s, func() { os.RemoveAll(dir) }
 }

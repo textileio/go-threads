@@ -63,6 +63,9 @@ type threads struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	pullLock  sync.Mutex
+	pullLocks map[thread.ID]chan struct{}
 }
 
 // Options is used to specify thread instance options.
@@ -87,6 +90,7 @@ func NewThreads(
 		err = setLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
+			"store":       logger.DEBUG,
 		}, opts.LogWriter, !opts.NoLogColor)
 		if err != nil {
 			return nil, err
@@ -103,6 +107,7 @@ func NewThreads(
 		bus:        broadcast.NewBroadcaster(0),
 		ctx:        ctx,
 		cancel:     cancel,
+		pullLocks:  make(map[thread.ID]chan struct{}),
 	}
 	t.service, err = newService(t)
 	if err != nil {
@@ -263,54 +268,67 @@ func (t *threads) AddThread(
 // Remotely addressed logs are pulled from the network.
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
-
-	lgs, err := t.getLogs(id)
-	if err != nil {
-		return err
+	var ptl chan struct{}
+	var ok bool
+	t.pullLock.Lock()
+	if ptl, ok = t.pullLocks[id]; !ok {
+		ptl = make(chan struct{}, 1)
+		t.pullLocks[id] = ptl
 	}
+	t.pullLock.Unlock()
 
-	// Gather offsets for each log
-	offsets := make(map[peer.ID]cid.Cid)
-	for _, lg := range lgs {
-		offsets[lg.ID] = cid.Undef
-		if len(lg.Heads) > 0 {
-			has, err := t.bstore.Has(lg.Heads[0])
-			if err != nil {
-				return err
-			}
-			if has {
-				offsets[lg.ID] = lg.Heads[0]
-			}
+	select {
+	case ptl <- struct{}{}:
+		lgs, err := t.getLogs(id)
+		if err != nil {
+			return err
 		}
-	}
 
-	wg := sync.WaitGroup{}
-	for _, lg := range lgs {
-		wg.Add(1)
-		go func(lg thread.LogInfo) {
-			defer wg.Done()
-			// Pull from addresses
-			recs, err := t.service.getRecords(
-				ctx,
-				id,
-				lg.ID,
-				offsets,
-				MaxPullLimit)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			for lid, rs := range recs {
-				for _, r := range rs {
-					if err = t.putRecord(ctx, id, lid, r); err != nil {
-						log.Error(err)
-						return
-					}
+		// Gather offsets for each log
+		offsets := make(map[peer.ID]cid.Cid)
+		for _, lg := range lgs {
+			offsets[lg.ID] = cid.Undef
+			if len(lg.Heads) > 0 {
+				has, err := t.bstore.Has(lg.Heads[0])
+				if err != nil {
+					return err
+				}
+				if has {
+					offsets[lg.ID] = lg.Heads[0]
 				}
 			}
-		}(lg)
+		}
+		wg := sync.WaitGroup{}
+		for _, lg := range lgs {
+			wg.Add(1)
+			go func(lg thread.LogInfo) {
+				defer wg.Done()
+				// Pull from addresses
+				recs, err := t.service.getRecords(
+					ctx,
+					id,
+					lg.ID,
+					offsets,
+					MaxPullLimit)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				for lid, rs := range recs {
+					for _, r := range rs {
+						if err = t.putRecord(ctx, id, lid, r); err != nil {
+							log.Error(err)
+							return
+						}
+					}
+				}
+			}(lg)
+		}
+		wg.Wait()
+		<-ptl
+	default:
+		log.Warningf("pull thread %s ignored since already being pulled", id)
 	}
-	wg.Wait()
 	return nil
 }
 

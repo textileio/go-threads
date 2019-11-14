@@ -10,7 +10,10 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
+	cbornode "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
+	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-textile-threads/core"
 )
 
@@ -35,16 +38,22 @@ type operation struct {
 	JSONPatch []byte
 }
 
-type patcher struct {
+type jsonPatcher struct {
 }
 
-var _ core.EventCodec = (*patcher)(nil)
+var _ core.EventCodec = (*jsonPatcher)(nil)
 
+func init() {
+	cbornode.RegisterCborType(patchEvent{})
+	cbornode.RegisterCborType(time.Time{})
+}
+
+// New returns a JSON-Patcher EventCodec
 func New() core.EventCodec {
-	return &patcher{}
+	return &jsonPatcher{}
 }
 
-func (m *patcher) Create(actions []core.Action) ([]core.Event, error) {
+func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, error) {
 	events := make([]core.Event, len(actions))
 	for i := range actions {
 		var eventPayload []byte
@@ -72,7 +81,7 @@ func (m *patcher) Create(actions []core.Action) ([]core.Event, error) {
 	return events, nil
 }
 
-func (p *patcher) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) error {
+func (jp *jsonPatcher) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) error {
 	var op operation
 	if err := json.Unmarshal(e.Body(), &op); err != nil {
 		return err
@@ -118,6 +127,22 @@ func (p *patcher) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) e
 	}
 
 	return nil
+}
+
+// EventFromBytes returns a unmarshaled event from its bytes representation
+func (jp *jsonPatcher) EventFromBytes(data []byte) (core.Event, error) {
+	event := &patchEvent{}
+	if err := cbornode.DecodeInto(data, &event); err != nil {
+		return nil, err
+	}
+
+	var op operation
+	if err := json.Unmarshal(event.Patch, &op); err != nil {
+		log.Errorf("error while unmarshaling patch: %v", err)
+		return event, nil
+	}
+	log.Debug("unmarshaled event patch: %s", op.JSONPatch)
+	return event, nil
 }
 
 func createEvent(id core.EntityID, v interface{}) ([]byte, error) {
@@ -200,6 +225,10 @@ func (je patchEvent) EntityID() core.EntityID {
 
 func (je patchEvent) Type() string {
 	return je.TypeName
+}
+
+func (je patchEvent) Node() (format.Node, error) {
+	return cbornode.WrapObject(je, mh.SHA2_256, -1)
 }
 
 var _ core.Event = (*patchEvent)(nil)

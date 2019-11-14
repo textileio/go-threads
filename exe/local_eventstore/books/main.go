@@ -1,10 +1,11 @@
 package main
 
 import (
-	ds "github.com/ipfs/go-datastore"
+	"io/ioutil"
+	"os"
+
 	"github.com/textileio/go-textile-threads/core"
 	es "github.com/textileio/go-textile-threads/eventstore"
-	"github.com/textileio/go-textile-threads/jsonpatcher"
 )
 
 type book struct {
@@ -20,7 +21,8 @@ type bookStats struct {
 }
 
 func main() {
-	s := createMemStore()
+	s, clean := createMemStore()
+	defer clean()
 
 	model, err := s.Register("Book", &book{})
 	checkErr(err)
@@ -145,16 +147,14 @@ func main() {
 			panic("Book with ModifiedTitle shouldn't exist")
 		}
 	}
-
-	// ToDo: Indexes for improved perf
-	// ToDo: Self-referencing conditionals?
-	// ToDo: Multi-sort criteria?
 }
 
-func createMemStore() *es.Store {
-	datastore := ds.NewMapDatastore()
-	dispatcher := es.NewDispatcher(es.NewTxMapDatastore())
-	return es.NewStore(datastore, dispatcher, jsonpatcher.New())
+func createMemStore() (*es.Store, func()) {
+	dir, err := ioutil.TempDir("", "")
+	checkErr(err)
+	s, err := es.NewStore(es.WithRepoPath(dir))
+	checkErr(err)
+	return s, func() { os.RemoveAll(dir) }
 }
 
 func checkErr(err error) {

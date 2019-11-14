@@ -68,7 +68,6 @@ func (q *Query) OrderByDesc(field string) *Query {
 // Find executes a query and store the result in res which should be a slice of
 // pointers with the correct model type. If the slice isn't empty, will be emptied.
 func (t *Txn) Find(res interface{}, q *Query) error {
-	// ToDo: context cancellation? (to call dsr.Close())
 	valRes := reflect.ValueOf(res)
 	if valRes.Kind() != reflect.Ptr || valRes.Elem().Kind() != reflect.Slice {
 		panic("result should be a slice")
@@ -79,14 +78,13 @@ func (t *Txn) Find(res interface{}, q *Query) error {
 	dsq := dsquery.Query{
 		Prefix: t.model.dsKey.String(),
 	}
-	dsr, err := t.model.datastore.Query(dsq)
+	dsr, err := t.model.store.datastore.Query(dsq)
 	if err != nil {
 		return fmt.Errorf("error when internal query: %v", err)
 	}
 
 	resSlice := valRes.Elem()
 	resSlice.Set(resSlice.Slice(0, 0))
-	// ToDo: also check `res` is slice of *model type*
 	var unsorted []reflect.Value
 	for {
 		res, ok := dsr.NextSync()

@@ -1,6 +1,3 @@
-// This file is temporary in in this repository. On the first minimal
-// stable version, this file should be moved to go-textile-core
-
 package core
 
 import (
@@ -10,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	ds "github.com/ipfs/go-datastore"
+	ipldformat "github.com/ipfs/go-ipld-format"
 )
 
 const (
@@ -36,6 +34,7 @@ type Event interface {
 	Time() []byte
 	EntityID() EntityID
 	Type() string
+	Node() (ipldformat.Node, error)
 }
 
 // ActionType is the type used by actions done in a txn
@@ -71,6 +70,7 @@ type EventCodec interface {
 	Reduce(e Event, datastore ds.Datastore, baseKey ds.Key) error
 	// Create corresponding events to be dispatched
 	Create(ops []Action) ([]Event, error)
+	EventFromBytes(data []byte) (Event, error)
 }
 
 // ToDo: kick out for testing only
@@ -101,6 +101,10 @@ func (n *nullEvent) EntityID() EntityID {
 
 func (n *nullEvent) Type() string {
 	return "null"
+}
+
+func (n *nullEvent) Node() (ipldformat.Node, error) {
+	return nil, nil
 }
 
 // Sanity check
