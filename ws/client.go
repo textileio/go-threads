@@ -13,13 +13,12 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 const (
@@ -84,7 +83,7 @@ type Client struct {
 
 // addThread from an address.
 func (c *Client) addThread(ctx context.Context, args ...string) (interface{}, error) {
-	args = capArgs(args, 3)
+	args = util.CapArgs(args, 3)
 
 	maddr, err := ma.NewMultiaddr(args[0])
 	if err != nil {
@@ -94,13 +93,13 @@ func (c *Client) addThread(ctx context.Context, args ...string) (interface{}, er
 	if args[1] == "" {
 		return nil, fmt.Errorf("follow key is required")
 	}
-	followKey, err := decodeKey(args[1])
+	followKey, err := util.DecodeKey(args[1])
 	if err != nil {
 		return nil, err
 	}
 	var readKey *sym.Key
 	if args[2] != "" {
-		readKey, err = decodeKey(args[2])
+		readKey, err = util.DecodeKey(args[2])
 		if err != nil {
 			return nil, err
 		}
@@ -121,7 +120,7 @@ func (c *Client) addThread(ctx context.Context, args ...string) (interface{}, er
 
 // pullThread for new records.
 func (c *Client) pullThread(ctx context.Context, args ...string) (interface{}, error) {
-	args = capArgs(args, 1)
+	args = util.CapArgs(args, 1)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -134,7 +133,7 @@ func (c *Client) pullThread(ctx context.Context, args ...string) (interface{}, e
 
 // deleteThread with id.
 func (c *Client) deleteThread(ctx context.Context, args ...string) (interface{}, error) {
-	args = capArgs(args, 1)
+	args = util.CapArgs(args, 1)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -147,19 +146,17 @@ func (c *Client) deleteThread(ctx context.Context, args ...string) (interface{},
 
 // addFollower to a thread.
 func (c *Client) addFollower(ctx context.Context, args ...string) (interface{}, error) {
-	args = capArgs(args, 2)
+	args = util.CapArgs(args, 2)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
 		return nil, err
 	}
 
-	pid, err := peer.IDB58Decode(args[1])
+	pid, err := util.AddPeerFromAddress(args[1], c.hub.service.Host().Peerstore())
 	if err != nil {
 		return nil, err
 	}
-
-	// @todo: Args should hold a peer address with dialable info.
 
 	err = c.hub.service.AddFollower(ctx, id, pid)
 	return nil, err
@@ -167,7 +164,7 @@ func (c *Client) addFollower(ctx context.Context, args ...string) (interface{}, 
 
 // addRecord with body.
 func (c *Client) addRecord(ctx context.Context, args ...string) (interface{}, error) {
-	args = capArgs(args, 2)
+	args = util.CapArgs(args, 2)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -188,15 +185,16 @@ func (c *Client) addRecord(ctx context.Context, args ...string) (interface{}, er
 		return nil, err
 	}
 
-	// @todo: Return a thread and log ID as well.
 	return map[string]string{
-		"record": rec.Value().Cid().String(),
+		"thread_id": rec.ThreadID().String(),
+		"log_id":    rec.LogID().String(),
+		"record_id": rec.Value().Cid().String(),
 	}, err
 }
 
 // getRecord returns the record at cid.
 func (c *Client) getRecord(ctx context.Context, args ...string) (interface{}, error) {
-	args = capArgs(args, 2)
+	args = util.CapArgs(args, 2)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -213,9 +211,9 @@ func (c *Client) getRecord(ctx context.Context, args ...string) (interface{}, er
 		return nil, err
 	}
 
-	// @todo: Return a threadservice record.
 	return map[string]string{
-		"record": string(encodeRecord(rec)),
+		"thread_id": id.String(),
+		"record":    string(encodeRecord(rec)),
 	}, err
 }
 
@@ -377,20 +375,4 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
-}
-
-// decodeKey from a string into a symmetric key.
-func decodeKey(k string) (*sym.Key, error) {
-	b, err := base58.Decode(k)
-	if err != nil {
-		return nil, err
-	}
-	return sym.NewKey(b)
-}
-
-// capArgs returns args with new capacity cap.
-func capArgs(args []string, cap int) []string {
-	capped := make([]string, 0, cap)
-	copy(capped, args)
-	return capped
 }

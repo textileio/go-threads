@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/textileio/go-textile-core/options"
-
 	"github.com/fatih/color"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -19,7 +17,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	swarm "github.com/libp2p/go-libp2p-swarm"
@@ -28,6 +25,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
+	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
@@ -56,9 +54,8 @@ var (
 )
 
 const (
-	msgTimeout      = time.Second * 10
-	findPeerTimeout = time.Second * 30
-	timeLayout      = "03:04:05 PM"
+	msgTimeout = time.Second * 10
+	timeLayout = "03:04:05 PM"
 )
 
 func init() {
@@ -406,7 +403,7 @@ func addCmd(args []string) (out string, err error) {
 
 	var id thread.ID
 	if addr != nil {
-		if !canDial(addr) {
+		if !tutil.CanDial(addr, api.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
 		}
 		info, err := api.AddThread(ctx, addr, options.FollowKey(fk), options.ReadKey(rk))
@@ -534,37 +531,15 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 		return
 	}
 
-	addr, err := ma.NewMultiaddr(addrStr)
+	pid, err := tutil.AddPeerFromAddress(addrStr, api.Host().Peerstore())
 	if err != nil {
 		return
-	}
-	p2p, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		return
-	}
-	pid, err := peer.IDB58Decode(p2p)
-	if err != nil {
-		return
-	}
-	dialable, err := getDialable(addr)
-	if err == nil {
-		api.Host().Peerstore().AddAddr(pid, dialable, peerstore.PermanentAddrTTL)
-	}
-
-	if len(api.Host().Peerstore().Addrs(pid)) == 0 {
-		pctx, cancel := context.WithTimeout(ctx, findPeerTimeout)
-		defer cancel()
-		pinfo, err := dht.FindPeer(pctx, pid)
-		if err != nil {
-			return "", err
-		}
-		api.Host().Peerstore().AddAddrs(pid, pinfo.Addrs, peerstore.PermanentAddrTTL)
 	}
 
 	if err = api.AddFollower(ctx, id, pid); err != nil {
 		return
 	}
-	return "Added follower " + p2p, nil
+	return "Added follower " + pid.String(), nil
 }
 
 func sendMessage(id thread.ID, txt string) error {
@@ -612,18 +587,6 @@ func threadName(id string) (name string, err error) {
 func shortID(id peer.ID) string {
 	l := id.String()
 	return l[len(l)-7:]
-}
-
-func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
-	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
-	return ma.NewMultiaddr(parts[0])
-}
-
-func canDial(addr ma.Multiaddr) bool {
-	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
-	addr, _ = ma.NewMultiaddr(parts[0])
-	tr := api.Host().Network().(*swarm.Swarm).TransportForDialing(addr)
-	return tr != nil && tr.CanDial(addr)
 }
 
 func logError(err error) {
