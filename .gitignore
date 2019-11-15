@@ -14,5 +14,9 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 
-# Shell repo
-.threads/
+# Exe repo
+.threads*/
+.e2e_counter_writeraddr
+
+# vscode config folder
+.vscode/

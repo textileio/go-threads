@@ -26,7 +26,7 @@ var (
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
-	baseKey = ds.NewKey("/model/")
+	baseKey = dsStorePrefix.ChildString("/model")
 )
 
 // Model contains instances of a schema, and provides operations
@@ -35,27 +35,20 @@ type Model struct {
 	schema       *jsonschema.Schema
 	schemaLoader gojsonschema.JSONLoader
 	valueType    reflect.Type
-	datastore    ds.Datastore
-	eventcodec   core.EventCodec
-	dispatcher   *Dispatcher
 	dsKey        ds.Key
 	store        *Store
 }
 
-func newModel(name string, defaultInstance interface{}, datastore ds.Datastore, dispatcher *Dispatcher, eventcreator core.EventCodec, s *Store) *Model {
+func newModel(name string, defaultInstance interface{}, s *Store) *Model {
 	schema := jsonschema.Reflect(defaultInstance)
 	schemaLoader := gojsonschema.NewGoLoader(schema)
 	m := &Model{
 		schema:       schema,
 		schemaLoader: schemaLoader,
-		datastore:    datastore,
 		valueType:    reflect.TypeOf(defaultInstance),
-		dispatcher:   dispatcher,
-		eventcodec:   eventcreator,
 		dsKey:        baseKey.ChildString(name),
 		store:        s,
 	}
-
 	return m
 }
 
@@ -127,7 +120,13 @@ func (m *Model) Reduce(event core.Event) error {
 		return nil
 	}
 
-	return m.eventcodec.Reduce(event, m.datastore, m.dsKey)
+	if err := m.store.eventcodec.Reduce(event, m.store.datastore, m.dsKey); err != nil {
+		return err
+	}
+	if err := m.store.notifyStateChanged(); err != nil {
+		log.Warning("model state changed notification failed: %v", err)
+	}
+	return nil
 }
 
 func (m *Model) validInstance(v interface{}) (bool, error) {
@@ -170,7 +169,7 @@ func (t *Txn) Create(new ...interface{}) error {
 			id = setNewEntityID(new[i])
 		}
 		key := t.model.dsKey.ChildString(id.String())
-		exists, err := t.model.datastore.Has(key)
+		exists, err := t.model.store.datastore.Has(key)
 		if err != nil {
 			return err
 		}
@@ -207,7 +206,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 
 		id := getEntityID(updated[i])
 		key := t.model.dsKey.ChildString(id.String())
-		beforeBytes, err := t.model.datastore.Get(key)
+		beforeBytes, err := t.model.store.datastore.Get(key)
 		if err == ds.ErrNotFound {
 			return errCantSaveNonExistentInstance
 		}
@@ -240,7 +239,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 			return ErrReadonlyTx
 		}
 		key := t.model.dsKey.ChildString(ids[i].String())
-		exists, err := t.model.datastore.Has(key)
+		exists, err := t.model.store.datastore.Has(key)
 		if err != nil {
 			return err
 		}
@@ -264,7 +263,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 	for i := range ids {
 		key := t.model.dsKey.ChildString(ids[i].String())
-		exists, err := t.model.datastore.Has(key)
+		exists, err := t.model.store.datastore.Has(key)
 		if err != nil {
 			return false, err
 		}
@@ -278,7 +277,7 @@ func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
 	key := t.model.dsKey.ChildString(id.String())
-	bytes, err := t.model.datastore.Get(key)
+	bytes, err := t.model.store.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
 		return ErrNotFound
 	}
@@ -296,13 +295,16 @@ func (t *Txn) Commit() error {
 		return errAlreadyDiscardedCommitedTxn
 	}
 
-	events, err := t.model.eventcodec.Create(t.actions)
+	events, err := t.model.store.eventcodec.Create(t.actions)
 	if err != nil {
 		return err
 	}
 
 	for _, e := range events {
-		if err := t.model.dispatcher.Dispatch(e); err != nil {
+		if err := t.model.store.dispatcher.Dispatch(e); err != nil {
+			return err
+		}
+		if err := t.model.store.broadcastLocalEvent(e); err != nil {
 			return err
 		}
 	}

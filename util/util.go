@@ -2,8 +2,10 @@ package util
 
 import (
 	"crypto/rand"
+	"path/filepath"
 	"strings"
 
+	logging "github.com/ipfs/go-log"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
@@ -13,6 +15,8 @@ import (
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
+	logger "github.com/whyrusleeping/go-logging"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // CreateThread creates a new set of keys.
@@ -163,4 +167,35 @@ func PadArgs(args []string, l int) []string {
 	padded := make([]string, l)
 	copy(padded, args)
 	return padded
+}
+
+func SetupDefaultLoggingConfig(repoPath string) {
+	lj := &lumberjack.Logger{
+		Filename:   filepath.Join(repoPath, "log"),
+		MaxSize:    10, // megabytes
+		MaxBackups: 3,
+		MaxAge:     30, // days
+	}
+	if lj != nil {
+		backendFile := logger.NewLogBackend(lj, "", 0)
+		logger.SetBackend(backendFile)
+	}
+	logger.SetFormatter(logger.MustStringFormatter(logging.LogFormats["color"]))
+	logging.SetAllLoggers(logger.ERROR)
+}
+
+func SetLogLevels(systems map[string]logger.Level) error {
+	for sys, level := range systems {
+		if sys == "*" {
+			for _, s := range logging.GetSubsystems() {
+				if err := logging.SetLogLevel(s, level.String()); err != nil {
+					return err
+				}
+			}
+		}
+		if err := logging.SetLogLevel(sys, level.String()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

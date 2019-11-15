@@ -89,7 +89,6 @@ func (bt *SimpleTx) Delete(key datastore.Key) error {
 func (bt *SimpleTx) Discard() {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
-	return
 }
 
 func (bt *SimpleTx) Commit() error {

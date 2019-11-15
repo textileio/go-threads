@@ -97,7 +97,8 @@ var (
 
 func TestModelQuery(t *testing.T) {
 	t.Parallel()
-	m := createModelWithData(t)
+	m, clean := createModelWithData(t)
+	defer clean()
 	for _, q := range queries {
 		q := q
 		t.Run(q.name, func(t *testing.T) {
@@ -133,15 +134,16 @@ func TestModelQuery(t *testing.T) {
 
 func TestInvalidSortField(t *testing.T) {
 	t.Parallel()
-	m := createModelWithData(t)
+	m, clean := createModelWithData(t)
+	defer clean()
 	var res []*book
 	if err := m.Find(&res, (&Query{}).OrderBy("WrongFieldName")); !errors.Is(err, ErrInvalidSortingField) {
 		t.Fatal("query should fail using an invalid field")
 	}
 }
 
-func createModelWithData(t *testing.T) *Model {
-	store := createTestStore()
+func createModelWithData(t *testing.T) (*Model, func()) {
+	store, clean := createTestStore(t)
 	m, err := store.Register("Book", &book{})
 	checkErr(t, err)
 	for i := range sampleData {
@@ -149,5 +151,5 @@ func createModelWithData(t *testing.T) *Model {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
 	}
-	return m
+	return m, clean
 }

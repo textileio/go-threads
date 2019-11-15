@@ -12,14 +12,14 @@ import (
 
 func TestNewEventDispatcher(t *testing.T) {
 	eventstore := NewTxMapDatastore()
-	dispatcher := NewDispatcher(eventstore)
+	dispatcher := newDispatcher(eventstore)
 	event := core.NewNullEvent(time.Now())
 	dispatcher.Dispatch(event)
 }
 
 func TestRegister(t *testing.T) {
 	eventstore := NewTxMapDatastore()
-	dispatcher := NewDispatcher(eventstore)
+	dispatcher := newDispatcher(eventstore)
 	dispatcher.Register(&nullReducer{})
 	if len(dispatcher.reducers) < 1 {
 		t.Error("expected callbacks map to have non-zero length")
@@ -28,7 +28,7 @@ func TestRegister(t *testing.T) {
 
 func TestDispatchLock(t *testing.T) {
 	eventstore := NewTxMapDatastore()
-	dispatcher := NewDispatcher(eventstore)
+	dispatcher := newDispatcher(eventstore)
 	dispatcher.Register(&slowReducer{})
 	event := core.NewNullEvent(time.Now())
 	t1 := time.Now()
@@ -52,7 +52,7 @@ func TestDispatchLock(t *testing.T) {
 
 func TestDispatch(t *testing.T) {
 	eventstore := NewTxMapDatastore()
-	dispatcher := NewDispatcher(eventstore)
+	dispatcher := newDispatcher(eventstore)
 	event := core.NewNullEvent(time.Now())
 	if err := dispatcher.Dispatch(event); err != nil {
 		t.Error("unexpected error in dispatch call")
@@ -83,7 +83,7 @@ func TestDispatch(t *testing.T) {
 
 func TestValidStore(t *testing.T) {
 	eventstore := NewTxMapDatastore()
-	dispatcher := NewDispatcher(eventstore)
+	dispatcher := newDispatcher(eventstore)
 	store := dispatcher.Store()
 	if store == nil {
 		t.Error("store should not be nil")
@@ -95,7 +95,7 @@ func TestValidStore(t *testing.T) {
 
 func TestDispatcherQuery(t *testing.T) {
 	eventstore := NewTxMapDatastore()
-	dispatcher := NewDispatcher(eventstore)
+	dispatcher := newDispatcher(eventstore)
 	var events []core.Event
 	n := 100
 	for i := 1; i <= n; i++ {

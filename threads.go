@@ -63,14 +63,15 @@ type threads struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	pullLock  sync.Mutex
+	pullLocks map[thread.ID]chan struct{}
 }
 
 // Options is used to specify thread instance options.
 type Options struct {
-	ProxyAddr  string // defaults to 0.0.0.0:5050
-	LogWriter  io.Writer
-	NoLogColor bool
-	Debug      bool
+	ProxyAddr string // defaults to 0.0.0.0:5050
+	Debug     bool
 }
 
 // NewThreads creates an instance of threads from the given host and thread store.
@@ -84,10 +85,10 @@ func NewThreads(
 ) (tserv.Threadservice, error) {
 	var err error
 	if opts.Debug {
-		err = setLogLevels(map[string]logger.Level{
+		err = util.SetLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-		}, opts.LogWriter, !opts.NoLogColor)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -103,6 +104,7 @@ func NewThreads(
 		bus:        broadcast.NewBroadcaster(0),
 		ctx:        ctx,
 		cancel:     cancel,
+		pullLocks:  make(map[thread.ID]chan struct{}),
 	}
 	t.service, err = newService(t)
 	if err != nil {
@@ -263,54 +265,67 @@ func (t *threads) AddThread(
 // Remotely addressed logs are pulled from the network.
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
-
-	lgs, err := t.getLogs(id)
-	if err != nil {
-		return err
+	var ptl chan struct{}
+	var ok bool
+	t.pullLock.Lock()
+	if ptl, ok = t.pullLocks[id]; !ok {
+		ptl = make(chan struct{}, 1)
+		t.pullLocks[id] = ptl
 	}
+	t.pullLock.Unlock()
 
-	// Gather offsets for each log
-	offsets := make(map[peer.ID]cid.Cid)
-	for _, lg := range lgs {
-		offsets[lg.ID] = cid.Undef
-		if len(lg.Heads) > 0 {
-			has, err := t.bstore.Has(lg.Heads[0])
-			if err != nil {
-				return err
-			}
-			if has {
-				offsets[lg.ID] = lg.Heads[0]
-			}
+	select {
+	case ptl <- struct{}{}:
+		lgs, err := t.getLogs(id)
+		if err != nil {
+			return err
 		}
-	}
 
-	wg := sync.WaitGroup{}
-	for _, lg := range lgs {
-		wg.Add(1)
-		go func(lg thread.LogInfo) {
-			defer wg.Done()
-			// Pull from addresses
-			recs, err := t.service.getRecords(
-				ctx,
-				id,
-				lg.ID,
-				offsets,
-				MaxPullLimit)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			for lid, rs := range recs {
-				for _, r := range rs {
-					if err = t.putRecord(ctx, id, lid, r); err != nil {
-						log.Error(err)
-						return
-					}
+		// Gather offsets for each log
+		offsets := make(map[peer.ID]cid.Cid)
+		for _, lg := range lgs {
+			offsets[lg.ID] = cid.Undef
+			if len(lg.Heads) > 0 {
+				has, err := t.bstore.Has(lg.Heads[0])
+				if err != nil {
+					return err
+				}
+				if has {
+					offsets[lg.ID] = lg.Heads[0]
 				}
 			}
-		}(lg)
+		}
+		wg := sync.WaitGroup{}
+		for _, lg := range lgs {
+			wg.Add(1)
+			go func(lg thread.LogInfo) {
+				defer wg.Done()
+				// Pull from addresses
+				recs, err := t.service.getRecords(
+					ctx,
+					id,
+					lg.ID,
+					offsets,
+					MaxPullLimit)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				for lid, rs := range recs {
+					for _, r := range rs {
+						if err = t.putRecord(ctx, id, lid, r); err != nil {
+							log.Error(err)
+							return
+						}
+					}
+				}
+			}(lg)
+		}
+		wg.Wait()
+		<-ptl
+	default:
+		log.Warningf("pull thread %s ignored since already being pulled", id)
 	}
-	wg.Wait()
 	return nil
 }
 
@@ -721,39 +736,4 @@ func (t *threads) startPulling() {
 			return
 		}
 	}
-}
-
-// setLogLevels sets the logging levels of the given log systems.
-// color controls whether or not color codes are included in the output.
-func setLogLevels(systems map[string]logger.Level, writer io.Writer, color bool) error {
-	if writer != nil {
-		backendFile := logger.NewLogBackend(writer, "", 0)
-		logger.SetBackend(backendFile)
-	}
-
-	var form string
-	if color {
-		form = logging.LogFormats["color"]
-	} else {
-		form = logging.LogFormats["nocolor"]
-	}
-	logger.SetFormatter(logger.MustStringFormatter(form))
-	logging.SetAllLoggers(logger.ERROR)
-
-	var err error
-	for sys, level := range systems {
-		if sys == "*" {
-			for _, s := range logging.GetSubsystems() {
-				err = logging.SetLogLevel(s, level.String())
-				if err != nil {
-					return err
-				}
-			}
-		}
-		err = logging.SetLogLevel(sys, level.String())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

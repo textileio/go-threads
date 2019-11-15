@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
@@ -24,7 +23,7 @@ import (
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
 	"github.com/textileio/go-textile-threads/tstoreds"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 // BootstrapPeers to bootstrap from.
@@ -94,15 +93,9 @@ func Build(repo string, port int, proxyAddr string, debug bool) (
 	}
 
 	// Build a threadservice
-	writer := &lumberjack.Logger{
-		Filename:   path.Join(repop, "log"),
-		MaxSize:    10, // megabytes
-		MaxBackups: 3,
-		MaxAge:     30, // days
-	}
+	util.SetupDefaultLoggingConfig(repop)
 	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
 		ProxyAddr: proxyAddr,
-		LogWriter: writer,
 		Debug:     debug,
 	})
 	if err != nil {
