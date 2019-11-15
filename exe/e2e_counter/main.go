@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 		}
 	}
 
+	util.SetupDefaultLoggingConfig(*repo)
 	// Run different things depending on flag
 	if *writer {
 		runWriterPeer(*repo, *port)
