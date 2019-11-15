@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/textileio/go-textile-threads/core"
 	"github.com/textileio/go-textile-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 const (
@@ -78,19 +76,8 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 	if config.EventCodec == nil {
 		config.EventCodec = newDefaultEventCodec()
 	}
-	logWriter := &lumberjack.Logger{
-		Filename:   filepath.Join(config.RepoPath, defaultRepoPath, "log"),
-		MaxSize:    10, // megabytes
-		MaxBackups: 3,
-		MaxAge:     30, // days
-	}
 	if config.Debug {
-		err := setLogLevels(map[string]logger.Level{
-			"store":       logger.DEBUG,
-			"threads":     logger.DEBUG,
-			"threadstore": logger.DEBUG,
-		}, logWriter, true)
-		if err != nil {
+		if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
 			return nil, err
 		}
 	}
@@ -99,7 +86,7 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 	ownThreadService := false
 	if config.Threadservice == nil {
 		ownThreadService = true
-		ts, err := newDefaultThreadservice(ctx, logWriter, config.ListenPort, config.RepoPath, config.Debug)
+		ts, err := newDefaultThreadservice(ctx, config.ListenPort, config.RepoPath, config.Debug)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -362,37 +349,4 @@ func (scl *StateChangeListener) Channel() <-chan struct{} {
 // and ready for being garbage collected
 func (scl *StateChangeListener) Discard() {
 	scl.listener.Discard()
-}
-
-func setLogLevels(systems map[string]logger.Level, writer io.Writer, color bool) error {
-	if writer != nil {
-		backendFile := logger.NewLogBackend(writer, "", 0)
-		logger.SetBackend(backendFile)
-	}
-
-	var form string
-	if color {
-		form = logging.LogFormats["color"]
-	} else {
-		form = logging.LogFormats["nocolor"]
-	}
-	logger.SetFormatter(logger.MustStringFormatter(form))
-	logging.SetAllLoggers(logger.ERROR)
-
-	var err error
-	for sys, level := range systems {
-		if sys == "*" {
-			for _, s := range logging.GetSubsystems() {
-				err = logging.SetLogLevel(s, level.String())
-				if err != nil {
-					return err
-				}
-			}
-		}
-		err = logging.SetLogLevel(sys, level.String())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

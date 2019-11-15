@@ -3,7 +3,6 @@ package eventstore
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -26,9 +25,8 @@ import (
 )
 
 const (
-	defaultRepoPath      = "store"
-	defaultDatastorePath = defaultRepoPath + "/datastore"
-	defaultIpfsLitePath  = defaultRepoPath + "/ipfslite"
+	defaultDatastorePath = "/datastore"
+	defaultIpfsLitePath  = "/ipfslite"
 	defaultListeningPort = 5002
 )
 
@@ -65,7 +63,7 @@ func newDefaultDatastore(repoPath string) (ds.Datastore, error) {
 	return badger.NewDatastore(path, &badger.DefaultOptions)
 }
 
-func newDefaultThreadservice(ctx context.Context, logWriter io.Writer, listenPort int, repoPath string, debug bool) (threadservice.Threadservice, error) {
+func newDefaultThreadservice(ctx context.Context, listenPort int, repoPath string, debug bool) (threadservice.Threadservice, error) {
 	ipfsLitePath := filepath.Join(repoPath, defaultIpfsLitePath)
 	if err := os.MkdirAll(ipfsLitePath, os.ModePerm); err != nil {
 		return nil, err
@@ -113,8 +111,7 @@ func newDefaultThreadservice(ctx context.Context, logWriter io.Writer, listenPor
 
 	// Build a threadservice
 	api, err := t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
-		LogWriter: logWriter,
-		Debug:     debug,
+		Debug: debug,
 	})
 	if err != nil {
 		return nil, err

@@ -71,7 +71,7 @@ func TestOptions(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ts, err := newDefaultThreadservice(ctx, ioutil.Discard, 8008, tmpDir, true)
+	ts, err := newDefaultThreadservice(ctx, 8008, tmpDir, true)
 	checkErr(t, err)
 	ec := &mockEventCodec{}
 	s, err := NewStore(WithDebug(true), WithEventCodec(ec), WithListenPort(8008), WithRepoPath(tmpDir), WithThreadservice(ts))
@@ -90,7 +90,7 @@ func TestOptions(t *testing.T) {
 	cancel()
 
 	time.Sleep(time.Second * 1)
-	ts, err = newDefaultThreadservice(context.Background(), ioutil.Discard, 8008, tmpDir, true)
+	ts, err = newDefaultThreadservice(context.Background(), 8008, tmpDir, true)
 	checkErr(t, err)
 	_, err = NewStore(WithDebug(true), WithEventCodec(ec), WithListenPort(8008), WithRepoPath(tmpDir), WithThreadservice(ts))
 	checkErr(t, err)

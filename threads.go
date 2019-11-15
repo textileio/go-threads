@@ -70,10 +70,8 @@ type threads struct {
 
 // Options is used to specify thread instance options.
 type Options struct {
-	ProxyAddr  string // defaults to 0.0.0.0:5050
-	LogWriter  io.Writer
-	NoLogColor bool
-	Debug      bool
+	ProxyAddr string // defaults to 0.0.0.0:5050
+	Debug     bool
 }
 
 // NewThreads creates an instance of threads from the given host and thread store.
@@ -87,11 +85,10 @@ func NewThreads(
 ) (tserv.Threadservice, error) {
 	var err error
 	if opts.Debug {
-		err = setLogLevels(map[string]logger.Level{
+		err = util.SetLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
-			"store":       logger.DEBUG,
-		}, opts.LogWriter, !opts.NoLogColor)
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -739,39 +736,4 @@ func (t *threads) startPulling() {
 			return
 		}
 	}
-}
-
-// setLogLevels sets the logging levels of the given log systems.
-// color controls whether or not color codes are included in the output.
-func setLogLevels(systems map[string]logger.Level, writer io.Writer, color bool) error {
-	if writer != nil {
-		backendFile := logger.NewLogBackend(writer, "", 0)
-		logger.SetBackend(backendFile)
-	}
-
-	var form string
-	if color {
-		form = logging.LogFormats["color"]
-	} else {
-		form = logging.LogFormats["nocolor"]
-	}
-	logger.SetFormatter(logger.MustStringFormatter(form))
-	logging.SetAllLoggers(logger.ERROR)
-
-	var err error
-	for sys, level := range systems {
-		if sys == "*" {
-			for _, s := range logging.GetSubsystems() {
-				err = logging.SetLogLevel(s, level.String())
-				if err != nil {
-					return err
-				}
-			}
-		}
-		err = logging.SetLogLevel(sys, level.String())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
