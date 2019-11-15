@@ -155,9 +155,12 @@ func DecodeKey(k string) (*sym.Key, error) {
 	return sym.NewKey(b)
 }
 
-// PadArgs returns args with new length pad.
-func PadArgs(args []string, len int) []string {
-	padded := make([]string, len)
+// PadArgs returns args with min length l.
+func PadArgs(args []string, l int) []string {
+	if len(args) > l {
+		l = len(args)
+	}
+	padded := make([]string, l)
 	copy(padded, args)
 	return padded
 }

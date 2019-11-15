@@ -68,6 +68,7 @@ func (h *Hub) run() {
 			jrec, err := recordToJSON(ctx, h.service, rec.Value())
 			if err != nil {
 				log.Errorf("error converting record %s to JSON: %v", rid, err)
+				cancel()
 				break
 			}
 			cancel()
@@ -106,7 +107,7 @@ type jsonThreadInfo struct {
 
 // threadInfoToJSON returns a JSON version of thread info for transport.
 func threadInfoToJSON(info thread.Info) *jsonThreadInfo {
-	var logs []string
+	logs := make([]string, 0, len(info.Logs))
 	for _, lg := range info.Logs {
 		logs = append(logs, lg.String())
 	}
@@ -161,8 +162,5 @@ func recordToJSON(ctx context.Context, dag format.DAGService, rec thread.Record)
 
 // encodeNode returns a base64-encoded version of n.
 func encodeNode(n format.Node) string {
-	data := n.RawData()
-	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
-	base64.StdEncoding.Encode(encoded, data)
-	return string(encoded)
+	return base64.StdEncoding.EncodeToString(n.RawData())
 }

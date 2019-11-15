@@ -41,13 +41,14 @@ func NewServer(ctx context.Context, service tserv.Threadservice, addr string) *S
 		for {
 			select {
 			case <-ctx.Done():
+				log.Info("context was canceled")
 				return
 			case err, ok := <-errc:
 				if err != nil && err != http.ErrServerClosed {
-					log.Errorf("ws server error: %s", err)
+					log.Errorf("server error: %s", err)
 				}
 				if !ok {
-					log.Info("ws server was shutdown")
+					log.Info("server was shutdown")
 					return
 				}
 			}
@@ -67,7 +68,7 @@ func NewServer(ctx context.Context, service tserv.Threadservice, addr string) *S
 		}
 	}()
 
-	log.Infof("ws server listening at %s", s.s.Addr)
+	log.Infof("server listening at %s", s.s.Addr)
 
 	return s
 }
