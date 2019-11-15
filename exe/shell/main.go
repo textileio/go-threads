@@ -104,7 +104,7 @@ func main() {
 	if *wsAddr == "" {
 		*wsAddr = "0.0.0.0:8080"
 	}
-	wsServer := ws.NewServer(api, *wsAddr)
+	wsServer := ws.NewServer(ctx, api, *wsAddr)
 	defer wsServer.Close()
 	if err = logging.SetLogLevel("ws", "debug"); err != nil {
 		panic(err)
@@ -372,21 +372,13 @@ func addCmd(args []string) (out string, err error) {
 
 	var fk, rk *sym.Key
 	if len(args) > 2 {
-		fkb, err := base58.Decode(args[2])
-		if err != nil {
-			return "", err
-		}
-		fk, err = sym.NewKey(fkb)
+		fk, err = tutil.DecodeKey(args[2])
 		if err != nil {
 			return "", err
 		}
 	}
 	if len(args) > 3 {
-		rkb, err := base58.Decode(args[3])
-		if err != nil {
-			return "", err
-		}
-		rk, err = sym.NewKey(rkb)
+		rk, err = tutil.DecodeKey(args[3])
 		if err != nil {
 			return "", err
 		}

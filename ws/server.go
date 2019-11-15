@@ -19,9 +19,9 @@ type Server struct {
 }
 
 // NewServer returns a web socket server.
-func NewServer(service tserv.Threadservice, addr string) *Server {
+func NewServer(ctx context.Context, service tserv.Threadservice, addr string) *Server {
 	s := &Server{
-		hub: newHub(service),
+		hub: newHub(ctx, service),
 	}
 	go s.hub.run()
 
@@ -40,6 +40,8 @@ func NewServer(service tserv.Threadservice, addr string) *Server {
 	go func() {
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case err, ok := <-errc:
 				if err != nil && err != http.ErrServerClosed {
 					log.Errorf("ws server error: %s", err)

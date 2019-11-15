@@ -83,7 +83,7 @@ type Client struct {
 
 // addThread from an address.
 func (c *Client) addThread(ctx context.Context, args ...string) (interface{}, error) {
-	args = util.CapArgs(args, 3)
+	args = util.PadArgs(args, 3)
 
 	maddr, err := ma.NewMultiaddr(args[0])
 	if err != nil {
@@ -115,12 +115,12 @@ func (c *Client) addThread(ctx context.Context, args ...string) (interface{}, er
 	}
 
 	log.Debugf("added thread %s", info.ID)
-	return info, err
+	return threadInfoToJSON(info), nil
 }
 
 // pullThread for new records.
 func (c *Client) pullThread(ctx context.Context, args ...string) (interface{}, error) {
-	args = util.CapArgs(args, 1)
+	args = util.PadArgs(args, 1)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -133,7 +133,7 @@ func (c *Client) pullThread(ctx context.Context, args ...string) (interface{}, e
 
 // deleteThread with id.
 func (c *Client) deleteThread(ctx context.Context, args ...string) (interface{}, error) {
-	args = util.CapArgs(args, 1)
+	args = util.PadArgs(args, 1)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -146,7 +146,7 @@ func (c *Client) deleteThread(ctx context.Context, args ...string) (interface{},
 
 // addFollower to a thread.
 func (c *Client) addFollower(ctx context.Context, args ...string) (interface{}, error) {
-	args = util.CapArgs(args, 2)
+	args = util.PadArgs(args, 2)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -164,7 +164,7 @@ func (c *Client) addFollower(ctx context.Context, args ...string) (interface{}, 
 
 // addRecord with body.
 func (c *Client) addRecord(ctx context.Context, args ...string) (interface{}, error) {
-	args = util.CapArgs(args, 2)
+	args = util.PadArgs(args, 2)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -185,16 +185,16 @@ func (c *Client) addRecord(ctx context.Context, args ...string) (interface{}, er
 		return nil, err
 	}
 
-	return map[string]string{
-		"thread_id": rec.ThreadID().String(),
-		"log_id":    rec.LogID().String(),
-		"record_id": rec.Value().Cid().String(),
-	}, err
+	return &jsonRecord{
+		ID:       rec.Value().Cid().String(),
+		LogID:    rec.LogID().String(),
+		ThreadID: rec.ThreadID().String(),
+	}, nil
 }
 
 // getRecord returns the record at cid.
 func (c *Client) getRecord(ctx context.Context, args ...string) (interface{}, error) {
-	args = util.CapArgs(args, 2)
+	args = util.PadArgs(args, 2)
 
 	id, err := thread.Decode(args[0])
 	if err != nil {
@@ -211,10 +211,12 @@ func (c *Client) getRecord(ctx context.Context, args ...string) (interface{}, er
 		return nil, err
 	}
 
-	return map[string]string{
-		"thread_id": id.String(),
-		"record":    string(encodeRecord(rec)),
-	}, err
+	jrec, err := recordToJSON(ctx, c.hub.service, rec)
+	if err != nil {
+		return nil, err
+	}
+	jrec.ThreadID = id.String()
+	return jrec, nil
 }
 
 // subscribe to thread updates.

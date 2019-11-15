@@ -155,9 +155,9 @@ func DecodeKey(k string) (*sym.Key, error) {
 	return sym.NewKey(b)
 }
 
-// CapArgs returns args with new capacity cap.
-func CapArgs(args []string, cap int) []string {
-	capped := make([]string, 0, cap)
-	copy(capped, args)
-	return capped
+// PadArgs returns args with new length pad.
+func PadArgs(args []string, len int) []string {
+	padded := make([]string, len)
+	copy(padded, args)
+	return padded
 }
