@@ -7,7 +7,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pt "github.com/libp2p/go-libp2p-core/test"
 	mh "github.com/multiformats/go-multihash"
@@ -42,7 +41,7 @@ func testHeadBookAddHeads(hb tstore.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
 
 		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
@@ -83,7 +82,7 @@ func testHeadBookSetHeads(hb tstore.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
 
 		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
@@ -123,14 +122,13 @@ func testHeadBookClearHeads(hb tstore.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
 
 		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
 			t.Error("expected heads to be empty on init without errors")
 		}
 
-		heads := make([]cid.Cid, 0)
 		for i := 0; i < 2; i++ {
 			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
 			head := cid.NewCidV1(cid.DagCBOR, hash)
@@ -138,7 +136,6 @@ func testHeadBookClearHeads(hb tstore.HeadBook) func(t *testing.T) {
 			if err := hb.AddHead(tid, p, head); err != nil {
 				t.Fatalf("error when adding heads: %v", err)
 			}
-			heads = append(heads, head)
 		}
 
 		heads, err := hb.Heads(tid, p)
@@ -194,7 +191,7 @@ func benchmarkHeads(hb tstore.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -220,7 +217,7 @@ func benchmarkAddHeads(hb tstore.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -244,7 +241,7 @@ func benchmarkSetHeads(hb tstore.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -268,7 +265,7 @@ func benchmarkClearHeads(hb tstore.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}

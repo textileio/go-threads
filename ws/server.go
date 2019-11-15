@@ -13,9 +13,8 @@ var log = logging.Logger("ws")
 
 // Server wraps a connection hub and http server.
 type Server struct {
-	service tserv.Threadservice
-	hub     *Hub
-	s       *http.Server
+	hub *Hub
+	s   *http.Server
 }
 
 // NewServer returns a web socket server.
@@ -57,14 +56,8 @@ func NewServer(ctx context.Context, service tserv.Threadservice, addr string) *S
 
 	sub := service.Subscribe()
 	go func() {
-		for {
-			select {
-			case rec, ok := <-sub.Channel():
-				if !ok {
-					return
-				}
-				s.hub.broadcast <- rec
-			}
+		for rec := range sub.Channel() {
+			s.hub.broadcast <- rec
 		}
 	}()
 

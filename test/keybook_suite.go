@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pt "github.com/libp2p/go-libp2p-core/test"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
@@ -51,7 +50,7 @@ func testKeyBookPrivKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without erros")
 		}
 
-		priv, _, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		priv, _, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			t.Error(err)
 		}
@@ -88,7 +87,7 @@ func testKeyBookPubKey(kb tstore.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			t.Error(err)
 		}
@@ -176,12 +175,12 @@ func testKeyBookLogs(kb tstore.KeyBook) func(t *testing.T) {
 		logs := make(peer.IDSlice, 0)
 		for i := 0; i < 10; i++ {
 			// Add a public key.
-			_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+			_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p1, _ := peer.IDFromPublicKey(pub)
 			_ = kb.AddPubKey(tid, p1, pub)
 
 			// Add a private key.
-			priv, _, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+			priv, _, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p2, _ := peer.IDFromPrivateKey(priv)
 			_ = kb.AddPrivKey(tid, p2, priv)
 
@@ -224,12 +223,12 @@ func testKeyBookThreads(kb tstore.KeyBook) func(t *testing.T) {
 			// Choose a random thread.
 			tid := threads[rand.Intn(len(threads))]
 			// Add a public key.
-			_, pub, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+			_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p1, _ := peer.IDFromPublicKey(pub)
 			_ = kb.AddPubKey(tid, p1, pub)
 
 			// Add a private key.
-			priv, _, _ := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+			priv, _, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p2, _ := peer.IDFromPrivateKey(priv)
 			_ = kb.AddPrivKey(tid, p2, priv)
 		}
@@ -265,7 +264,7 @@ func testInlinedPubKeyAddedOnRetrieve(kb tstore.KeyBook) func(t *testing.T) {
 		}
 
 		// Key small enough for inlining.
-		_, pub, err := ic.GenerateKeyPair(ic.Ed25519, 256)
+		_, pub, err := crypto.GenerateKeyPair(crypto.Ed25519, 256)
 		if err != nil {
 			t.Error(err)
 		}
@@ -315,7 +314,7 @@ func benchmarkPubKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -341,7 +340,7 @@ func benchmarkAddPubKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		_, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -362,7 +361,7 @@ func benchmarkPrivKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		priv, _, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		priv, _, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -388,7 +387,7 @@ func benchmarkAddPrivKey(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		priv, _, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+		priv, _, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
 			b.Error(err)
 		}
@@ -409,7 +408,7 @@ func benchmarkLogsWithKeys(kb tstore.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		for i := 0; i < 10; i++ {
-			priv, pub, err := pt.RandTestKeyPair(ic.RSA, crypto.MinRsaKeyBits)
+			priv, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			if err != nil {
 				b.Error(err)
 			}

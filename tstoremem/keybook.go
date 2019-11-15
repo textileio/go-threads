@@ -135,7 +135,7 @@ func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk ic.PrivKey) erro
 
 func (mkb *memoryKeyBook) ReadKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
-	b, _ := mkb.rks[t]
+	b := mkb.rks[t]
 	if b != nil {
 		key, err = sym.NewKey(b)
 	}
@@ -156,7 +156,7 @@ func (mkb *memoryKeyBook) AddReadKey(t thread.ID, key *sym.Key) error {
 
 func (mkb *memoryKeyBook) FollowKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
-	b, _ := mkb.fks[t]
+	b := mkb.fks[t]
 	if b != nil {
 		key, err = sym.NewKey(b)
 	}
