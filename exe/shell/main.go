@@ -116,60 +116,53 @@ func main() {
 
 	sub := api.Subscribe()
 	go func() {
-		for {
-			select {
-			case rec, ok := <-sub.Channel():
-				if !ok {
-					return
-				}
-
-				name, err := threadName(rec.ThreadID().String())
-				if err != nil {
-					logError(err)
-					continue
-				}
-				event, err := cbor.EventFromRecord(ctx, api, rec.Value())
-				if err != nil {
-					logError(err)
-					continue
-				}
-				key, err := api.Store().ReadKey(rec.ThreadID())
-				if err != nil {
-					logError(err)
-					continue
-				}
-				if key == nil {
-					continue
-				}
-				node, err := event.GetBody(ctx, api, key)
-				if err != nil {
-					continue // Not for us
-				}
-				m := new(msg)
-				err = cbornode.DecodeInto(node.RawData(), m)
-				if err != nil {
-					continue // Not one of our messages
-				}
-				header, err := event.GetHeader(ctx, api, key)
-				if err != nil {
-					logError(err)
-					continue
-				}
-				msgTime, err := header.Time()
-				if err != nil {
-					logError(err)
-					continue
-				}
-
-				clean(0)
-
-				fmt.Println(pink(name+"> ") +
-					grey(msgTime.Format(timeLayout)+" ") +
-					cyan(shortID(rec.LogID())+"  ") +
-					grey(m.Txt))
-
-				fmt.Print(cursor)
+		for rec := range sub.Channel() {
+			name, err := threadName(rec.ThreadID().String())
+			if err != nil {
+				logError(err)
+				continue
 			}
+			event, err := cbor.EventFromRecord(ctx, api, rec.Value())
+			if err != nil {
+				logError(err)
+				continue
+			}
+			key, err := api.Store().ReadKey(rec.ThreadID())
+			if err != nil {
+				logError(err)
+				continue
+			}
+			if key == nil {
+				continue
+			}
+			node, err := event.GetBody(ctx, api, key)
+			if err != nil {
+				continue // Not for us
+			}
+			m := new(msg)
+			err = cbornode.DecodeInto(node.RawData(), m)
+			if err != nil {
+				continue // Not one of our messages
+			}
+			header, err := event.GetHeader(ctx, api, key)
+			if err != nil {
+				logError(err)
+				continue
+			}
+			msgTime, err := header.Time()
+			if err != nil {
+				logError(err)
+				continue
+			}
+
+			clean(0)
+
+			fmt.Println(pink(name+"> ") +
+				grey(msgTime.Format(timeLayout)+" ") +
+				cyan(shortID(rec.LogID())+"  ") +
+				grey(m.Txt))
+
+			fmt.Print(cursor)
 		}
 	}()
 
@@ -207,7 +200,6 @@ func clean(lineCnt int) {
 		_, _ = io.WriteString(buf, "\033[2K\r")
 	}
 	_ = buf.Flush()
-	return
 }
 
 func handleLine(line string) (out string, err error) {

@@ -325,10 +325,8 @@ func (mab *memoryAddrBook) AddrStream(ctx context.Context, t thread.ID, p peer.I
 }
 
 type addrSub struct {
-	pubch  chan ma.Multiaddr
-	lk     sync.Mutex
-	buffer []ma.Multiaddr
-	ctx    context.Context
+	pubch chan ma.Multiaddr
+	ctx   context.Context
 }
 
 func (s *addrSub) pubAddr(a ma.Multiaddr) {

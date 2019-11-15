@@ -139,18 +139,12 @@ func NewThreads(
 		close(errc)
 	}()
 	go func() {
-		for {
-			select {
-			case err, ok := <-errc:
-				if err != nil && err != http.ErrServerClosed {
-					log.Errorf("proxy error: %s", err)
-				}
-				if !ok {
-					log.Info("proxy was shutdown")
-					return
-				}
+		for err := range errc {
+			if err != nil && err != http.ErrServerClosed {
+				log.Errorf("proxy error: %s", err)
 			}
 		}
+		log.Info("proxy was shutdown")
 	}()
 	log.Infof("proxy listening at %s", t.proxy.Addr)
 
@@ -505,27 +499,21 @@ func (t *threads) Subscribe(opts ...options.SubOption) tserv.Subscription {
 		ch: make(chan tserv.Record),
 	}
 	go func() {
-		for {
-			select {
-			case i, ok := <-listener.l.Channel():
-				if !ok {
-					close(listener.ch)
-					return
-				}
-				r, ok := i.(*record)
-				if ok {
-					if len(filter) > 0 {
-						if _, ok := filter[r.threadID]; ok {
-							listener.ch <- r
-						}
-					} else {
+		for i := range listener.l.Channel() {
+			r, ok := i.(*record)
+			if ok {
+				if len(filter) > 0 {
+					if _, ok := filter[r.threadID]; ok {
 						listener.ch <- r
 					}
 				} else {
-					log.Warning("listener received a non-record value")
+					listener.ch <- r
 				}
+			} else {
+				log.Warning("listener received a non-record value")
 			}
 		}
+		close(listener.ch)
 	}()
 	return listener
 }
@@ -720,10 +708,8 @@ func (t *threads) startPulling() {
 		}
 	}
 	timer := time.NewTimer(InitialPullInterval)
-	select {
-	case <-timer.C:
-		pull()
-	}
+	<-timer.C
+	pull()
 
 	tick := time.NewTicker(PullInterval)
 	defer tick.Stop()

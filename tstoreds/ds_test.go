@@ -9,7 +9,6 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
-	leveldb "github.com/ipfs/go-ds-leveldb"
 	tstore "github.com/textileio/go-textile-core/threadstore"
 	pt "github.com/textileio/go-textile-threads/test"
 )
@@ -137,18 +136,18 @@ func badgerStore(tb testing.TB) (ds.Datastore, func()) {
 	return store, closer
 }
 
-func leveldbStore(tb testing.TB) (ds.Datastore, func()) {
-	dataPath, err := ioutil.TempDir(os.TempDir(), "leveldb")
-	if err != nil {
-		tb.Fatal(err)
-	}
-	store, err := leveldb.NewDatastore(dataPath, nil)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	closer := func() {
-		_ = store.Close()
-		_ = os.RemoveAll(dataPath)
-	}
-	return store, closer
-}
+// func leveldbStore(tb testing.TB) (ds.Datastore, func()) {
+// 	dataPath, err := ioutil.TempDir(os.TempDir(), "leveldb")
+// 	if err != nil {
+// 		tb.Fatal(err)
+// 	}
+// 	store, err := leveldb.NewDatastore(dataPath, nil)
+// 	if err != nil {
+// 		tb.Fatal(err)
+// 	}
+// 	closer := func() {
+// 		_ = store.Close()
+// 		_ = os.RemoveAll(dataPath)
+// 	}
+// 	return store, closer
+// }

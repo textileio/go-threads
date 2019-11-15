@@ -116,7 +116,7 @@ type records struct {
 func newRecords() *records {
 	return &records{
 		m: make(map[peer.ID]map[cid.Cid]thread.Record),
-		s: make(map[peer.ID][]thread.Record, 0),
+		s: make(map[peer.ID][]thread.Record),
 	}
 }
 
