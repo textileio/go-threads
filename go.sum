@@ -277,6 +277,8 @@ github.com/libp2p/go-libp2p-gostream v0.2.0 h1:YGLebbo8KfylSkuralCCyas/hVrgWjc+c
 github.com/libp2p/go-libp2p-gostream v0.2.0/go.mod h1:nN/Aw00orrADXaXgNCeYjCtQrk6eT20PX/G8F12NW/s=
 github.com/libp2p/go-libp2p-kad-dht v0.2.1 h1:+pb1DCkV/6oNQjTZVXl+Y++eV0rnelx/L8y1t4J+Rnw=
 github.com/libp2p/go-libp2p-kad-dht v0.2.1/go.mod h1:k7ONOlup7HKzQ68dE6lSnp07cdxdkmnRa+6B4Fh9/w0=
+github.com/libp2p/go-libp2p-kad-dht v0.3.0 h1:KUJaqW3kkHP6zcL0s1CDg+yO0NYNNPkXmG4FrnZbwzM=
+github.com/libp2p/go-libp2p-kad-dht v0.3.0/go.mod h1:7nBsfkMq2zN1qPs6n/fNopJfvmK9NZRNicRrCnwQR8o=
 github.com/libp2p/go-libp2p-kbucket v0.2.1 h1:q9Jfwww9XnXc1K9dyYuARJxJvIvhgYVaQCuziO/dF3c=
 github.com/libp2p/go-libp2p-kbucket v0.2.1/go.mod h1:/Rtu8tqbJ4WQ2KTCOMJhggMukOLNLNPY1EtEWWLxUvc=
 github.com/libp2p/go-libp2p-loggables v0.1.0 h1:h3w8QFfCt2UJl/0/NW4K829HX/0S4KD31PQ7m8UXXO8=
@@ -461,8 +463,6 @@ github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709 h1:Ko2LQMrRU+Oy
 github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/syndtr/goleveldb v1.0.0 h1:fBdIW9lB4Iz0n9khmH8w27SJ3QEJ7+IgjPEwGSZiFdE=
 github.com/syndtr/goleveldb v1.0.0/go.mod h1:ZVVdQEZoIme9iO1Ch2Jdy24qqXrMMOU6lpPAyBWyWuQ=
-github.com/textileio/go-textile-core v0.0.0-20191108004524-7886c90c9177 h1:kV7QLBZsJviKJnEpuJYvRJLcgDQp5QQfzwQ2Shxb+LU=
-github.com/textileio/go-textile-core v0.0.0-20191108004524-7886c90c9177/go.mod h1:F98c4NsIU30JVjGrGG4HrG1Cs2iJk2RRRcwYAhSYP7I=
 github.com/textileio/go-textile-core v0.0.0-20191112000026-958d7d17affc h1:e/kukeTe28r5tHMuRLFhHamyFAG7AeUYaPFl3rYJiOs=
 github.com/textileio/go-textile-core v0.0.0-20191112000026-958d7d17affc/go.mod h1:F98c4NsIU30JVjGrGG4HrG1Cs2iJk2RRRcwYAhSYP7I=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
@@ -565,6 +565,8 @@ golang.org/x/tools v0.0.0-20190311212946-11955173bddd/go.mod h1:LCzVGOaR6xXOjkQ3
 golang.org/x/tools v0.0.0-20190328211700-ab21143f2384/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 h1:9zdDQZ7Thm29KFXgAX/+yaf3eVbP7djjWp/dXAppNCc=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 h1:/atklqdjdhuosWIl6AIbOeHJjicWYPqR9bpxqxYG2pA=
+golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
 google.golang.org/genproto v0.0.0-20180518175338-11a468237815/go.mod h1:JiN7NxoALGmiZfu7CAH4rXhgtRTLTxftemlI0sWmxmc=

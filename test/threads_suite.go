@@ -26,11 +26,11 @@ import (
 	"github.com/textileio/go-textile-threads/util"
 )
 
-var threadsSuite = map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
-	"AddPull":     testAddPull,
-	"AddPeer":     testAddPeer,
-	"AddFollower": testAddFollower,
-	"Close":       testClose,
+var threadsSuite = []map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
+	{"AddPull": testAddPull},
+	{"AddPeer": testAddPeer},
+	{"AddFollower": testAddFollower},
+	{"Close": testClose},
 }
 
 func ThreadsTest(t *testing.T) {
@@ -43,9 +43,11 @@ func ThreadsTest(t *testing.T) {
 	ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 	ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
-	for name, test := range threadsSuite {
-		// Run the test.
-		t.Run(name, test(ts1, ts2))
+	for _, test := range threadsSuite {
+		for name, test := range test {
+			// Run the test.
+			t.Run(name, test(ts1, ts2))
+		}
 	}
 }
 

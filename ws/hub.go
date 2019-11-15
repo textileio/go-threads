@@ -3,15 +3,25 @@
 package ws
 
 import (
+	"context"
 	"encoding/base64"
+	"encoding/json"
+	"time"
 
+	format "github.com/ipfs/go-ipld-format"
+	"github.com/mr-tron/base58"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
+	"github.com/textileio/go-textile-threads/cbor"
 )
+
+var encodeRecordTimeout = time.Second * 5
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
+	ctx context.Context
+
 	// service provides thread access.
 	service tserv.Threadservice
 
@@ -29,8 +39,9 @@ type Hub struct {
 }
 
 // NewHub creates a new client hub.
-func newHub(ts tserv.Threadservice) *Hub {
+func newHub(ctx context.Context, ts tserv.Threadservice) *Hub {
 	return &Hub{
+		ctx:        ctx,
 		service:    ts,
 		broadcast:  make(chan tserv.Record),
 		register:   make(chan *Client),
@@ -51,7 +62,26 @@ func (h *Hub) run() {
 				close(client.send)
 			}
 		case rec := <-h.broadcast:
-			msg := encodeRecord(rec.Value())
+			rid := rec.Value().Cid().String()
+
+			ctx, cancel := context.WithTimeout(h.ctx, encodeRecordTimeout)
+			jrec, err := recordToJSON(ctx, h.service, rec.Value())
+			if err != nil {
+				log.Errorf("error converting record %s to JSON: %v", rid, err)
+				cancel()
+				break
+			}
+			cancel()
+
+			jrec.LogID = rec.LogID().String()
+			jrec.ThreadID = rec.ThreadID().String()
+
+			msg, err := json.Marshal(jrec)
+			if err != nil {
+				log.Errorf("error marshaling record %s: %v", rid, err)
+				break
+			}
+
 			for client := range h.clients {
 				if _, ok := client.threads[rec.ThreadID()]; !ok {
 					continue
@@ -67,10 +97,70 @@ func (h *Hub) run() {
 	}
 }
 
-// encodeRecord base64 encodes a thread record.
-func encodeRecord(rec thread.Record) []byte {
-	data := rec.RawData()
-	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
-	base64.StdEncoding.Encode(encoded, data)
-	return encoded
+// jsonThreadInfo is thread info in JSON.
+type jsonThreadInfo struct {
+	ID        string   `json:"id"`
+	Logs      []string `json:"logs"`
+	FollowKey string   `json:"follow_key"`
+	ReadKey   string   `json:"read_key,omitempty"`
+}
+
+// threadInfoToJSON returns a JSON version of thread info for transport.
+func threadInfoToJSON(info thread.Info) *jsonThreadInfo {
+	logs := make([]string, 0, len(info.Logs))
+	for _, lg := range info.Logs {
+		logs = append(logs, lg.String())
+	}
+	return &jsonThreadInfo{
+		ID:        info.ID.String(),
+		Logs:      logs,
+		FollowKey: base58.Encode(info.FollowKey.Bytes()),
+		ReadKey:   base58.Encode(info.FollowKey.Bytes()),
+	}
+}
+
+// jsonRecord is a thread record containing link data in JSON.
+type jsonRecord struct {
+	ID       string `json:"id"`
+	LogID    string `json:"log_id,omitempty"`
+	ThreadID string `json:"thread_id"`
+
+	RecordNode string `json:"record_node,omitempty"`
+	EventNode  string `json:"event_node,omitempty"`
+	HeaderNode string `json:"header_node,omitempty"`
+	BodyNode   string `json:"body_node,omitempty"`
+}
+
+// recordToJSON returns a JSON version of a record for transport.
+// Nodes are sent encrypted.
+func recordToJSON(ctx context.Context, dag format.DAGService, rec thread.Record) (*jsonRecord, error) {
+	block, err := rec.GetBlock(ctx, dag)
+	if err != nil {
+		return nil, err
+	}
+	event, err := cbor.EventFromNode(block)
+	if err != nil {
+		return nil, err
+	}
+	header, err := event.GetHeader(ctx, dag, nil)
+	if err != nil {
+		return nil, err
+	}
+	body, err := event.GetBody(ctx, dag, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &jsonRecord{
+		ID:         rec.Cid().String(),
+		RecordNode: encodeNode(rec),
+		EventNode:  encodeNode(block),
+		HeaderNode: encodeNode(header),
+		BodyNode:   encodeNode(body),
+	}, nil
+}
+
+// encodeNode returns a base64-encoded version of n.
+func encodeNode(n format.Node) string {
+	return base64.StdEncoding.EncodeToString(n.RawData())
 }

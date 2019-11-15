@@ -2,9 +2,13 @@ package util
 
 import (
 	"crypto/rand"
+	"strings"
 
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peerstore"
+	swarm "github.com/libp2p/go-libp2p-swarm"
+	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
@@ -101,4 +105,62 @@ func GetOrCreateOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo
 	}
 	err = t.Store().AddLog(id, info)
 	return info, err
+}
+
+// AddPeerFromAddress parses the given address and adds the dialable component
+// to the peerstore.
+// If a dht is provided and the address does not contain a dialable component,
+// it will be queried for peer info.
+func AddPeerFromAddress(addrStr string, pstore peerstore.Peerstore) (pid peer.ID, err error) {
+	addr, err := ma.NewMultiaddr(addrStr)
+	if err != nil {
+		return
+	}
+	p2p, err := addr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return
+	}
+	pid, err = peer.IDB58Decode(p2p)
+	if err != nil {
+		return
+	}
+	dialable, err := GetDialable(addr)
+	if err == nil {
+		pstore.AddAddr(pid, dialable, peerstore.PermanentAddrTTL)
+	}
+
+	return pid, nil
+}
+
+// GetDialable returns the portion of an address suitable for storage in a peerstore.
+func GetDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
+	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
+	return ma.NewMultiaddr(parts[0])
+}
+
+// CanDial returns whether or not the address is dialable.
+func CanDial(addr ma.Multiaddr, s *swarm.Swarm) bool {
+	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
+	addr, _ = ma.NewMultiaddr(parts[0])
+	tr := s.TransportForDialing(addr)
+	return tr != nil && tr.CanDial(addr)
+}
+
+// DecodeKey from a string into a symmetric key.
+func DecodeKey(k string) (*sym.Key, error) {
+	b, err := base58.Decode(k)
+	if err != nil {
+		return nil, err
+	}
+	return sym.NewKey(b)
+}
+
+// PadArgs returns args with min length l.
+func PadArgs(args []string, l int) []string {
+	if len(args) > l {
+		l = len(args)
+	}
+	padded := make([]string, l)
+	copy(padded, args)
+	return padded
 }
