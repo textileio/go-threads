@@ -52,15 +52,16 @@ var (
 	space   = []byte{' '}
 )
 
-// rpcCaller defines a method name and an arg list for an rpc method.
-type rpcCaller struct {
+// caller defines a method name and an arg list for an rpc method.
+type caller struct {
 	ID     string   `json:"id"`
 	Method string   `json:"method"`
 	Args   []string `json:"args"`
 }
 
-// rpcResponse wraps an rpc method response and error.
-type rpcResponse struct {
+// message wraps an rpc method response and error.
+type message struct {
+	Type   string `json:"type"`
 	ID     string `json:"id"`
 	Status string `json:"status"`
 	Body   string `json:"body,omitempty"`
@@ -251,7 +252,7 @@ func (c *Client) readPump() {
 		return nil
 	})
 	for {
-		_, message, err := c.conn.ReadMessage()
+		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(
 				err,
@@ -261,12 +262,12 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		msg = bytes.TrimSpace(bytes.Replace(msg, newline, space, -1))
 
 		callerID := "unknown"
-		var caller rpcCaller
+		var caller caller
 		var result interface{}
-		if err = json.Unmarshal(message, &caller); err == nil {
+		if err = json.Unmarshal(msg, &caller); err == nil {
 			callerID = caller.ID
 
 			ctx, cancel := context.WithTimeout(context.Background(), rpcCallTimeout)
@@ -292,7 +293,10 @@ func (c *Client) readPump() {
 			cancel()
 		}
 
-		res := &rpcResponse{ID: callerID}
+		res := &message{
+			Type: "response",
+			ID:   callerID,
+		}
 		if err != nil {
 			res.Status = "error"
 			res.Error = err.Error()

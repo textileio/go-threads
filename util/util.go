@@ -169,6 +169,7 @@ func PadArgs(args []string, l int) []string {
 	return padded
 }
 
+// SetupDefaultLoggingConfig sets up a standard logging configuration.
 func SetupDefaultLoggingConfig(repoPath string) {
 	lj := &lumberjack.Logger{
 		Filename:   filepath.Join(repoPath, "log"),
@@ -176,14 +177,13 @@ func SetupDefaultLoggingConfig(repoPath string) {
 		MaxBackups: 3,
 		MaxAge:     30, // days
 	}
-	if lj != nil {
-		backendFile := logger.NewLogBackend(lj, "", 0)
-		logger.SetBackend(backendFile)
-	}
+	backendFile := logger.NewLogBackend(lj, "", 0)
+	logger.SetBackend(backendFile)
 	logger.SetFormatter(logger.MustStringFormatter(logging.LogFormats["color"]))
 	logging.SetAllLoggers(logger.ERROR)
 }
 
+// SetLogLevels sets levels for the given systems.
 func SetLogLevels(systems map[string]logger.Level) error {
 	for sys, level := range systems {
 		if sys == "*" {

@@ -15,7 +15,9 @@ import (
 	"github.com/textileio/go-textile-threads/cbor"
 )
 
-var encodeRecordTimeout = time.Second * 5
+// inflateRecordTimeout is max duration to wait while a record is inflated
+// for transport.
+var inflateRecordTimeout = time.Second * 5
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -58,13 +60,14 @@ func (h *Hub) run() {
 			h.clients[client] = struct{}{}
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
 				close(client.send)
+				delete(h.clients, client)
+				log.Debug("client disconnected")
 			}
 		case rec := <-h.broadcast:
 			rid := rec.Value().Cid().String()
 
-			ctx, cancel := context.WithTimeout(h.ctx, encodeRecordTimeout)
+			ctx, cancel := context.WithTimeout(h.ctx, inflateRecordTimeout)
 			jrec, err := recordToJSON(ctx, h.service, rec.Value())
 			if err != nil {
 				log.Errorf("error converting record %s to JSON: %v", rid, err)
@@ -76,9 +79,17 @@ func (h *Hub) run() {
 			jrec.LogID = rec.LogID().String()
 			jrec.ThreadID = rec.ThreadID().String()
 
-			msg, err := json.Marshal(jrec)
+			body, err := json.Marshal(jrec)
 			if err != nil {
 				log.Errorf("error marshaling record %s: %v", rid, err)
+				break
+			}
+			msg, err := json.Marshal(&message{
+				Type: "newRecord",
+				Body: string(body),
+			})
+			if err != nil {
+				log.Errorf("error marshaling message: %v", err)
 				break
 			}
 
@@ -91,6 +102,7 @@ func (h *Hub) run() {
 				default:
 					close(client.send)
 					delete(h.clients, client)
+					log.Debug("client disconnected")
 				}
 			}
 		}
