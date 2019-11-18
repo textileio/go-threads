@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 	es "github.com/textileio/go-textile-threads/eventstore"
 )
 

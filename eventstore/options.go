@@ -19,7 +19,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-threads/jsonpatcher"
 	"github.com/textileio/go-textile-threads/tstoreds"
 )

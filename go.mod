@@ -9,7 +9,6 @@ require (
 	github.com/fatih/color v1.7.0
 	github.com/gogo/protobuf v1.3.0
 	github.com/gogo/status v1.1.0
-	github.com/google/uuid v1.1.1
 	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hsanjuan/ipfs-lite v0.1.6
@@ -19,7 +18,7 @@ require (
 	github.com/ipfs/go-cid v0.0.3
 	github.com/ipfs/go-datastore v0.1.1
 	github.com/ipfs/go-ds-badger v0.0.5
-	github.com/ipfs/go-ds-leveldb v0.1.0
+	github.com/ipfs/go-ds-leveldb v0.1.0 // indirect
 	github.com/ipfs/go-ipfs-blockstore v0.1.0
 	github.com/ipfs/go-ipfs-exchange-offline v0.0.1
 	github.com/ipfs/go-ipfs-files v0.0.4 // indirect
@@ -56,4 +55,4 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
 
-// replace github.com/textileio/go-textile-core => ../go-textile-core/
+replace github.com/textileio/go-textile-core => ../go-textile-core/

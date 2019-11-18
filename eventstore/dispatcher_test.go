@@ -1,23 +1,28 @@
 package eventstore
 
 import (
+	"bytes"
+	"encoding/binary"
 	"sync"
 	"testing"
 	"time"
 
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	"github.com/textileio/go-textile-threads/core"
+	ipldformat "github.com/ipfs/go-ipld-format"
+	core "github.com/textileio/go-textile-core/store"
 )
 
 func TestNewEventDispatcher(t *testing.T) {
+	t.Parallel()
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
-	event := core.NewNullEvent(time.Now())
+	event := newNullEvent(time.Now())
 	dispatcher.Dispatch(event)
 }
 
 func TestRegister(t *testing.T) {
+	t.Parallel()
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	dispatcher.Register(&nullReducer{})
@@ -27,10 +32,11 @@ func TestRegister(t *testing.T) {
 }
 
 func TestDispatchLock(t *testing.T) {
+	t.Parallel()
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	dispatcher.Register(&slowReducer{})
-	event := core.NewNullEvent(time.Now())
+	event := newNullEvent(time.Now())
 	t1 := time.Now()
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -51,9 +57,10 @@ func TestDispatchLock(t *testing.T) {
 }
 
 func TestDispatch(t *testing.T) {
+	t.Parallel()
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
-	event := core.NewNullEvent(time.Now())
+	event := newNullEvent(time.Now())
 	if err := dispatcher.Dispatch(event); err != nil {
 		t.Error("unexpected error in dispatch call")
 	}
@@ -82,6 +89,7 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestValidStore(t *testing.T) {
+	t.Parallel()
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	store := dispatcher.Store()
@@ -94,12 +102,13 @@ func TestValidStore(t *testing.T) {
 }
 
 func TestDispatcherQuery(t *testing.T) {
+	t.Parallel()
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	var events []core.Event
 	n := 100
 	for i := 1; i <= n; i++ {
-		events = append(events, core.NewNullEvent(time.Now()))
+		events = append(events, newNullEvent(time.Now()))
 		time.Sleep(time.Millisecond)
 	}
 	for _, event := range events {
@@ -117,3 +126,38 @@ func TestDispatcherQuery(t *testing.T) {
 		t.Errorf("expected %d result, got %d", n, len(results))
 	}
 }
+
+func newNullEvent(t time.Time) core.Event {
+	return &nullEvent{Timestamp: t}
+}
+
+type nullEvent struct {
+	Timestamp time.Time
+}
+
+func (n *nullEvent) Body() []byte {
+	return nil
+}
+
+func (n *nullEvent) Time() []byte {
+	t := n.Timestamp.UnixNano()
+	buf := new(bytes.Buffer)
+	// Use big endian to preserve lexicographic sorting
+	binary.Write(buf, binary.BigEndian, t)
+	return buf.Bytes()
+}
+
+func (n *nullEvent) EntityID() core.EntityID {
+	return "null"
+}
+
+func (n *nullEvent) Type() string {
+	return "null"
+}
+
+func (n *nullEvent) Node() (ipldformat.Node, error) {
+	return nil, nil
+}
+
+// Sanity check
+var _ core.Event = (*nullEvent)(nil)

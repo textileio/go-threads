@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	logging "github.com/ipfs/go-log"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 )
 
 const (

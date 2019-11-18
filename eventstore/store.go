@@ -19,7 +19,7 @@ import (
 	"github.com/textileio/go-textile-core/thread"
 	"github.com/textileio/go-textile-core/threadservice"
 	ts "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 )

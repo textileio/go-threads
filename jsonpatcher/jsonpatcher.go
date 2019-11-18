@@ -14,7 +14,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 )
 
 type operationType int
