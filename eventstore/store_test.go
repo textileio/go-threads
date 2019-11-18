@@ -9,7 +9,7 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 )
 
 func TestE2E(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 	"github.com/xeipuuv/gojsonschema"
 )
 

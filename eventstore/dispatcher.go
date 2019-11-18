@@ -9,7 +9,7 @@ import (
 
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	"github.com/textileio/go-textile-threads/core"
+	core "github.com/textileio/go-textile-core/store"
 	"golang.org/x/sync/errgroup"
 )
 
