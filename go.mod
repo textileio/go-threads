@@ -41,7 +41,7 @@ require (
 	github.com/multiformats/go-multihash v0.0.8
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/rs/cors v1.7.0 // indirect
-	github.com/textileio/go-textile-core v0.0.0-20191112000026-958d7d17affc
+	github.com/textileio/go-textile-core v0.0.0-20191118220954-33e7560007ef
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
 	github.com/whyrusleeping/go-logging v0.0.0-20170515211332-0457bb6b88fc
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
@@ -54,5 +54,3 @@ require (
 	google.golang.org/grpc v1.24.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
-
-replace github.com/textileio/go-textile-core => ../go-textile-core/
