@@ -16,10 +16,10 @@ import (
 	"github.com/textileio/go-textile-core/broadcast"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
+	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-core/thread"
 	"github.com/textileio/go-textile-core/threadservice"
 	ts "github.com/textileio/go-textile-threads"
-	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 )
@@ -45,18 +45,24 @@ var (
 // externally.
 type Store struct {
 	io.Closer
-	ctx            context.Context
-	cancel         context.CancelFunc
-	lock           sync.RWMutex
-	datastore      ds.Datastore
-	dispatcher     *dispatcher
-	eventcodec     core.EventCodec
-	models         map[reflect.Type]*Model
+
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	datastore     ds.Datastore
+	dispatcher    *dispatcher
+	eventcodec    core.EventCodec
+	threadservice threadservice.Threadservice
+
+	lock       sync.RWMutex
+	models     map[reflect.Type]*Model
+	modelNames map[string]struct{}
+	jsonMode   bool
+
 	localEventsBus *localEventsBus
 	stateChanged   *stateChangedNotifee
 
 	ownThreadService bool
-	threadservice    threadservice.Threadservice
 }
 
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
@@ -74,7 +80,7 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 		config.Datastore = datastore
 	}
 	if config.EventCodec == nil {
-		config.EventCodec = newDefaultEventCodec()
+		config.EventCodec = newDefaultEventCodec(config.JsonMode)
 	}
 	if config.Debug {
 		if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
@@ -101,7 +107,9 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 		dispatcher:       newDispatcher(config.Datastore),
 		eventcodec:       config.EventCodec,
 		models:           make(map[reflect.Type]*Model),
-		localEventsBus:   &localEventsBus{bus: broadcast.NewBroadcaster(0)}, // ToDo: discuss about buffered chan, and implication on eventstore & thread sync tradeoffs
+		modelNames:       make(map[string]struct{}),
+		jsonMode:         config.JsonMode,
+		localEventsBus:   &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChanged:     &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
 		threadservice:    config.Threadservice,
 		ownThreadService: ownThreadService,
@@ -176,7 +184,8 @@ func (s *Store) Threadservice() threadservice.Threadservice {
 func (s *Store) Register(name string, defaultInstance interface{}) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if s.alreadyRegistered(defaultInstance) {
+
+	if _, ok := s.modelNames[name]; ok {
 		return nil, fmt.Errorf("already registered model")
 	}
 
@@ -186,6 +195,20 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 
 	m := newModel(name, defaultInstance, s)
 	s.models[m.valueType] = m
+	s.modelNames[name] = struct{}{}
+	s.dispatcher.Register(m)
+	return m, nil
+}
+
+func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if _, ok := s.modelNames[name]; ok {
+		return nil, fmt.Errorf("already registered model")
+	}
+
+	m := newModelFromSchema(name, schema, s)
 	s.dispatcher.Register(m)
 	return m, nil
 }
@@ -258,12 +281,6 @@ func (s *Store) writeTxn(m *Model, f func(txn *Txn) error) error {
 		return err
 	}
 	return txn.Commit()
-}
-
-func (s *Store) alreadyRegistered(t interface{}) bool {
-	valueType := reflect.TypeOf(t)
-	_, ok := s.models[valueType]
-	return ok
 }
 
 func isValidModel(t interface{}) bool {
