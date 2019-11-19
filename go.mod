@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190823232136-616930265c33 // indirect
+	github.com/Ompluscator/dynamic-struct v1.2.0
 	github.com/alecthomas/jsonschema v0.0.0-20191017121752-4bb6e3fae4f2
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fatih/color v1.7.0

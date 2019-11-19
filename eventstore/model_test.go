@@ -1,6 +1,7 @@
 package eventstore
 
 import (
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -21,6 +22,8 @@ type Person struct {
 	Age  int
 }
 
+var PersonJSON = []byte(`{"ID": "","Name": "","Age": 0}`)
+
 type Dog struct {
 	ID       core.EntityID
 	Name     string
@@ -29,6 +32,8 @@ type Dog struct {
 type Comment struct {
 	Body string
 }
+
+var DogJSON = []byte(`{"ID": "","Name": "","Comments": [""]}`)
 
 func TestMain(m *testing.M) {
 	logging.SetLogLevel("*", "debug")
@@ -50,7 +55,7 @@ func TestSchemaRegistration(t *testing.T) {
 		defer clean()
 		_, err := store.Register("Dog", &Dog{})
 		checkErr(t, err)
-		_, err = store.Register("Person", &Person{})
+		_, err = store.RegisterJSON("Person", PersonJSON)
 		checkErr(t, err)
 	})
 	t.Run("Fail/WithoutEntityID", func(t *testing.T) {
@@ -72,23 +77,26 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		store, clean := createTestStore(t)
 		defer clean()
-		model, err := store.Register("Person", &Person{})
+		model, err := store.RegisterJSON("Person", PersonJSON)
 		checkErr(t, err)
 
 		t.Run("WithImplicitTx", func(t *testing.T) {
-			newPerson := &Person{Name: "Foo", Age: 42}
-			err = model.Create(newPerson)
+			params := []byte(`{"Name": "Foo", "Age": 42}`)
+			newPerson := reflect.New(model.valueType.Elem()).Interface()
+			err = json.Unmarshal(params, newPerson)
 			checkErr(t, err)
-			assertPersonInModel(t, model, newPerson)
-		})
-		t.Run("WithTx", func(t *testing.T) {
-			newPerson := &Person{Name: "Foo", Age: 42}
-			err = model.WriteTxn(func(txn *Txn) error {
-				return txn.Create(newPerson)
-			})
+			err = model.Create(newPerson) // <---------- panics at getEntityID looking for ID field
 			checkErr(t, err)
-			assertPersonInModel(t, model, newPerson)
+			//assertPersonInModel(t, model, newPerson)
 		})
+		//t.Run("WithTx", func(t *testing.T) {
+		//	newPerson := &Person{Name: "Foo", Age: 42}
+		//	err = model.WriteTxn(func(txn *Txn) error {
+		//		return txn.Create(newPerson)
+		//	})
+		//	checkErr(t, err)
+		//	assertPersonInModel(t, model, newPerson)
+		//})
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()

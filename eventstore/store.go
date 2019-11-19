@@ -3,6 +3,7 @@ package eventstore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	dynamicstruct "github.com/Ompluscator/dynamic-struct"
 	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
@@ -176,6 +178,37 @@ func (s *Store) Threadservice() threadservice.Threadservice {
 func (s *Store) Register(name string, defaultInstance interface{}) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	if s.alreadyRegistered(defaultInstance) {
+		return nil, fmt.Errorf("already registered model")
+	}
+
+	if !isValidModel(defaultInstance) {
+		return nil, ErrInvalidModel
+	}
+
+	m := newModel(name, defaultInstance, s)
+	s.models[m.valueType] = m
+	s.dispatcher.Register(m)
+	return m, nil
+}
+
+// Register a new model in the store by infering using a default JSON object.
+func (s *Store) RegisterJSON(name string, defaultObject []byte) (*Model, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	var obj map[string]interface{}
+	err := json.Unmarshal(defaultObject, &obj)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	builder := dynamicstruct.NewStruct()
+	for k, v := range obj {
+		builder.AddField(k, v, "")
+	}
+	defaultInstance := builder.Build().New()
+
 	if s.alreadyRegistered(defaultInstance) {
 		return nil, fmt.Errorf("already registered model")
 	}
