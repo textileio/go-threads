@@ -39,6 +39,7 @@ type operation struct {
 }
 
 type jsonPatcher struct {
+	jsonMode bool
 }
 
 var _ core.EventCodec = (*jsonPatcher)(nil)
@@ -49,8 +50,8 @@ func init() {
 }
 
 // New returns a JSON-Patcher EventCodec
-func New() core.EventCodec {
-	return &jsonPatcher{}
+func New(jsonMode bool) core.EventCodec {
+	return &jsonPatcher{jsonMode: jsonMode}
 }
 
 func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, error) {
@@ -60,9 +61,9 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, error) {
 		var err error
 		switch actions[i].Type {
 		case core.Create:
-			eventPayload, err = createEvent(actions[i].EntityID, actions[i].Current)
+			eventPayload, err = createEvent(actions[i].EntityID, actions[i].Current, jp.jsonMode)
 		case core.Save:
-			eventPayload, err = saveEvent(actions[i].EntityID, actions[i].Previous, actions[i].Current)
+			eventPayload, err = saveEvent(actions[i].EntityID, actions[i].Previous, actions[i].Current, jp.jsonMode)
 		case core.Delete:
 			eventPayload, err = deleteEvent(actions[i].EntityID)
 		default:
@@ -145,10 +146,18 @@ func (jp *jsonPatcher) EventFromBytes(data []byte) (core.Event, error) {
 	return event, nil
 }
 
-func createEvent(id core.EntityID, v interface{}) ([]byte, error) {
-	opBytes, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
+func createEvent(id core.EntityID, v interface{}, jsonMode bool) ([]byte, error) {
+	var opBytes []byte
+
+	if jsonMode {
+		strjson := v.(*string)
+		opBytes = []byte(*strjson)
+	} else {
+		var err error
+		opBytes, err = json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
 	}
 	op := operation{
 		Type:      create,
@@ -162,14 +171,23 @@ func createEvent(id core.EntityID, v interface{}) ([]byte, error) {
 	return eventPayload, nil
 }
 
-func saveEvent(id core.EntityID, prev interface{}, curr interface{}) ([]byte, error) {
-	prevBytes, err := json.Marshal(prev)
-	if err != nil {
-		return nil, err
-	}
-	currBytes, err := json.Marshal(curr)
-	if err != nil {
-		return nil, err
+func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bool) ([]byte, error) {
+	var prevBytes, currBytes []byte
+	if jsonMode {
+		strCurrJson := curr.(*string)
+
+		prevBytes = prev.([]byte)
+		currBytes = []byte(*strCurrJson)
+	} else {
+		var err error
+		prevBytes, err = json.Marshal(prev)
+		if err != nil {
+			return nil, err
+		}
+		currBytes, err = json.Marshal(curr)
+		if err != nil {
+			return nil, err
+		}
 	}
 	jsonPatch, err := jsonpatch.CreateMergePatch(prevBytes, currBytes)
 	if err != nil {

@@ -3,9 +3,11 @@ package eventstore
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/alecthomas/jsonschema"
+	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-textile-core/store"
 	"github.com/xeipuuv/gojsonschema"
@@ -32,7 +34,7 @@ var (
 // Model contains instances of a schema, and provides operations
 // for creating, updating, deleting, and quering them.
 type Model struct {
-	schema       *jsonschema.Schema
+	name         string
 	schemaLoader gojsonschema.JSONLoader
 	valueType    reflect.Type
 	dsKey        ds.Key
@@ -43,9 +45,21 @@ func newModel(name string, defaultInstance interface{}, s *Store) *Model {
 	schema := jsonschema.Reflect(defaultInstance)
 	schemaLoader := gojsonschema.NewGoLoader(schema)
 	m := &Model{
-		schema:       schema,
+		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    reflect.TypeOf(defaultInstance),
+		dsKey:        baseKey.ChildString(name),
+		store:        s,
+	}
+	return m
+}
+
+func newModelFromSchema(name string, schema string, s *Store) *Model {
+	schemaLoader := gojsonschema.NewStringLoader(schema)
+	m := &Model{
+		name:         name,
+		schemaLoader: schemaLoader,
+		valueType:    nil,
 		dsKey:        baseKey.ChildString(name),
 		store:        s,
 	}
@@ -114,8 +128,8 @@ func (m *Model) Find(result interface{}, q *Query) error {
 
 // Reduce processes an event into the model.
 func (m *Model) Reduce(event core.Event) error {
-	log.Debugf("reducer %s start", m.schema.Ref)
-	if event.Type() != m.schema.Ref {
+	log.Debugf("reducer %s start", m.name)
+	if event.Type() != m.name {
 		log.Debugf("ignoring event from uninteresting type")
 		return nil
 	}
@@ -130,7 +144,13 @@ func (m *Model) Reduce(event core.Event) error {
 }
 
 func (m *Model) validInstance(v interface{}) (bool, error) {
-	vLoader := gojsonschema.NewGoLoader(v)
+	var vLoader gojsonschema.JSONLoader
+	if m.store.jsonMode {
+		strJson := v.(*string)
+		vLoader = gojsonschema.NewBytesLoader([]byte(*strJson))
+	} else {
+		vLoader = gojsonschema.NewGoLoader(v)
+	}
 	r, err := gojsonschema.Validate(m.schemaLoader, vLoader)
 	if err != nil {
 		return false, err
@@ -164,9 +184,10 @@ func (t *Txn) Create(new ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getEntityID(new[i])
+		jsonMode := t.model.store.jsonMode
+		id := getEntityID(new[i], jsonMode)
 		if id == core.EmptyEntityID {
-			id = setNewEntityID(new[i])
+			id = setNewEntityID(new[i], jsonMode)
 		}
 		key := t.model.dsKey.ChildString(id.String())
 		exists, err := t.model.store.datastore.Has(key)
@@ -180,7 +201,7 @@ func (t *Txn) Create(new ...interface{}) error {
 		a := core.Action{
 			Type:       core.Create,
 			EntityID:   id,
-			EntityType: t.model.schema.Ref,
+			EntityType: t.model.name,
 			Previous:   nil,
 			Current:    new[i],
 		}
@@ -196,6 +217,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 		if t.readonly {
 			return ErrReadonlyTx
 		}
+
 		valid, err := t.model.validInstance(updated[i])
 		if err != nil {
 			return err
@@ -204,7 +226,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getEntityID(updated[i])
+		id := getEntityID(updated[i], t.model.store.jsonMode)
 		key := t.model.dsKey.ChildString(id.String())
 		beforeBytes, err := t.model.store.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -214,19 +236,22 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return err
 		}
 
-		before := reflect.New(t.model.valueType.Elem()).Interface()
-		err = json.Unmarshal(beforeBytes, before)
-		if err != nil {
-			return err
+		var previous interface{}
+		previous = beforeBytes
+		if !t.model.store.jsonMode {
+			before := reflect.New(t.model.valueType.Elem()).Interface()
+			if err = json.Unmarshal(beforeBytes, before); err != nil {
+				return err
+			}
+			previous = before
 		}
-		a := core.Action{
+		t.actions = append(t.actions, core.Action{
 			Type:       core.Save,
 			EntityID:   id,
-			EntityType: t.model.schema.Ref,
-			Previous:   before,
+			EntityType: t.model.name,
+			Previous:   previous,
 			Current:    updated[i],
-		}
-		t.actions = append(t.actions, a)
+		})
 	}
 	return nil
 }
@@ -249,7 +274,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 		a := core.Action{
 			Type:       core.Delete,
 			EntityID:   ids[i],
-			EntityType: t.model.schema.Ref,
+			EntityType: t.model.name,
 			Previous:   nil,
 			Current:    nil,
 		}
@@ -284,6 +309,14 @@ func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
 	if err != nil {
 		return err
 	}
+	if t.model.store.jsonMode {
+		str := string(bytes)
+		rflStr := reflect.ValueOf(str)
+		reflV := reflect.ValueOf(v)
+		reflV.Elem().Set(rflStr)
+
+		return nil
+	}
 	return json.Unmarshal(bytes, v)
 }
 
@@ -317,24 +350,48 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getEntityID(t interface{}) core.EntityID {
-	v := reflect.ValueOf(t)
-	if v.Type().Kind() != reflect.Ptr {
-		v = reflect.New(reflect.TypeOf(v))
+func getEntityID(t interface{}, jsonMode bool) core.EntityID {
+	if jsonMode {
+		partial := &struct{ ID *string }{}
+		if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
+			log.Fatalf("error when unmarshaling json instance: %v", err)
+		}
+		if partial.ID == nil {
+			log.Fatal("invalid instance: doesn't have an ID attribute")
+		}
+		if *partial.ID != "" && !core.IsValidEntityID(*partial.ID) {
+			log.Fatal("invalid instance: invalid ID value")
+		}
+		return core.EntityID(*partial.ID)
+	} else {
+		v := reflect.ValueOf(t)
+		if v.Type().Kind() != reflect.Ptr {
+			v = reflect.New(reflect.TypeOf(v))
+		}
+		v = v.Elem().FieldByName(idFieldName)
+		if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyEntityID) {
+			log.Fatal("invalid instance: doesn't have EntityID attribute")
+		}
+		return core.EntityID(v.String())
 	}
-	v = v.Elem().FieldByName(idFieldName)
-	if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyEntityID) {
-		panic("invalid instance: doesn't have EntityID attribute")
-	}
-	return core.EntityID(v.String())
 }
 
-func setNewEntityID(t interface{}) core.EntityID {
-	v := reflect.ValueOf(t)
-	if v.Type().Kind() != reflect.Ptr {
-		v = reflect.New(reflect.TypeOf(v))
-	}
+func setNewEntityID(t interface{}, jsonMode bool) core.EntityID {
 	newID := core.NewEntityID()
-	v.Elem().FieldByName(idFieldName).Set(reflect.ValueOf(newID))
+	if jsonMode {
+		patchedValue, err := jsonpatch.MergePatch([]byte(*(t.(*string))), []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
+		if err != nil {
+			log.Fatalf("error while automatically patching autogenerated ID: %v", err)
+		}
+		strPatchedValue := string(patchedValue)
+		reflectPatchedValue := reflect.ValueOf(&strPatchedValue)
+		reflect.ValueOf(t).Elem().Set(reflectPatchedValue.Elem())
+	} else {
+		v := reflect.ValueOf(t)
+		if v.Type().Kind() != reflect.Ptr {
+			v = reflect.New(reflect.TypeOf(v))
+		}
+		v.Elem().FieldByName(idFieldName).Set(reflect.ValueOf(newID))
+	}
 	return newID
 }

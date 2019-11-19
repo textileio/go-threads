@@ -12,7 +12,7 @@ import (
 	core "github.com/textileio/go-textile-core/store"
 )
 
-func TestE2E(t *testing.T) {
+func TestE2EWithThreads(t *testing.T) {
 	t.Parallel()
 
 	// peer1: Create store1, register a model, create and update an instance.

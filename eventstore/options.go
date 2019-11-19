@@ -17,9 +17,9 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
+	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
-	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-threads/jsonpatcher"
 	"github.com/textileio/go-textile-threads/tstoreds"
 )
@@ -48,11 +48,12 @@ type StoreConfig struct {
 	Datastore     ds.Datastore
 	Threadservice threadservice.Threadservice
 	EventCodec    core.EventCodec
+	JsonMode      bool
 	Debug         bool
 }
 
-func newDefaultEventCodec() core.EventCodec {
-	return jsonpatcher.New()
+func newDefaultEventCodec(jsonMode bool) core.EventCodec {
+	return jsonpatcher.New(jsonMode)
 }
 
 func newDefaultDatastore(repoPath string) (ds.Datastore, error) {
@@ -122,6 +123,13 @@ func newDefaultThreadservice(ctx context.Context, listenPort int, repoPath strin
 	}
 	lite.Bootstrap(boots)
 	return api, nil
+}
+
+func WithJsonMode(enabled bool) StoreOption {
+	return func(sc *StoreConfig) error {
+		sc.JsonMode = enabled
+		return nil
+	}
 }
 
 func WithRepoPath(path string) StoreOption {
