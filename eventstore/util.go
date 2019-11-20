@@ -32,7 +32,14 @@ type ThreadserviceBoostrapper interface {
 	Bootstrap(addrs []peer.AddrInfo)
 }
 
-func DefaultThreadservice(listenPort int, repoPath string, debug bool) (ThreadserviceBoostrapper, error) {
+func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostrapper, error) {
+	config := &Config{ProxyPort: 5050}
+	for _, opt := range opts {
+		if err := opt(config); err != nil {
+			return nil, err
+		}
+	}
+
 	ipfsLitePath := filepath.Join(repoPath, defaultIpfsLitePath)
 	if err := os.MkdirAll(ipfsLitePath, os.ModePerm); err != nil {
 		return nil, err
@@ -49,7 +56,7 @@ func DefaultThreadservice(listenPort int, repoPath string, debug bool) (Threadse
 		cancel()
 		return nil, err
 	}
-	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", listenPort))
+	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", config.ListenPort))
 	if err != nil {
 		ds.Close()
 		cancel()
@@ -87,7 +94,8 @@ func DefaultThreadservice(listenPort int, repoPath string, debug bool) (Threadse
 
 	// Build a threadservice
 	api, err := t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
-		Debug: debug,
+		Debug:     config.Debug,
+		ProxyAddr: fmt.Sprintf("0.0.0.0:%d", config.ProxyPort),
 	})
 	if err != nil {
 		ds.Close()
@@ -101,6 +109,35 @@ func DefaultThreadservice(listenPort int, repoPath string, debug bool) (Threadse
 		litepeer:      lite,
 		ds:            ds,
 	}, nil
+}
+
+type Config struct {
+	ListenPort int
+	ProxyPort  int
+	Debug      bool
+}
+
+type Option func(c *Config) error
+
+func ListenPort(port int) Option {
+	return func(c *Config) error {
+		c.ListenPort = port
+		return nil
+	}
+}
+
+func ProxyPort(port int) Option {
+	return func(c *Config) error {
+		c.ProxyPort = port
+		return nil
+	}
+}
+
+func Debug(enabled bool) Option {
+	return func(c *Config) error {
+		c.Debug = enabled
+		return nil
+	}
 }
 
 type tservBoostraper struct {

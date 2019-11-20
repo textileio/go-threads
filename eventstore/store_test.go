@@ -19,7 +19,7 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir1, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
-	ts1, err := DefaultThreadservice(0, tmpDir1, false)
+	ts1, err := DefaultThreadservice(tmpDir1, ProxyPort(0))
 	checkErr(t, err)
 	ts1.Bootstrap(util.DefaultBoostrapPeers())
 	defer ts1.Close()
@@ -53,7 +53,7 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	ts2, err := DefaultThreadservice(0, tmpDir2, false)
+	ts2, err := DefaultThreadservice(tmpDir2, ProxyPort(0))
 	checkErr(t, err)
 	ts2.Bootstrap(util.DefaultBoostrapPeers())
 	defer ts2.Close()
@@ -80,7 +80,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	ts, err := DefaultThreadservice(0, tmpDir, false)
+	ts, err := DefaultThreadservice(tmpDir, ProxyPort(0))
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
@@ -100,7 +100,7 @@ func TestOptions(t *testing.T) {
 	s.Close()
 
 	time.Sleep(time.Second * 3)
-	ts, err = DefaultThreadservice(0, tmpDir, false)
+	ts, err = DefaultThreadservice(tmpDir, ProxyPort(0))
 	checkErr(t, err)
 	defer ts.Close()
 	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))

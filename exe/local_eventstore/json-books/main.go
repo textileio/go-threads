@@ -114,7 +114,7 @@ func main() {
 func createJsonModeMemStore() (*es.Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	ts, err := es.DefaultThreadservice(0, dir, false)
+	ts, err := es.DefaultThreadservice(dir, es.ProxyPort(0))
 	checkErr(err)
 	s, err := es.NewStore(ts, es.WithRepoPath(dir), es.WithJsonMode(true))
 	checkErr(err)

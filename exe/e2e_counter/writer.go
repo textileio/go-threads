@@ -21,7 +21,7 @@ type myCounter struct {
 func runWriterPeer(repo string, port int) {
 	fmt.Printf("I'm a writer\n")
 
-	ts, err := es.DefaultThreadservice(0, repo, false)
+	ts, err := es.DefaultThreadservice(repo, es.ProxyPort(0))
 	checkErr(err)
 	defer ts.Close()
 	store, err := es.NewStore(ts, es.WithRepoPath(repo))
