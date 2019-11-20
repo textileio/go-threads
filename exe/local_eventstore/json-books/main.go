@@ -105,7 +105,7 @@ func main() {
 
 		exists, err = model.Has(entityID)
 		checkErr(err)
-		if !exists {
+		if exists {
 			panic("instance shouldn't exist")
 		}
 	}
@@ -114,9 +114,16 @@ func main() {
 func createJsonModeMemStore() (*es.Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	s, err := es.NewStore(es.WithRepoPath(dir), es.WithJsonMode(true))
+	ts, err := es.DefaultThreadservice(dir, es.ProxyPort(0))
 	checkErr(err)
-	return s, func() { os.RemoveAll(dir) }
+	s, err := es.NewStore(ts, es.WithRepoPath(dir), es.WithJsonMode(true))
+	checkErr(err)
+	return s, func() {
+		if err := ts.Close(); err != nil {
+			panic(err)
+		}
+		os.RemoveAll(dir)
+	}
 }
 
 func checkErr(err error) {

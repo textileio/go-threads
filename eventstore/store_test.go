@@ -1,7 +1,6 @@
 package eventstore
 
 import (
-	"context"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
+	"github.com/textileio/go-textile-threads/util"
 )
 
 func TestE2EWithThreads(t *testing.T) {
@@ -19,7 +19,12 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir1, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
-	s1, err := NewStore(WithRepoPath(tmpDir1), WithListenPort(8005))
+	ts1, err := DefaultThreadservice(tmpDir1, ProxyPort(0))
+	checkErr(t, err)
+	ts1.Bootstrap(util.DefaultBoostrapPeers())
+	defer ts1.Close()
+
+	s1, err := NewStore(ts1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer s1.Close()
 	m1, err := s1.Register("dummy", &dummyModel{})
@@ -48,7 +53,12 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	s2, err := NewStore(WithRepoPath(tmpDir2), WithListenPort(8006))
+	ts2, err := DefaultThreadservice(tmpDir2, ProxyPort(0))
+	checkErr(t, err)
+	ts2.Bootstrap(util.DefaultBoostrapPeers())
+	defer ts2.Close()
+
+	s2, err := NewStore(ts2, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer s2.Close()
 	m2, err := s2.Register("dummy", &dummyModel{})
@@ -70,11 +80,11 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	ts, err := newDefaultThreadservice(ctx, 8008, tmpDir, true)
+	ts, err := DefaultThreadservice(tmpDir, ProxyPort(0))
 	checkErr(t, err)
+
 	ec := &mockEventCodec{}
-	s, err := NewStore(WithDebug(true), WithEventCodec(ec), WithListenPort(8008), WithRepoPath(tmpDir), WithThreadservice(ts))
+	s, err := NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := s.Register("dummy", &dummyModel{})
@@ -86,14 +96,16 @@ func TestOptions(t *testing.T) {
 	}
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
+	ts.Close()
 	s.Close()
-	cancel()
 
-	time.Sleep(time.Second * 1)
-	ts, err = newDefaultThreadservice(context.Background(), 8008, tmpDir, true)
+	time.Sleep(time.Second * 3)
+	ts, err = DefaultThreadservice(tmpDir, ProxyPort(0))
 	checkErr(t, err)
-	_, err = NewStore(WithDebug(true), WithEventCodec(ec), WithListenPort(8008), WithRepoPath(tmpDir), WithThreadservice(ts))
+	defer ts.Close()
+	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
+	defer s.Close()
 }
 
 type dummyModel struct {

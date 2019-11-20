@@ -15,7 +15,10 @@ func runReaderPeer(repo string, port int) {
 	fmt.Printf("I'm a model reader.\n")
 	writerAddr, fkey, rkey := getWriterAddr()
 
-	store, err := es.NewStore(es.WithRepoPath(repo), es.WithDebug(true))
+	ts, err := es.DefaultThreadservice(repo, es.ProxyPort(0))
+	checkErr(err)
+	defer ts.Close()
+	store, err := es.NewStore(ts, es.WithRepoPath(repo))
 	checkErr(err)
 	defer store.Close()
 

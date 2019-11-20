@@ -31,7 +31,7 @@ type Comment struct {
 }
 
 func TestMain(m *testing.M) {
-	logging.SetLogLevel("*", "debug")
+	logging.SetLogLevel("*", "error")
 	os.Exit(m.Run())
 }
 
@@ -399,7 +399,14 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 func createTestStore(t *testing.T) (*Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	s, err := NewStore(WithRepoPath(dir))
+	ts, err := DefaultThreadservice(dir, ProxyPort(0))
 	checkErr(t, err)
-	return s, func() { os.RemoveAll(dir) }
+	s, err := NewStore(ts, WithRepoPath(dir))
+	checkErr(t, err)
+	return s, func() {
+		if err := ts.Close(); err != nil {
+			panic(err)
+		}
+		os.RemoveAll(dir)
+	}
 }

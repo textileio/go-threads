@@ -2,6 +2,8 @@ package util
 
 import (
 	"crypto/rand"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +19,14 @@ import (
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	logger "github.com/whyrusleeping/go-logging"
 	"gopkg.in/natefinch/lumberjack.v2"
+)
+
+var (
+	bootstrapPeers = []string{
+		"/ip4/104.210.43.77/tcp/4001/ipfs/12D3KooWSdGmRz5JQidqrtmiPGVHkStXpbSAMnbCcW8abq6zuiDP", // us-west
+		"/ip4/20.39.232.27/tcp/4001/ipfs/12D3KooWLnUv9MWuRM6uHirRPBM4NwRj54n4gNNnBtiFiwPiv3Up",  // eu-west
+		"/ip4/34.87.103.105/tcp/4001/ipfs/12D3KooWA5z2C3z1PNKi36Bw1MxZhBD8nv7UbB7YQP6WcSWYNwRQ", // as-southeast
+	}
 )
 
 // CreateThread creates a new set of keys.
@@ -198,4 +208,54 @@ func SetLogLevels(systems map[string]logger.Level) error {
 		}
 	}
 	return nil
+}
+
+func LoadKey(pth string) ic.PrivKey {
+	var priv ic.PrivKey
+	_, err := os.Stat(pth)
+	if os.IsNotExist(err) {
+		priv, _, err = ic.GenerateKeyPair(ic.Ed25519, 0)
+		if err != nil {
+			panic(err)
+		}
+		key, err := ic.MarshalPrivateKey(priv)
+		if err != nil {
+			panic(err)
+		}
+		if err = ioutil.WriteFile(pth, key, 0400); err != nil {
+			panic(err)
+		}
+	} else if err != nil {
+		panic(err)
+	} else {
+		key, err := ioutil.ReadFile(pth)
+		if err != nil {
+			panic(err)
+		}
+		priv, err = ic.UnmarshalPrivateKey(key)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return priv
+}
+
+func DefaultBoostrapPeers() []peer.AddrInfo {
+	ais, err := ParseBootstrapPeers(bootstrapPeers)
+	if err != nil {
+		panic("coudn't parse default bootstrap peers")
+	}
+	return ais
+}
+
+func ParseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
+	maddrs := make([]ma.Multiaddr, len(addrs))
+	for i, addr := range addrs {
+		var err error
+		maddrs[i], err = ma.NewMultiaddr(addr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return peer.AddrInfosFromP2pAddrs(maddrs...)
 }

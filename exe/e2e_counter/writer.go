@@ -7,8 +7,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/thread"
 	core "github.com/textileio/go-textile-core/store"
+	"github.com/textileio/go-textile-core/thread"
 	es "github.com/textileio/go-textile-threads/eventstore"
 )
 
@@ -21,7 +21,10 @@ type myCounter struct {
 func runWriterPeer(repo string, port int) {
 	fmt.Printf("I'm a writer\n")
 
-	store, err := es.NewStore(es.WithRepoPath(repo), es.WithDebug(true))
+	ts, err := es.DefaultThreadservice(repo, es.ProxyPort(0))
+	checkErr(err)
+	defer ts.Close()
+	store, err := es.NewStore(ts, es.WithRepoPath(repo))
 	checkErr(err)
 	defer store.Close()
 
