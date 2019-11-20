@@ -691,7 +691,6 @@ func (t *threads) getLocalRecords(
 }
 
 // startPulling periodically pulls on all threads.
-// @todo: Ensure that a thread is not pulled concurrently (#26).
 func (t *threads) startPulling() {
 	pull := func() {
 		ts, err := t.store.Threads()
@@ -708,8 +707,12 @@ func (t *threads) startPulling() {
 		}
 	}
 	timer := time.NewTimer(InitialPullInterval)
-	<-timer.C
-	pull()
+	select {
+	case <-timer.C:
+		pull()
+	case <-t.ctx.Done():
+		return
+	}
 
 	tick := time.NewTicker(PullInterval)
 	defer tick.Stop()

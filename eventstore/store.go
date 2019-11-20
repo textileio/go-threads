@@ -61,13 +61,11 @@ type Store struct {
 
 	localEventsBus *localEventsBus
 	stateChanged   *stateChangedNotifee
-
-	ownThreadService bool
 }
 
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewStore(opts ...StoreOption) (*Store, error) {
+func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, error) {
 	config := &StoreConfig{}
 	for _, opt := range opts {
 		opt(config)
@@ -89,30 +87,18 @@ func NewStore(opts ...StoreOption) (*Store, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ownThreadService := false
-	if config.Threadservice == nil {
-		ownThreadService = true
-		ts, err := newDefaultThreadservice(ctx, config.ListenPort, config.RepoPath, config.Debug)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-		config.Threadservice = ts
-	}
-
 	s := &Store{
-		ctx:              ctx,
-		cancel:           cancel,
-		datastore:        config.Datastore,
-		dispatcher:       newDispatcher(config.Datastore),
-		eventcodec:       config.EventCodec,
-		models:           make(map[reflect.Type]*Model),
-		modelNames:       make(map[string]struct{}),
-		jsonMode:         config.JsonMode,
-		localEventsBus:   &localEventsBus{bus: broadcast.NewBroadcaster(0)},
-		stateChanged:     &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
-		threadservice:    config.Threadservice,
-		ownThreadService: ownThreadService,
+		ctx:            ctx,
+		cancel:         cancel,
+		datastore:      config.Datastore,
+		dispatcher:     newDispatcher(config.Datastore),
+		eventcodec:     config.EventCodec,
+		models:         make(map[reflect.Type]*Model),
+		modelNames:     make(map[string]struct{}),
+		jsonMode:       config.JsonMode,
+		localEventsBus: &localEventsBus{bus: broadcast.NewBroadcaster(0)},
+		stateChanged:   &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
+		threadservice:  ts,
 	}
 	return s, nil
 }
@@ -258,9 +244,6 @@ func (s *Store) Close() {
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
 	s.datastore.Close()
-	if s.ownThreadService {
-		s.threadservice.Close()
-	}
 }
 
 func (s *Store) notifyStateChanged() error {
