@@ -103,7 +103,7 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		return nil, err
 	}
 
-	return &tservBoostraper{
+	return &tservBoostrapper{
 		cancel:        cancel,
 		Threadservice: api,
 		litepeer:      lite,
@@ -140,20 +140,20 @@ func Debug(enabled bool) Option {
 	}
 }
 
-type tservBoostraper struct {
+type tservBoostrapper struct {
 	cancel context.CancelFunc
 	tserv.Threadservice
 	litepeer *ipfslite.Peer
 	ds       datastore.Datastore
 }
 
-var _ ThreadserviceBoostrapper = (*tservBoostraper)(nil)
+var _ ThreadserviceBoostrapper = (*tservBoostrapper)(nil)
 
-func (tsb *tservBoostraper) Bootstrap(addrs []peer.AddrInfo) {
+func (tsb *tservBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
 	tsb.litepeer.Bootstrap(addrs)
 }
 
-func (tsb *tservBoostraper) Close() error {
+func (tsb *tservBoostrapper) Close() error {
 	tsb.cancel()
 	if err := tsb.ds.Close(); err != nil {
 		return err
