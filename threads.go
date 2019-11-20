@@ -234,6 +234,18 @@ func (t *threads) AddThread(
 		return
 	}
 
+	threadMultiaddr, err := ma.NewComponent("thread", idstr)
+	if err != nil {
+		return
+	}
+	peerAddr := addr.Decapsulate(threadMultiaddr)
+	addri, err := peer.AddrInfoFromP2pAddr(peerAddr)
+	if err != nil {
+		return
+	}
+	if err = t.Host().Connect(ctx, *addri); err != nil {
+		return
+	}
 	lgs, err := t.service.getLogs(ctx, id, pid)
 	if err != nil {
 		return
