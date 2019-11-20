@@ -56,7 +56,7 @@ type Store struct {
 
 	lock       sync.RWMutex
 	models     map[reflect.Type]*Model
-	modelNames map[string]struct{}
+	modelNames map[string]*Model
 	jsonMode   bool
 
 	localEventsBus *localEventsBus
@@ -68,7 +68,9 @@ type Store struct {
 func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, error) {
 	config := &StoreConfig{}
 	for _, opt := range opts {
-		opt(config)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath)
@@ -94,7 +96,7 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 		dispatcher:     newDispatcher(config.Datastore),
 		eventcodec:     config.EventCodec,
 		models:         make(map[reflect.Type]*Model),
-		modelNames:     make(map[string]struct{}),
+		modelNames:     make(map[string]*Model),
 		jsonMode:       config.JsonMode,
 		localEventsBus: &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChanged:   &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
@@ -181,11 +183,12 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 
 	m := newModel(name, defaultInstance, s)
 	s.models[m.valueType] = m
-	s.modelNames[name] = struct{}{}
+	s.modelNames[name] = m
 	s.dispatcher.Register(m)
 	return m, nil
 }
 
+// Register a new model in the store with a JSON schema.
 func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -195,8 +198,13 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	}
 
 	m := newModelFromSchema(name, schema, s)
+	s.modelNames[name] = m
 	s.dispatcher.Register(m)
 	return m, nil
+}
+
+func (s *Store) GetModel(name string) *Model {
+	return s.modelNames[name]
 }
 
 // StateChangeListen returns a listener which notifies when store state
@@ -243,7 +251,7 @@ func (s *Store) Close() {
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
-	s.datastore.Close()
+	_ = s.datastore.Close()
 }
 
 func (s *Store) notifyStateChanged() error {

@@ -1,0 +1,32 @@
+syntax = "proto3";
+package api.pb;
+
+message NewStoreRequest {}
+
+message NewStoreReply {
+    string ID = 1;
+}
+
+message RegisterSchemaRequest {
+    string storeID = 1;
+    string name = 2;
+    string schema = 3;
+}
+
+message RegisterSchemaReply {}
+
+message ModelCreateRequest {
+    string storeID = 1;
+    string modelName = 2;
+    repeated string values = 3;
+}
+
+message ModelCreateReply {
+    repeated string entityIDs = 1;
+}
+
+service API {
+    rpc NewStore(NewStoreRequest) returns (NewStoreReply) {}
+    rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
+    rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
+}

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	logging "github.com/ipfs/go-log"
+	"github.com/textileio/go-textile-threads/api"
 	"github.com/textileio/go-textile-threads/exe/util"
 )
 
@@ -17,15 +19,23 @@ func main() {
 	flag.Parse()
 
 	if err := logging.SetLogLevel("daemon", "debug"); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	_, cancel, ds, h, dht, api := util.Build(*repo, *port, *proxyAddr, true)
+	_, cancel, ds, h, dht, ts := util.Build(*repo, *port, *proxyAddr, true)
 
 	defer cancel()
 	defer dht.Close()
-	defer api.Close()
+	defer ts.Close()
 	defer ds.Close()
+
+	server, err := api.NewServer(context.Background(), ds, ts, api.Options{
+		Debug: true,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer server.Close()
 
 	fmt.Println("Welcome to Threads!")
 	fmt.Println("Your peer ID is " + h.ID().String())

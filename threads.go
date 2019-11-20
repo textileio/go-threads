@@ -115,8 +115,10 @@ func NewThreads(
 	if err != nil {
 		return nil, err
 	}
-	go t.rpc.Serve(listener)
-	pb.RegisterThreadsServer(t.rpc, t.service)
+	go func() {
+		pb.RegisterThreadsServer(t.rpc, t.service)
+		t.rpc.Serve(listener)
+	}()
 
 	// Start a web RPC proxy
 	webrpc := grpcweb.WrapServer(t.rpc)
@@ -130,7 +132,6 @@ func NewThreads(
 		if webrpc.IsGrpcWebRequest(r) {
 			webrpc.ServeHTTP(w, r)
 		}
-		http.DefaultServeMux.ServeHTTP(w, r) // fallback
 	})
 
 	errc := make(chan error)
