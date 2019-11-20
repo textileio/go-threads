@@ -9,7 +9,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
-	"github.com/textileio/go-textile-threads/util"
 )
 
 func TestE2EWithThreads(t *testing.T) {
@@ -21,7 +20,6 @@ func TestE2EWithThreads(t *testing.T) {
 	defer os.RemoveAll(tmpDir1)
 	ts1, err := DefaultThreadservice(tmpDir1, ProxyPort(0))
 	checkErr(t, err)
-	ts1.Bootstrap(util.DefaultBoostrapPeers())
 	defer ts1.Close()
 
 	s1, err := NewStore(ts1, WithRepoPath(tmpDir1))
@@ -55,7 +53,6 @@ func TestE2EWithThreads(t *testing.T) {
 	defer os.RemoveAll(tmpDir2)
 	ts2, err := DefaultThreadservice(tmpDir2, ProxyPort(0))
 	checkErr(t, err)
-	ts2.Bootstrap(util.DefaultBoostrapPeers())
 	defer ts2.Close()
 
 	s2, err := NewStore(ts2, WithRepoPath(tmpDir2))
