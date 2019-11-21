@@ -11,7 +11,6 @@ require (
 	github.com/gogo/status v1.1.0
 	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1
-	github.com/gorilla/websocket v1.4.1
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hsanjuan/ipfs-lite v0.1.6
 	github.com/improbable-eng/grpc-web v0.11.0
@@ -32,7 +31,7 @@ require (
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
 	github.com/libp2p/go-libp2p-core v0.2.3
 	github.com/libp2p/go-libp2p-gostream v0.2.0
-	github.com/libp2p/go-libp2p-kad-dht v0.3.0
+	github.com/libp2p/go-libp2p-kad-dht v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/libp2p/go-libp2p-pubsub v0.1.1
 	github.com/libp2p/go-libp2p-swarm v0.2.2
