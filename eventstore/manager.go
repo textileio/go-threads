@@ -3,11 +3,14 @@ package eventstore
 import (
 	"io"
 
+	"github.com/textileio/go-textile-threads/util"
+
 	"github.com/google/uuid"
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/textileio/go-textile-core/threadservice"
+	logger "github.com/whyrusleeping/go-logging"
 )
 
 var (
@@ -23,7 +26,7 @@ type Manager struct {
 	stores        map[uuid.UUID]*Store
 }
 
-// NewManager hydrates stores from prefixes and start them.
+// NewManager hydrates stores from prefixes and starts them.
 func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, error) {
 	config := &StoreConfig{}
 	for _, opt := range opts {
@@ -39,8 +42,11 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 		}
 		config.Datastore = datastore
 	}
-
-	// @todo: handle debug here or in store?
+	if config.Debug {
+		if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
+			return nil, err
+		}
+	}
 
 	m := &Manager{
 		config:        config,
@@ -59,20 +65,18 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 
 	for res := range q.Next() {
 		idStr := ds.RawKey(res.Key).Parent().Parent().Parent().Parent().Name() // reaching for the stars here
-		if idStr == "" {
-			continue
-		}
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			return nil, err
+			continue
 		}
-		s, err := newStore(m.threadservice, m.config)
+		if _, ok := m.stores[id]; ok {
+			continue
+		}
+		s, err := newStore(m.threadservice, getStoreConfig(id, m.config))
 		if err != nil {
 			return nil, err
 		}
-		s.datastore = kt.Wrap(s.datastore, kt.PrefixTransform{
-			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
-		})
+		// @todo: Consider edge cases where models are irrecoverable.
 		if err = s.Start(); err != nil {
 			return nil, err
 		}
@@ -88,13 +92,10 @@ func (m *Manager) NewStore() (id uuid.UUID, store *Store, err error) {
 	if err != nil {
 		return
 	}
-	store, err = newStore(m.threadservice, m.config)
+	store, err = newStore(m.threadservice, getStoreConfig(id, m.config))
 	if err != nil {
 		return
 	}
-	store.datastore = kt.Wrap(store.datastore, kt.PrefixTransform{
-		Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
-	})
 
 	m.stores[id] = store
 	return id, store, nil
@@ -111,4 +112,18 @@ func (m *Manager) Close() (err error) {
 		s.Close()
 	}
 	return m.config.Datastore.Close()
+}
+
+// getStoreConfig copies the manager's base config and
+// wraps the datastore with an id prefix.
+func getStoreConfig(id uuid.UUID, base *StoreConfig) *StoreConfig {
+	return &StoreConfig{
+		RepoPath: base.RepoPath,
+		Datastore: kt.Wrap(base.Datastore, kt.PrefixTransform{
+			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
+		}),
+		EventCodec: base.EventCodec,
+		JsonMode:   base.JsonMode,
+		Debug:      base.Debug,
+	}
 }

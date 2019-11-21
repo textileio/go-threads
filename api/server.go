@@ -20,6 +20,7 @@ var (
 	log = logging.Logger("api")
 )
 
+// Server provides a gRPC API to a store manager.
 type Server struct {
 	rpc     *grpc.Server
 	proxy   *http.Server
@@ -29,6 +30,7 @@ type Server struct {
 	cancel context.CancelFunc
 }
 
+// Config specifies server settings.
 type Config struct {
 	RepoPath  string
 	Addr      string // defaults to 0.0.0.0:9090
@@ -36,6 +38,8 @@ type Config struct {
 	Debug     bool
 }
 
+// NewServer starts and returns a new server with the given threadservice.
+// The threadservice is *not* managed by the server.
 func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Server, error) {
 	var err error
 	if conf.Debug {
@@ -121,6 +125,7 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 	return s, nil
 }
 
+// Close the server and the store manager.
 func (s *Server) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

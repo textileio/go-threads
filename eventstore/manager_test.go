@@ -47,8 +47,7 @@ func TestManager_GetStore(t *testing.T) {
 		t.Fatal("store not found")
 	}
 
-	// Register a model so that a key is saved in the datastore
-	// under the manager prefix
+	// Register a model and start
 	model, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 	newPerson := &Person{Name: "Foo", Age: 21}

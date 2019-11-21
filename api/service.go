@@ -10,10 +10,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// service is a gRPC service for a store manager.
 type service struct {
 	manager *es.Manager
 }
 
+// NewStore adds a new store into the manager.
 func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.NewStoreReply, error) {
 	log.Debugf("received new store request")
 
@@ -27,6 +29,7 @@ func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.Ne
 	}, nil
 }
 
+// RegisterSchema registers a JSON schema with a store.
 func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
 	log.Debugf("received register schema request in store %s", req.StoreID)
 
@@ -41,6 +44,7 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 	return &pb.RegisterSchemaReply{}, nil
 }
 
+// ModelCreate adds a new instance of a model to a store.
 func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
 	log.Debugf("received model create request for model %s", req.ModelName)
 

@@ -75,6 +75,8 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 	return newStore(ts, config)
 }
 
+// newStore is used directly by a store manager to create new stores
+// with the same config.
 func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath)
@@ -86,9 +88,11 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 	if config.EventCodec == nil {
 		config.EventCodec = newDefaultEventCodec(config.JsonMode)
 	}
-	if config.Debug {
-		if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
-			return nil, err
+	if !managedDatastore(config.Datastore) {
+		if config.Debug {
+			if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -108,6 +112,7 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 	return s, nil
 }
 
+// ThreadID returns the store's theadID if it exists.
 func (s *Store) ThreadID() (thread.ID, bool, error) {
 	v, err := s.datastore.Get(dsStoreThreadID)
 	if err == ds.ErrNotFound {
@@ -205,6 +210,7 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	return m, nil
 }
 
+// GetModel returns a model by name.
 func (s *Store) GetModel(name string) *Model {
 	return s.modelNames[name]
 }
@@ -253,9 +259,16 @@ func (s *Store) Close() {
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
-	if _, ok := s.datastore.(kt.KeyTransform); !ok {
+	if !managedDatastore(s.datastore) {
 		_ = s.datastore.Close()
 	}
+}
+
+// managedDatastore returns whether or not the datastore is
+// being wrapped by an external datastore.
+func managedDatastore(ds ds.Datastore) bool {
+	_, ok := ds.(kt.KeyTransform)
+	return ok
 }
 
 func (s *Store) notifyStateChanged() error {
