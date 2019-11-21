@@ -141,8 +141,11 @@ func NewThreads(
 	}()
 	go func() {
 		for err := range errc {
-			if err != nil && err != http.ErrServerClosed {
+			if err != nil {
 				log.Errorf("proxy error: %s", err)
+				if err == http.ErrServerClosed {
+					break
+				}
 			}
 		}
 		log.Info("proxy was shutdown")

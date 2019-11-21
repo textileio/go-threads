@@ -15,10 +15,8 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
-	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
-	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	"github.com/mr-tron/base58"
@@ -27,18 +25,16 @@ import (
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	t "github.com/textileio/go-textile-threads"
 	"github.com/textileio/go-textile-threads/cbor"
-	"github.com/textileio/go-textile-threads/exe/util"
-	tutil "github.com/textileio/go-textile-threads/util"
-	"github.com/textileio/go-textile-threads/ws"
+	es "github.com/textileio/go-textile-threads/eventstore"
+	util "github.com/textileio/go-textile-threads/util"
 )
 
 var (
 	ctx      context.Context
 	ds       datastore.Batching
-	api      tserv.Threadservice
+	api      es.ThreadserviceBoostrapper
 	threadID thread.ID
 
 	grey  = color.New(color.FgHiBlack).SprintFunc()
@@ -73,46 +69,37 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
-	port := flag.Int("port", 4006, "host port")
-	proxyAddr := flag.String("proxy", "", "proxy server address")
-	wsAddr := flag.String("ws", "", "web socket server address")
+	listenPort := flag.Int("port", 4006, "host port")
+	proxyPort := flag.Int("proxyPort", 5050, "grpc proxy port")
 	flag.Parse()
 
 	if err := logging.SetLogLevel("shell", "debug"); err != nil {
 		panic(err)
 	}
 
-	var cancel context.CancelFunc
-	var h host.Host
-	var dht *kaddht.IpfsDHT
-	ctx, cancel, ds, h, dht, api = util.Build(*repo, *port, *proxyAddr, true)
-
-	defer cancel()
-	defer dht.Close()
+	var err error
+	api, err = es.DefaultThreadservice(
+		*repo,
+		es.ListenPort(*listenPort),
+		es.ProxyPort(*proxyPort),
+		es.Debug(true))
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer api.Close()
-	defer ds.Close()
+	api.Bootstrap(util.DefaultBoostrapPeers())
 
 	// Build a MDNS service
-	mdns, err := discovery.NewMdnsService(ctx, h, time.Second, "")
+	mdns, err := discovery.NewMdnsService(ctx, api.Host(), time.Second, "")
 	if err != nil {
 		panic(err)
 	}
 	defer mdns.Close()
 	mdns.RegisterNotifee(&notifee{})
 
-	// Start a web socket server
-	if *wsAddr == "" {
-		*wsAddr = "0.0.0.0:8080"
-	}
-	wsServer := ws.NewServer(ctx, api, *wsAddr)
-	defer wsServer.Close()
-	if err = logging.SetLogLevel("ws", "debug"); err != nil {
-		panic(err)
-	}
-
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))
-	fmt.Println(grey("Your peer ID is ") + green(h.ID().String()))
+	fmt.Println(grey("Your peer ID is ") + green(api.Host().ID().String()))
 
 	sub := api.Subscribe()
 	go func() {
@@ -364,13 +351,13 @@ func addCmd(args []string) (out string, err error) {
 
 	var fk, rk *sym.Key
 	if len(args) > 2 {
-		fk, err = tutil.DecodeKey(args[2])
+		fk, err = util.DecodeKey(args[2])
 		if err != nil {
 			return "", err
 		}
 	}
 	if len(args) > 3 {
-		rk, err = tutil.DecodeKey(args[3])
+		rk, err = util.DecodeKey(args[3])
 		if err != nil {
 			return "", err
 		}
@@ -387,7 +374,7 @@ func addCmd(args []string) (out string, err error) {
 
 	var id thread.ID
 	if addr != nil {
-		if !tutil.CanDial(addr, api.Host().Network().(*swarm.Swarm)) {
+		if !util.CanDial(addr, api.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
 		}
 		info, err := api.AddThread(ctx, addr, options.FollowKey(fk), options.ReadKey(rk))
@@ -396,7 +383,7 @@ func addCmd(args []string) (out string, err error) {
 		}
 		id = info.ID
 	} else {
-		th, err := tutil.CreateThread(api, thread.NewIDV1(thread.Raw, 32))
+		th, err := util.CreateThread(api, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			return "", err
 		}
@@ -446,7 +433,7 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 }
 
 func threadAddressCmd(id thread.ID) (out string, err error) {
-	lg, err := tutil.GetOwnLog(api, id)
+	lg, err := util.GetOwnLog(api, id)
 	if err != nil {
 		return
 	}
@@ -515,7 +502,7 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 		return
 	}
 
-	pid, err := tutil.AddPeerFromAddress(addrStr, api.Host().Peerstore())
+	pid, err := util.AddPeerFromAddress(addrStr, api.Host().Peerstore())
 	if err != nil {
 		return
 	}
