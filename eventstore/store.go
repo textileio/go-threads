@@ -55,7 +55,6 @@ type Store struct {
 	threadservice threadservice.Threadservice
 
 	lock       sync.RWMutex
-	models     map[reflect.Type]*Model
 	modelNames map[string]*Model
 	jsonMode   bool
 
@@ -99,7 +98,6 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 		datastore:      config.Datastore,
 		dispatcher:     newDispatcher(config.Datastore),
 		eventcodec:     config.EventCodec,
-		models:         make(map[reflect.Type]*Model),
 		modelNames:     make(map[string]*Model),
 		jsonMode:       config.JsonMode,
 		localEventsBus: &localEventsBus{bus: broadcast.NewBroadcaster(0)},
@@ -186,7 +184,6 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	}
 
 	m := newModel(name, defaultInstance, s)
-	s.models[m.valueType] = m
 	s.modelNames[name] = m
 	s.dispatcher.Register(m)
 	return m, nil

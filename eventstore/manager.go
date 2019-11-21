@@ -1,7 +1,6 @@
 package eventstore
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/google/uuid"
@@ -59,19 +58,19 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 	defer q.Close()
 
 	for res := range q.Next() {
-		id := ds.RawKey(res.Key).Parent().Name()
-		fmt.Println(id)
-
-		//s, err := NewStore(m.opts...)
-		//if err != nil {
-		//	return nil, err
-		//}
-
-		//store.datastore = kt.Wrap(store.datastore, kt.PrefixTransform{
-		//	Prefix: res.Key,
-		//})
-		//
-		//m.stores[id] = store
+		idStr := ds.RawKey(res.Key).Parent().Parent().Parent().Parent().Name() // reaching for the stars here
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			return nil, err
+		}
+		s, err := newStore(m.threadservice, m.config)
+		if err != nil {
+			return nil, err
+		}
+		s.datastore = kt.Wrap(s.datastore, kt.PrefixTransform{
+			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
+		})
+		m.stores[id] = s
 	}
 
 	return m, nil
@@ -79,12 +78,11 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 
 // NewStore creates a new store and prefix its datastore with base key.
 func (m *Manager) NewStore() (id uuid.UUID, store *Store, err error) {
-	store, err = newStore(m.threadservice, m.config)
+	id, err = uuid.NewRandom()
 	if err != nil {
 		return
 	}
-
-	id, err = uuid.NewRandom()
+	store, err = newStore(m.threadservice, m.config)
 	if err != nil {
 		return
 	}
