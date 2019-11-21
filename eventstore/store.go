@@ -12,6 +12,7 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
+	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
@@ -38,6 +39,7 @@ var (
 	log             = logging.Logger("store")
 	dsStorePrefix   = ds.NewKey("/store")
 	dsStoreThreadID = dsStorePrefix.ChildString("threadid")
+	dsStoreSchemas  = dsStorePrefix.ChildString("schema")
 )
 
 // Store is the aggregate-root of events and state. External/remote events
@@ -109,7 +111,33 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 		stateChanged:   &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
 		threadservice:  ts,
 	}
+
+	if s.jsonMode {
+		if err := s.reregisterSchemas(); err != nil {
+			return nil, err
+		}
+	}
+
 	return s, nil
+}
+
+// reregisterSchemas loads and registers schemas from the datastore.
+func (s *Store) reregisterSchemas() error {
+	results, err := s.datastore.Query(query.Query{
+		Prefix: dsStoreSchemas.String(),
+	})
+	if err != nil {
+		return err
+	}
+	defer results.Close()
+
+	for res := range results.Next() {
+		name := ds.RawKey(res.Key).Name()
+		if _, err = s.RegisterSchema(name, string(res.Value)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ThreadID returns the store's theadID if it exists.
@@ -205,6 +233,16 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	}
 
 	m := newModelFromSchema(name, schema, s)
+	key := dsStoreSchemas.ChildString(name)
+	exists, err := s.datastore.Has(key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		if err := s.datastore.Put(key, []byte(schema)); err != nil {
+			return nil, err
+		}
+	}
 	s.modelNames[name] = m
 	s.dispatcher.Register(m)
 	return m, nil
