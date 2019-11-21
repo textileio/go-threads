@@ -6,9 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-textile-core/store"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"google.golang.org/grpc/codes"
@@ -16,29 +14,16 @@ import (
 )
 
 type service struct {
-	datastore ds.Datastore
-	threads   tserv.Threadservice
-
-	storeManager
+	manager *es.Manager
 }
 
 func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.NewStoreReply, error) {
 	log.Debugf("received new store request")
 
-	store, err := es.NewStore(
-		es.WithDatastore(s.datastore),
-		es.WithThreadservice(s.threads),
-		es.WithJsonMode(true),
-		es.WithDebug(true))
+	id, _, err := s.manager.NewStore()
 	if err != nil {
 		return nil, err
 	}
-
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-	s.stores[id.String()] = store
 
 	return &pb.NewStoreReply{
 		ID: id.String(),
@@ -48,13 +33,11 @@ func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.Ne
 func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
 	log.Debugf("received register schema request in store %s", req.StoreID)
 
-	store, ok := s.stores[req.StoreID]
-	if !ok {
-		return nil, status.Error(codes.NotFound, "store not found")
-	}
-
-	_, err := store.RegisterSchema(req.Name, req.Schema)
+	store, err := s.getStore(req.StoreID)
 	if err != nil {
+		return nil, err
+	}
+	if _, err = store.RegisterSchema(req.Name, req.Schema); err != nil {
 		return nil, err
 	}
 
@@ -64,9 +47,9 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
 	log.Debugf("received model create request for model %s", req.ModelName)
 
-	store, ok := s.stores[req.StoreID]
-	if !ok {
-		return nil, status.Error(codes.NotFound, "store not found")
+	store, err := s.getStore(req.StoreID)
+	if err != nil {
+		return nil, err
 	}
 
 	model := store.GetModel(req.ModelName)
@@ -82,6 +65,7 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 		return nil, err
 	}
 
+	// @todo: reply w/ full entities
 	reply := &pb.ModelCreateReply{
 		EntityIDs: make([]string, len(values)),
 	}
@@ -108,4 +92,16 @@ func getEntityID(t interface{}) (core.EntityID, error) {
 		return "", fmt.Errorf("invalid instance: invalid ID value")
 	}
 	return core.EntityID(*partial.ID), nil
+}
+
+func (s *service) getStore(idStr string) (*es.Store, error) {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil, err
+	}
+	store := s.manager.GetStore(id)
+	if store == nil {
+		return nil, status.Error(codes.NotFound, "store not found")
+	}
+	return store, nil
 }

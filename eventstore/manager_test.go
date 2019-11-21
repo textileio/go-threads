@@ -30,7 +30,14 @@ func TestManager_NewStore(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	m, err := NewManager(WithRepoPath(dir))
+	ts, err := DefaultThreadservice(dir, ProxyPort(0))
 	checkErr(t, err)
-	return m, func() { _ = os.RemoveAll(dir) }
+	m, err := NewManager(ts, WithRepoPath(dir))
+	checkErr(t, err)
+	return m, func() {
+		if err := ts.Close(); err != nil {
+			panic(err)
+		}
+		_ = os.RemoveAll(dir)
+	}
 }

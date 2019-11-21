@@ -255,7 +255,7 @@ func (s *Store) Close() {
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
-	_ = s.datastore.Close()
+	// _ = s.datastore.Close()
 }
 
 func (s *Store) notifyStateChanged() error {

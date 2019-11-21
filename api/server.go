@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	ds "github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	pb "github.com/textileio/go-textile-threads/api/pb"
@@ -31,12 +30,13 @@ type Server struct {
 }
 
 type Config struct {
+	RepoPath  string
 	Addr      string // defaults to 0.0.0.0:9090
 	ProxyAddr string // defaults to 0.0.0.0:9091
 	Debug     bool
 }
 
-func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, conf Config) (*Server, error) {
+func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Server, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logger.Level{
@@ -47,16 +47,21 @@ func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, con
 		}
 	}
 
+	manager, err := es.NewManager(
+		ts,
+		es.WithJsonMode(true),
+		es.WithRepoPath(conf.RepoPath),
+		es.WithDebug(true))
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	s := &Server{
-		rpc: grpc.NewServer(),
-		service: &service{
-			datastore: ds,
-			threads:   ts,
-			stores:    make(map[string]*es.Store), // @todo how to reload stores on start?
-		},
-		ctx:    ctx,
-		cancel: cancel,
+		rpc:     grpc.NewServer(),
+		service: &service{manager: manager},
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 
 	if conf.Addr == "" {
@@ -101,8 +106,11 @@ func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, con
 	}()
 	go func() {
 		for err := range errc {
-			if err != nil && err != http.ErrServerClosed {
+			if err != nil {
 				log.Errorf("proxy error: %s", err)
+				if err == http.ErrServerClosed {
+					return
+				}
 			}
 		}
 		log.Info("proxy was shutdown")
@@ -120,6 +128,6 @@ func (s *Server) Close() {
 	}
 
 	s.rpc.GracefulStop()
-
+	s.service.manager.Close()
 	s.cancel()
 }
