@@ -680,6 +680,11 @@ func (t *threads) getLocalRecords(
 		return recs, nil
 	}
 
+	if len(lg.Heads) == 0 {
+		log.Warning("pull found empty log")
+		return []thread.Record{}, nil
+	}
+
 	if len(lg.Heads) != 1 {
 		return nil, fmt.Errorf("log head must reference exactly one node")
 	}
