@@ -107,9 +107,10 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 	go func() {
 		for err := range errc {
 			if err != nil {
-				log.Errorf("proxy error: %s", err)
 				if err == http.ErrServerClosed {
 					break
+				} else {
+					log.Errorf("proxy error: %s", err)
 				}
 			}
 		}

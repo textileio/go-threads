@@ -142,9 +142,10 @@ func NewThreads(
 	go func() {
 		for err := range errc {
 			if err != nil {
-				log.Errorf("proxy error: %s", err)
 				if err == http.ErrServerClosed {
 					break
+				} else {
+					log.Errorf("proxy error: %s", err)
 				}
 			}
 		}

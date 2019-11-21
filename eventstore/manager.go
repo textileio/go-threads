@@ -59,6 +59,9 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 
 	for res := range q.Next() {
 		idStr := ds.RawKey(res.Key).Parent().Parent().Parent().Parent().Name() // reaching for the stars here
+		if idStr == "" {
+			continue
+		}
 		id, err := uuid.Parse(idStr)
 		if err != nil {
 			return nil, err

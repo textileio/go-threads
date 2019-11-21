@@ -55,6 +55,8 @@ func TestManager_GetStore(t *testing.T) {
 	err = model.Create(newPerson)
 	checkErr(t, err)
 	assertPersonInModel(t, model, newPerson)
+	err = store.Start()
+	checkErr(t, err)
 
 	// Close it down, restart next
 	err = man.Close()
