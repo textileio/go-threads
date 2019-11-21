@@ -19,7 +19,7 @@ type service struct {
 	datastore ds.Datastore
 	threads   tserv.Threadservice
 
-	stores map[string]*es.Store
+	storeManager
 }
 
 func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.NewStoreReply, error) {

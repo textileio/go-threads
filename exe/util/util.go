@@ -91,7 +91,7 @@ func Build(repo string, port int, proxyAddr string, debug bool) (
 
 	// Build a threadservice
 	util.SetupDefaultLoggingConfig(repop)
-	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
+	api, err = t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Config{
 		ProxyAddr: proxyAddr,
 		Debug:     debug,
 	})

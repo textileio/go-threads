@@ -29,7 +29,7 @@ func main() {
 	defer ts.Close()
 	defer ds.Close()
 
-	server, err := api.NewServer(context.Background(), ds, ts, api.Options{
+	server, err := api.NewServer(context.Background(), ds, ts, api.Config{
 		Debug: true,
 	})
 	if err != nil {

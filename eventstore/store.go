@@ -72,6 +72,10 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 			return nil, err
 		}
 	}
+	return newStore(ts, config)
+}
+
+func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath)
 		if err != nil {

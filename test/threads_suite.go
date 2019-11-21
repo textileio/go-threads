@@ -69,7 +69,7 @@ func newService(t *testing.T, listen ma.Multiaddr, proxyAddr string) tserv.Threa
 		bsrv.Blockstore(),
 		dag.NewDAGService(bsrv),
 		tstore.NewThreadstore(),
-		threads.Options{ProxyAddr: proxyAddr, Debug: true})
+		threads.Config{ProxyAddr: proxyAddr, Debug: true})
 	check(t, err)
 	return ts
 }

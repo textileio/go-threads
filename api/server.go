@@ -30,15 +30,15 @@ type Server struct {
 	cancel context.CancelFunc
 }
 
-type Options struct {
+type Config struct {
 	Addr      string // defaults to 0.0.0.0:9090
 	ProxyAddr string // defaults to 0.0.0.0:9091
 	Debug     bool
 }
 
-func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, opts Options) (*Server, error) {
+func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, conf Config) (*Server, error) {
 	var err error
-	if opts.Debug {
+	if conf.Debug {
 		err = util.SetLogLevels(map[string]logger.Level{
 			"api": logger.DEBUG,
 		})
@@ -59,10 +59,10 @@ func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, opt
 		cancel: cancel,
 	}
 
-	if opts.Addr == "" {
-		opts.Addr = "0.0.0.0:9090"
+	if conf.Addr == "" {
+		conf.Addr = "0.0.0.0:9090"
 	}
-	listener, err := net.Listen("tcp", opts.Addr)
+	listener, err := net.Listen("tcp", conf.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +80,11 @@ func NewServer(ctx context.Context, ds ds.Datastore, ts tserv.Threadservice, opt
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
 			return true
 		}))
-	if opts.ProxyAddr == "" {
-		opts.ProxyAddr = "0.0.0.0:9091"
+	if conf.ProxyAddr == "" {
+		conf.ProxyAddr = "0.0.0.0:9091"
 	}
 	s.proxy = &http.Server{
-		Addr: opts.ProxyAddr,
+		Addr: conf.ProxyAddr,
 	}
 	s.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if webrpc.IsGrpcWebRequest(r) ||
