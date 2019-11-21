@@ -11,6 +11,7 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
+	kt "github.com/ipfs/go-datastore/keytransform"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
@@ -252,7 +253,9 @@ func (s *Store) Close() {
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
-	// _ = s.datastore.Close()
+	if _, ok := s.datastore.(kt.KeyTransform); !ok {
+		_ = s.datastore.Close()
+	}
 }
 
 func (s *Store) notifyStateChanged() error {
