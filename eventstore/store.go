@@ -226,6 +226,16 @@ func (s *Store) eventFromBytes(data []byte) (core.Event, error) {
 	return s.eventcodec.EventFromBytes(data)
 }
 
+func (s *Store) startReadTxn(m *Model) *Txn {
+	s.lock.RLock()
+	return &Txn{model: m, readonly: true}
+}
+
+func (s *Store) endReadTxn(txn *Txn) {
+	s.lock.RUnlock()
+	txn.Discard()
+}
+
 func (s *Store) readTxn(m *Model, f func(txn *Txn) error) error {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -252,6 +262,21 @@ func (s *Store) notifyStateChanged() error {
 
 func (s *Store) broadcastLocalEvent(e core.Event) error {
 	return s.localEventsBus.bus.SendWithTimeout(e, busTimeout)
+}
+
+func (s *Store) startWriteTxn(m *Model) *Txn {
+	s.lock.Lock()
+	return &Txn{model: m}
+}
+
+func (s *Store) endWriteTxn(txn *Txn, commit bool) error {
+	var err error
+	if commit {
+		err = txn.Commit()
+	}
+	s.lock.Unlock()
+	txn.Discard()
+	return err
 }
 
 func (s *Store) writeTxn(m *Model, f func(txn *Txn) error) error {

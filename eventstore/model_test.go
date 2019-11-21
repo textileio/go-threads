@@ -89,6 +89,15 @@ func TestCreateInstance(t *testing.T) {
 			checkErr(t, err)
 			assertPersonInModel(t, model, newPerson)
 		})
+		t.Run("WithImperativeTx", func(t *testing.T) {
+			newPerson := &Person{Name: "Foo", Age: 42}
+			txn := model.StartWriteTxn()
+			err := txn.Create(newPerson)
+			checkErr(t, err)
+			err = model.EndWriteTxn(txn, true)
+			checkErr(t, err)
+			assertPersonInModel(t, model, newPerson)
+		})
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
@@ -97,18 +106,34 @@ func TestCreateInstance(t *testing.T) {
 		model, err := store.Register("Person", &Person{})
 		checkErr(t, err)
 
-		newPerson1 := &Person{Name: "Foo1", Age: 42}
-		newPerson2 := &Person{Name: "Foo2", Age: 43}
-		err = model.WriteTxn(func(txn *Txn) error {
-			err := txn.Create(newPerson1)
-			if err != nil {
-				return err
-			}
-			return txn.Create(newPerson2)
+		t.Run("WithTx", func(t *testing.T) {
+			newPerson1 := &Person{Name: "Foo1", Age: 42}
+			newPerson2 := &Person{Name: "Foo2", Age: 43}
+			err = model.WriteTxn(func(txn *Txn) error {
+				err := txn.Create(newPerson1)
+				if err != nil {
+					return err
+				}
+				return txn.Create(newPerson2)
+			})
+			checkErr(t, err)
+			assertPersonInModel(t, model, newPerson1)
+			assertPersonInModel(t, model, newPerson2)
 		})
-		checkErr(t, err)
-		assertPersonInModel(t, model, newPerson1)
-		assertPersonInModel(t, model, newPerson2)
+		t.Run("WithImperativeTx", func(t *testing.T) {
+			newPerson1 := &Person{Name: "Foo1", Age: 42}
+			newPerson2 := &Person{Name: "Foo2", Age: 43}
+			txn := model.StartWriteTxn()
+			err := txn.Create(newPerson1)
+			checkErr(t, err)
+			err = txn.Create(newPerson2)
+			checkErr(t, err)
+			err = model.EndWriteTxn(txn, true)
+			checkErr(t, err)
+			assertPersonInModel(t, model, newPerson1)
+			assertPersonInModel(t, model, newPerson2)
+		})
+
 	})
 
 	t.Run("WithDefinedID", func(t *testing.T) {
@@ -163,6 +188,20 @@ func TestReadTxnValidation(t *testing.T) {
 			t.Fatal("shouldn't write on read-only transaction")
 		}
 	})
+	t.Run("TryImperativeCreate", func(t *testing.T) {
+		t.Parallel()
+		store, clean := createTestStore(t)
+		defer clean()
+		m, err := store.Register("Person", &Person{})
+		checkErr(t, err)
+		p := &Person{Name: "Foo1", Age: 42}
+		txn := m.StartReadTxn()
+		err = txn.Create(p)
+		if !errors.Is(err, ErrReadonlyTx) {
+			t.Fatal("shouldn't write on read-only transaction")
+		}
+		m.EndReadTxn(txn)
+	})
 	t.Run("TrySave", func(t *testing.T) {
 		t.Parallel()
 		store, clean := createTestStore(t)
@@ -178,6 +217,21 @@ func TestReadTxnValidation(t *testing.T) {
 			t.Fatal("shouldn't write on read-only transaction")
 		}
 	})
+	t.Run("TryImperativeSave", func(t *testing.T) {
+		t.Parallel()
+		store, clean := createTestStore(t)
+		defer clean()
+		m, err := store.Register("Person", &Person{})
+		checkErr(t, err)
+		p := &Person{Name: "Foo1", Age: 42}
+		checkErr(t, m.Create(p))
+		txn := m.StartReadTxn()
+		err = txn.Save(p)
+		if !errors.Is(err, ErrReadonlyTx) {
+			t.Fatal("shouldn't write on read-only transaction")
+		}
+		m.EndReadTxn(txn)
+	})
 	t.Run("TryDelete", func(t *testing.T) {
 		t.Parallel()
 		store, clean := createTestStore(t)
@@ -192,6 +246,21 @@ func TestReadTxnValidation(t *testing.T) {
 		if !errors.Is(err, ErrReadonlyTx) {
 			t.Fatal("shouldn't write on read-only transaction")
 		}
+	})
+	t.Run("TryImperativeDelete", func(t *testing.T) {
+		t.Parallel()
+		store, clean := createTestStore(t)
+		defer clean()
+		m, err := store.Register("Person", &Person{})
+		checkErr(t, err)
+		p := &Person{Name: "Foo1", Age: 42}
+		checkErr(t, m.Create(p))
+		txn := m.StartReadTxn()
+		err = txn.Delete(p.ID)
+		if !errors.Is(err, ErrReadonlyTx) {
+			t.Fatal("shouldn't write on read-only transaction")
+		}
+		m.EndReadTxn(txn)
 	})
 }
 
@@ -254,7 +323,7 @@ func TestGetInstance(t *testing.T) {
 	t.Run("WithReadTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.ReadTxn(func(txn *Txn) error {
-			txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
@@ -262,16 +331,37 @@ func TestGetInstance(t *testing.T) {
 			return nil
 		})
 	})
+	t.Run("WithImperativeReadTx", func(t *testing.T) {
+		person := &Person{}
+		txn := model.StartReadTxn()
+		err := txn.FindByID(newPerson.ID, person)
+		checkErr(t, err)
+		if !reflect.DeepEqual(newPerson, person) {
+			t.Fatalf(errInvalidInstanceState)
+		}
+		model.EndReadTxn(txn)
+	})
 	t.Run("WithUpdateTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.WriteTxn(func(txn *Txn) error {
-			txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
 		})
+	})
+	t.Run("WithImperativeUpdateTx", func(t *testing.T) {
+		person := &Person{}
+		txn := model.StartWriteTxn()
+		err := txn.FindByID(newPerson.ID, person)
+		checkErr(t, err)
+		if !reflect.DeepEqual(newPerson, person) {
+			t.Fatalf(errInvalidInstanceState)
+		}
+		err = model.EndWriteTxn(txn, true)
+		checkErr(t, err)
 	})
 }
 
@@ -305,6 +395,23 @@ func TestSaveInstance(t *testing.T) {
 		err = model.FindByID(newPerson.ID, person)
 		checkErr(t, err)
 		if person.ID != newPerson.ID || person.Age != 42 || person.Name != "Bob" {
+			t.Fatalf(errInvalidInstanceState)
+		}
+
+		txn := model.StartWriteTxn()
+		p := &Person{}
+		err = txn.FindByID(newPerson.ID, p)
+		checkErr(t, err)
+		p.Name = "Tom"
+		err = txn.Save(p)
+		checkErr(t, err)
+		err = model.EndWriteTxn(txn, true)
+		checkErr(t, err)
+
+		updatedPerson := &Person{}
+		err = model.FindByID(newPerson.ID, updatedPerson)
+		checkErr(t, err)
+		if updatedPerson.ID != newPerson.ID || updatedPerson.Age != 42 || updatedPerson.Name != "Tom" {
 			t.Fatalf(errInvalidInstanceState)
 		}
 	})

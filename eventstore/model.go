@@ -66,11 +66,31 @@ func newModelFromSchema(name string, schema string, s *Store) *Model {
 	return m
 }
 
+// StartReadTxn starts a read transation and returns it
+func (m *Model) StartReadTxn() *Txn {
+	return m.store.startReadTxn(m)
+}
+
+// EndReadTxn ends the specified read transaction
+func (m *Model) EndReadTxn(txn *Txn) {
+	m.store.endReadTxn(txn)
+}
+
 // ReadTxn creates an explicit readonly transaction. Any operation
 // that tries to mutate an instance of the model will ErrReadonlyTx.
 // Provides serializable isolation gurantees.
 func (m *Model) ReadTxn(f func(txn *Txn) error) error {
 	return m.store.readTxn(m, f)
+}
+
+// StartWriteTxn starts a write transation and returns it
+func (m *Model) StartWriteTxn() *Txn {
+	return m.store.startWriteTxn(m)
+}
+
+// EndWriteTxn ends the specified write transaction, optionally commiting its changes
+func (m *Model) EndWriteTxn(txn *Txn, commit bool) error {
+	return m.store.endWriteTxn(txn, commit)
 }
 
 // WriteTxn creates an explicit write transaction. Provides
