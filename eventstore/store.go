@@ -11,6 +11,7 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
+	kt "github.com/ipfs/go-datastore/keytransform"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/broadcast"
@@ -55,8 +56,7 @@ type Store struct {
 	threadservice threadservice.Threadservice
 
 	lock       sync.RWMutex
-	models     map[reflect.Type]*Model
-	modelNames map[string]struct{}
+	modelNames map[string]*Model
 	jsonMode   bool
 
 	localEventsBus *localEventsBus
@@ -68,8 +68,16 @@ type Store struct {
 func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, error) {
 	config := &StoreConfig{}
 	for _, opt := range opts {
-		opt(config)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
+	return newStore(ts, config)
+}
+
+// newStore is used directly by a store manager to create new stores
+// with the same config.
+func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath)
 		if err != nil {
@@ -80,9 +88,11 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 	if config.EventCodec == nil {
 		config.EventCodec = newDefaultEventCodec(config.JsonMode)
 	}
-	if config.Debug {
-		if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
-			return nil, err
+	if !managedDatastore(config.Datastore) {
+		if config.Debug {
+			if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -93,8 +103,7 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 		datastore:      config.Datastore,
 		dispatcher:     newDispatcher(config.Datastore),
 		eventcodec:     config.EventCodec,
-		models:         make(map[reflect.Type]*Model),
-		modelNames:     make(map[string]struct{}),
+		modelNames:     make(map[string]*Model),
 		jsonMode:       config.JsonMode,
 		localEventsBus: &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChanged:   &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
@@ -103,6 +112,7 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 	return s, nil
 }
 
+// ThreadID returns the store's theadID if it exists.
 func (s *Store) ThreadID() (thread.ID, bool, error) {
 	v, err := s.datastore.Get(dsStoreThreadID)
 	if err == ds.ErrNotFound {
@@ -180,12 +190,12 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	}
 
 	m := newModel(name, defaultInstance, s)
-	s.models[m.valueType] = m
-	s.modelNames[name] = struct{}{}
+	s.modelNames[name] = m
 	s.dispatcher.Register(m)
 	return m, nil
 }
 
+// Register a new model in the store with a JSON schema.
 func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -195,8 +205,14 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	}
 
 	m := newModelFromSchema(name, schema, s)
+	s.modelNames[name] = m
 	s.dispatcher.Register(m)
 	return m, nil
+}
+
+// GetModel returns a model by name.
+func (s *Store) GetModel(name string) *Model {
+	return s.modelNames[name]
 }
 
 // StateChangeListen returns a listener which notifies when store state
@@ -243,7 +259,16 @@ func (s *Store) Close() {
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
-	s.datastore.Close()
+	if !managedDatastore(s.datastore) {
+		_ = s.datastore.Close()
+	}
+}
+
+// managedDatastore returns whether or not the datastore is
+// being wrapped by an external datastore.
+func managedDatastore(ds ds.Datastore) bool {
+	_, ok := ds.(kt.KeyTransform)
+	return ok
 }
 
 func (s *Store) notifyStateChanged() error {

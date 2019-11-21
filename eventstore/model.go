@@ -112,7 +112,7 @@ func (m *Model) Save(vs ...interface{}) error {
 // Has returns true if all IDs exist in the model, false
 // otherwise.
 func (m *Model) Has(ids ...core.EntityID) (exists bool, err error) {
-	m.ReadTxn(func(txn *Txn) error {
+	_ = m.ReadTxn(func(txn *Txn) error {
 		exists, err = txn.Has(ids...)
 		return err
 	})

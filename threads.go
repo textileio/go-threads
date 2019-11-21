@@ -68,8 +68,8 @@ type threads struct {
 	pullLocks map[thread.ID]chan struct{}
 }
 
-// Options is used to specify thread instance options.
-type Options struct {
+// Config is used to specify thread instance options.
+type Config struct {
 	ProxyAddr string // defaults to 0.0.0.0:5050
 	Debug     bool
 }
@@ -81,10 +81,10 @@ func NewThreads(
 	bstore bs.Blockstore,
 	ds format.DAGService,
 	ts tstore.Threadstore,
-	opts Options,
+	conf Config,
 ) (tserv.Threadservice, error) {
 	var err error
-	if opts.Debug {
+	if conf.Debug {
 		err = util.SetLogLevels(map[string]logger.Level{
 			"threads":     logger.DEBUG,
 			"threadstore": logger.DEBUG,
@@ -115,22 +115,23 @@ func NewThreads(
 	if err != nil {
 		return nil, err
 	}
-	go t.rpc.Serve(listener)
-	pb.RegisterThreadsServer(t.rpc, t.service)
+	go func() {
+		pb.RegisterThreadsServer(t.rpc, t.service)
+		t.rpc.Serve(listener)
+	}()
 
 	// Start a web RPC proxy
 	webrpc := grpcweb.WrapServer(t.rpc)
-	if opts.ProxyAddr == "" {
-		opts.ProxyAddr = "0.0.0.0:5050"
+	if conf.ProxyAddr == "" {
+		conf.ProxyAddr = "0.0.0.0:5050"
 	}
 	t.proxy = &http.Server{
-		Addr: opts.ProxyAddr,
+		Addr: conf.ProxyAddr,
 	}
 	t.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if webrpc.IsGrpcWebRequest(r) {
 			webrpc.ServeHTTP(w, r)
 		}
-		http.DefaultServeMux.ServeHTTP(w, r) // fallback
 	})
 
 	errc := make(chan error)
@@ -140,8 +141,12 @@ func NewThreads(
 	}()
 	go func() {
 		for err := range errc {
-			if err != nil && err != http.ErrServerClosed {
-				log.Errorf("proxy error: %s", err)
+			if err != nil {
+				if err == http.ErrServerClosed {
+					break
+				} else {
+					log.Errorf("proxy error: %s", err)
+				}
 			}
 		}
 		log.Info("proxy was shutdown")

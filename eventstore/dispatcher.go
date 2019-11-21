@@ -2,10 +2,11 @@ package eventstore
 
 import (
 	"bytes"
-	"encoding/gob"
-	"sync"
-
 	"context"
+	"encoding/binary"
+	"encoding/gob"
+	"strconv"
+	"sync"
 
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -58,9 +59,10 @@ func (d *dispatcher) Register(reducer Reducer) {
 func (d *dispatcher) Dispatch(event core.Event) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	// Key format: <timestamp>/<entity-id>/<type>
-	// @todo: This is up for debate, its a 'fake' Event struct right now anyway
-	key := dsDispatcherPrefix.ChildString(string(event.Time())).ChildString(event.EntityID().String()).ChildString(event.Type())
+	key, err := getKey(event)
+	if err != nil {
+		return err
+	}
 	// Encode and add an Event to event store
 	b := bytes.Buffer{}
 	e := gob.NewEncoder(&b)
@@ -94,4 +96,19 @@ func (d *dispatcher) Query(query query.Query) ([]query.Entry, error) {
 		return nil, err
 	}
 	return result.Rest()
+}
+
+// Key format: <timestamp>/<entity-id>/<type>
+// @todo: This is up for debate, its a 'fake' Event struct right now anyway
+func getKey(event core.Event) (key datastore.Key, err error) {
+	buf := bytes.NewBuffer(event.Time())
+	var unix int64
+	if err = binary.Read(buf, binary.BigEndian, &unix); err != nil {
+		return
+	}
+	time := strconv.FormatInt(unix, 10)
+	key = dsDispatcherPrefix.ChildString(time).
+		ChildString(event.EntityID().String()).
+		ChildString(event.Type())
+	return key, nil
 }

@@ -279,7 +279,6 @@ func (s *service) subscribe(id thread.ID) {
 	for {
 		msg, err := sub.Next(s.threads.ctx)
 		if err != nil {
-			log.Error(err)
 			break
 		}
 

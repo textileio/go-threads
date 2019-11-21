@@ -93,7 +93,7 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 	}
 
 	// Build a threadservice
-	api, err := t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Options{
+	api, err := t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Config{
 		Debug:     config.Debug,
 		ProxyAddr: fmt.Sprintf("0.0.0.0:%d", config.ProxyPort),
 	})
