@@ -76,7 +76,7 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 		if err != nil {
 			return nil, err
 		}
-		// @todo: Consider edge cases where models are irrecoverable.
+		// @todo: Auto-starting reloaded stores could lead to issues (#115)
 		if err = s.Start(); err != nil {
 			return nil, err
 		}

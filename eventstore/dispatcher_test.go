@@ -143,7 +143,7 @@ func (n *nullEvent) Time() []byte {
 	t := n.Timestamp.UnixNano()
 	buf := new(bytes.Buffer)
 	// Use big endian to preserve lexicographic sorting
-	binary.Write(buf, binary.BigEndian, t)
+	_ = binary.Write(buf, binary.BigEndian, t)
 	return buf.Bytes()
 }
 

@@ -233,7 +233,7 @@ func (je patchEvent) Time() []byte {
 	t := je.Timestamp.UnixNano()
 	buf := new(bytes.Buffer)
 	// Use big endian to preserve lexicographic sorting
-	binary.Write(buf, binary.BigEndian, t)
+	_ = binary.Write(buf, binary.BigEndian, t)
 	return buf.Bytes()
 }
 
