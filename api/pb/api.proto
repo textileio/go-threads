@@ -22,7 +22,7 @@ message ModelCreateRequest {
 }
 
 message ModelCreateReply {
-    repeated string entityIDs = 1;
+    repeated string entities = 1;
 }
 
 service API {

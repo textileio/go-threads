@@ -114,10 +114,10 @@ export namespace ModelCreateRequest {
 }
 
 export class ModelCreateReply extends jspb.Message {
-  clearEntityidsList(): void;
-  getEntityidsList(): Array<string>;
-  setEntityidsList(value: Array<string>): void;
-  addEntityids(value: string, index?: number): string;
+  clearEntitiesList(): void;
+  getEntitiesList(): Array<string>;
+  setEntitiesList(value: Array<string>): void;
+  addEntities(value: string, index?: number): string;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ModelCreateReply.AsObject;
@@ -131,7 +131,7 @@ export class ModelCreateReply extends jspb.Message {
 
 export namespace ModelCreateReply {
   export type AsObject = {
-    entityidsList: Array<string>,
+    entitiesList: Array<string>,
   }
 }
 

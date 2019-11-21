@@ -885,7 +885,7 @@ proto.api.pb.ModelCreateReply.prototype.toObject = function(opt_includeInstance)
  */
 proto.api.pb.ModelCreateReply.toObject = function(includeInstance, msg) {
   var obj = {
-    entityidsList: jspb.Message.getRepeatedField(msg, 1)
+    entitiesList: jspb.Message.getRepeatedField(msg, 1)
   };
 
   if (includeInstance) {
@@ -924,7 +924,7 @@ proto.api.pb.ModelCreateReply.deserializeBinaryFromReader = function(msg, reader
     switch (field) {
     case 1:
       var value = /** @type {string} */ (reader.readString());
-      msg.addEntityids(value);
+      msg.addEntities(value);
       break;
     default:
       reader.skipField();
@@ -955,7 +955,7 @@ proto.api.pb.ModelCreateReply.prototype.serializeBinary = function() {
  */
 proto.api.pb.ModelCreateReply.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getEntityidsList();
+  f = message.getEntitiesList();
   if (f.length > 0) {
     writer.writeRepeatedString(
       1,
@@ -966,16 +966,16 @@ proto.api.pb.ModelCreateReply.serializeBinaryToWriter = function(message, writer
 
 
 /**
- * repeated string entityIDs = 1;
+ * repeated string entities = 1;
  * @return {!Array<string>}
  */
-proto.api.pb.ModelCreateReply.prototype.getEntityidsList = function() {
+proto.api.pb.ModelCreateReply.prototype.getEntitiesList = function() {
   return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 1));
 };
 
 
 /** @param {!Array<string>} value */
-proto.api.pb.ModelCreateReply.prototype.setEntityidsList = function(value) {
+proto.api.pb.ModelCreateReply.prototype.setEntitiesList = function(value) {
   jspb.Message.setField(this, 1, value || []);
 };
 
@@ -984,7 +984,7 @@ proto.api.pb.ModelCreateReply.prototype.setEntityidsList = function(value) {
  * @param {string} value
  * @param {number=} opt_index
  */
-proto.api.pb.ModelCreateReply.prototype.addEntityids = function(value, opt_index) {
+proto.api.pb.ModelCreateReply.prototype.addEntities = function(value, opt_index) {
   jspb.Message.addToRepeatedField(this, 1, value, opt_index);
 };
 
@@ -992,8 +992,8 @@ proto.api.pb.ModelCreateReply.prototype.addEntityids = function(value, opt_index
 /**
  * Clears the list making it empty but non-null.
  */
-proto.api.pb.ModelCreateReply.prototype.clearEntityidsList = function() {
-  this.setEntityidsList([]);
+proto.api.pb.ModelCreateReply.prototype.clearEntitiesList = function() {
+  this.setEntitiesList([]);
 };
 
 

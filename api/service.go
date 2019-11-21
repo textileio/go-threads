@@ -2,11 +2,8 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"github.com/google/uuid"
-	core "github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"google.golang.org/grpc/codes"
@@ -65,33 +62,14 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 		return nil, err
 	}
 
-	// @todo: reply w/ full entities
 	reply := &pb.ModelCreateReply{
-		EntityIDs: make([]string, len(values)),
+		Entities: make([]string, len(values)),
 	}
 	for i, v := range values {
-		id, err := getEntityID(v)
-		if err != nil {
-			return nil, err
-		}
-		reply.EntityIDs[i] = id.String()
+		reply.Entities[i] = *(v.(*string))
 	}
 
 	return reply, nil
-}
-
-func getEntityID(t interface{}) (core.EntityID, error) {
-	partial := &struct{ ID *string }{}
-	if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
-		return "", fmt.Errorf("error when unmarshaling json instance: %v", err)
-	}
-	if partial.ID == nil {
-		return "", fmt.Errorf("invalid instance: doesn't have an ID attribute")
-	}
-	if *partial.ID != "" && !core.IsValidEntityID(*partial.ID) {
-		return "", fmt.Errorf("invalid instance: invalid ID value")
-	}
-	return core.EntityID(*partial.ID), nil
 }
 
 func (s *service) getStore(idStr string) (*es.Store, error) {
