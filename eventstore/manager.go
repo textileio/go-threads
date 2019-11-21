@@ -70,6 +70,9 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 		s.datastore = kt.Wrap(s.datastore, kt.PrefixTransform{
 			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
 		})
+		if err = s.Start(); err != nil {
+			return nil, err
+		}
 		m.stores[id] = s
 	}
 
