@@ -135,3 +135,51 @@ export namespace ModelCreateReply {
   }
 }
 
+export class ListenRequest extends jspb.Message {
+  getStoreid(): string;
+  setStoreid(value: string): void;
+
+  getModelname(): string;
+  setModelname(value: string): void;
+
+  getEntityid(): string;
+  setEntityid(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListenRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: ListenRequest): ListenRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListenRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListenRequest;
+  static deserializeBinaryFromReader(message: ListenRequest, reader: jspb.BinaryReader): ListenRequest;
+}
+
+export namespace ListenRequest {
+  export type AsObject = {
+    storeid: string,
+    modelname: string,
+    entityid: string,
+  }
+}
+
+export class ListenReply extends jspb.Message {
+  getEntity(): string;
+  setEntity(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): ListenReply.AsObject;
+  static toObject(includeInstance: boolean, msg: ListenReply): ListenReply.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: ListenReply, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): ListenReply;
+  static deserializeBinaryFromReader(message: ListenReply, reader: jspb.BinaryReader): ListenReply;
+}
+
+export namespace ListenReply {
+  export type AsObject = {
+    entity: string,
+  }
+}
+

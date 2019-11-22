@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	ipfslite "github.com/hsanjuan/ipfs-lite"
 
 	"github.com/fatih/color"
 	"github.com/ipfs/go-datastore"
@@ -73,11 +76,21 @@ func main() {
 	proxyPort := flag.Int("proxyPort", 5050, "grpc proxy port")
 	flag.Parse()
 
+	util.SetupDefaultLoggingConfig(*repo)
 	if err := logging.SetLogLevel("shell", "debug"); err != nil {
 		panic(err)
 	}
 
 	var err error
+	shellPath := filepath.Join(*repo, "shell")
+	if err = os.MkdirAll(shellPath, os.ModePerm); err != nil {
+		log.Fatal(err)
+	}
+	ds, err = ipfslite.BadgerDatastore(shellPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	api, err = es.DefaultThreadservice(
 		*repo,
 		es.ListenPort(*listenPort),
@@ -90,6 +103,7 @@ func main() {
 	api.Bootstrap(util.DefaultBoostrapPeers())
 
 	// Build a MDNS service
+	ctx = context.Background()
 	mdns, err := discovery.NewMdnsService(ctx, api.Host(), time.Second, "")
 	if err != nil {
 		panic(err)
