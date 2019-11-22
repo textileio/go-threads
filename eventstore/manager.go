@@ -3,13 +3,12 @@ package eventstore
 import (
 	"io"
 
-	"github.com/textileio/go-textile-threads/util"
-
 	"github.com/google/uuid"
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/textileio/go-textile-core/threadservice"
+	"github.com/textileio/go-textile-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 )
 
@@ -54,16 +53,15 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 		stores:        make(map[uuid.UUID]*Store),
 	}
 
-	q, err := m.config.Datastore.Query(query.Query{
+	results, err := m.config.Datastore.Query(query.Query{
 		Prefix:   dsStoreManagerBaseKey.String(),
 		KeysOnly: true,
 	})
 	if err != nil {
 		return nil, err
 	}
-	defer q.Close()
-
-	for res := range q.Next() {
+	defer results.Close()
+	for res := range results.Next() {
 		idStr := ds.RawKey(res.Key).Parent().Parent().Parent().Parent().Name() // reaching for the stars here
 		id, err := uuid.Parse(idStr)
 		if err != nil {
