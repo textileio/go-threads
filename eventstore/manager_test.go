@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 )
 
 var (
@@ -84,6 +85,8 @@ func TestManager_GetStore(t *testing.T) {
 	err = model.Create(&person1)
 	checkErr(t, err)
 
+	time.Sleep(time.Second)
+
 	// Close it down, restart next
 	err = man.Close()
 	checkErr(t, err)
@@ -109,6 +112,13 @@ func TestManager_GetStore(t *testing.T) {
 		person2 := `{"ID": "", "Name": "Bar", "Age": 21}`
 		person3 := `{"ID": "", "Name": "Baz", "Age": 21}`
 		err = model.Create(&person2, &person3)
+		checkErr(t, err)
+
+		time.Sleep(time.Second)
+
+		err = man.Close()
+		checkErr(t, err)
+		err = ts.Close()
 		checkErr(t, err)
 	})
 }
