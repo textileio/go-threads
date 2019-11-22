@@ -273,12 +273,14 @@ func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
 	var ptl chan struct{}
 	var ok bool
+	// ToDo: fix concurrency
 	t.pullLock.Lock()
+	defer t.pullLock.Unlock()
 	if ptl, ok = t.pullLocks[id]; !ok {
 		ptl = make(chan struct{}, 1)
 		t.pullLocks[id] = ptl
 	}
-	t.pullLock.Unlock()
+	// t.pullLock.Unlock()
 
 	select {
 	case ptl <- struct{}{}:
@@ -304,7 +306,8 @@ func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 		wg := sync.WaitGroup{}
 		for _, lg := range lgs {
 			wg.Add(1)
-			go func(lg thread.LogInfo) {
+			// ToDo: fix concurrency
+			func(lg thread.LogInfo) {
 				defer wg.Done()
 				// Pull from addresses
 				recs, err := t.service.getRecords(
@@ -383,7 +386,8 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
 		wg.Add(1)
-		go func(addr ma.Multiaddr) {
+		// ToDo: fix concurrency
+		func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
@@ -716,7 +720,8 @@ func (t *threads) startPulling() {
 			return
 		}
 		for _, id := range ts {
-			go func(id thread.ID) {
+			// ToDo: fix concurrency
+			func(id thread.ID) {
 				if err := t.PullThread(t.ctx, id); err != nil {
 					log.Errorf("error pulling thread %s: %s", id.String(), err)
 				}
