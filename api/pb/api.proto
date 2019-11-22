@@ -25,8 +25,104 @@ message ModelCreateReply {
     repeated string entities = 1;
 }
 
+message ModelSaveRequest {
+    string storeID = 1;
+    string modelName = 2;
+    repeated string values = 3;
+}
+
+message ModelSaveReply {}
+
+message ModelDeleteRequest {
+    string storeID = 1;
+    string modelName = 2;
+    string entityID = 3;
+}
+
+message ModelDeleteReply {}
+
+message ModelHasRequest {
+    string storeID = 1;
+    string modelName = 2;
+    string entityID = 3;
+}
+
+message ModelHasReply {
+    bool exists = 1;
+}
+
+message ModelFindRequest {
+    string storeID = 1;
+    string modelName = 2;
+    // TODO: model the query
+}
+
+message ModelFindReply {}
+
+message ModelFindByIDRequest {
+    string storeID = 1;
+    string modelName = 2;
+    string entityID = 3;
+}
+
+message ModelFindByIDReply {
+    string entity = 1;
+}
+
+message StartTransactionRequest {
+    string storeID = 1;
+    string modelName = 2;
+}
+
+message ReadTransactionRequest {
+    oneof option {
+        StartTransactionRequest startTransactionRequest = 1;
+        ModelHasRequest modelHasRequest = 2;
+        ModelFindRequest modelFindRequest = 3;
+        ModelFindByIDRequest modelFindByIDRequest = 4;
+    }
+}
+
+message ReadTransactionReply {
+    oneof option {
+        ModelHasReply modelHasReply = 1;
+        ModelFindReply modelFindReply = 2;
+        ModelFindByIDReply modelFindByIDReply = 3;
+    }
+}
+
+message WriteTransactionRequest {
+    oneof option {
+        StartTransactionRequest startTransactionRequest = 1;
+        ModelCreateRequest modelCreateRequest = 2;
+        ModelSaveRequest modelSaveRequest = 3;
+        ModelDeleteRequest modelDeleteRequest = 4;
+        ModelHasRequest modelHasRequest = 5;
+        ModelFindRequest modelFindRequest = 6;
+        ModelFindByIDRequest modelFindByIDRequest = 7;
+    }
+}
+
+message WriteTransactionReply {
+    oneof option {
+        ModelCreateReply modelCreateReply = 1;
+        ModelSaveReply modelSaveReply = 2;
+        ModelDeleteReply modelDeleteReply = 3;
+        ModelHasReply modelHasReply = 4;
+        ModelFindReply modelFindReply = 5;
+        ModelFindByIDReply modelFindByIDReply = 6;
+    }
+}
+
 service API {
     rpc NewStore(NewStoreRequest) returns (NewStoreReply) {}
     rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
     rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
+    rpc ModelSave(ModelSaveRequest) returns (ModelSaveReply) {}
+    rpc ModelDelete(ModelDeleteRequest) returns (ModelDeleteReply) {}
+    rpc ModelHas(ModelHasRequest) returns (ModelHasReply) {}
+    rpc ModelFind(ModelFindRequest) returns (ModelFindReply) {}
+    rpc ModelFindByID(ModelFindByIDRequest) returns (ModelFindByIDReply) {}
+    rpc ReadTransaction(stream ReadTransactionRequest) returns (stream ReadTransactionReply) {}
+    rpc WriteTransaction(stream WriteTransactionRequest) returns (stream WriteTransactionReply) {}
 }

@@ -20,3 +20,5 @@ vendor/
 
 # vscode config folder
 .vscode/
+
+**/node_modules
