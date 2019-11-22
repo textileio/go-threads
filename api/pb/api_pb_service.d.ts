@@ -94,6 +94,15 @@ type APIWriteTransaction = {
   readonly responseType: typeof api_pb.WriteTransactionReply;
 };
 
+type APIListen = {
+  readonly methodName: string;
+  readonly service: typeof API;
+  readonly requestStream: false;
+  readonly responseStream: true;
+  readonly requestType: typeof api_pb.ListenRequest;
+  readonly responseType: typeof api_pb.ListenReply;
+};
+
 export class API {
   static readonly serviceName: string;
   static readonly NewStore: APINewStore;
@@ -106,6 +115,7 @@ export class API {
   static readonly ModelFindByID: APIModelFindByID;
   static readonly ReadTransaction: APIReadTransaction;
   static readonly WriteTransaction: APIWriteTransaction;
+  static readonly Listen: APIListen;
 }
 
 export type ServiceError = { message: string, code: number; metadata: grpc.Metadata }
@@ -214,5 +224,6 @@ export class APIClient {
   ): UnaryResponse;
   readTransaction(metadata?: grpc.Metadata): BidirectionalStream<api_pb.ReadTransactionRequest, api_pb.ReadTransactionReply>;
   writeTransaction(metadata?: grpc.Metadata): BidirectionalStream<api_pb.WriteTransactionRequest, api_pb.WriteTransactionReply>;
+  listen(requestMessage: api_pb.ListenRequest, metadata?: grpc.Metadata): ResponseStream<api_pb.ListenReply>;
 }
 

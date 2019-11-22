@@ -82,12 +82,10 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 				continue // Ignore our own events since Store already dispatches to Store reducers
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), fetchEventTimeout)
-			defer cancel()
 
 			event, err := threadcbor.EventFromRecord(ctx, a.api, rec.Value())
 			if err != nil {
 				log.Fatalf("error when getting event from record: %v", err) // ToDo: Buffer them and retry...
-				continue
 			}
 
 			readKey, err := a.api.Store().ReadKey(a.threadID)
@@ -109,6 +107,7 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 			if err := a.store.dispatch(storeEvent); err != nil {
 				log.Fatal(err)
 			}
+			cancel()
 		}
 	}
 }
@@ -121,11 +120,11 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.ctx.Done():
-			log.Info("cancelling sending store local events to own thread log for thread %s", a.threadID)
+			log.Infof("cancelling sending store local events to own thread log for thread %s", a.threadID)
 			return
 		case event, ok := <-l.Channel():
 			if !ok {
-				log.Info("ending sending store local event to own thread since channel was closed for thread %s", a.threadID)
+				log.Infof("ending sending store local event to own thread since channel was closed for thread %s", a.threadID)
 				return
 			}
 			n, err := event.Node()
@@ -133,13 +132,13 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 				log.Fatalf("error when generating node for own log for thread %s: %v", a.threadID, err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			defer cancel()
 
 			log.Debugf("adding new local store event to own log from entityid: %s", event.EntityID())
 			_, err = a.api.AddRecord(ctx, a.threadID, n)
 			if err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
+			cancel()
 		}
 	}
 }

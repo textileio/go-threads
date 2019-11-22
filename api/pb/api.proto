@@ -114,6 +114,16 @@ message WriteTransactionReply {
     }
 }
 
+message ListenRequest {
+    string storeID = 1;
+    string modelName = 2;
+    string entityID = 3;
+}
+
+message ListenReply {
+    string entity = 1;
+}
+
 service API {
     rpc NewStore(NewStoreRequest) returns (NewStoreReply) {}
     rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
@@ -125,4 +135,5 @@ service API {
     rpc ModelFindByID(ModelFindByIDRequest) returns (ModelFindByIDReply) {}
     rpc ReadTransaction(stream ReadTransactionRequest) returns (stream ReadTransactionReply) {}
     rpc WriteTransaction(stream WriteTransactionRequest) returns (stream WriteTransactionReply) {}
+    rpc Listen(ListenRequest) returns (stream ListenReply) {}
 }

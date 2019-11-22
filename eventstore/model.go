@@ -28,7 +28,7 @@ var (
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
-	baseKey = dsStorePrefix.ChildString("/model")
+	baseKey = dsStorePrefix.ChildString("model")
 )
 
 // Model contains instances of a schema, and provides operations
