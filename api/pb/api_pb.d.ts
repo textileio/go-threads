@@ -83,6 +83,90 @@ export namespace RegisterSchemaReply {
   }
 }
 
+export class StartRequest extends jspb.Message {
+  getStoreid(): string;
+  setStoreid(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StartRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StartRequest): StartRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StartRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StartRequest;
+  static deserializeBinaryFromReader(message: StartRequest, reader: jspb.BinaryReader): StartRequest;
+}
+
+export namespace StartRequest {
+  export type AsObject = {
+    storeid: string,
+  }
+}
+
+export class StartReply extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StartReply.AsObject;
+  static toObject(includeInstance: boolean, msg: StartReply): StartReply.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StartReply, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StartReply;
+  static deserializeBinaryFromReader(message: StartReply, reader: jspb.BinaryReader): StartReply;
+}
+
+export namespace StartReply {
+  export type AsObject = {
+  }
+}
+
+export class StartFromAddressRequest extends jspb.Message {
+  getStoreid(): string;
+  setStoreid(value: string): void;
+
+  getAddress(): string;
+  setAddress(value: string): void;
+
+  getFollowkey(): string;
+  setFollowkey(value: string): void;
+
+  getReadkey(): string;
+  setReadkey(value: string): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StartFromAddressRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: StartFromAddressRequest): StartFromAddressRequest.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StartFromAddressRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StartFromAddressRequest;
+  static deserializeBinaryFromReader(message: StartFromAddressRequest, reader: jspb.BinaryReader): StartFromAddressRequest;
+}
+
+export namespace StartFromAddressRequest {
+  export type AsObject = {
+    storeid: string,
+    address: string,
+    followkey: string,
+    readkey: string,
+  }
+}
+
+export class StartFromAddressReply extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): StartFromAddressReply.AsObject;
+  static toObject(includeInstance: boolean, msg: StartFromAddressReply): StartFromAddressReply.AsObject;
+  static extensions: {[key: number]: jspb.ExtensionFieldInfo<jspb.Message>};
+  static extensionsBinary: {[key: number]: jspb.ExtensionFieldBinaryInfo<jspb.Message>};
+  static serializeBinaryToWriter(message: StartFromAddressReply, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): StartFromAddressReply;
+  static deserializeBinaryFromReader(message: StartFromAddressReply, reader: jspb.BinaryReader): StartFromAddressReply;
+}
+
+export namespace StartFromAddressReply {
+  export type AsObject = {
+  }
+}
+
 export class ModelCreateRequest extends jspb.Message {
   getStoreid(): string;
   setStoreid(value: string): void;

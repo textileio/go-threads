@@ -15,6 +15,21 @@ message RegisterSchemaRequest {
 
 message RegisterSchemaReply {}
 
+message StartRequest {
+    string storeID = 1;
+}
+
+message StartReply {}
+
+message StartFromAddressRequest {
+    string storeID = 1;
+    string address = 2;
+    string followKey = 3;
+    string readKey = 4;
+}
+
+message StartFromAddressReply {}
+
 message ModelCreateRequest {
     string storeID = 1;
     string modelName = 2;
@@ -127,6 +142,8 @@ message ListenReply {
 service API {
     rpc NewStore(NewStoreRequest) returns (NewStoreReply) {}
     rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
+    rpc Start(StartRequest) returns (StartReply) {}
+    rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
     rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
     rpc ModelSave(ModelSaveRequest) returns (ModelSaveReply) {}
     rpc ModelDelete(ModelDeleteRequest) returns (ModelDeleteReply) {}

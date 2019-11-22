@@ -28,6 +28,24 @@ API.RegisterSchema = {
   responseType: api_pb.RegisterSchemaReply
 };
 
+API.Start = {
+  methodName: "Start",
+  service: API,
+  requestStream: false,
+  responseStream: false,
+  requestType: api_pb.StartRequest,
+  responseType: api_pb.StartReply
+};
+
+API.StartFromAddress = {
+  methodName: "StartFromAddress",
+  service: API,
+  requestStream: false,
+  responseStream: false,
+  requestType: api_pb.StartFromAddressRequest,
+  responseType: api_pb.StartFromAddressReply
+};
+
 API.ModelCreate = {
   methodName: "ModelCreate",
   service: API,
@@ -152,6 +170,68 @@ APIClient.prototype.registerSchema = function registerSchema(requestMessage, met
     callback = arguments[1];
   }
   var client = grpc.unary(API.RegisterSchema, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onEnd: function (response) {
+      if (callback) {
+        if (response.status !== grpc.Code.OK) {
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
+        } else {
+          callback(null, response.message);
+        }
+      }
+    }
+  });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
+};
+
+APIClient.prototype.start = function start(requestMessage, metadata, callback) {
+  if (arguments.length === 2) {
+    callback = arguments[1];
+  }
+  var client = grpc.unary(API.Start, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onEnd: function (response) {
+      if (callback) {
+        if (response.status !== grpc.Code.OK) {
+          var err = new Error(response.statusMessage);
+          err.code = response.status;
+          err.metadata = response.trailers;
+          callback(err, null);
+        } else {
+          callback(null, response.message);
+        }
+      }
+    }
+  });
+  return {
+    cancel: function () {
+      callback = null;
+      client.close();
+    }
+  };
+};
+
+APIClient.prototype.startFromAddress = function startFromAddress(requestMessage, metadata, callback) {
+  if (arguments.length === 2) {
+    callback = arguments[1];
+  }
+  var client = grpc.unary(API.StartFromAddress, {
     request: requestMessage,
     host: this.serviceHost,
     metadata: metadata,

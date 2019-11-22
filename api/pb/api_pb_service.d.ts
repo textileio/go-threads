@@ -22,6 +22,24 @@ type APIRegisterSchema = {
   readonly responseType: typeof api_pb.RegisterSchemaReply;
 };
 
+type APIStart = {
+  readonly methodName: string;
+  readonly service: typeof API;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof api_pb.StartRequest;
+  readonly responseType: typeof api_pb.StartReply;
+};
+
+type APIStartFromAddress = {
+  readonly methodName: string;
+  readonly service: typeof API;
+  readonly requestStream: false;
+  readonly responseStream: false;
+  readonly requestType: typeof api_pb.StartFromAddressRequest;
+  readonly responseType: typeof api_pb.StartFromAddressReply;
+};
+
 type APIModelCreate = {
   readonly methodName: string;
   readonly service: typeof API;
@@ -107,6 +125,8 @@ export class API {
   static readonly serviceName: string;
   static readonly NewStore: APINewStore;
   static readonly RegisterSchema: APIRegisterSchema;
+  static readonly Start: APIStart;
+  static readonly StartFromAddress: APIStartFromAddress;
   static readonly ModelCreate: APIModelCreate;
   static readonly ModelSave: APIModelSave;
   static readonly ModelDelete: APIModelDelete;
@@ -167,6 +187,24 @@ export class APIClient {
   registerSchema(
     requestMessage: api_pb.RegisterSchemaRequest,
     callback: (error: ServiceError|null, responseMessage: api_pb.RegisterSchemaReply|null) => void
+  ): UnaryResponse;
+  start(
+    requestMessage: api_pb.StartRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError|null, responseMessage: api_pb.StartReply|null) => void
+  ): UnaryResponse;
+  start(
+    requestMessage: api_pb.StartRequest,
+    callback: (error: ServiceError|null, responseMessage: api_pb.StartReply|null) => void
+  ): UnaryResponse;
+  startFromAddress(
+    requestMessage: api_pb.StartFromAddressRequest,
+    metadata: grpc.Metadata,
+    callback: (error: ServiceError|null, responseMessage: api_pb.StartFromAddressReply|null) => void
+  ): UnaryResponse;
+  startFromAddress(
+    requestMessage: api_pb.StartFromAddressRequest,
+    callback: (error: ServiceError|null, responseMessage: api_pb.StartFromAddressReply|null) => void
   ): UnaryResponse;
   modelCreate(
     requestMessage: api_pb.ModelCreateRequest,
