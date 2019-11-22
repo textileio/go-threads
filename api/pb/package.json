@@ -8,7 +8,12 @@
   },
   "author": "Textile",
   "license": "MIT",
-  "main": "threads_api_pb.js",
+  "files": [
+    "api_pb.js",
+    "api_pb_service.js",
+    "api_pb.d.ts",
+    "api_pb_service.d.ts"
+  ],
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.11.0",
     "@types/google-protobuf": "^3.7.2",
