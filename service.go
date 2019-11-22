@@ -87,6 +87,9 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 // @todo: Verification
 // @todo: Don't overwrite info from non-owners
 func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
+	// ToDo: fix concurrency
+	s.threads.pullLock.Lock()
+	defer s.threads.pullLock.Unlock()
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
@@ -147,6 +150,9 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 // GetRecords receives a get records request.
 // @todo: Verification
 func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
+	// ToDo: fix concurrency
+	s.threads.pullLock.Lock()
+	defer s.threads.pullLock.Unlock()
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}

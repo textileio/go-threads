@@ -189,7 +189,8 @@ func (s *service) getRecords(
 	wg := sync.WaitGroup{}
 	for _, addr := range lg.Addrs {
 		wg.Add(1)
-		go func(addr ma.Multiaddr) {
+		// ToDo: fix concurrency
+		func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
