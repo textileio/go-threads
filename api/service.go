@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	core "github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"google.golang.org/grpc/codes"
@@ -74,6 +75,39 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 	}
 
 	return reply, nil
+}
+
+// Listen returns a stream of entities, trigged by a local or remote state change.
+func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
+	log.Debugf("received listen request for entity %s", req.EntityID)
+
+	store, err := s.getStore(req.StoreID)
+	if err != nil {
+		return err
+	}
+
+	model := store.GetModel(req.ModelName)
+	if model == nil {
+		return status.Error(codes.NotFound, "model not found")
+	}
+
+	listener := store.StateChangeListen()
+	defer listener.Discard()
+	for range listener.Channel() {
+		err := model.ReadTxn(func(txn *es.Txn) error {
+			var res string
+			if err := txn.FindByID(core.EntityID(req.EntityID), &res); err != nil {
+				return err
+			}
+			return server.Send(&pb.ListenReply{
+				Entity: res,
+			})
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *service) getStore(idStr string) (*es.Store, error) {

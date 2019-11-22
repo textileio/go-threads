@@ -19,6 +19,7 @@ func main() {
 	proxyPort := flag.Int("proxyPort", 5050, "grpc proxy port")
 	flag.Parse()
 
+	util.SetupDefaultLoggingConfig(*repo)
 	if err := logging.SetLogLevel("daemon", "debug"); err != nil {
 		log.Fatal(err)
 	}

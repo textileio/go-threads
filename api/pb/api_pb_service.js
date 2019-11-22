@@ -37,6 +37,15 @@ API.ModelCreate = {
   responseType: api_pb.ModelCreateReply
 };
 
+API.Listen = {
+  methodName: "Listen",
+  service: API,
+  requestStream: false,
+  responseStream: true,
+  requestType: api_pb.ListenRequest,
+  responseType: api_pb.ListenReply
+};
+
 exports.API = API;
 
 function APIClient(serviceHost, options) {
@@ -132,6 +141,45 @@ APIClient.prototype.modelCreate = function modelCreate(requestMessage, metadata,
   return {
     cancel: function () {
       callback = null;
+      client.close();
+    }
+  };
+};
+
+APIClient.prototype.listen = function listen(requestMessage, metadata) {
+  var listeners = {
+    data: [],
+    end: [],
+    status: []
+  };
+  var client = grpc.invoke(API.Listen, {
+    request: requestMessage,
+    host: this.serviceHost,
+    metadata: metadata,
+    transport: this.options.transport,
+    debug: this.options.debug,
+    onMessage: function (responseMessage) {
+      listeners.data.forEach(function (handler) {
+        handler(responseMessage);
+      });
+    },
+    onEnd: function (status, statusMessage, trailers) {
+      listeners.status.forEach(function (handler) {
+        handler({ code: status, details: statusMessage, metadata: trailers });
+      });
+      listeners.end.forEach(function (handler) {
+        handler({ code: status, details: statusMessage, metadata: trailers });
+      });
+      listeners = null;
+    }
+  });
+  return {
+    on: function (type, handler) {
+      listeners[type].push(handler);
+      return this;
+    },
+    cancel: function () {
+      listeners = null;
       client.close();
     }
   };

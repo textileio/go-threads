@@ -31,11 +31,21 @@ type APIModelCreate = {
   readonly responseType: typeof api_pb.ModelCreateReply;
 };
 
+type APIListen = {
+  readonly methodName: string;
+  readonly service: typeof API;
+  readonly requestStream: false;
+  readonly responseStream: true;
+  readonly requestType: typeof api_pb.ListenRequest;
+  readonly responseType: typeof api_pb.ListenReply;
+};
+
 export class API {
   static readonly serviceName: string;
   static readonly NewStore: APINewStore;
   static readonly RegisterSchema: APIRegisterSchema;
   static readonly ModelCreate: APIModelCreate;
+  static readonly Listen: APIListen;
 }
 
 export type ServiceError = { message: string, code: number; metadata: grpc.Metadata }
@@ -97,5 +107,6 @@ export class APIClient {
     requestMessage: api_pb.ModelCreateRequest,
     callback: (error: ServiceError|null, responseMessage: api_pb.ModelCreateReply|null) => void
   ): UnaryResponse;
+  listen(requestMessage: api_pb.ListenRequest, metadata?: grpc.Metadata): ResponseStream<api_pb.ListenReply>;
 }
 
