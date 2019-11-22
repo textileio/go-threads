@@ -45,6 +45,14 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 	return &pb.RegisterSchemaReply{}, nil
 }
 
+func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
+}
+
+func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartFromAddress not implemented")
+}
+
 // ModelCreate adds a new instance of a model to a store.
 func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
 	log.Debugf("received model create request for model %s", req.ModelName)
@@ -75,6 +83,34 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 	}
 
 	return reply, nil
+}
+
+func (s *service) ModelSave(ctx context.Context, req *pb.ModelSaveRequest) (*pb.ModelSaveReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ModelSave not implemented")
+}
+
+func (s *service) ModelDelete(ctx context.Context, req *pb.ModelDeleteRequest) (*pb.ModelDeleteReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ModelDelete not implemented")
+}
+
+func (s *service) ModelHas(ctx context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ModelHas not implemented")
+}
+
+func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ModelFind not implemented")
+}
+
+func (s *service) ModelFindByID(ctx context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ModelFindByID not implemented")
+}
+
+func (s *service) ReadTransaction(srv pb.API_ReadTransactionServer) error {
+	return status.Errorf(codes.Unimplemented, "method ReadTransaction not implemented")
+}
+
+func (s *service) WriteTransaction(srv pb.API_WriteTransactionServer) error {
+	return status.Errorf(codes.Unimplemented, "method WriteTransaction not implemented")
 }
 
 // Listen returns a stream of entities, trigged by a local or remote state change.
