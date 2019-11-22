@@ -1,6 +1,11 @@
 syntax = "proto3";
 package api.pb;
 
+option java_multiple_files = true;
+option java_package = "io.textile.grpc_textile_threads";
+option java_outer_classname = "TextileThreads";
+option objc_class_prefix = "TTE";
+
 message NewStoreRequest {}
 
 message NewStoreReply {
