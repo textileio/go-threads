@@ -92,6 +92,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 
 	listener := store.StateChangeListen()
+	defer listener.Discard()
 	for range listener.Channel() {
 		err := model.ReadTxn(func(txn *es.Txn) error {
 			var res string
