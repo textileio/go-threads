@@ -1,7 +1,7 @@
 {
-  "name": "@textile/threads-api-pb",
+  "name": "@textile/threads-client-grpc",
   "version": "0.0.1",
-  "description": "Protocol Buffers for the Threads API.",
+  "description": "gRPC client for interacting with remote Threads.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/textileio/go-textile-threads.git"
