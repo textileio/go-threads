@@ -316,8 +316,10 @@ export class ModelHasRequest extends jspb.Message {
   getModelname(): string;
   setModelname(value: string): void;
 
-  getEntityid(): string;
-  setEntityid(value: string): void;
+  clearEntityidsList(): void;
+  getEntityidsList(): Array<string>;
+  setEntityidsList(value: Array<string>): void;
+  addEntityids(value: string, index?: number): string;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ModelHasRequest.AsObject;
@@ -333,7 +335,7 @@ export namespace ModelHasRequest {
   export type AsObject = {
     storeid: string,
     modelname: string,
-    entityid: string,
+    entityidsList: Array<string>,
   }
 }
 

@@ -64,7 +64,7 @@ message ModelDeleteReply {}
 message ModelHasRequest {
     string storeID = 1;
     string modelName = 2;
-    string entityID = 3;
+    repeated string entityIDs = 3;
 }
 
 message ModelHasReply {

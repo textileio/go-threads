@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"io"
 
 	"github.com/google/uuid"
 	core "github.com/textileio/go-textile-core/store"
@@ -94,7 +96,17 @@ func (s *service) ModelDelete(ctx context.Context, req *pb.ModelDeleteRequest) (
 }
 
 func (s *service) ModelHas(ctx context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ModelHas not implemented")
+	store, err := s.getStore(req.StoreID)
+	if err != nil {
+		return nil, err
+	}
+
+	model := store.GetModel(req.ModelName)
+	if model == nil {
+		return nil, status.Error(codes.NotFound, "model not found")
+	}
+
+	return s.processHasRequest(req, model.Has)
 }
 
 func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
@@ -102,14 +114,84 @@ func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.
 }
 
 func (s *service) ModelFindByID(ctx context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ModelFindByID not implemented")
+	store, err := s.getStore(req.StoreID)
+	if err != nil {
+		return nil, err
+	}
+
+	model := store.GetModel(req.ModelName)
+	if model == nil {
+		return nil, status.Error(codes.NotFound, "model not found")
+	}
+
+	foo := model.FindByID
+
+	return nil, nil
 }
 
-func (s *service) ReadTransaction(srv pb.API_ReadTransactionServer) error {
-	return status.Errorf(codes.Unimplemented, "method ReadTransaction not implemented")
+func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
+	firstReq, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+
+	var storeID, modelName string
+	switch x := firstReq.GetOption().(type) {
+	case *pb.ReadTransactionRequest_StartTransactionRequest:
+		storeID = x.StartTransactionRequest.GetStoreID()
+		modelName = x.StartTransactionRequest.GetModelName()
+	case nil:
+		return fmt.Errorf("no ReadTransactionRequest type set")
+	default:
+		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
+	}
+
+	store, err := s.getStore(storeID)
+	if err != nil {
+		return err
+	}
+
+	model := store.GetModel(modelName)
+	if model == nil {
+		return status.Error(codes.NotFound, "model not found")
+	}
+
+	err = model.ReadTxn(func(txn *es.Txn) error {
+		for {
+			req, err := stream.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			switch x := req.GetOption().(type) {
+			case *pb.ReadTransactionRequest_ModelHasRequest:
+				innerReply, err := s.processHasRequest(x.ModelHasRequest, txn.Has)
+				if err != nil {
+					return err
+				}
+				option := &pb.ReadTransactionReply_ModelHasReply{ModelHasReply: innerReply}
+				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
+					return err
+				}
+			case *pb.ReadTransactionRequest_ModelFindByIDRequest:
+				// find by id
+			case *pb.ReadTransactionRequest_ModelFindRequest:
+				// find
+			case nil:
+				return fmt.Errorf("no ReadTransactionRequest type set")
+			default:
+				return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
+			}
+		}
+	})
+
+	// possibly nil
+	return err
 }
 
-func (s *service) WriteTransaction(srv pb.API_WriteTransactionServer) error {
+func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 	return status.Errorf(codes.Unimplemented, "method WriteTransaction not implemented")
 }
 
@@ -144,6 +226,27 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		}
 	}
 	return nil
+}
+
+func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...core.EntityID) (bool, error)) (*pb.ModelHasReply, error) {
+	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
+	for i, ID := range req.GetEntityIDs() {
+		entityIDs[i] = core.EntityID(ID)
+	}
+	exists, err := hasFunc(entityIDs...)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ModelHasReply{Exists: exists}, nil
+}
+
+func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc func(id core.EntityID, v interface{}) error, dest interface{}) (*pb.ModelFindByIDReply, error) {
+	entityID := core.EntityID(req.EntityID)
+	if err := findFunc(entityID, dest); err != nil {
+		return nil, err
+	}
+	// marshall dest into json string
+	return &pb.ModelFindByIDReply{Entity: "json string"}, nil
 }
 
 func (s *service) getStore(idStr string) (*es.Store, error) {

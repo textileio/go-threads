@@ -348,7 +348,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.api.pb.ModelHasRequest = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+  jspb.Message.initialize(this, opt_data, 0, -1, proto.api.pb.ModelHasRequest.repeatedFields_, null);
 };
 goog.inherits(proto.api.pb.ModelHasRequest, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -2665,6 +2665,13 @@ proto.api.pb.ModelDeleteReply.serializeBinaryToWriter = function(message, writer
 
 
 
+/**
+ * List of repeated fields within this message type.
+ * @private {!Array<number>}
+ * @const
+ */
+proto.api.pb.ModelHasRequest.repeatedFields_ = [3];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -2698,7 +2705,7 @@ proto.api.pb.ModelHasRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     storeid: jspb.Message.getFieldWithDefault(msg, 1, ""),
     modelname: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    entityid: jspb.Message.getFieldWithDefault(msg, 3, "")
+    entityidsList: (f = jspb.Message.getRepeatedField(msg, 3)) == null ? undefined : f
   };
 
   if (includeInstance) {
@@ -2745,7 +2752,7 @@ proto.api.pb.ModelHasRequest.deserializeBinaryFromReader = function(msg, reader)
       break;
     case 3:
       var value = /** @type {string} */ (reader.readString());
-      msg.setEntityid(value);
+      msg.addEntityids(value);
       break;
     default:
       reader.skipField();
@@ -2790,9 +2797,9 @@ proto.api.pb.ModelHasRequest.serializeBinaryToWriter = function(message, writer)
       f
     );
   }
-  f = message.getEntityid();
+  f = message.getEntityidsList();
   if (f.length > 0) {
-    writer.writeString(
+    writer.writeRepeatedString(
       3,
       f
     );
@@ -2837,20 +2844,39 @@ proto.api.pb.ModelHasRequest.prototype.setModelname = function(value) {
 
 
 /**
- * optional string entityID = 3;
- * @return {string}
+ * repeated string entityIDs = 3;
+ * @return {!Array<string>}
  */
-proto.api.pb.ModelHasRequest.prototype.getEntityid = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+proto.api.pb.ModelHasRequest.prototype.getEntityidsList = function() {
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 3));
+};
+
+
+/**
+ * @param {!Array<string>} value
+ * @return {!proto.api.pb.ModelHasRequest} returns this
+ */
+proto.api.pb.ModelHasRequest.prototype.setEntityidsList = function(value) {
+  return jspb.Message.setField(this, 3, value || []);
 };
 
 
 /**
  * @param {string} value
+ * @param {number=} opt_index
  * @return {!proto.api.pb.ModelHasRequest} returns this
  */
-proto.api.pb.ModelHasRequest.prototype.setEntityid = function(value) {
-  return jspb.Message.setProto3StringField(this, 3, value);
+proto.api.pb.ModelHasRequest.prototype.addEntityids = function(value, opt_index) {
+  return jspb.Message.addToRepeatedField(this, 3, value, opt_index);
+};
+
+
+/**
+ * Clears the list making it empty but non-null.
+ * @return {!proto.api.pb.ModelHasRequest} returns this
+ */
+proto.api.pb.ModelHasRequest.prototype.clearEntityidsList = function() {
+  return this.setEntityidsList([]);
 };
 
 
