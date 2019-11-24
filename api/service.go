@@ -124,9 +124,9 @@ func (s *service) ModelFindByID(ctx context.Context, req *pb.ModelFindByIDReques
 		return nil, status.Error(codes.NotFound, "model not found")
 	}
 
-	foo := model.FindByID
+	type Foo struct{}
 
-	return nil, nil
+	return s.processFindByIDRequest(req, model.FindByID, &Foo{})
 }
 
 func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
