@@ -306,7 +306,7 @@ if (goog.DEBUG && !COMPILED) {
  * @constructor
  */
 proto.api.pb.ModelDeleteRequest = function(opt_data) {
-  jspb.Message.initialize(this, opt_data, 0, -1, null, null);
+  jspb.Message.initialize(this, opt_data, 0, -1, proto.api.pb.ModelDeleteRequest.repeatedFields_, null);
 };
 goog.inherits(proto.api.pb.ModelDeleteRequest, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
@@ -2374,6 +2374,13 @@ proto.api.pb.ModelSaveReply.serializeBinaryToWriter = function(message, writer) 
 
 
 
+/**
+ * List of repeated fields within this message type.
+ * @private {!Array<number>}
+ * @const
+ */
+proto.api.pb.ModelDeleteRequest.repeatedFields_ = [3];
+
 
 
 if (jspb.Message.GENERATE_TO_OBJECT) {
@@ -2407,7 +2414,7 @@ proto.api.pb.ModelDeleteRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     storeid: jspb.Message.getFieldWithDefault(msg, 1, ""),
     modelname: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    entityid: jspb.Message.getFieldWithDefault(msg, 3, "")
+    entityidsList: (f = jspb.Message.getRepeatedField(msg, 3)) == null ? undefined : f
   };
 
   if (includeInstance) {
@@ -2454,7 +2461,7 @@ proto.api.pb.ModelDeleteRequest.deserializeBinaryFromReader = function(msg, read
       break;
     case 3:
       var value = /** @type {string} */ (reader.readString());
-      msg.setEntityid(value);
+      msg.addEntityids(value);
       break;
     default:
       reader.skipField();
@@ -2499,9 +2506,9 @@ proto.api.pb.ModelDeleteRequest.serializeBinaryToWriter = function(message, writ
       f
     );
   }
-  f = message.getEntityid();
+  f = message.getEntityidsList();
   if (f.length > 0) {
-    writer.writeString(
+    writer.writeRepeatedString(
       3,
       f
     );
@@ -2546,20 +2553,39 @@ proto.api.pb.ModelDeleteRequest.prototype.setModelname = function(value) {
 
 
 /**
- * optional string entityID = 3;
- * @return {string}
+ * repeated string entityIDs = 3;
+ * @return {!Array<string>}
  */
-proto.api.pb.ModelDeleteRequest.prototype.getEntityid = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+proto.api.pb.ModelDeleteRequest.prototype.getEntityidsList = function() {
+  return /** @type {!Array<string>} */ (jspb.Message.getRepeatedField(this, 3));
+};
+
+
+/**
+ * @param {!Array<string>} value
+ * @return {!proto.api.pb.ModelDeleteRequest} returns this
+ */
+proto.api.pb.ModelDeleteRequest.prototype.setEntityidsList = function(value) {
+  return jspb.Message.setField(this, 3, value || []);
 };
 
 
 /**
  * @param {string} value
+ * @param {number=} opt_index
  * @return {!proto.api.pb.ModelDeleteRequest} returns this
  */
-proto.api.pb.ModelDeleteRequest.prototype.setEntityid = function(value) {
-  return jspb.Message.setProto3StringField(this, 3, value);
+proto.api.pb.ModelDeleteRequest.prototype.addEntityids = function(value, opt_index) {
+  return jspb.Message.addToRepeatedField(this, 3, value, opt_index);
+};
+
+
+/**
+ * Clears the list making it empty but non-null.
+ * @return {!proto.api.pb.ModelDeleteRequest} returns this
+ */
+proto.api.pb.ModelDeleteRequest.prototype.clearEntityidsList = function() {
+  return this.setEntityidsList([]);
 };
 
 
@@ -3202,7 +3228,7 @@ proto.api.pb.ModelFindReply.prototype.toObject = function(opt_includeInstance) {
  */
 proto.api.pb.ModelFindReply.toObject = function(includeInstance, msg) {
   var f, obj = {
-
+    entity: jspb.Message.getFieldWithDefault(msg, 1, "")
   };
 
   if (includeInstance) {
@@ -3239,6 +3265,10 @@ proto.api.pb.ModelFindReply.deserializeBinaryFromReader = function(msg, reader) 
     }
     var field = reader.getFieldNumber();
     switch (field) {
+    case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setEntity(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -3268,6 +3298,31 @@ proto.api.pb.ModelFindReply.prototype.serializeBinary = function() {
  */
 proto.api.pb.ModelFindReply.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
+  f = message.getEntity();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
+};
+
+
+/**
+ * optional string entity = 1;
+ * @return {string}
+ */
+proto.api.pb.ModelFindReply.prototype.getEntity = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.api.pb.ModelFindReply} returns this
+ */
+proto.api.pb.ModelFindReply.prototype.setEntity = function(value) {
+  return jspb.Message.setProto3StringField(this, 1, value);
 };
 
 

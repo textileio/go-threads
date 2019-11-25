@@ -272,8 +272,10 @@ export class ModelDeleteRequest extends jspb.Message {
   getModelname(): string;
   setModelname(value: string): void;
 
-  getEntityid(): string;
-  setEntityid(value: string): void;
+  clearEntityidsList(): void;
+  getEntityidsList(): Array<string>;
+  setEntityidsList(value: Array<string>): void;
+  addEntityids(value: string, index?: number): string;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ModelDeleteRequest.AsObject;
@@ -289,7 +291,7 @@ export namespace ModelDeleteRequest {
   export type AsObject = {
     storeid: string,
     modelname: string,
-    entityid: string,
+    entityidsList: Array<string>,
   }
 }
 
@@ -384,6 +386,9 @@ export namespace ModelFindRequest {
 }
 
 export class ModelFindReply extends jspb.Message {
+  getEntity(): string;
+  setEntity(value: string): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): ModelFindReply.AsObject;
   static toObject(includeInstance: boolean, msg: ModelFindReply): ModelFindReply.AsObject;
@@ -396,6 +401,7 @@ export class ModelFindReply extends jspb.Message {
 
 export namespace ModelFindReply {
   export type AsObject = {
+    entity: string,
   }
 }
 

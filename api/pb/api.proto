@@ -56,7 +56,7 @@ message ModelSaveReply {}
 message ModelDeleteRequest {
     string storeID = 1;
     string modelName = 2;
-    string entityID = 3;
+    repeated string entityIDs = 3;
 }
 
 message ModelDeleteReply {}
@@ -77,7 +77,9 @@ message ModelFindRequest {
     // TODO: model the query
 }
 
-message ModelFindReply {}
+message ModelFindReply {
+    string entity = 1;
+}
 
 message ModelFindByIDRequest {
     string storeID = 1;
