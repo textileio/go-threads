@@ -6,6 +6,8 @@ import (
 	"io"
 
 	"github.com/google/uuid"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-textile-core/crypto/symmetric"
 	core "github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -48,11 +50,37 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 }
 
 func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
+	store, err := s.getStore(req.GetStoreID())
+	if err != nil {
+		return nil, err
+	}
+	if err := store.Start(); err != nil {
+		return nil, err
+	}
+	return &pb.StartReply{}, nil
 }
 
 func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StartFromAddress not implemented")
+	var err error
+	var store *es.Store
+	var addr ma.Multiaddr
+	var readKey, followKey *symmetric.Key
+	if store, err = s.getStore(req.GetStoreID()); err != nil {
+		return nil, err
+	}
+	if addr, err = ma.NewMultiaddr(req.GetAddress()); err != nil {
+		return nil, err
+	}
+	if readKey, err = symmetric.NewKey([]byte(req.GetReadKey())); err != nil {
+		return nil, err
+	}
+	if followKey, err = symmetric.NewKey([]byte(req.GetFollowKey())); err != nil {
+		return nil, err
+	}
+	if err = store.StartFromAddr(addr, followKey, readKey); err != nil {
+		return nil, err
+	}
+	return &pb.StartFromAddressReply{}, nil
 }
 
 // ModelCreate adds a new instance of a model to a store.
