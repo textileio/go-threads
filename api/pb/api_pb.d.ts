@@ -126,11 +126,15 @@ export class StartFromAddressRequest extends jspb.Message {
   getAddress(): string;
   setAddress(value: string): void;
 
-  getFollowkey(): string;
-  setFollowkey(value: string): void;
+  getFollowkey(): Uint8Array | string;
+  getFollowkey_asU8(): Uint8Array;
+  getFollowkey_asB64(): string;
+  setFollowkey(value: Uint8Array | string): void;
 
-  getReadkey(): string;
-  setReadkey(value: string): void;
+  getReadkey(): Uint8Array | string;
+  getReadkey_asU8(): Uint8Array;
+  getReadkey_asB64(): string;
+  setReadkey(value: Uint8Array | string): void;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): StartFromAddressRequest.AsObject;
@@ -146,8 +150,8 @@ export namespace StartFromAddressRequest {
   export type AsObject = {
     storeid: string,
     address: string,
-    followkey: string,
-    readkey: string,
+    followkey: Uint8Array | string,
+    readkey: Uint8Array | string,
   }
 }
 

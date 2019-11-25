@@ -81,6 +81,33 @@ func TestRegisterSchema(t *testing.T) {
 	}
 }
 
+func TestStart(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
+	if err != nil {
+		t.Fatalf("failed to start: %v", err)
+	}
+}
+
+func TestStartFromAddress(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+
+	// TODO: figure out how to test this
+	// client.StartFromAddress()
+}
+
 func TestModelCreate(t *testing.T) {
 	_, clean := server(t)
 	defer clean()

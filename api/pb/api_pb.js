@@ -1397,8 +1397,8 @@ proto.api.pb.StartFromAddressRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
     storeid: jspb.Message.getFieldWithDefault(msg, 1, ""),
     address: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    followkey: jspb.Message.getFieldWithDefault(msg, 3, ""),
-    readkey: jspb.Message.getFieldWithDefault(msg, 4, "")
+    followkey: msg.getFollowkey_asB64(),
+    readkey: msg.getReadkey_asB64()
   };
 
   if (includeInstance) {
@@ -1444,11 +1444,11 @@ proto.api.pb.StartFromAddressRequest.deserializeBinaryFromReader = function(msg,
       msg.setAddress(value);
       break;
     case 3:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setFollowkey(value);
       break;
     case 4:
-      var value = /** @type {string} */ (reader.readString());
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setReadkey(value);
       break;
     default:
@@ -1494,16 +1494,16 @@ proto.api.pb.StartFromAddressRequest.serializeBinaryToWriter = function(message,
       f
     );
   }
-  f = message.getFollowkey();
+  f = message.getFollowkey_asU8();
   if (f.length > 0) {
-    writer.writeString(
+    writer.writeBytes(
       3,
       f
     );
   }
-  f = message.getReadkey();
+  f = message.getReadkey_asU8();
   if (f.length > 0) {
-    writer.writeString(
+    writer.writeBytes(
       4,
       f
     );
@@ -1548,38 +1548,86 @@ proto.api.pb.StartFromAddressRequest.prototype.setAddress = function(value) {
 
 
 /**
- * optional string followKey = 3;
- * @return {string}
+ * optional bytes followKey = 3;
+ * @return {!(string|Uint8Array)}
  */
 proto.api.pb.StartFromAddressRequest.prototype.getFollowkey = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
 };
 
 
 /**
- * @param {string} value
+ * optional bytes followKey = 3;
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {string}
+ */
+proto.api.pb.StartFromAddressRequest.prototype.getFollowkey_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getFollowkey()));
+};
+
+
+/**
+ * optional bytes followKey = 3;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getFollowkey()`
+ * @return {!Uint8Array}
+ */
+proto.api.pb.StartFromAddressRequest.prototype.getFollowkey_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getFollowkey()));
+};
+
+
+/**
+ * @param {!(string|Uint8Array)} value
  * @return {!proto.api.pb.StartFromAddressRequest} returns this
  */
 proto.api.pb.StartFromAddressRequest.prototype.setFollowkey = function(value) {
-  return jspb.Message.setProto3StringField(this, 3, value);
+  return jspb.Message.setProto3BytesField(this, 3, value);
 };
 
 
 /**
- * optional string readKey = 4;
- * @return {string}
+ * optional bytes readKey = 4;
+ * @return {!(string|Uint8Array)}
  */
 proto.api.pb.StartFromAddressRequest.prototype.getReadkey = function() {
-  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
 };
 
 
 /**
- * @param {string} value
+ * optional bytes readKey = 4;
+ * This is a type-conversion wrapper around `getReadkey()`
+ * @return {string}
+ */
+proto.api.pb.StartFromAddressRequest.prototype.getReadkey_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getReadkey()));
+};
+
+
+/**
+ * optional bytes readKey = 4;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getReadkey()`
+ * @return {!Uint8Array}
+ */
+proto.api.pb.StartFromAddressRequest.prototype.getReadkey_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getReadkey()));
+};
+
+
+/**
+ * @param {!(string|Uint8Array)} value
  * @return {!proto.api.pb.StartFromAddressRequest} returns this
  */
 proto.api.pb.StartFromAddressRequest.prototype.setReadkey = function(value) {
-  return jspb.Message.setProto3StringField(this, 4, value);
+  return jspb.Message.setProto3BytesField(this, 4, value);
 };
 
 

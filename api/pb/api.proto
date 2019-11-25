@@ -29,8 +29,8 @@ message StartReply {}
 message StartFromAddressRequest {
     string storeID = 1;
     string address = 2;
-    string followKey = 3;
-    string readKey = 4;
+    bytes followKey = 3;
+    bytes readKey = 4;
 }
 
 message StartFromAddressReply {}
