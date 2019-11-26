@@ -297,6 +297,9 @@ func (t *threads) getThreadSemaphore(id thread.ID) chan struct{} {
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
 	ptl := t.getThreadSemaphore(id)
+	// Fix concurrency, temporary global lock
+	t.pullLock.Lock()
+	defer t.pullLock.Unlock()
 	select {
 	case ptl <- struct{}{}:
 		lgs, err := t.getLogs(id)
