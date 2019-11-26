@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 
 	pb "github.com/textileio/go-textile-threads/api/pb"
@@ -20,7 +21,7 @@ func (t *ReadTransaction) Start() error {
 }
 
 // Has runs a has query in the active transaction
-func (t *ReadTransaction) Has(entityIDs []string) (bool, error) {
+func (t *ReadTransaction) Has(entityIDs ...string) (bool, error) {
 	innerReq := &pb.ModelHasRequest{EntityIDs: entityIDs}
 	option := &pb.ReadTransactionRequest_ModelHasRequest{ModelHasRequest: innerReq}
 	var err error
@@ -40,22 +41,23 @@ func (t *ReadTransaction) Has(entityIDs []string) (bool, error) {
 }
 
 // FindByID gets the entity with the specified ID
-func (t *ReadTransaction) FindByID(entityID string) (string, error) {
+func (t *ReadTransaction) FindByID(entityID string, entity interface{}) error {
 	innerReq := &pb.ModelFindByIDRequest{EntityID: entityID}
 	option := &pb.ReadTransactionRequest_ModelFindByIDRequest{ModelFindByIDRequest: innerReq}
 	var err error
 	var resp *pb.ReadTransactionReply
 	if err = t.client.Send(&pb.ReadTransactionRequest{Option: option}); err != nil {
-		return "", err
+		return err
 	}
 	if resp, err = t.client.Recv(); err != nil {
-		return "", err
+		return err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_ModelFindByIDReply:
-		return x.ModelFindByIDReply.GetEntity(), nil
+		err := json.Unmarshal([]byte(x.ModelFindByIDReply.GetEntity()), entity)
+		return err
 	default:
-		return "", fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
+		return fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
 	}
 }
 

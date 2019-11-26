@@ -397,6 +397,7 @@ func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc 
 }
 
 func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(result interface{}, q *es.Query) error) (*pb.ModelFindReply, error) {
+	// TODO: find actually returns a slice of objects, not a string
 	var result string
 	// TODO: deal with query which is nil here
 	if err := findFunc(&result, nil); err != nil {

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
@@ -65,35 +66,94 @@ func (c *Client) StartFromAddress(storeID string, addr ma.Multiaddr, followKey, 
 }
 
 // ModelCreate creates new instances of model objects
-func (c *Client) ModelCreate(storeID, modelName string, values []string) ([]string, error) {
+func (c *Client) ModelCreate(storeID, modelName string, items ...interface{}) error {
+	values, err := marshalItems(items)
+	if err != nil {
+		return err
+	}
+
 	req := &pb.ModelCreateRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
 		Values:    values,
 	}
+
 	resp, err := c.client.ModelCreate(c.ctx, req)
-	return resp.GetEntities(), err
+	if err != nil {
+		return err
+	}
+
+	for i, entity := range resp.GetEntities() {
+		err := json.Unmarshal([]byte(entity), items[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ModelSave saves existing instances
-func (c *Client) ModelSave(storeID, modelName string, values []string) error {
+func (c *Client) ModelSave(storeID, modelName string, items ...interface{}) error {
+	values, err := marshalItems(items)
+	if err != nil {
+		return err
+	}
+
 	req := &pb.ModelSaveRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
 		Values:    values,
 	}
-	_, err := c.client.ModelSave(c.ctx, req)
+	_, err = c.client.ModelSave(c.ctx, req)
 	return err
 }
 
 // ModelDelete deletes data
-func (c *Client) ModelDelete(storeID, modelName string, entityIds []string) error {
+func (c *Client) ModelDelete(storeID, modelName string, entityIDs ...string) error {
 	req := &pb.ModelDeleteRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
-		EntityIDs: entityIds,
+		EntityIDs: entityIDs,
 	}
 	_, err := c.client.ModelDelete(c.ctx, req)
+	return err
+}
+
+// ModelHas checks if the specified entities exist
+func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool, error) {
+	req := &pb.ModelHasRequest{
+		StoreID:   storeID,
+		ModelName: modelName,
+		EntityIDs: entityIDs,
+	}
+	resp, err := c.client.ModelHas(c.ctx, req)
+	return resp.GetExists(), err
+}
+
+// ModelFind finds records by query
+func (c *Client) ModelFind(storeID, modelName string) (string, error) {
+	// TODO: implement query object
+	req := &pb.ModelFindRequest{
+		StoreID:   storeID,
+		ModelName: modelName,
+	}
+	resp, err := c.client.ModelFind(c.ctx, req)
+	return resp.GetEntity(), err
+}
+
+// ModelFindByID finds a record by id
+func (c *Client) ModelFindByID(storeID, modelName, entityID string, entity interface{}) error {
+	req := &pb.ModelFindByIDRequest{
+		StoreID:   storeID,
+		ModelName: modelName,
+		EntityID:  entityID,
+	}
+	resp, err := c.client.ModelFindByID(c.ctx, req)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal([]byte(resp.GetEntity()), entity)
 	return err
 }
 
@@ -104,4 +164,16 @@ func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, e
 		return nil, err
 	}
 	return &ReadTransaction{client: client, storeID: storeID, modelName: modelName}, nil
+}
+
+func marshalItems(items []interface{}) ([]string, error) {
+	values := make([]string, len(items))
+	for i, item := range items {
+		bytes, err := json.Marshal(item)
+		if err != nil {
+			return []string{}, err
+		}
+		values[i] = string(bytes)
+	}
+	return values, nil
 }

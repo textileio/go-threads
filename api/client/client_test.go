@@ -3,18 +3,12 @@ package client
 import (
 	"context"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
-)
-
-var (
-// ts es.ThreadserviceBoostrapper
-// server *api.Server
-// client  *Client
-// storeID string
 )
 
 const schema = `{
@@ -44,19 +38,26 @@ const schema = `{
 	}
 }`
 
-const adam = `{
-	"ID": "",
-	"firstName": "Adam",
-	"lastName": "Doe",
-	"age": 21
-}`
+type Person struct {
+	ID        string
+	firstName string
+	lastName  string
+	age       int
+}
 
-const eve = `{
-	"ID": "",
-	"firstName": "Eve",
-	"lastName": "Doe",
-	"age": 21
-}`
+var adam = &Person{
+	ID:        "",
+	firstName: "Adam",
+	lastName:  "Doe",
+	age:       21,
+}
+
+var eve = &Person{
+	ID:        "",
+	firstName: "Eve",
+	lastName:  "Doe",
+	age:       21,
+}
 
 func TestNewStore(t *testing.T) {
 	_, clean := server(t)
@@ -117,9 +118,94 @@ func TestModelCreate(t *testing.T) {
 	err := client.RegisterSchema(storeID, "Person", schema)
 	checkErr(t, err)
 
-	_, err = client.ModelCreate(storeID, "Person", []string{adam})
+	err = client.ModelCreate(storeID, "Person", adam)
 	if err != nil {
 		t.Fatalf("failed to create model: %v", err)
+	}
+}
+
+func TestModelSave(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+
+	err = client.ModelCreate(storeID, "Person", adam)
+	checkErr(t, err)
+
+	adam.age = 30
+	err = client.ModelSave(storeID, "Person", adam)
+	if err != nil {
+		t.Fatalf("failed to save model: %v", err)
+	}
+}
+
+func TestModelDelete(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+
+	err = client.ModelCreate(storeID, "Person", adam)
+	checkErr(t, err)
+
+	err = client.ModelDelete(storeID, "Person", adam.ID)
+	if err != nil {
+		t.Fatalf("failed to delete model: %v", err)
+	}
+}
+
+func TestModelHas(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+
+	err = client.ModelCreate(storeID, "Person", adam)
+	checkErr(t, err)
+
+	exists, err := client.ModelHas(storeID, "Person", adam.ID)
+	if err != nil {
+		t.Fatalf("failed to check model has: %v", err)
+	}
+	if !exists {
+		t.Fatal("model should exist but it doesn't")
+	}
+}
+
+func TestModelFind(t *testing.T) {
+
+}
+
+func TestModelFindByID(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+
+	err = client.ModelCreate(storeID, "Person", adam)
+	checkErr(t, err)
+
+	newPerson := &Person{}
+	err = client.ModelFindByID(storeID, "Person", adam.ID, newPerson)
+	if err != nil {
+		t.Fatalf("failed to find model by id: %v", err)
+	}
+	// TODO: seems that the newPerson has the correct ID but default values for everything else
+	if !reflect.DeepEqual(newPerson, adam) {
+		t.Fatal("model found by id does't equal the original")
 	}
 }
 
@@ -132,23 +218,37 @@ func TestReadTransaction(t *testing.T) {
 	checkErr(t, err)
 	err = client.RegisterSchema(storeID, "Person", schema)
 	checkErr(t, err)
-	entityIDs, err := client.ModelCreate(storeID, "Person", []string{adam})
+	err = client.ModelCreate(storeID, "Person", adam)
 	checkErr(t, err)
+
 	txn, err := client.ReadTransaction(storeID, "Person")
 	if err != nil {
 		t.Fatalf("failed to create read txn: %v", err)
 	}
+
 	err = txn.Start()
 	if err != nil {
 		t.Fatalf("failed to start read txn: %v", err)
 	}
-	has, err := txn.Has(entityIDs)
+
+	has, err := txn.Has(adam.ID)
 	if err != nil {
 		t.Fatalf("failed to read txn has: %v", err)
 	}
 	if !has {
 		t.Fatal("expected has to be true but it wasn't")
 	}
+
+	newPerson := &Person{}
+	err = txn.FindByID(adam.ID, newPerson)
+	if err != nil {
+		t.Fatalf("failed to txn find by id: %v", err)
+	}
+	// TODO: seems that the newPerson has the correct ID but default values for everything else
+	if !reflect.DeepEqual(newPerson, adam) {
+		t.Fatal("txn model found by id does't equal the original")
+	}
+
 	err = txn.End()
 	if err != nil {
 		t.Fatalf("failed to end txn: %v", err)
