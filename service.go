@@ -122,15 +122,14 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	// Fix concurrency: adding head without having the block guarantee
 	if head == nil {
 		if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
-	go func() {
-		s.threads.pullLock.Lock()
-		defer s.threads.pullLock.Unlock()
+	func() {
 		// Get log records for this new log
 		recs, err := s.getRecords(
 			s.threads.ctx,

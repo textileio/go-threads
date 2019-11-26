@@ -103,11 +103,11 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record
 	}
 	event, ok := block.(*Event)
 	if !ok {
-	event, err = EventFromNode(block)
-	if err != nil {
-		return nil, err
+		event, err = EventFromNode(block)
+		if err != nil {
+			return nil, err
+		}
 	}
-}
 	header, err := event.GetHeader(ctx, dag, nil)
 	if err != nil {
 		return nil, err
