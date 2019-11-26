@@ -101,17 +101,17 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec thread.Record
 	if err != nil {
 		return nil, err
 	}
-	// (jsign): shouldn't we check if block.(*cbor.Event) to avoid  EventFromNode()?
+
 	event, err := EventFromNode(block)
 	if err != nil {
 		return nil, err
 	}
-	// (jsign): same here?
+
 	header, err := event.GetHeader(ctx, dag, nil)
 	if err != nil {
 		return nil, err
 	}
-	// same here?
+
 	body, err := event.GetBody(ctx, dag, nil)
 	if err != nil {
 		return nil, err
