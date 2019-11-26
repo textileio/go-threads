@@ -22,7 +22,7 @@ import (
 
 const (
 	// reqTimeout is the duration to wait for a request to complete.
-	reqTimeout = time.Second * 5
+	reqTimeout = time.Second * 10
 )
 
 // getLogs in a thread.
