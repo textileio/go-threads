@@ -6,7 +6,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -275,7 +274,6 @@ func TestListen(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(2000 * time.Millisecond)
 		adam.age = 30
 		_ = client.ModelSave(storeID, "Person", adam)
 		adam.age = 40
