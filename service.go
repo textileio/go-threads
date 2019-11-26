@@ -118,15 +118,10 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 	}
 
 	lg := logFromProto(req.Log)
-	head, err := s.threads.store.Heads(req.ThreadID.ID, lg.ID)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+
 	// Fix concurrency: adding head without having the block guarantee
-	if head == nil {
-		if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	func() {
