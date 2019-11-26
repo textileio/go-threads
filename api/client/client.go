@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	pb "github.com/textileio/go-textile-threads/api/pb"
@@ -164,6 +165,33 @@ func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, e
 		return nil, err
 	}
 	return &ReadTransaction{client: client, storeID: storeID, modelName: modelName}, nil
+}
+
+// Listen provides an update whenever the specified model is updated
+func (c *Client) Listen(storeID, modelName, entityID string) (chan interface{}, error) {
+	req := &pb.ListenRequest{
+		StoreID:   storeID,
+		ModelName: modelName,
+		EntityID:  entityID,
+	}
+	stream, err := c.client.Listen(c.ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	channel := make(chan interface{})
+	go func() {
+		for {
+			event, err := stream.Recv()
+			if err != nil {
+				break
+			}
+			mp := make(map[string]interface{})
+			err = json.Unmarshal([]byte(event.GetEntity()), &mp)
+			channel <- mp
+		}
+		close(channel)
+	}()
+	return channel, nil
 }
 
 func marshalItems(items []interface{}) ([]string, error) {

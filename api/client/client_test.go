@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -252,6 +254,46 @@ func TestReadTransaction(t *testing.T) {
 	err = txn.End()
 	if err != nil {
 		t.Fatalf("failed to end txn: %v", err)
+	}
+}
+
+func TestListen(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+
+	err = client.ModelCreate(storeID, "Person", adam)
+	checkErr(t, err)
+
+	channel, err := client.Listen(storeID, "Person", adam.ID)
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+
+	go func() {
+		time.Sleep(2000 * time.Millisecond)
+		adam.age = 30
+		_ = client.ModelSave(storeID, "Person", adam)
+		adam.age = 40
+		_ = client.ModelSave(storeID, "Person", adam)
+	}()
+
+	val, ok := <-channel
+	if !ok {
+		t.Fatal("channel no longer active at first event")
+	} else {
+		fmt.Println(val, ok)
+	}
+
+	val, ok = <-channel
+	if !ok {
+		t.Fatal("channel no longer active at second event")
+	} else {
+		fmt.Println(val, ok)
 	}
 }
 
