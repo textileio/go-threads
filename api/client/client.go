@@ -96,3 +96,12 @@ func (c *Client) ModelDelete(storeID, modelName string, entityIds []string) erro
 	_, err := c.client.ModelDelete(c.ctx, req)
 	return err
 }
+
+// ReadTransaction returns a read transaction that can be started and used and ended
+func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, error) {
+	client, err := c.client.ReadTransaction(c.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &ReadTransaction{client: client, storeID: storeID, modelName: modelName}, nil
+}

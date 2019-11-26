@@ -114,11 +114,44 @@ func TestModelCreate(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	_ = client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
 
-	_, err := client.ModelCreate(storeID, "Person", []string{adam})
+	_, err = client.ModelCreate(storeID, "Person", []string{adam})
 	if err != nil {
 		t.Fatalf("failed to create model: %v", err)
+	}
+}
+
+func TestReadTransaction(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, "Person", schema)
+	checkErr(t, err)
+	entityIDs, err := client.ModelCreate(storeID, "Person", []string{adam})
+	checkErr(t, err)
+	txn, err := client.ReadTransaction(storeID, "Person")
+	if err != nil {
+		t.Fatalf("failed to create read txn: %v", err)
+	}
+	err = txn.Start()
+	if err != nil {
+		t.Fatalf("failed to start read txn: %v", err)
+	}
+	has, err := txn.Has(entityIDs)
+	if err != nil {
+		t.Fatalf("failed to read txn has: %v", err)
+	}
+	if !has {
+		t.Fatal("expected has to be true but it wasn't")
+	}
+	err = txn.End()
+	if err != nil {
+		t.Fatalf("failed to end txn: %v", err)
 	}
 }
 
