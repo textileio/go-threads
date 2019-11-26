@@ -92,438 +92,438 @@ var (
 	ratingMax  = 5.0
 
 	jsonQueries = []jsonQueryTest{
-		// // Ands string
-		// jsonQueryTest{
-		// 	name:   "EqByTitle1",
-		// 	resIdx: []int{0},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					String: &title0,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "NeByTitle1",
-		// 	resIdx: []int{1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Ne,
-		// 				Value: JSONValue{
-		// 					String: &title0,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "NeByTitle",
-		// 	resIdx: []int{0, 1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Ne,
-		// 				Value: JSONValue{
-		// 					String: &title,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "EqByTitle",
-		// 	resIdx: []int{},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					String: &title,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LtByTitle",
-		// 	resIdx: []int{},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Lt,
-		// 				Value: JSONValue{
-		// 					String: &title,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GtByTitle",
-		// 	resIdx: []int{0, 1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Gt,
-		// 				Value: JSONValue{
-		// 					String: &title,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GtByTitleMax",
-		// 	resIdx: []int{},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Gt,
-		// 				Value: JSONValue{
-		// 					String: &titleMax,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		// Ands string
+		jsonQueryTest{
+			name:   "EqByTitle1",
+			resIdx: []int{0},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Eq,
+						Value: JSONValue{
+							String: &title0,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "NeByTitle1",
+			resIdx: []int{1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Ne,
+						Value: JSONValue{
+							String: &title0,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "NeByTitle",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Ne,
+						Value: JSONValue{
+							String: &title,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "EqByTitle",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Eq,
+						Value: JSONValue{
+							String: &title,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LtByTitle",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Lt,
+						Value: JSONValue{
+							String: &title,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GtByTitle",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Gt,
+						Value: JSONValue{
+							String: &title,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GtByTitleMax",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Gt,
+						Value: JSONValue{
+							String: &titleMax,
+						},
+					},
+				},
+			},
+		},
 
-		// // Ands "int" (which query interpret as float)
-		// jsonQueryTest{
-		// 	name:   "EqByTotalReads1",
-		// 	resIdx: []int{0},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					Float: &totreadEq1,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LtByTotalReads1",
-		// 	resIdx: []int{},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Lt,
-		// 				Value: JSONValue{
-		// 					Float: &totreadEq1,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LeByTotalReadsBigger",
-		// 	resIdx: []int{0, 1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Le,
-		// 				Value: JSONValue{
-		// 					Float: &totreadMax,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GeByTotalReadsMin",
-		// 	resIdx: []int{0, 1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Ge,
-		// 				Value: JSONValue{
-		// 					Float: &totreadMin,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LtByTotalReadsMidpoint",
-		// 	resIdx: []int{0, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Lt,
-		// 				Value: JSONValue{
-		// 					Float: &totreadMid,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GtByTotalReadsMidpoint",
-		// 	resIdx: []int{1, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Gt,
-		// 				Value: JSONValue{
-		// 					Float: &totreadMid,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LtByTotalReads2",
-		// 	resIdx: []int{0, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.TotalReads",
-		// 				Operation: Lt,
-		// 				Value: JSONValue{
-		// 					Float: &totreadEq2,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		// Ands "int" (which query interpret as float)
+		jsonQueryTest{
+			name:   "EqByTotalReads1",
+			resIdx: []int{0},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Eq,
+						Value: JSONValue{
+							Float: &totreadEq1,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LtByTotalReads1",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Lt,
+						Value: JSONValue{
+							Float: &totreadEq1,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LeByTotalReadsBigger",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Le,
+						Value: JSONValue{
+							Float: &totreadMax,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GeByTotalReadsMin",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Ge,
+						Value: JSONValue{
+							Float: &totreadMin,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LtByTotalReadsMidpoint",
+			resIdx: []int{0, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Lt,
+						Value: JSONValue{
+							Float: &totreadMid,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GtByTotalReadsMidpoint",
+			resIdx: []int{1, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Gt,
+						Value: JSONValue{
+							Float: &totreadMid,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LtByTotalReads2",
+			resIdx: []int{0, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.TotalReads",
+						Operation: Lt,
+						Value: JSONValue{
+							Float: &totreadEq2,
+						},
+					},
+				},
+			},
+		},
 
-		// // Ands float
-		// jsonQueryTest{
-		// 	name:   "EqByRating1",
-		// 	resIdx: []int{0},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.Rating",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					Float: &rating1,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GtByRating1",
-		// 	resIdx: []int{1, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.Rating",
-		// 				Operation: Gt,
-		// 				Value: JSONValue{
-		// 					Float: &rating1,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LeByRatingMid",
-		// 	resIdx: []int{0, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.Rating",
-		// 				Operation: Le,
-		// 				Value: JSONValue{
-		// 					Float: &ratingMid,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GeByRatingMid",
-		// 	resIdx: []int{1, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.Rating",
-		// 				Operation: Ge,
-		// 				Value: JSONValue{
-		// 					Float: &ratingMid,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "LeByRatingMax",
-		// 	resIdx: []int{0, 1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.Rating",
-		// 				Operation: Le,
-		// 				Value: JSONValue{
-		// 					Float: &ratingMax,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "GtByRatingMax",
-		// 	resIdx: []int{},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Meta.Rating",
-		// 				Operation: Gt,
-		// 				Value: JSONValue{
-		// 					Float: &ratingMax,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// // Ands bool
-		// jsonQueryTest{
-		// 	name:   "EqByBanned",
-		// 	resIdx: []int{0, 3},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Banned",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					Bool: &boolTrue,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "NeByBanned",
-		// 	resIdx: []int{1, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Banned",
-		// 				Operation: Ne,
-		// 				Value: JSONValue{
-		// 					Bool: &boolTrue,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "EqByBannedFalse",
-		// 	resIdx: []int{1, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Banned",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					Bool: &boolFalse,
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		// Ands float
+		jsonQueryTest{
+			name:   "EqByRating1",
+			resIdx: []int{0},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Eq,
+						Value: JSONValue{
+							Float: &rating1,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GtByRating1",
+			resIdx: []int{1, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Gt,
+						Value: JSONValue{
+							Float: &rating1,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LeByRatingMid",
+			resIdx: []int{0, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Le,
+						Value: JSONValue{
+							Float: &ratingMid,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GeByRatingMid",
+			resIdx: []int{1, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Ge,
+						Value: JSONValue{
+							Float: &ratingMid,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "LeByRatingMax",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Le,
+						Value: JSONValue{
+							Float: &ratingMax,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GtByRatingMax",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Gt,
+						Value: JSONValue{
+							Float: &ratingMax,
+						},
+					},
+				},
+			},
+		},
+		// Ands bool
+		jsonQueryTest{
+			name:   "EqByBanned",
+			resIdx: []int{0, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Banned",
+						Operation: Eq,
+						Value: JSONValue{
+							Bool: &boolTrue,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "NeByBanned",
+			resIdx: []int{1, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Banned",
+						Operation: Ne,
+						Value: JSONValue{
+							Bool: &boolTrue,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "EqByBannedFalse",
+			resIdx: []int{1, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Banned",
+						Operation: Eq,
+						Value: JSONValue{
+							Bool: &boolFalse,
+						},
+					},
+				},
+			},
+		},
 
-		// // Ors
-		// jsonQueryTest{
-		// 	name:   "EqTitle1OrTitle3",
-		// 	resIdx: []int{0, 2},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					String: &title0,
-		// 				},
-		// 			},
-		// 		},
-		// 		Ors: []JSONQuery{
-		// 			JSONQuery{
-		// 				Ands: []JSONCriterion{
-		// 					JSONCriterion{
-		// 						FieldPath: "Title",
-		// 						Operation: Eq,
-		// 						Value: JSONValue{
-		// 							String: &title3,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// jsonQueryTest{
-		// 	name:   "EqTitle2OrRating",
-		// 	resIdx: []int{0, 1},
-		// 	query: JSONQuery{
-		// 		Ands: []JSONCriterion{
-		// 			JSONCriterion{
-		// 				FieldPath: "Title",
-		// 				Operation: Eq,
-		// 				Value: JSONValue{
-		// 					String: &title1,
-		// 				},
-		// 			},
-		// 		},
-		// 		Ors: []JSONQuery{
-		// 			JSONQuery{
-		// 				Ands: []JSONCriterion{
-		// 					JSONCriterion{
-		// 						FieldPath: "Meta.Rating",
-		// 						Operation: Eq,
-		// 						Value: JSONValue{
-		// 							Float: &rating1,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		// Ors
+		jsonQueryTest{
+			name:   "EqTitle1OrTitle3",
+			resIdx: []int{0, 2},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Eq,
+						Value: JSONValue{
+							String: &title0,
+						},
+					},
+				},
+				Ors: []JSONQuery{
+					JSONQuery{
+						Ands: []JSONCriterion{
+							JSONCriterion{
+								FieldPath: "Title",
+								Operation: Eq,
+								Value: JSONValue{
+									String: &title3,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "EqTitle2OrRating",
+			resIdx: []int{0, 1},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Title",
+						Operation: Eq,
+						Value: JSONValue{
+							String: &title1,
+						},
+					},
+				},
+				Ors: []JSONQuery{
+					JSONQuery{
+						Ands: []JSONCriterion{
+							JSONCriterion{
+								FieldPath: "Meta.Rating",
+								Operation: Eq,
+								Value: JSONValue{
+									Float: &rating1,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 
-		// // Ordering (string, int, float)
-		// jsonQueryTest{
-		// 	name:   "AllOrderedTitle",
-		// 	resIdx: []int{0, 1, 2, 3},
-		// 	query: JSONQuery{
-		// 		Sort: JSONSort{
-		// 			FieldPath: "Title",
-		// 		},
-		// 	},
-		// 	ordered: true,
-		// },
-		// jsonQueryTest{
-		// 	name:   "AllOrderedTitleDesc",
-		// 	resIdx: []int{3, 2, 1, 0},
-		// 	query: JSONQuery{
-		// 		Sort: JSONSort{
-		// 			FieldPath: "Title",
-		// 			Desc:      true,
-		// 		},
-		// 	},
-		// 	ordered: true,
-		// },
+		// Ordering (string, int, float)
+		jsonQueryTest{
+			name:   "AllOrderedTitle",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Sort: JSONSort{
+					FieldPath: "Title",
+				},
+			},
+			ordered: true,
+		},
+		jsonQueryTest{
+			name:   "AllOrderedTitleDesc",
+			resIdx: []int{3, 2, 1, 0},
+			query: JSONQuery{
+				Sort: JSONSort{
+					FieldPath: "Title",
+					Desc:      true,
+				},
+			},
+			ordered: true,
+		},
 		jsonQueryTest{
 			name:   "AllOrderedTotalReads",
 			resIdx: []int{0, 2, 1, 3},
