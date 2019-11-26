@@ -396,12 +396,13 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 	}
 }
 
-func createTestStore(t *testing.T) (*Store, func()) {
+func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	ts, err := DefaultThreadservice(dir, ProxyPort(0))
 	checkErr(t, err)
-	s, err := NewStore(ts, WithRepoPath(dir))
+	opts = append(opts, WithRepoPath(dir))
+	s, err := NewStore(ts, opts...)
 	checkErr(t, err)
 	return s, func() {
 		if err := ts.Close(); err != nil {
