@@ -168,7 +168,7 @@ func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, e
 }
 
 // Listen provides an update whenever the specified model is updated
-func (c *Client) Listen(storeID, modelName, entityID string) (chan interface{}, error) {
+func (c *Client) Listen(storeID, modelName, entityID string, dummy interface{}) (chan interface{}, error) {
 	req := &pb.ListenRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
@@ -185,9 +185,8 @@ func (c *Client) Listen(storeID, modelName, entityID string) (chan interface{}, 
 			if err != nil {
 				break
 			}
-			mp := make(map[string]interface{})
-			err = json.Unmarshal([]byte(event.GetEntity()), &mp)
-			channel <- mp
+			err = json.Unmarshal([]byte(event.GetEntity()), dummy)
+			channel <- dummy
 		}
 		close(channel)
 	}()

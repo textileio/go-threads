@@ -268,7 +268,7 @@ func TestListen(t *testing.T) {
 	err = client.ModelCreate(storeID, "Person", adam)
 	checkErr(t, err)
 
-	channel, err := client.Listen(storeID, "Person", adam.ID)
+	channel, err := client.Listen(storeID, "Person", adam.ID, &Person{})
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
