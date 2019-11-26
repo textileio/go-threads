@@ -320,7 +320,6 @@ func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 		}
 		wg := sync.WaitGroup{}
 		for _, lg := range lgs {
-			// (jsign): after fist iteration, offsets might not be correct anymore
 			wg.Add(1)
 			// ToDo: fix concurrency
 			func(lg thread.LogInfo) {
