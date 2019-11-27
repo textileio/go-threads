@@ -126,6 +126,15 @@ func (m *Model) Find(result interface{}, q *Query) error {
 	})
 }
 
+// FindJSON executes a Query in in JSONMode and returns the result.
+func (m *Model) FindJSON(q JSONQuery) (ret []string, err error) {
+	m.ReadTxn(func(txn *Txn) error {
+		ret, err = txn.FindJSON(q)
+		return err
+	})
+	return
+}
+
 // Reduce processes an event into the model.
 func (m *Model) Reduce(event core.Event) error {
 	log.Debugf("reducer %s start", m.name)

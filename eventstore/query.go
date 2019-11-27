@@ -21,8 +21,8 @@ type Query struct {
 	ands []*Criterion
 	ors  []*Query
 	sort struct {
-		field string
-		desc  bool
+		fieldPath string
+		desc      bool
 	}
 }
 
@@ -52,7 +52,7 @@ func (q *Query) Or(orQuery *Query) *Query {
 // OrderBy specify ascending order for the query results.
 // On multiple calls, only the last one is considered.
 func (q *Query) OrderBy(field string) *Query {
-	q.sort.field = field
+	q.sort.fieldPath = field
 	q.sort.desc = false
 	return q
 }
@@ -60,7 +60,7 @@ func (q *Query) OrderBy(field string) *Query {
 // OrderByDesc specify descending order for the query results.
 // On multiple calls, only the last one is considered.
 func (q *Query) OrderByDesc(field string) *Query {
-	q.sort.field = field
+	q.sort.fieldPath = field
 	q.sort.desc = true
 	return q
 }
@@ -91,6 +91,7 @@ func (t *Txn) Find(res interface{}, q *Query) error {
 		if !ok {
 			break
 		}
+
 		instance := reflect.New(t.model.valueType.Elem())
 		if err = json.Unmarshal(res.Value, instance.Interface()); err != nil {
 			return fmt.Errorf("error when unmarshaling query result: %v", err)
@@ -103,15 +104,15 @@ func (t *Txn) Find(res interface{}, q *Query) error {
 			unsorted = append(unsorted, instance)
 		}
 	}
-	if q.sort.field != "" {
+	if q.sort.fieldPath != "" {
 		var wrongField, cantCompare bool
 		sort.Slice(unsorted, func(i, j int) bool {
-			fieldI, err := traverseFieldPath(unsorted[i], q.sort.field)
+			fieldI, err := traverseFieldPath(unsorted[i], q.sort.fieldPath)
 			if err != nil {
 				wrongField = true
 				return false
 			}
-			fieldJ, err := traverseFieldPath(unsorted[j], q.sort.field)
+			fieldJ, err := traverseFieldPath(unsorted[j], q.sort.fieldPath)
 			if err != nil {
 				wrongField = true
 				return false
@@ -146,12 +147,12 @@ func (q *Query) match(v reflect.Value) (bool, error) {
 	}
 
 	andOk := true
-	for _, Criterion := range q.ands {
-		fieldForMatch, err := traverseFieldPath(v, Criterion.fieldPath)
+	for _, c := range q.ands {
+		fieldForMatch, err := traverseFieldPath(v, c.fieldPath)
 		if err != nil {
 			return false, err
 		}
-		ok, err := Criterion.match(fieldForMatch)
+		ok, err := c.match(fieldForMatch)
 		if err != nil {
 			return false, err
 		}
