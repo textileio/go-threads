@@ -14,9 +14,13 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 
-# Exe repo
+# Examples repo
 .threads*/
 .e2e_counter_writeraddr
+
+# JS PB files
+*.js
+*.d.ts
 
 # vscode config folder
 .vscode/

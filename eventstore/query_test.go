@@ -105,7 +105,7 @@ func TestModelQuery(t *testing.T) {
 			t.Parallel()
 			var res []*book
 			if err := m.Find(&res, q.query); err != nil {
-				t.Fatal("error when executing query")
+				t.Fatalf("error when executing query: %v", err)
 			}
 			if len(q.resIdx) != len(res) {
 				t.Fatalf("query results length doesn't match, expected: %d, got: %d", len(q.resIdx), len(res))
