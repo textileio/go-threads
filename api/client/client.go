@@ -167,6 +167,15 @@ func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, e
 	return &ReadTransaction{client: client, storeID: storeID, modelName: modelName}, nil
 }
 
+// WriteTransaction returns a read transaction that can be started and used and ended
+func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction, error) {
+	client, err := c.client.WriteTransaction(c.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &WriteTransaction{client: client, storeID: storeID, modelName: modelName}, nil
+}
+
 // Listen provides an update whenever the specified model is updated
 func (c *Client) Listen(storeID, modelName, entityID string, dummy interface{}) (chan interface{}, error) {
 	req := &pb.ListenRequest{

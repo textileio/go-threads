@@ -12,10 +12,12 @@ import (
 	"github.com/textileio/go-textile-threads/util"
 )
 
+const modelName = "Person"
+
 const schema = `{
 	"$id": "https://example.com/person.schema.json",
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"title": "Person",
+	"title": "` + modelName + `",
 	"type": "object",
 	"required": ["ID"],
 	"properties": {
@@ -46,18 +48,13 @@ type Person struct {
 	age       int
 }
 
-var adam = &Person{
-	ID:        "",
-	firstName: "Adam",
-	lastName:  "Doe",
-	age:       21,
-}
-
-var eve = &Person{
-	ID:        "",
-	firstName: "Eve",
-	lastName:  "Doe",
-	age:       21,
+func createPerson() *Person {
+	return &Person{
+		ID:        "",
+		firstName: "Adam",
+		lastName:  "Doe",
+		age:       21,
+	}
 }
 
 func TestNewStore(t *testing.T) {
@@ -77,7 +74,7 @@ func TestRegisterSchema(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
@@ -89,7 +86,7 @@ func TestStart(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	if err != nil {
@@ -103,7 +100,7 @@ func TestStartFromAddress(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 
 	// TODO: figure out how to test this
@@ -116,10 +113,12 @@ func TestModelCreate(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, "Person", adam)
+	err = client.ModelCreate(storeID, modelName, createPerson())
 	if err != nil {
 		t.Fatalf("failed to create model: %v", err)
 	}
@@ -131,14 +130,18 @@ func TestModelSave(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, "Person", adam)
+	person := createPerson()
+
+	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	adam.age = 30
-	err = client.ModelSave(storeID, "Person", adam)
+	person.age = 30
+	err = client.ModelSave(storeID, modelName, person)
 	if err != nil {
 		t.Fatalf("failed to save model: %v", err)
 	}
@@ -150,13 +153,17 @@ func TestModelDelete(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, "Person", adam)
+	person := createPerson()
+
+	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	err = client.ModelDelete(storeID, "Person", adam.ID)
+	err = client.ModelDelete(storeID, modelName, person.ID)
 	if err != nil {
 		t.Fatalf("failed to delete model: %v", err)
 	}
@@ -168,13 +175,17 @@ func TestModelHas(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, "Person", adam)
+	person := createPerson()
+
+	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	exists, err := client.ModelHas(storeID, "Person", adam.ID)
+	exists, err := client.ModelHas(storeID, modelName, person.ID)
 	if err != nil {
 		t.Fatalf("failed to check model has: %v", err)
 	}
@@ -193,19 +204,23 @@ func TestModelFindByID(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, "Person", adam)
+	person := createPerson()
+
+	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
 	newPerson := &Person{}
-	err = client.ModelFindByID(storeID, "Person", adam.ID, newPerson)
+	err = client.ModelFindByID(storeID, modelName, person.ID, newPerson)
 	if err != nil {
 		t.Fatalf("failed to find model by id: %v", err)
 	}
 	// TODO: seems that the newPerson has the correct ID but default values for everything else
-	if !reflect.DeepEqual(newPerson, adam) {
+	if !reflect.DeepEqual(newPerson, person) {
 		t.Fatal("model found by id does't equal the original")
 	}
 }
@@ -217,12 +232,15 @@ func TestReadTransaction(t *testing.T) {
 
 	storeID, err := client.NewStore()
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, "Person", schema)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.ModelCreate(storeID, "Person", adam)
+	err = client.Start(storeID)
+	checkErr(t, err)
+	person := createPerson()
+	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	txn, err := client.ReadTransaction(storeID, "Person")
+	txn, err := client.ReadTransaction(storeID, modelName)
 	if err != nil {
 		t.Fatalf("failed to create read txn: %v", err)
 	}
@@ -232,7 +250,7 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatalf("failed to start read txn: %v", err)
 	}
 
-	has, err := txn.Has(adam.ID)
+	has, err := txn.Has(person.ID)
 	if err != nil {
 		t.Fatalf("failed to read txn has: %v", err)
 	}
@@ -241,13 +259,80 @@ func TestReadTransaction(t *testing.T) {
 	}
 
 	newPerson := &Person{}
-	err = txn.FindByID(adam.ID, newPerson)
+	err = txn.FindByID(person.ID, newPerson)
 	if err != nil {
 		t.Fatalf("failed to txn find by id: %v", err)
 	}
 	// TODO: seems that the newPerson has the correct ID but default values for everything else
-	if !reflect.DeepEqual(newPerson, adam) {
+	if !reflect.DeepEqual(newPerson, person) {
 		t.Fatal("txn model found by id does't equal the original")
+	}
+
+	err = txn.End()
+	if err != nil {
+		t.Fatalf("failed to end txn: %v", err)
+	}
+}
+
+func TestWriteTransaction(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
+	checkErr(t, err)
+
+	txn, err := client.WriteTransaction(storeID, modelName)
+	if err != nil {
+		t.Fatalf("failed to create write txn: %v", err)
+	}
+
+	err = txn.Start()
+	if err != nil {
+		t.Fatalf("failed to start write txn: %v", err)
+	}
+
+	person := createPerson()
+
+	err = txn.Create(person)
+	if err != nil {
+		t.Fatalf("failed to create in write txn: %v", err)
+	}
+	if person.ID == "" {
+		t.Fatal("expected an entity id to be set but it wasn't")
+	}
+
+	has, err := txn.Has(person.ID)
+	if err != nil {
+		t.Fatalf("failed to write txn has: %v", err)
+	}
+	if !has {
+		t.Fatal("expected has to be true but it wasn't")
+	}
+
+	newPerson := &Person{}
+	err = txn.FindByID(person.ID, newPerson)
+	if err != nil {
+		t.Fatalf("failed to txn find by id: %v", err)
+	}
+	// TODO: seems that the newPerson has the correct ID but default values for everything else
+	if !reflect.DeepEqual(newPerson, person) {
+		t.Fatal("txn model found by id does't equal the original")
+	}
+
+	person.age = 99
+	err = txn.Save(person)
+	if err != nil {
+		t.Fatalf("failed to save in write txn: %v", err)
+	}
+
+	err = txn.Delete(person.ID)
+	if err != nil {
+		t.Fatalf("failed to delete in write txn: %v", err)
 	}
 
 	err = txn.End()
@@ -262,22 +347,26 @@ func TestListen(t *testing.T) {
 	client := client(t)
 
 	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, "Person", schema)
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, "Person", adam)
+	person := createPerson()
+
+	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	channel, err := client.Listen(storeID, "Person", adam.ID, &Person{})
+	channel, err := client.Listen(storeID, modelName, person.ID, &Person{})
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
 
 	go func() {
-		adam.age = 30
-		_ = client.ModelSave(storeID, "Person", adam)
-		adam.age = 40
-		_ = client.ModelSave(storeID, "Person", adam)
+		person.age = 30
+		_ = client.ModelSave(storeID, modelName, person)
+		person.age = 40
+		_ = client.ModelSave(storeID, modelName, person)
 	}()
 
 	val, ok := <-channel
