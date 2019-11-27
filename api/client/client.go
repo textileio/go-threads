@@ -8,6 +8,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	pb "github.com/textileio/go-textile-threads/api/pb"
+	es "github.com/textileio/go-textile-threads/eventstore"
 	"google.golang.org/grpc"
 )
 
@@ -133,14 +134,18 @@ func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool,
 }
 
 // ModelFind finds records by query
-func (c *Client) ModelFind(storeID, modelName string) (string, error) {
-	// TODO: implement query object
+func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([]string, error) {
+	queryBytes, err := json.Marshal(query)
+	if err != nil {
+		return []string{}, err
+	}
 	req := &pb.ModelFindRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
+		QueryJSON: queryBytes,
 	}
 	resp, err := c.client.ModelFind(c.ctx, req)
-	return resp.GetEntity(), err
+	return resp.GetEntities(), err
 }
 
 // ModelFindByID finds a record by id

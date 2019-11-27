@@ -74,11 +74,11 @@ message ModelHasReply {
 message ModelFindRequest {
     string storeID = 1;
     string modelName = 2;
-    // TODO: model the query
+    bytes queryJSON = 3;
 }
 
 message ModelFindReply {
-    string entity = 1;
+    repeated string entities = 1;
 }
 
 message ModelFindByIDRequest {

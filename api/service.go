@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -122,7 +123,7 @@ func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "model not found")
 	}
-	return s.processFindRequest(req, model.Find)
+	return s.processFindRequest(req, model.FindJSON)
 }
 
 func (s *service) ModelFindByID(ctx context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
@@ -184,7 +185,7 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 					return err
 				}
 			case *pb.ReadTransactionRequest_ModelFindRequest:
-				innerReply, err := s.processFindRequest(x.ModelFindRequest, txn.Find)
+				innerReply, err := s.processFindRequest(x.ModelFindRequest, txn.FindJSON)
 				if err != nil {
 					return err
 				}
@@ -255,7 +256,7 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_ModelFindRequest:
-				innerReply, err := s.processFindRequest(x.ModelFindRequest, txn.Find)
+				innerReply, err := s.processFindRequest(x.ModelFindRequest, txn.FindJSON)
 				if err != nil {
 					return err
 				}
@@ -396,14 +397,16 @@ func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc 
 	return &pb.ModelFindByIDReply{Entity: result}, nil
 }
 
-func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(result interface{}, q *es.Query) error) (*pb.ModelFindReply, error) {
-	// TODO: find actually returns a slice of objects, not a string
-	var result string
-	// TODO: deal with query which is nil here
-	if err := findFunc(&result, nil); err != nil {
+func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q es.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
+	q := &es.JSONQuery{}
+	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
 	}
-	return &pb.ModelFindReply{Entity: result}, nil
+	entities, err := findFunc(*q)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ModelFindReply{Entities: entities}, nil
 }
 
 func (s *service) getStore(idStr string) (*es.Store, error) {
