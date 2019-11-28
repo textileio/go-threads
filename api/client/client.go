@@ -72,7 +72,6 @@ func (c *Client) StartFromAddress(storeID string, addr ma.Multiaddr, followKey, 
 
 // ModelCreate creates new instances of model objects
 func (c *Client) ModelCreate(storeID, modelName string, items ...interface{}) error {
-	// TODO: marshalItems is broken it seems
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
@@ -226,6 +225,5 @@ func marshalItems(items []interface{}) ([]string, error) {
 		}
 		values[i] = string(bytes)
 	}
-	// TODO: this is returning weird looking data
 	return values, nil
 }

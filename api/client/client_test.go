@@ -42,18 +42,18 @@ const schema = `{
 }`
 
 type Person struct {
-	ID        string
-	firstName string
-	lastName  string
-	age       int
+	ID        string `json:"ID"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	Age       int    `json:"age,omitempty"`
 }
 
 func createPerson() *Person {
 	return &Person{
 		ID:        "",
-		firstName: "Adam",
-		lastName:  "Doe",
-		age:       21,
+		FirstName: "Adam",
+		LastName:  "Doe",
+		Age:       21,
 	}
 }
 
@@ -140,7 +140,7 @@ func TestModelSave(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	person.age = 30
+	person.Age = 30
 	err = client.ModelSave(storeID, modelName, person)
 	if err != nil {
 		t.Fatalf("failed to save model: %v", err)
@@ -217,7 +217,7 @@ func TestModelFind(t *testing.T) {
 				FieldPath: "lastName",
 				Operation: es.Eq,
 				Value: es.JSONValue{
-					String: &person.lastName,
+					String: &person.LastName,
 				},
 			},
 		},
@@ -357,7 +357,7 @@ func TestWriteTransaction(t *testing.T) {
 		t.Fatal("txn model found by id does't equal the original")
 	}
 
-	person.age = 99
+	person.Age = 99
 	err = txn.Save(person)
 	if err != nil {
 		t.Fatalf("failed to save in write txn: %v", err)
@@ -396,9 +396,9 @@ func TestListen(t *testing.T) {
 	}
 
 	go func() {
-		person.age = 30
+		person.Age = 30
 		_ = client.ModelSave(storeID, modelName, person)
-		person.age = 40
+		person.Age = 40
 		_ = client.ModelSave(storeID, modelName, person)
 	}()
 
