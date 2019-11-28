@@ -466,7 +466,7 @@ func (t *threads) AddRecord(ctx context.Context, id thread.ID, body format.Node)
 		threadID: id,
 		logID:    lg.ID,
 	}
-	if err = t.bus.SendWithTimeout(r, time.Second*10); err != nil {
+	if err = t.bus.SendWithTimeout(r, time.Second*3); err != nil {
 		return
 	}
 
