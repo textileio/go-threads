@@ -7,7 +7,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
@@ -91,7 +91,7 @@ func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Ev
 }
 
 // EventFromNode decodes the given node into an event.
-func EventFromNode(node format.Node) (thread.Event, error) {
+func EventFromNode(node format.Node) (*Event, error) {
 	obj := new(event)
 	err := cbornode.DecodeInto(node.RawData(), obj)
 	if err != nil {
@@ -104,7 +104,7 @@ func EventFromNode(node format.Node) (thread.Event, error) {
 }
 
 // EventFromRecord returns the event within the given node.
-func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Record) (thread.Event, error) {
+func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Record) (*Event, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err

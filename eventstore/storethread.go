@@ -85,7 +85,14 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 
 			event, err := threadcbor.EventFromRecord(ctx, a.api, rec.Value())
 			if err != nil {
-				log.Fatalf("error when getting event from record: %v", err) // ToDo: Buffer them and retry...
+				block, err := rec.Value().GetBlock(ctx, a.api)
+				if err != nil { // ToDo: Buffer them and retry...
+					log.Fatalf("error when getting block from record: %v", err)
+				}
+				event, err = threadcbor.EventFromNode(block)
+				if err != nil {
+					log.Fatalf("error when decoding block to event: %v", err)
+				}
 			}
 
 			readKey, err := a.api.Store().ReadKey(a.threadID)

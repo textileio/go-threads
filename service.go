@@ -118,11 +118,13 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 	}
 
 	lg := logFromProto(req.Log)
+
+	// Fix concurrency: adding head without having the block guarantee
 	if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	go func() {
+	func() {
 		// Get log records for this new log
 		recs, err := s.getRecords(
 			s.threads.ctx,
@@ -222,6 +224,9 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 
 // PushRecord receives a push record request.
 func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb.PushRecordReply, error) {
+	// ToDo: fix concurrency
+	s.threads.pullLock.Lock()
+	defer s.threads.pullLock.Unlock()
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}

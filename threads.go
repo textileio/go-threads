@@ -187,6 +187,14 @@ func (t *threads) Close() (err error) {
 	if len(errs) > 0 {
 		return fmt.Errorf("failed while closing threads; err(s): %q", errs)
 	}
+
+	t.pullLock.Lock()
+	defer t.pullLock.Unlock()
+	// Wait for all thread pulls to finish
+	for _, semaph := range t.pullLocks {
+		semaph <- struct{}{}
+	}
+
 	return nil
 }
 
@@ -271,22 +279,27 @@ func (t *threads) AddThread(
 	return t.store.ThreadInfo(id)
 }
 
-// PullThread for new records.
-// Logs owned by this host are traversed locally.
-// Remotely addressed logs are pulled from the network.
-func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("pulling thread %s...", id.String())
+func (t *threads) getThreadSemaphore(id thread.ID) chan struct{} {
 	var ptl chan struct{}
 	var ok bool
-	// ToDo: fix concurrency
 	t.pullLock.Lock()
 	defer t.pullLock.Unlock()
 	if ptl, ok = t.pullLocks[id]; !ok {
 		ptl = make(chan struct{}, 1)
 		t.pullLocks[id] = ptl
 	}
-	// t.pullLock.Unlock()
+	return ptl
+}
 
+// PullThread for new records.
+// Logs owned by this host are traversed locally.
+// Remotely addressed logs are pulled from the network.
+func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
+	log.Debugf("pulling thread %s...", id.String())
+	ptl := t.getThreadSemaphore(id)
+	// Fix concurrency, temporary global lock
+	t.pullLock.Lock()
+	defer t.pullLock.Unlock()
 	select {
 	case ptl <- struct{}{}:
 		lgs, err := t.getLogs(id)
@@ -541,11 +554,24 @@ func (t *threads) Subscribe(opts ...options.SubOption) tserv.Subscription {
 
 // putRecord adds an existing record. See PutOption for more.
 func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
-	knownRecord, err := t.bstore.Has(rec.Cid())
-	if err != nil {
-		return err
+	unknownRecords := []thread.Record{}
+	cid := rec.Cid()
+	for cid.Defined() {
+		exist, err := t.bstore.Has(cid)
+		if err != nil {
+			return err
+		}
+		if exist {
+			break
+		}
+		r, err := t.GetRecord(ctx, id, cid)
+		if err != nil {
+			return err
+		}
+		unknownRecords = append(unknownRecords, r)
+		cid = r.PrevID()
 	}
-	if knownRecord {
+	if len(unknownRecords) == 0 {
 		return nil
 	}
 
@@ -555,42 +581,51 @@ func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		return err
 	}
 
-	// Save the record locally
-	// Note: These get methods will return cached nodes.
-	block, err := rec.GetBlock(ctx, t)
-	if err != nil {
-		return err
-	}
-	event, ok := block.(*cbor.Event)
-	if !ok {
-		return fmt.Errorf("invalid event")
-	}
-	header, err := event.GetHeader(ctx, t, nil)
-	if err != nil {
-		return err
-	}
-	body, err := event.GetBody(ctx, t, nil)
-	if err != nil {
-		return err
-	}
-	err = t.AddMany(ctx, []format.Node{rec, event, header, body})
-	if err != nil {
-		return err
-	}
+	for i := len(unknownRecords) - 1; i >= 0; i-- {
+		r := unknownRecords[i]
+		// Save the record locally
+		// Note: These get methods will return cached nodes.
+		block, err := r.GetBlock(ctx, t)
+		if err != nil {
+			return err
+		}
+		event, ok := block.(*cbor.Event)
+		if !ok {
+			event, err = cbor.EventFromNode(block)
+			if err != nil {
+				return fmt.Errorf("invalid event: %v", err)
+			}
+		}
+		header, err := event.GetHeader(ctx, t, nil)
+		if err != nil {
+			return err
+		}
+		body, err := event.GetBody(ctx, t, nil)
+		if err != nil {
+			return err
+		}
+		err = t.AddMany(ctx, []format.Node{r, event, header, body})
+		if err != nil {
+			return err
+		}
 
+		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid().String(), id, lg.ID)
+
+		// Notify local listeners
+		err = t.bus.SendWithTimeout(&record{
+			Record:   r,
+			threadID: id,
+			logID:    lg.ID,
+		}, time.Second)
+		if err != nil {
+			return err
+		}
+	}
 	// Update head
-	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
+	if err = t.store.SetHead(id, lg.ID, unknownRecords[0].Cid()); err != nil {
 		return err
 	}
-
-	log.Debugf("put record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
-
-	// Notify local listeners
-	return t.bus.SendWithTimeout(&record{
-		Record:   rec,
-		threadID: id,
-		logID:    lg.ID,
-	}, time.Second)
+	return nil
 }
 
 // getPrivKey returns the host's private key.
