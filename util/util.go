@@ -80,7 +80,6 @@ func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thre
 	if info.PubKey != nil {
 		return
 	}
-	panic("WHAT")
 	info, err = CreateLog(t.Host().ID())
 	if err != nil {
 		return

@@ -335,11 +335,11 @@ func (t *threads) pullThread(ctx context.Context, id thread.ID) error {
 			}
 		}
 	}
+	var fetchedRcs []map[peer.ID][]thread.Record
 	wg := sync.WaitGroup{}
 	for _, lg := range lgs {
 		wg.Add(1)
-		// ToDo: fix concurrency
-		func(lg thread.LogInfo) {
+		go func(lg thread.LogInfo) {
 			defer wg.Done()
 			// Pull from addresses
 			recs, err := t.service.getRecords(
@@ -352,17 +352,21 @@ func (t *threads) pullThread(ctx context.Context, id thread.ID) error {
 				log.Error(err)
 				return
 			}
-			for lid, rs := range recs {
-				for _, r := range rs {
-					if err = t.putRecord(ctx, id, lid, r); err != nil {
-						log.Error(err)
-						return
-					}
-				}
-			}
+			fetchedRcs = append(fetchedRcs, recs)
 		}(lg)
 	}
 	wg.Wait()
+	for _, recs := range fetchedRcs {
+		for lid, rs := range recs {
+			for _, r := range rs {
+				if err = t.putRecord(ctx, id, lid, r); err != nil {
+					log.Error(err)
+					return err
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -414,8 +418,7 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
 		wg.Add(1)
-		// ToDo: fix concurrency
-		func(addr ma.Multiaddr) {
+		go func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
@@ -570,8 +573,8 @@ func (t *threads) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	return t.putRecord(ctx, id, lid, rec)
 }
 
-// putRecord adds an existing record. See PutOption for more.
-// This method *should be thread-guarded*
+// putRecord adds an existing record. See PutOption for more.This method
+// *should be thread-guarded*
 func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
 	unknownRecords := []thread.Record{}
 	cid := rec.Cid()
