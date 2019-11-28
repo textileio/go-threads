@@ -267,7 +267,6 @@ func (t *threads) AddThread(
 	// @todo: ensure does not exist? or overwrite with newer info from owner?
 	for _, l := range lgs {
 		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
-			//if err = t.store.AddLog(id, l); err != nil {
 			return
 		}
 	}
@@ -464,7 +463,6 @@ func (t *threads) AddRecord(ctx context.Context, id thread.ID, body format.Node)
 		threadID: id,
 		logID:    lg.ID,
 	}
-	fmt.Printf("Host %s adding cid %s\n", t.Host().ID(), r.Value().Cid())
 	if err = t.bus.SendWithTimeout(r, time.Second*10); err != nil {
 		return
 	}
@@ -583,10 +581,8 @@ func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 			return err
 		}
 		if exist {
-			fmt.Printf("In host %s KNOWN cid %s\n", t.Host().ID(), cid)
 			break
 		}
-		fmt.Printf("In host %s unkown %s\n", t.Host().ID(), cid)
 		r, err := t.GetRecord(ctx, id, cid)
 		if err != nil {
 			return err
