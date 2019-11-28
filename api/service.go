@@ -402,11 +402,15 @@ func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q e
 	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
 	}
-	entities, err := findFunc(*q)
+	stringEntities, err := findFunc(*q)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ModelFindReply{Entities: entities}, nil
+	byteEntities := make([][]byte, len(stringEntities))
+	for i, stringEntity := range stringEntities {
+		byteEntities[i] = []byte(stringEntity)
+	}
+	return &pb.ModelFindReply{Entities: byteEntities}, nil
 }
 
 func (s *service) getStore(idStr string) (*es.Store, error) {

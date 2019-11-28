@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/textileio/go-textile-threads/api/pb"
+	es "github.com/textileio/go-textile-threads/eventstore"
 )
 
 // WriteTransaction encapsulates a read transaction
@@ -62,23 +63,25 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *WriteTransaction) Find() (string, error) {
-	// TODO: need to get the query in here
-	innerReq := &pb.ModelFindRequest{}
+func (t *WriteTransaction) Find(query es.JSONQuery) ([][]byte, error) {
+	queryBytes, err := json.Marshal(query)
+	if err != nil {
+		return [][]byte{}, err
+	}
+	innerReq := &pb.ModelFindRequest{QueryJSON: queryBytes}
 	option := &pb.WriteTransactionRequest_ModelFindRequest{ModelFindRequest: innerReq}
-	var err error
 	var resp *pb.WriteTransactionReply
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
-		return "", err
+		return [][]byte{}, err
 	}
 	if resp, err = t.client.Recv(); err != nil {
-		return "", err
+		return [][]byte{}, err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_ModelFindReply:
-		return x.ModelFindReply.GetEntity(), nil
+		return x.ModelFindReply.GetEntities(), nil
 	default:
-		return "", fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+		return [][]byte{}, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 

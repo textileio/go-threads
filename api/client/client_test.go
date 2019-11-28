@@ -195,7 +195,40 @@ func TestModelHas(t *testing.T) {
 }
 
 func TestModelFind(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
 
+	storeID, _ := client.NewStore()
+	err := client.RegisterSchema(storeID, modelName, schema)
+	checkErr(t, err)
+	err = client.Start(storeID)
+	checkErr(t, err)
+
+	person := createPerson()
+
+	// TODO: this add is prob wrong, see todo in ModelCreate
+	err = client.ModelCreate(storeID, modelName, person)
+	checkErr(t, err)
+
+	q := es.JSONQuery{
+		Ands: []es.JSONCriterion{
+			es.JSONCriterion{
+				FieldPath: "lastName",
+				Operation: es.Eq,
+				Value: es.JSONValue{
+					String: &person.lastName,
+				},
+			},
+		},
+	}
+
+	// TODO: this is failing with "error when matching entry with query: instance field lastName do..."
+	foo, err := client.ModelFind(storeID, modelName, q)
+	if err != nil {
+		t.Fatalf("failed to find: %v", err)
+	}
+	t.Logf("got resulst: %v", foo)
 }
 
 func TestModelFindByID(t *testing.T) {

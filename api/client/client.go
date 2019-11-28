@@ -35,7 +35,10 @@ func NewClient(host string, port int) (*Client, error) {
 // NewStore cereates a new Store
 func (c *Client) NewStore() (string, error) {
 	resp, err := c.client.NewStore(c.ctx, &pb.NewStoreRequest{})
-	return resp.GetID(), err
+	if err != nil {
+		return "", err
+	}
+	return resp.GetID(), nil
 }
 
 // RegisterSchema registers a new model shecma
@@ -69,6 +72,7 @@ func (c *Client) StartFromAddress(storeID string, addr ma.Multiaddr, followKey, 
 
 // ModelCreate creates new instances of model objects
 func (c *Client) ModelCreate(storeID, modelName string, items ...interface{}) error {
+	// TODO: marshalItems is broken it seems
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
@@ -130,14 +134,17 @@ func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool,
 		EntityIDs: entityIDs,
 	}
 	resp, err := c.client.ModelHas(c.ctx, req)
-	return resp.GetExists(), err
+	if err != nil {
+		return false, err
+	}
+	return resp.GetExists(), nil
 }
 
 // ModelFind finds records by query
-func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([]string, error) {
+func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([][]byte, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
-		return []string{}, err
+		return [][]byte{}, err
 	}
 	req := &pb.ModelFindRequest{
 		StoreID:   storeID,
@@ -145,7 +152,10 @@ func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([]str
 		QueryJSON: queryBytes,
 	}
 	resp, err := c.client.ModelFind(c.ctx, req)
-	return resp.GetEntities(), err
+	if err != nil {
+		return [][]byte{}, err
+	}
+	return resp.GetEntities(), nil
 }
 
 // ModelFindByID finds a record by id
@@ -216,5 +226,6 @@ func marshalItems(items []interface{}) ([]string, error) {
 		}
 		values[i] = string(bytes)
 	}
+	// TODO: this is returning weird looking data
 	return values, nil
 }

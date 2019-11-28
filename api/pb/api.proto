@@ -78,7 +78,7 @@ message ModelFindRequest {
 }
 
 message ModelFindReply {
-    repeated string entities = 1;
+    repeated bytes entities = 1;
 }
 
 message ModelFindByIDRequest {
