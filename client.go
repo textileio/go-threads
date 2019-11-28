@@ -237,19 +237,6 @@ func (s *service) getRecords(
 				if lg.PubKey == nil {
 					if l.Log != nil {
 						lg = logFromProto(l.Log)
-
-						// (jsign): problem here. a priori this method isn't guaranteed to be
-						// guarded per-thread, so this `AddLog` might be wrong.
-						// Moreover, has a similar problem with was was done in `service.go`,
-						// it will set the current (created) log head to the value received,
-						// without giving guarantees of having that record (or any previous missing ones)
-						// I think all thread logic should never be on `service.go` or `client.go`, and always
-						// on `threads.go`, so we can be sure that all methods there are properly guarded.
-						// Or add the method comment: `this method *must be thread-guarded*`
-						//
-						// As a workaround until having some confirmation, the following line is a
-						// workaround to at least  set current head to empty. Whoever called this method should
-						// `putRecords` considering the mentioned external peer head.
 						lg.Heads = []cid.Cid{}
 						if err = s.threads.store.AddLog(id, lg); err != nil {
 							log.Error(err)
