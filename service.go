@@ -120,8 +120,7 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// Fix concurrency
-	s.threads.updateRecordsFromLog(req.ThreadID.ID, lg.ID)
+	go s.threads.updateRecordsFromLog(req.ThreadID.ID, lg.ID)
 
 	return &pb.PushLogReply{}, nil
 }
