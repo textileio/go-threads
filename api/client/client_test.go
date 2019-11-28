@@ -2,7 +2,9 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -207,7 +209,6 @@ func TestModelFind(t *testing.T) {
 
 	person := createPerson()
 
-	// TODO: this add is prob wrong, see todo in ModelCreate
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
@@ -223,12 +224,24 @@ func TestModelFind(t *testing.T) {
 		},
 	}
 
-	// TODO: this is failing with "error when matching entry with query: instance field lastName do..."
-	foo, err := client.ModelFind(storeID, modelName, q)
+	jsonResults, err := client.ModelFind(storeID, modelName, q)
 	if err != nil {
 		t.Fatalf("failed to find: %v", err)
 	}
-	t.Logf("got resulst: %v", foo)
+	results := make([]*Person, len(jsonResults))
+	for i, jsonResult := range jsonResults {
+		person := &Person{}
+		if err := json.Unmarshal(jsonResult, person); err != nil {
+			t.Fatalf("failed to unmarshal json result: %v", err)
+		}
+		results[i] = person
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, but got %v", len(results))
+	}
+	if !reflect.DeepEqual(results[0], person) {
+		t.Fatal("model found by query does't equal the original")
+	}
 }
 
 func TestModelFindByID(t *testing.T) {
@@ -252,7 +265,6 @@ func TestModelFindByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to find model by id: %v", err)
 	}
-	// TODO: seems that the newPerson has the correct ID but default values for everything else
 	if !reflect.DeepEqual(newPerson, person) {
 		t.Fatal("model found by id does't equal the original")
 	}
@@ -278,6 +290,13 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatalf("failed to create read txn: %v", err)
 	}
 
+	defer func() {
+		err = txn.End()
+		if err != nil {
+			t.Fatalf("failed to end txn: %v", err)
+		}
+	}()
+
 	err = txn.Start()
 	if err != nil {
 		t.Fatalf("failed to start read txn: %v", err)
@@ -291,19 +310,13 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatal("expected has to be true but it wasn't")
 	}
 
-	newPerson := &Person{}
-	err = txn.FindByID(person.ID, newPerson)
+	foundPerson := &Person{}
+	err = txn.FindByID(person.ID, foundPerson)
 	if err != nil {
 		t.Fatalf("failed to txn find by id: %v", err)
 	}
-	// TODO: seems that the newPerson has the correct ID but default values for everything else
-	if !reflect.DeepEqual(newPerson, person) {
+	if !reflect.DeepEqual(foundPerson, person) {
 		t.Fatal("txn model found by id does't equal the original")
-	}
-
-	err = txn.End()
-	if err != nil {
-		t.Fatalf("failed to end txn: %v", err)
 	}
 }
 
@@ -318,11 +331,21 @@ func TestWriteTransaction(t *testing.T) {
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
+	existingPerson := createPerson()
+	err = client.ModelCreate(storeID, modelName, existingPerson)
+	checkErr(t, err)
 
 	txn, err := client.WriteTransaction(storeID, modelName)
 	if err != nil {
 		t.Fatalf("failed to create write txn: %v", err)
 	}
+
+	defer func() {
+		err = txn.End()
+		if err != nil {
+			t.Fatalf("failed to end txn: %v", err)
+		}
+	}()
 
 	err = txn.Start()
 	if err != nil {
@@ -336,41 +359,35 @@ func TestWriteTransaction(t *testing.T) {
 		t.Fatalf("failed to create in write txn: %v", err)
 	}
 	if person.ID == "" {
-		t.Fatal("expected an entity id to be set but it wasn't")
+		t.Fatalf("expected an entity id to be set but it wasn't")
 	}
 
-	has, err := txn.Has(person.ID)
+	has, err := txn.Has(existingPerson.ID)
 	if err != nil {
 		t.Fatalf("failed to write txn has: %v", err)
 	}
 	if !has {
-		t.Fatal("expected has to be true but it wasn't")
+		t.Fatalf("expected has to be true but it wasn't")
 	}
 
-	newPerson := &Person{}
-	err = txn.FindByID(person.ID, newPerson)
+	foundExistingPerson := &Person{}
+	err = txn.FindByID(existingPerson.ID, foundExistingPerson)
 	if err != nil {
 		t.Fatalf("failed to txn find by id: %v", err)
 	}
-	// TODO: seems that the newPerson has the correct ID but default values for everything else
-	if !reflect.DeepEqual(newPerson, person) {
-		t.Fatal("txn model found by id does't equal the original")
+	if !reflect.DeepEqual(foundExistingPerson, existingPerson) {
+		t.Fatalf("txn model found by id does't equal the original")
 	}
 
-	person.Age = 99
-	err = txn.Save(person)
+	existingPerson.Age = 99
+	err = txn.Save(existingPerson)
 	if err != nil {
 		t.Fatalf("failed to save in write txn: %v", err)
 	}
 
-	err = txn.Delete(person.ID)
+	err = txn.Delete(existingPerson.ID)
 	if err != nil {
 		t.Fatalf("failed to delete in write txn: %v", err)
-	}
-
-	err = txn.End()
-	if err != nil {
-		t.Fatalf("failed to end txn: %v", err)
 	}
 }
 
@@ -379,8 +396,9 @@ func TestListen(t *testing.T) {
 	defer clean()
 	client := client(t)
 
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -402,6 +420,13 @@ func TestListen(t *testing.T) {
 		_ = client.ModelSave(storeID, modelName, person)
 	}()
 
+	// for {
+	// 	_, ok := <-channel
+	// 	if !ok {
+	// 		break
+	// 	}
+	// }
+
 	val, ok := <-channel
 	if !ok {
 		t.Fatal("channel no longer active at first event")
@@ -415,10 +440,12 @@ func TestListen(t *testing.T) {
 	} else {
 		fmt.Println(val, ok)
 	}
+	close(channel)
 }
 
 func server(t *testing.T) (*api.Server, func()) {
-	dir := "/tmp/threads"
+	dir, err := ioutil.TempDir("", "")
+	checkErr(t, err)
 	ts, err := es.DefaultThreadservice(
 		dir,
 		es.ListenPort(4006),
@@ -426,17 +453,16 @@ func server(t *testing.T) (*api.Server, func()) {
 		es.Debug(true))
 	checkErr(t, err)
 	ts.Bootstrap(util.DefaultBoostrapPeers())
-
 	server, err := api.NewServer(context.Background(), ts, api.Config{
 		RepoPath: dir,
 		Debug:    true,
 	})
 	checkErr(t, err)
 	return server, func() {
+		server.Close()
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
-		server.Close()
 		os.RemoveAll(dir)
 	}
 }

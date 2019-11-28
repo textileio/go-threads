@@ -26,10 +26,10 @@ func (t *WriteTransaction) Has(entityIDs ...string) (bool, error) {
 	innerReq := &pb.ModelHasRequest{EntityIDs: entityIDs}
 	option := &pb.WriteTransactionRequest_ModelHasRequest{ModelHasRequest: innerReq}
 	var err error
-	var resp *pb.WriteTransactionReply
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
 		return false, err
 	}
+	var resp *pb.WriteTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
 		return false, err
 	}
@@ -46,10 +46,10 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 	innerReq := &pb.ModelFindByIDRequest{EntityID: entityID}
 	option := &pb.WriteTransactionRequest_ModelFindByIDRequest{ModelFindByIDRequest: innerReq}
 	var err error
-	var resp *pb.WriteTransactionReply
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
 		return err
 	}
+	var resp *pb.WriteTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
@@ -70,10 +70,10 @@ func (t *WriteTransaction) Find(query es.JSONQuery) ([][]byte, error) {
 	}
 	innerReq := &pb.ModelFindRequest{QueryJSON: queryBytes}
 	option := &pb.WriteTransactionRequest_ModelFindRequest{ModelFindRequest: innerReq}
-	var resp *pb.WriteTransactionReply
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
 		return [][]byte{}, err
 	}
+	var resp *pb.WriteTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
 		return [][]byte{}, err
 	}
@@ -95,8 +95,11 @@ func (t *WriteTransaction) Create(items ...interface{}) error {
 		Values: values,
 	}
 	option := &pb.WriteTransactionRequest_ModelCreateRequest{ModelCreateRequest: innerReq}
-	var resp *pb.WriteTransactionReply
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
 	switch x := resp.GetOption().(type) {
@@ -123,8 +126,11 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 		Values: values,
 	}
 	option := &pb.WriteTransactionRequest_ModelSaveRequest{ModelSaveRequest: innerReq}
-	var resp *pb.WriteTransactionReply
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
 	switch x := resp.GetOption().(type) {
@@ -141,8 +147,12 @@ func (t *WriteTransaction) Delete(entityIDs ...string) error {
 		EntityIDs: entityIDs,
 	}
 	option := &pb.WriteTransactionRequest_ModelDeleteRequest{ModelDeleteRequest: innerReq}
-	var resp *pb.WriteTransactionReply
 	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	var err error
+	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
 	switch x := resp.GetOption().(type) {
