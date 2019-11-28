@@ -77,7 +77,7 @@ func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thre
 	if info.PubKey != nil {
 		return
 	}
-	info, err = CreateLog(t.Host().ID())
+	info, err = CreateLog(t.Host().ID()) // ToDo: is this correct?
 	if err != nil {
 		return
 	}
