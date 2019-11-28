@@ -758,7 +758,7 @@ func (t *threads) getLocalRecords(
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
-		r, err := cbor.GetRecord(ctx, t, cursor, fk)
+		r, err := cbor.GetRecord(ctx, t, cursor, fk) // Important invariant: heads are always in blockstore
 		if err != nil {
 			return nil, err
 		}
