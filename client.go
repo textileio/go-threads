@@ -312,7 +312,7 @@ func (s *service) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec
 	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
 		wg.Add(1)
-		func(addr ma.Multiaddr) {
+		go func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
