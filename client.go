@@ -139,6 +139,12 @@ func (r *records) Store(p peer.ID, key cid.Cid, value thread.Record) {
 		return
 	}
 	r.m[p][key] = value
+
+	// Sanity check
+	if len(r.s[p]) > 0 && r.s[p][len(r.s[p])-1].Cid() != value.PrevID() {
+		panic("there is a gap in records list")
+	}
+
 	r.s[p] = append(r.s[p], value)
 }
 
@@ -189,8 +195,7 @@ func (s *service) getRecords(
 	wg := sync.WaitGroup{}
 	for _, addr := range lg.Addrs {
 		wg.Add(1)
-		// ToDo: fix concurrency
-		func(addr ma.Multiaddr) {
+		go func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
@@ -221,7 +226,6 @@ func (s *service) getRecords(
 				log.Warningf("get records from %s failed: %s", p, err)
 				return
 			}
-
 			for _, l := range reply.Logs {
 				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID.String(), p)
 
@@ -233,6 +237,20 @@ func (s *service) getRecords(
 				if lg.PubKey == nil {
 					if l.Log != nil {
 						lg = logFromProto(l.Log)
+
+						// (jsign): problem here. a priori this method isn't guaranteed to be
+						// guarded per-thread, so this `AddLog` might be wrong.
+						// Moreover, has a similar problem with was was done in `service.go`,
+						// it will set the current (created) log head to the value received,
+						// without giving guarantees of having that record (or any previous missing ones)
+						// I think all thread logic should never be on `service.go` or `client.go`, and always
+						// on `threads.go`, so we can be sure that all methods there are properly guarded.
+						// Or add the method comment: `this method *must be thread-guarded*`
+						//
+						// As a workaround until having some confirmation, the following line is a
+						// workaround to at least  set current head to empty. Whoever called this method should
+						// `putRecords` considering the mentioned external peer head.
+						lg.Heads = []cid.Cid{}
 						if err = s.threads.store.AddLog(id, lg); err != nil {
 							log.Error(err)
 							return
@@ -307,7 +325,7 @@ func (s *service) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec
 	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
 		wg.Add(1)
-		go func(addr ma.Multiaddr) {
+		func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
