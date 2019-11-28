@@ -45,7 +45,7 @@ func CreateThread(t tserv.Threadservice, id thread.ID) (info thread.Info, err er
 }
 
 // CreateLog creates a new log with the given peer as host.
-func CreateLog(host peer.ID) (info thread.LogInfo, err error) { // (jsign): Would be beter to rename CreateLocalLog?
+func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return
@@ -70,9 +70,6 @@ func CreateLog(host peer.ID) (info thread.LogInfo, err error) { // (jsign): Woul
 // GetOrCreateLog returns the log with the given thread and log id.
 // If no log exists, a new one is created under the given thread.
 func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	// (jsign): Better rename to `GetOrCreateLocalLog`?. I find weird that if lid doesn't
-	// exist, then a new log is created ignoring completely `lid` value. Isn't wierd?
-	// Maybe the idea was create the log but with the `lid` (with no addrs & no heads)
 	info, err = t.Store().LogInfo(id, lid)
 	if err != nil {
 		return
