@@ -72,10 +72,10 @@ func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddress
 	if addr, err = ma.NewMultiaddr(req.GetAddress()); err != nil {
 		return nil, err
 	}
-	if readKey, err = symmetric.NewKey([]byte(req.GetReadKey())); err != nil {
+	if readKey, err = symmetric.NewKey(req.GetReadKey()); err != nil {
 		return nil, err
 	}
-	if followKey, err = symmetric.NewKey([]byte(req.GetFollowKey())); err != nil {
+	if followKey, err = symmetric.NewKey(req.GetFollowKey()); err != nil {
 		return nil, err
 	}
 	if err = store.StartFromAddr(addr, followKey, readKey); err != nil {
@@ -347,7 +347,8 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc func(...interface{}) error) (*pb.ModelCreateReply, error) {
 	values := make([]interface{}, len(req.Values))
 	for i, v := range req.Values {
-		values[i] = &v
+		s := v
+		values[i] = &s
 	}
 	if err := createFunc(values...); err != nil {
 		return nil, err
@@ -365,7 +366,8 @@ func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc fu
 func (s *service) processSaveRequest(req *pb.ModelSaveRequest, saveFunc func(...interface{}) error) (*pb.ModelSaveReply, error) {
 	values := make([]interface{}, len(req.Values))
 	for i, v := range req.Values {
-		values[i] = &v
+		s := v
+		values[i] = &s
 	}
 	if err := saveFunc(values...); err != nil {
 		return nil, err
