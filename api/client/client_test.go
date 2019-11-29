@@ -409,6 +409,7 @@ func TestListen(t *testing.T) {
 	checkErr(t, err)
 
 	channel, discard, err := client.Listen(storeID, modelName, person.ID)
+	defer discard()
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
@@ -446,7 +447,6 @@ func TestListen(t *testing.T) {
 			t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
 		}
 	}
-	discard()
 }
 
 func server(t *testing.T) (*api.Server, func()) {
