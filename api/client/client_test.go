@@ -106,7 +106,7 @@ func TestStartFromAddress(t *testing.T) {
 	checkErr(t, err)
 
 	// TODO: figure out how to test this
-	// client.StartFromAddress()
+	// client.StartFromAddress(storeId, <multiaddress>, <read key>, <follow key>)
 }
 
 func TestModelCreate(t *testing.T) {
