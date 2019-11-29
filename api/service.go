@@ -319,21 +319,29 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 
 	listener := store.StateChangeListen()
 	defer listener.Discard()
-	for range listener.Channel() {
-		err := model.ReadTxn(func(txn *es.Txn) error {
-			var res string
-			if err := txn.FindByID(core.EntityID(req.EntityID), &res); err != nil {
+
+	for {
+		select {
+		case _ = <-server.Context().Done():
+			return nil
+		case _, ok := <-listener.Channel():
+			if !ok {
+				return nil
+			}
+			err := model.ReadTxn(func(txn *es.Txn) error {
+				var res string
+				if err := txn.FindByID(core.EntityID(req.EntityID), &res); err != nil {
+					return err
+				}
+				return server.Send(&pb.ListenReply{
+					Entity: res,
+				})
+			})
+			if err != nil {
 				return err
 			}
-			return server.Send(&pb.ListenReply{
-				Entity: res,
-			})
-		})
-		if err != nil {
-			return err
 		}
 	}
-	return nil
 }
 
 func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc func(...interface{}) error) (*pb.ModelCreateReply, error) {
