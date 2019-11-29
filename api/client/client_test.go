@@ -59,6 +59,17 @@ func createPerson() *Person {
 	}
 }
 
+func TestClose(t *testing.T) {
+	_, clean := server(t)
+	defer clean()
+	client := client(t)
+
+	err := client.Close()
+	if err != nil {
+		t.Fatalf("failed to close client: %v", err)
+	}
+}
+
 func TestNewStore(t *testing.T) {
 	_, clean := server(t)
 	defer clean()
@@ -290,14 +301,13 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatalf("failed to create read txn: %v", err)
 	}
 
+	end, err := txn.Start()
 	defer func() {
-		err = txn.End()
+		err = end()
 		if err != nil {
 			t.Fatalf("failed to end txn: %v", err)
 		}
 	}()
-
-	err = txn.Start()
 	if err != nil {
 		t.Fatalf("failed to start read txn: %v", err)
 	}
@@ -340,14 +350,13 @@ func TestWriteTransaction(t *testing.T) {
 		t.Fatalf("failed to create write txn: %v", err)
 	}
 
+	end, err := txn.Start()
 	defer func() {
-		err = txn.End()
+		err = end()
 		if err != nil {
 			t.Fatalf("failed to end txn: %v", err)
 		}
 	}()
-
-	err = txn.Start()
 	if err != nil {
 		t.Fatalf("failed to start write txn: %v", err)
 	}

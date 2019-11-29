@@ -15,10 +15,13 @@ type WriteTransaction struct {
 }
 
 // Start starts the read transaction
-func (t *WriteTransaction) Start() error {
+func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
 	innerReq := &pb.StartTransactionRequest{StoreID: t.storeID, ModelName: t.modelName}
 	option := &pb.WriteTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
-	return t.client.Send(&pb.WriteTransactionRequest{Option: option})
+	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+		return nil, err
+	}
+	return t.end, nil
 }
 
 // Has runs a has query in the active transaction
@@ -163,7 +166,7 @@ func (t *WriteTransaction) Delete(entityIDs ...string) error {
 	}
 }
 
-// End ends the active transaction
-func (t *WriteTransaction) End() error {
+// end ends the active transaction
+func (t *WriteTransaction) end() error {
 	return t.client.CloseSend()
 }

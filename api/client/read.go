@@ -14,11 +14,17 @@ type ReadTransaction struct {
 	storeID, modelName string
 }
 
+// EndTransactionFunc must be called to end a transaction after it has been started
+type EndTransactionFunc = func() error
+
 // Start starts the read transaction
-func (t *ReadTransaction) Start() error {
+func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
 	innerReq := &pb.StartTransactionRequest{StoreID: t.storeID, ModelName: t.modelName}
 	option := &pb.ReadTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
-	return t.client.Send(&pb.ReadTransactionRequest{Option: option})
+	if err := t.client.Send(&pb.ReadTransactionRequest{Option: option}); err != nil {
+		return nil, err
+	}
+	return t.end, nil
 }
 
 // Has runs a has query in the active transaction
@@ -85,7 +91,7 @@ func (t *ReadTransaction) Find(query es.JSONQuery) ([][]byte, error) {
 	}
 }
 
-// End ends the active transaction
-func (t *ReadTransaction) End() error {
+// end ends the active transaction
+func (t *ReadTransaction) end() error {
 	return t.client.CloseSend()
 }

@@ -16,6 +16,8 @@ import (
 type Client struct {
 	client pb.APIClient
 	ctx    context.Context
+	cancel context.CancelFunc
+	conn   *grpc.ClientConn
 }
 
 // NewClient starts the client
@@ -25,11 +27,20 @@ func NewClient(host string, port int) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	client := &Client{
 		client: pb.NewAPIClient(conn),
-		ctx:    context.Background(),
+		ctx:    ctx,
+		cancel: cancel,
+		conn:   conn,
 	}
 	return client, nil
+}
+
+// Close closes the client's grpc connection and cancels any active requests
+func (c *Client) Close() error {
+	c.cancel()
+	return c.conn.Close()
 }
 
 // NewStore cereates a new Store
