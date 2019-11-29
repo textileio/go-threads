@@ -191,29 +191,30 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 }
 
 // Listen provides an update whenever the specified model is updated
-func (c *Client) Listen(storeID, modelName, entityID string, dummy interface{}) (chan interface{}, error) {
-	req := &pb.ListenRequest{
-		StoreID:   storeID,
-		ModelName: modelName,
-		EntityID:  entityID,
-	}
-	stream, err := c.client.Listen(c.ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	channel := make(chan interface{})
+func (c *Client) Listen(storeID, modelName, entityID string) (chan []byte, func(), error) {
+	channel := make(chan []byte)
+	ctx, cancel := context.WithCancel(c.ctx)
 	go func() {
+		defer close(channel)
+		req := &pb.ListenRequest{
+			StoreID:   storeID,
+			ModelName: modelName,
+			EntityID:  entityID,
+		}
+		stream, err := c.client.Listen(ctx, req)
+		if err != nil {
+			return
+		}
 		for {
 			event, err := stream.Recv()
 			if err != nil {
 				break
 			}
-			err = json.Unmarshal([]byte(event.GetEntity()), dummy)
-			channel <- dummy
+			bytes := []byte(event.GetEntity())
+			channel <- bytes
 		}
-		close(channel)
 	}()
-	return channel, nil
+	return channel, cancel, nil
 }
 
 func marshalItems(items []interface{}) ([]string, error) {

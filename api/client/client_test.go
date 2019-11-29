@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -408,39 +408,45 @@ func TestListen(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	channel, err := client.Listen(storeID, modelName, person.ID, &Person{})
+	channel, discard, err := client.Listen(storeID, modelName, person.ID)
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
 
 	go func() {
+		time.Sleep(1 * time.Second)
 		person.Age = 30
 		_ = client.ModelSave(storeID, modelName, person)
 		person.Age = 40
 		_ = client.ModelSave(storeID, modelName, person)
 	}()
 
-	// for {
-	// 	_, ok := <-channel
-	// 	if !ok {
-	// 		break
-	// 	}
-	// }
-
 	val, ok := <-channel
 	if !ok {
 		t.Fatal("channel no longer active at first event")
 	} else {
-		fmt.Println(val, ok)
+		p := &Person{}
+		if err := json.Unmarshal(val, p); err != nil {
+			t.Fatalf("failed to unmarshal listen result: %v", err)
+		}
+		if p.Age != 30 {
+			t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
+		}
 	}
 
 	val, ok = <-channel
 	if !ok {
 		t.Fatal("channel no longer active at second event")
 	} else {
-		fmt.Println(val, ok)
+		p := &Person{}
+		if err := json.Unmarshal(val, p); err != nil {
+			t.Fatalf("failed to unmarshal listen result: %v", err)
+		}
+		if p.Age != 40 {
+			t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
+		}
 	}
-	close(channel)
+	discard()
 }
 
 func server(t *testing.T) (*api.Server, func()) {
