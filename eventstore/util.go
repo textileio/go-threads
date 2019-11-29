@@ -11,7 +11,10 @@ import (
 	"github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	host "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	peerstore "github.com/libp2p/go-libp2p-peerstore"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -72,23 +75,23 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		libp2p.Peerstore(pstore),
 	)
 	if err != nil {
-		ds.Close()
 		cancel()
+		ds.Close()
 		return nil, err
 	}
 
 	lite, err := ipfslite.New(ctx, ds, h, dht, nil)
 	if err != nil {
-		ds.Close()
 		cancel()
+		ds.Close()
 		return nil, err
 	}
 
 	// Build a threadstore
 	tstore, err := tstoreds.NewThreadstore(ctx, ds, tstoreds.DefaultOpts())
 	if err != nil {
-		ds.Close()
 		cancel()
+		ds.Close()
 		return nil, err
 	}
 
@@ -98,8 +101,8 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		ProxyAddr: fmt.Sprintf("0.0.0.0:%d", config.ProxyPort),
 	})
 	if err != nil {
-		ds.Close()
 		cancel()
+		ds.Close()
 		return nil, err
 	}
 
@@ -107,7 +110,10 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		cancel:        cancel,
 		Threadservice: api,
 		litepeer:      lite,
+		pstore:        pstore,
 		ds:            ds,
+		host:          h,
+		dht:           dht,
 	}, nil
 }
 
@@ -144,7 +150,10 @@ type tservBoostrapper struct {
 	cancel context.CancelFunc
 	tserv.Threadservice
 	litepeer *ipfslite.Peer
+	pstore   peerstore.Peerstore
 	ds       datastore.Datastore
+	host     host.Host
+	dht      *dht.IpfsDHT
 }
 
 var _ ThreadserviceBoostrapper = (*tservBoostrapper)(nil)
@@ -154,9 +163,19 @@ func (tsb *tservBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
 }
 
 func (tsb *tservBoostrapper) Close() error {
-	tsb.cancel()
-	if err := tsb.ds.Close(); err != nil {
+	if err := tsb.Threadservice.Close(); err != nil {
 		return err
 	}
-	return tsb.Threadservice.Close()
+	tsb.cancel()
+	if err := tsb.dht.Close(); err != nil {
+		return err
+	}
+	if err := tsb.host.Close(); err != nil {
+		return err
+	}
+	if err := tsb.pstore.Close(); err != nil {
+		return err
+	}
+	return tsb.ds.Close()
+	// Threadstore closed by threadservice
 }
