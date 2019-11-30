@@ -56,10 +56,12 @@ type Store struct {
 	dispatcher    *dispatcher
 	eventcodec    core.EventCodec
 	threadservice threadservice.Threadservice
+	adapter       *singleThreadAdapter
 
 	lock       sync.RWMutex
 	modelNames map[string]*Model
 	jsonMode   bool
+	closed     bool
 
 	localEventsBus *localEventsBus
 	stateChanged   *stateChangedNotifee
@@ -170,7 +172,8 @@ func (s *Store) Start() error {
 			return err
 		}
 	}
-	adapter := newSingleThreadAdapter(s.ctx, s, id)
+	adapter := newSingleThreadAdapter(s, id)
+	s.adapter = adapter
 	adapter.Start()
 	return nil
 }
@@ -294,6 +297,16 @@ func (s *Store) readTxn(m *Model, f func(txn *Txn) error) error {
 
 // Close closes the store
 func (s *Store) Close() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	if s.closed {
+		return
+	}
+	s.closed = true
+
+	if s.adapter != nil {
+		s.adapter.Close()
+	}
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	s.stateChanged.bus.Discard()
