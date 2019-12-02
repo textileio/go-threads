@@ -597,7 +597,7 @@ func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		return nil
 	}
 	// Get or create a log for the new rec
-	lg, err := util.GetOrCreateLog(t, id, lid)
+	lg, err := util.GetLog(t, id, lid)
 	if err != nil {
 		return err
 	}
