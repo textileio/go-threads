@@ -22,6 +22,12 @@ type Client struct {
 	conn   *grpc.ClientConn
 }
 
+// ListenEvent is used to send data or error values for Listen
+type ListenEvent struct {
+	data []byte
+	err  error
+}
+
 // NewClient starts the client
 func NewClient(host string, port int) (*Client, error) {
 	url := fmt.Sprintf("%v:%v", host, port)
@@ -201,11 +207,6 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 		return nil, err
 	}
 	return &WriteTransaction{client: client, storeID: storeID, modelName: modelName}, nil
-}
-
-type ListenEvent struct {
-	data []byte
-	err  error
 }
 
 // Listen provides an update whenever the specified model is updated
