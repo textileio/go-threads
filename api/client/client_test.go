@@ -480,10 +480,10 @@ func server(t *testing.T) (*api.Server, func()) {
 	})
 	checkErr(t, err)
 	return server, func() {
-		server.Close()
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
+		server.Close()
 		os.RemoveAll(dir)
 	}
 }
