@@ -263,9 +263,10 @@ func (t *threads) AddThread(
 	if err != nil {
 		return
 	}
+
 	// @todo: ensure does not exist? or overwrite with newer info from owner?
 	for _, l := range lgs {
-		if err = t.store.AddLog(id, l); err != nil {
+		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
 			return
 		}
 	}
@@ -294,65 +295,78 @@ func (t *threads) getThreadSemaphore(id thread.ID) chan struct{} {
 // PullThread for new records.
 // Logs owned by this host are traversed locally.
 // Remotely addressed logs are pulled from the network.
+// Is thread-safe.
 func (t *threads) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
 	ptl := t.getThreadSemaphore(id)
-	// Fix concurrency, temporary global lock
-	t.pullLock.Lock()
-	defer t.pullLock.Unlock()
 	select {
 	case ptl <- struct{}{}:
-		lgs, err := t.getLogs(id)
+		err := t.pullThread(ctx, id)
 		if err != nil {
+			<-ptl
 			return err
 		}
-
-		// Gather offsets for each log
-		offsets := make(map[peer.ID]cid.Cid)
-		for _, lg := range lgs {
-			offsets[lg.ID] = cid.Undef
-			if len(lg.Heads) > 0 {
-				has, err := t.bstore.Has(lg.Heads[0])
-				if err != nil {
-					return err
-				}
-				if has {
-					offsets[lg.ID] = lg.Heads[0]
-				}
-			}
-		}
-		wg := sync.WaitGroup{}
-		for _, lg := range lgs {
-			wg.Add(1)
-			// ToDo: fix concurrency
-			func(lg thread.LogInfo) {
-				defer wg.Done()
-				// Pull from addresses
-				recs, err := t.service.getRecords(
-					ctx,
-					id,
-					lg.ID,
-					offsets,
-					MaxPullLimit)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				for lid, rs := range recs {
-					for _, r := range rs {
-						if err = t.putRecord(ctx, id, lid, r); err != nil {
-							log.Error(err)
-							return
-						}
-					}
-				}
-			}(lg)
-		}
-		wg.Wait()
 		<-ptl
 	default:
 		log.Warningf("pull thread %s ignored since already being pulled", id)
 	}
+	return nil
+}
+
+// pullThread for new records. It's internal and *not* thread-safe,
+// it assumes we currently own the thread-lock.
+func (t *threads) pullThread(ctx context.Context, id thread.ID) error {
+	lgs, err := t.getLogs(id)
+	if err != nil {
+		return err
+	}
+
+	// Gather offsets for each log
+	offsets := make(map[peer.ID]cid.Cid)
+	for _, lg := range lgs {
+		offsets[lg.ID] = cid.Undef
+		if len(lg.Heads) > 0 {
+			has, err := t.bstore.Has(lg.Heads[0])
+			if err != nil {
+				return err
+			}
+			if has {
+				offsets[lg.ID] = lg.Heads[0]
+			}
+		}
+	}
+	var fetchedRcs []map[peer.ID][]thread.Record
+	wg := sync.WaitGroup{}
+	for _, lg := range lgs {
+		wg.Add(1)
+		go func(lg thread.LogInfo) {
+			defer wg.Done()
+			// Pull from addresses
+			recs, err := t.service.getRecords(
+				ctx,
+				id,
+				lg.ID,
+				offsets,
+				MaxPullLimit)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			fetchedRcs = append(fetchedRcs, recs)
+		}(lg)
+	}
+	wg.Wait()
+	for _, recs := range fetchedRcs {
+		for lid, rs := range recs {
+			for _, r := range rs {
+				if err = t.putRecord(ctx, id, lid, r); err != nil {
+					log.Error(err)
+					return err
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -404,8 +418,7 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
 		wg.Add(1)
-		// ToDo: fix concurrency
-		func(addr ma.Multiaddr) {
+		go func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
@@ -453,7 +466,7 @@ func (t *threads) AddRecord(ctx context.Context, id thread.ID, body format.Node)
 		threadID: id,
 		logID:    lg.ID,
 	}
-	if err = t.bus.SendWithTimeout(r, time.Second); err != nil {
+	if err = t.bus.SendWithTimeout(r, time.Second*3); err != nil {
 		return
 	}
 
@@ -552,7 +565,16 @@ func (t *threads) Subscribe(opts ...options.SubOption) tserv.Subscription {
 	return listener
 }
 
-// putRecord adds an existing record. See PutOption for more.
+// PutRecord adds an existing record. This method is thread-safe
+func (t *threads) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
+	tsph := t.getThreadSemaphore(id)
+	tsph <- struct{}{}
+	defer func() { <-tsph }()
+	return t.putRecord(ctx, id, lid, rec)
+}
+
+// putRecord adds an existing record. See PutOption for more.This method
+// *should be thread-guarded*
 func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
 	unknownRecords := []thread.Record{}
 	cid := rec.Cid()
@@ -574,9 +596,8 @@ func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	if len(unknownRecords) == 0 {
 		return nil
 	}
-
 	// Get or create a log for the new rec
-	lg, err := util.GetOrCreateLog(t, id, lid)
+	lg, err := util.GetLog(t, id, lid)
 	if err != nil {
 		return err
 	}
@@ -616,14 +637,14 @@ func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 			Record:   r,
 			threadID: id,
 			logID:    lg.ID,
-		}, time.Second)
+		}, time.Second*5)
 		if err != nil {
 			return err
 		}
-	}
-	// Update head
-	if err = t.store.SetHead(id, lg.ID, unknownRecords[0].Cid()); err != nil {
-		return err
+		// Update head
+		if err = t.store.SetHead(id, lg.ID, r.Cid()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -737,7 +758,7 @@ func (t *threads) getLocalRecords(
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
-		r, err := cbor.GetRecord(ctx, t, cursor, fk)
+		r, err := cbor.GetRecord(ctx, t, cursor, fk) // Important invariant: heads are always in blockstore
 		if err != nil {
 			return nil, err
 		}
@@ -760,8 +781,7 @@ func (t *threads) startPulling() {
 			return
 		}
 		for _, id := range ts {
-			// ToDo: fix concurrency
-			func(id thread.ID) {
+			go func(id thread.ID) {
 				if err := t.PullThread(t.ctx, id); err != nil {
 					log.Errorf("error pulling thread %s: %s", id.String(), err)
 				}
@@ -785,6 +805,59 @@ func (t *threads) startPulling() {
 			pull()
 		case <-t.ctx.Done():
 			return
+		}
+	}
+}
+
+// createExternalLogIfNotExist creates an external log if doesn't exists. The created
+// log will have cid.Undef as the current head. Is thread-safe.
+func (t *threads) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey ic.PubKey,
+	privKey ic.PrivKey, addrs []ma.Multiaddr) error {
+	tsph := t.getThreadSemaphore(tid)
+	tsph <- struct{}{}
+	defer func() { <-tsph }()
+	currHeads, err := t.Store().Heads(tid, lid)
+	if err != nil {
+		return err
+	}
+	if len(currHeads) == 0 {
+		lginfo := thread.LogInfo{
+			ID:      lid,
+			PubKey:  pubKey,
+			PrivKey: privKey,
+			Addrs:   addrs,
+			Heads:   []cid.Cid{},
+		}
+		if err := t.store.AddLog(tid, lginfo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// updateRecordsFromLog will fetch lid addrs for new logs & records,
+// and will add them in the local peer store. It assumes  Is thread-safe.
+func (t *threads) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
+	tsph := t.getThreadSemaphore(tid)
+	tsph <- struct{}{}
+	defer func() { <-tsph }()
+	// Get log records for this new log
+	recs, err := t.service.getRecords(
+		t.ctx,
+		tid,
+		lid,
+		map[peer.ID]cid.Cid{lid: cid.Undef}, // (jsign): shouldn't this be current head?
+		MaxPullLimit)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	for lid, rs := range recs { // ToDo: verify if they're ordered since this will optimize
+		for _, r := range rs {
+			if err = t.putRecord(t.ctx, tid, lid, r); err != nil {
+				log.Error(err)
+				return
+			}
 		}
 	}
 }

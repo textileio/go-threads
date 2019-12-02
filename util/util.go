@@ -2,6 +2,7 @@ package util
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -67,9 +68,8 @@ func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 	}, nil
 }
 
-// GetOrCreateLog returns the log with the given thread and log id.
-// If no log exists, a new one is created under the given thread.
-func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+// GetLog returns the log with the given thread and log id.
+func GetLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
 	info, err = t.Store().LogInfo(id, lid)
 	if err != nil {
 		return
@@ -77,12 +77,7 @@ func GetOrCreateLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thre
 	if info.PubKey != nil {
 		return
 	}
-	info, err = CreateLog(t.Host().ID())
-	if err != nil {
-		return
-	}
-	err = t.Store().AddLog(id, info)
-	return
+	return info, fmt.Errorf("log %s doesn't exist for thread %s", lid, id)
 }
 
 // GetOwnLoad returns the log owned by the host under the given thread.
