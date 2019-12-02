@@ -32,6 +32,7 @@ const (
 // sane defaults.
 type ThreadserviceBoostrapper interface {
 	tserv.Threadservice
+	GetIpfsLite() *ipfslite.Peer
 	Bootstrap(addrs []peer.AddrInfo)
 }
 
@@ -160,6 +161,10 @@ var _ ThreadserviceBoostrapper = (*tservBoostrapper)(nil)
 
 func (tsb *tservBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
 	tsb.litepeer.Bootstrap(addrs)
+}
+
+func (tsb *tservBoostrapper) GetIpfsLite() *ipfslite.Peer {
+	return tsb.litepeer
 }
 
 func (tsb *tservBoostrapper) Close() error {
