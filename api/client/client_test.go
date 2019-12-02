@@ -435,8 +435,11 @@ func TestListen(t *testing.T) {
 	if !ok {
 		t.Fatal("channel no longer active at first event")
 	} else {
+		if val.err != nil {
+			t.Fatalf("failed to receive first listen result: %v", val.err)
+		}
 		p := &Person{}
-		if err := json.Unmarshal(val, p); err != nil {
+		if err := json.Unmarshal(val.data, p); err != nil {
 			t.Fatalf("failed to unmarshal listen result: %v", err)
 		}
 		if p.Age != 30 {
@@ -448,8 +451,11 @@ func TestListen(t *testing.T) {
 	if !ok {
 		t.Fatal("channel no longer active at second event")
 	} else {
+		if val.err != nil {
+			t.Fatalf("failed to receive second listen result: %v", val.err)
+		}
 		p := &Person{}
-		if err := json.Unmarshal(val, p); err != nil {
+		if err := json.Unmarshal(val.data, p); err != nil {
 			t.Fatalf("failed to unmarshal listen result: %v", err)
 		}
 		if p.Age != 40 {

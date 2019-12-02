@@ -10,6 +10,8 @@ import (
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Client provides the client api
@@ -201,9 +203,14 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 	return &WriteTransaction{client: client, storeID: storeID, modelName: modelName}, nil
 }
 
+type ListenEvent struct {
+	data []byte
+	err  error
+}
+
 // Listen provides an update whenever the specified model is updated
-func (c *Client) Listen(storeID, modelName, entityID string) (chan []byte, func(), error) {
-	channel := make(chan []byte)
+func (c *Client) Listen(storeID, modelName, entityID string) (chan ListenEvent, func(), error) {
+	channel := make(chan ListenEvent)
 	ctx, cancel := context.WithCancel(c.ctx)
 	go func() {
 		defer close(channel)
@@ -214,15 +221,20 @@ func (c *Client) Listen(storeID, modelName, entityID string) (chan []byte, func(
 		}
 		stream, err := c.client.Listen(ctx, req)
 		if err != nil {
+			channel <- ListenEvent{err: err}
 			return
 		}
 		for {
 			event, err := stream.Recv()
 			if err != nil {
+				status := status.Convert(err)
+				if status == nil || (status != nil && status.Code() != codes.Canceled) {
+					channel <- ListenEvent{err: err}
+				}
 				break
 			}
 			bytes := []byte(event.GetEntity())
-			channel <- bytes
+			channel <- ListenEvent{data: bytes}
 		}
 	}()
 	return channel, cancel, nil
