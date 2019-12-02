@@ -22,7 +22,7 @@ import (
 
 const (
 	// reqTimeout is the duration to wait for a request to complete.
-	reqTimeout = time.Second * 5
+	reqTimeout = time.Second * 10
 )
 
 // getLogs in a thread.
@@ -139,6 +139,12 @@ func (r *records) Store(p peer.ID, key cid.Cid, value thread.Record) {
 		return
 	}
 	r.m[p][key] = value
+
+	// Sanity check
+	if len(r.s[p]) > 0 && r.s[p][len(r.s[p])-1].Cid() != value.PrevID() {
+		panic("there is a gap in records list")
+	}
+
 	r.s[p] = append(r.s[p], value)
 }
 
@@ -189,8 +195,7 @@ func (s *service) getRecords(
 	wg := sync.WaitGroup{}
 	for _, addr := range lg.Addrs {
 		wg.Add(1)
-		// ToDo: fix concurrency
-		func(addr ma.Multiaddr) {
+		go func(addr ma.Multiaddr) {
 			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
@@ -221,7 +226,6 @@ func (s *service) getRecords(
 				log.Warningf("get records from %s failed: %s", p, err)
 				return
 			}
-
 			for _, l := range reply.Logs {
 				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID.String(), p)
 
@@ -233,6 +237,7 @@ func (s *service) getRecords(
 				if lg.PubKey == nil {
 					if l.Log != nil {
 						lg = logFromProto(l.Log)
+						lg.Heads = []cid.Cid{}
 						if err = s.threads.store.AddLog(id, lg); err != nil {
 							log.Error(err)
 							return

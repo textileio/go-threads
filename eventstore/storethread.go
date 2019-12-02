@@ -20,27 +20,42 @@ const (
 
 // SingleThreadAdapter connects a Store with a Threadservice
 type singleThreadAdapter struct {
-	ctx      context.Context
-	api      tserv.Threadservice
-	store    *Store
-	threadID thread.ID
-	ownLogID peer.ID
+	api        tserv.Threadservice
+	store      *Store
+	threadID   thread.ID
+	ownLogID   peer.ID
+	closeChan  chan struct{}
+	goRoutines sync.WaitGroup
 
 	lock    sync.Mutex
 	started bool
+	closed  bool
 }
 
 // NewSingleThreadAdapter returns a new Adapter which maps
 // a Store with a single Thread
-func newSingleThreadAdapter(ctx context.Context, store *Store, threadID thread.ID) *singleThreadAdapter {
+func newSingleThreadAdapter(store *Store, threadID thread.ID) *singleThreadAdapter {
 	a := &singleThreadAdapter{
-		ctx:      ctx,
-		api:      store.Threadservice(),
-		threadID: threadID,
-		store:    store,
+		api:       store.Threadservice(),
+		threadID:  threadID,
+		store:     store,
+		closeChan: make(chan struct{}),
 	}
 
 	return a
+}
+
+// Close closes the storehead and stops listening both directions
+// of thread<->store
+func (a *singleThreadAdapter) Close() {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	if a.closed {
+		return
+	}
+	a.closed = true
+	close(a.closeChan)
+	a.goRoutines.Wait()
 }
 
 // Start starts connection from Store to Threadservice, and viceversa
@@ -62,32 +77,39 @@ func (a *singleThreadAdapter) Start() {
 	go a.threadToStore(&wg)
 	go a.storeToThread(&wg)
 	wg.Wait()
+	a.goRoutines.Add(2)
 }
 
 func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
+	defer a.goRoutines.Done()
 	sub := a.api.Subscribe(tservopts.ThreadID(a.threadID))
 	defer sub.Discard()
 	wg.Done()
 	for {
 		select {
-		case <-a.ctx.Done():
-			log.Infof("cancelling thread event dispatch to store for thread %s since ctx was cancelled", a.threadID)
+		case <-a.closeChan:
+			log.Debug("closing thread-to-store flow on thread %s", a.threadID)
 			return
 		case rec, ok := <-sub.Channel():
 			if !ok {
-				log.Info("ending dispatch of events to store since thread channel was closed") // ToDo: reconsider action
+				log.Errorf("notification channel closed, not listening to external changes anymore")
 				return
 			}
 			if rec.LogID() == a.ownLogID {
 				continue // Ignore our own events since Store already dispatches to Store reducers
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), fetchEventTimeout)
-
 			event, err := threadcbor.EventFromRecord(ctx, a.api, rec.Value())
 			if err != nil {
-				log.Fatalf("error when getting event from record: %v", err) // ToDo: Buffer them and retry...
+				block, err := rec.Value().GetBlock(ctx, a.api)
+				if err != nil { // ToDo: Buffer them and retry...
+					log.Fatalf("error when getting block from record: %v", err)
+				}
+				event, err = threadcbor.EventFromNode(block)
+				if err != nil {
+					log.Fatalf("error when decoding block to event: %v", err)
+				}
 			}
-
 			readKey, err := a.api.Store().ReadKey(a.threadID)
 			if err != nil {
 				log.Fatalf("error when getting read key for thread %s: %v", a.threadID, err)
@@ -113,18 +135,19 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 }
 
 func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
+	defer a.goRoutines.Done()
 	l := a.store.localEventListen()
 	defer l.Discard()
 	wg.Done()
 
 	for {
 		select {
-		case <-a.ctx.Done():
-			log.Infof("cancelling sending store local events to own thread log for thread %s", a.threadID)
+		case <-a.closeChan:
+			log.Infof("closing store-to-thread flow on thread %s", a.threadID)
 			return
 		case event, ok := <-l.Channel():
 			if !ok {
-				log.Infof("ending sending store local event to own thread since channel was closed for thread %s", a.threadID)
+				log.Errorf("ending sending store local event to own thread since channel was closed for thread %s", a.threadID)
 				return
 			}
 			n, err := event.Node()
@@ -132,7 +155,6 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 				log.Fatalf("error when generating node for own log for thread %s: %v", a.threadID, err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-
 			log.Debugf("adding new local store event to own log from entityid: %s", event.EntityID())
 			_, err = a.api.AddRecord(ctx, a.threadID, n)
 			if err != nil {

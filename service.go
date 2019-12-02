@@ -68,7 +68,7 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 		return pblgs, err
 	}
 
-	lgs, err := s.threads.getLogs(req.ThreadID.ID)
+	lgs, err := s.threads.getLogs(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -87,9 +87,6 @@ func (s *service) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetL
 // @todo: Verification
 // @todo: Don't overwrite info from non-owners
 func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
-	// ToDo: fix concurrency
-	s.threads.pullLock.Lock()
-	defer s.threads.pullLock.Unlock()
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
@@ -118,31 +115,12 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 	}
 
 	lg := logFromProto(req.Log)
-	if err := s.threads.store.AddLog(req.ThreadID.ID, lg); err != nil {
+	err = s.threads.createExternalLogIfNotExist(req.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	go func() {
-		// Get log records for this new log
-		recs, err := s.getRecords(
-			s.threads.ctx,
-			req.ThreadID.ID,
-			lg.ID,
-			map[peer.ID]cid.Cid{lg.ID: cid.Undef},
-			MaxPullLimit)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		for lid, rs := range recs {
-			for _, r := range rs {
-				if err = s.threads.putRecord(s.threads.ctx, req.ThreadID.ID, lid, r); err != nil {
-					log.Error(err)
-					return
-				}
-			}
-		}
-	}()
+	go s.threads.updateRecordsFromLog(req.ThreadID.ID, lg.ID)
 
 	return &pb.PushLogReply{}, nil
 }
@@ -150,9 +128,6 @@ func (s *service) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.Push
 // GetRecords receives a get records request.
 // @todo: Verification
 func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
-	// ToDo: fix concurrency
-	s.threads.pullLock.Lock()
-	defer s.threads.pullLock.Unlock()
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
@@ -190,7 +165,6 @@ func (s *service) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*p
 			}
 			pblg = logToProto(lg)
 		}
-
 		recs, err := s.threads.getLocalRecords(
 			ctx,
 			req.ThreadID.ID,
@@ -267,7 +241,7 @@ func (s *service) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*p
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if err = s.threads.putRecord(ctx, req.ThreadID.ID, req.LogID.ID, rec); err != nil {
+	if err = s.threads.PutRecord(ctx, req.ThreadID.ID, req.LogID.ID, rec); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
