@@ -210,7 +210,7 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 }
 
 // Listen provides an update whenever the specified model is updated
-func (c *Client) Listen(storeID, modelName, entityID string) (chan ListenEvent, func(), error) {
+func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent, func()) {
 	channel := make(chan ListenEvent)
 	ctx, cancel := context.WithCancel(c.ctx)
 	go func() {
@@ -238,7 +238,7 @@ func (c *Client) Listen(storeID, modelName, entityID string) (chan ListenEvent, 
 			channel <- ListenEvent{data: bytes}
 		}
 	}()
-	return channel, cancel, nil
+	return channel, cancel
 }
 
 func marshalItems(items []interface{}) ([]string, error) {

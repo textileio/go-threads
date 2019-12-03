@@ -8,13 +8,13 @@ import (
 	es "github.com/textileio/go-textile-threads/eventstore"
 )
 
-// WriteTransaction encapsulates a read transaction
+// WriteTransaction encapsulates a write transaction
 type WriteTransaction struct {
 	client             pb.API_WriteTransactionClient
 	storeID, modelName string
 }
 
-// Start starts the read transaction
+// Start starts the write transaction
 func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
 	innerReq := &pb.StartTransactionRequest{StoreID: t.storeID, ModelName: t.modelName}
 	option := &pb.WriteTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}

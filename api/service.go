@@ -89,7 +89,7 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 	log.Debugf("received model create request for model %s", req.ModelName)
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+		return nil, err
 	}
 	return s.processCreateRequest(req, model.Create)
 }
@@ -97,7 +97,7 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 func (s *service) ModelSave(ctx context.Context, req *pb.ModelSaveRequest) (*pb.ModelSaveReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+		return nil, err
 	}
 	return s.processSaveRequest(req, model.Save)
 }
@@ -105,7 +105,7 @@ func (s *service) ModelSave(ctx context.Context, req *pb.ModelSaveRequest) (*pb.
 func (s *service) ModelDelete(ctx context.Context, req *pb.ModelDeleteRequest) (*pb.ModelDeleteReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+		return nil, err
 	}
 	return s.processDeleteRequest(req, model.Delete)
 }
@@ -113,7 +113,7 @@ func (s *service) ModelDelete(ctx context.Context, req *pb.ModelDeleteRequest) (
 func (s *service) ModelHas(ctx context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+		return nil, err
 	}
 	return s.processHasRequest(req, model.Has)
 }
@@ -121,7 +121,7 @@ func (s *service) ModelHas(ctx context.Context, req *pb.ModelHasRequest) (*pb.Mo
 func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+		return nil, err
 	}
 	return s.processFindRequest(req, model.FindJSON)
 }
@@ -129,7 +129,7 @@ func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.
 func (s *service) ModelFindByID(ctx context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+		return nil, err
 	}
 	return s.processFindByIDRequest(req, model.FindByID)
 }
@@ -153,10 +153,10 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 
 	model, err := s.getModel(storeID, modelName)
 	if err != nil {
-		return status.Error(codes.NotFound, "model not found")
+		return err
 	}
 
-	err = model.ReadTxn(func(txn *es.Txn) error {
+	return model.ReadTxn(func(txn *es.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -200,9 +200,6 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 			}
 		}
 	})
-
-	// possibly nil
-	return err
 }
 
 func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
@@ -224,10 +221,10 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 
 	model, err := s.getModel(storeID, modelName)
 	if err != nil {
-		return status.Error(codes.NotFound, "model not found")
+		return err
 	}
 
-	err = model.WriteTxn(func(txn *es.Txn) error {
+	return model.WriteTxn(func(txn *es.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -298,9 +295,6 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 			}
 		}
 	})
-
-	// possibly nil
-	return err
 }
 
 // Listen returns a stream of entities, trigged by a local or remote state change.

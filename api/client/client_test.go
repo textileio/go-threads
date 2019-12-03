@@ -417,11 +417,8 @@ func TestListen(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	channel, discard, err := client.Listen(storeID, modelName, person.ID)
+	channel, discard := client.Listen(storeID, modelName, person.ID)
 	defer discard()
-	if err != nil {
-		t.Fatalf("failed to listen: %v", err)
-	}
 
 	go func() {
 		time.Sleep(1 * time.Second)
