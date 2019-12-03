@@ -43,6 +43,12 @@ const schema = `{
 	}
 }`
 
+var (
+	server   *api.Server
+	shutdown func()
+	client   *Client
+)
+
 type Person struct {
 	ID        string `json:"ID"`
 	FirstName string `json:"firstName,omitempty"`
@@ -50,31 +56,15 @@ type Person struct {
 	Age       int    `json:"age,omitempty"`
 }
 
-func createPerson() *Person {
-	return &Person{
-		ID:        "",
-		FirstName: "Adam",
-		LastName:  "Doe",
-		Age:       21,
-	}
-}
-
-func TestClose(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	err := client.Close()
-	if err != nil {
-		t.Fatalf("failed to close client: %v", err)
-	}
+func TestMain(m *testing.M) {
+	server, shutdown = makeServer()
+	client = makeClient()
+	exitVal := m.Run()
+	shutdown()
+	os.Exit(exitVal)
 }
 
 func TestNewStore(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
 	_, err := client.NewStore()
 	if err != nil {
 		t.Fatalf("failed to create new store: %v", err)
@@ -82,24 +72,18 @@ func TestNewStore(t *testing.T) {
 }
 
 func TestRegisterSchema(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
 }
 
 func TestStart(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	if err != nil {
@@ -108,12 +92,9 @@ func TestStart(t *testing.T) {
 }
 
 func TestStartFromAddress(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 
 	// TODO: figure out how to test this
@@ -121,12 +102,9 @@ func TestStartFromAddress(t *testing.T) {
 }
 
 func TestModelCreate(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -138,12 +116,9 @@ func TestModelCreate(t *testing.T) {
 }
 
 func TestModelSave(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -161,12 +136,9 @@ func TestModelSave(t *testing.T) {
 }
 
 func TestModelDelete(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -183,12 +155,9 @@ func TestModelDelete(t *testing.T) {
 }
 
 func TestModelHas(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -208,12 +177,9 @@ func TestModelHas(t *testing.T) {
 }
 
 func TestModelFind(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -256,12 +222,9 @@ func TestModelFind(t *testing.T) {
 }
 
 func TestModelFindByID(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
-	storeID, _ := client.NewStore()
-	err := client.RegisterSchema(storeID, modelName, schema)
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.RegisterSchema(storeID, modelName, schema)
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
@@ -282,10 +245,6 @@ func TestModelFindByID(t *testing.T) {
 }
 
 func TestReadTransaction(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
 	storeID, err := client.NewStore()
 	checkErr(t, err)
 	err = client.RegisterSchema(storeID, modelName, schema)
@@ -331,10 +290,6 @@ func TestReadTransaction(t *testing.T) {
 }
 
 func TestWriteTransaction(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
 	storeID, err := client.NewStore()
 	checkErr(t, err)
 	err = client.RegisterSchema(storeID, modelName, schema)
@@ -401,10 +356,6 @@ func TestWriteTransaction(t *testing.T) {
 }
 
 func TestListen(t *testing.T) {
-	_, clean := server(t)
-	defer clean()
-	client := client(t)
-
 	storeID, err := client.NewStore()
 	checkErr(t, err)
 	err = client.RegisterSchema(storeID, modelName, schema)
@@ -461,21 +412,34 @@ func TestListen(t *testing.T) {
 	}
 }
 
-func server(t *testing.T) (*api.Server, func()) {
+func TestClose(t *testing.T) {
+	err := client.Close()
+	if err != nil {
+		t.Fatalf("failed to close client: %v", err)
+	}
+}
+
+func makeServer() (*api.Server, func()) {
 	dir, err := ioutil.TempDir("", "")
-	checkErr(t, err)
+	if err != nil {
+		panic(err)
+	}
 	ts, err := es.DefaultThreadservice(
 		dir,
 		es.ListenPort(4006),
 		es.ProxyPort(5050),
 		es.Debug(true))
-	checkErr(t, err)
+	if err != nil {
+		panic(err)
+	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
 	server, err := api.NewServer(context.Background(), ts, api.Config{
 		RepoPath: dir,
 		Debug:    true,
 	})
-	checkErr(t, err)
+	if err != nil {
+		panic(err)
+	}
 	return server, func() {
 		server.Close()
 		if err := ts.Close(); err != nil {
@@ -485,9 +449,11 @@ func server(t *testing.T) (*api.Server, func()) {
 	}
 }
 
-func client(t *testing.T) *Client {
+func makeClient() *Client {
 	client, err := NewClient("localhost", 9090)
-	checkErr(t, err)
+	if err != nil {
+		panic(err)
+	}
 	return client
 }
 
@@ -495,5 +461,14 @@ func checkErr(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func createPerson() *Person {
+	return &Person{
+		ID:        "",
+		FirstName: "Adam",
+		LastName:  "Doe",
+		Age:       21,
 	}
 }
