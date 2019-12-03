@@ -33,7 +33,7 @@ func (m *NewStoreRequest) Reset()         { *m = NewStoreRequest{} }
 func (m *NewStoreRequest) String() string { return proto.CompactTextString(m) }
 func (*NewStoreRequest) ProtoMessage()    {}
 func (*NewStoreRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{0}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{0}
 }
 func (m *NewStoreRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewStoreRequest.Unmarshal(m, b)
@@ -64,7 +64,7 @@ func (m *NewStoreReply) Reset()         { *m = NewStoreReply{} }
 func (m *NewStoreReply) String() string { return proto.CompactTextString(m) }
 func (*NewStoreReply) ProtoMessage()    {}
 func (*NewStoreReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{1}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{1}
 }
 func (m *NewStoreReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NewStoreReply.Unmarshal(m, b)
@@ -104,7 +104,7 @@ func (m *RegisterSchemaRequest) Reset()         { *m = RegisterSchemaRequest{} }
 func (m *RegisterSchemaRequest) String() string { return proto.CompactTextString(m) }
 func (*RegisterSchemaRequest) ProtoMessage()    {}
 func (*RegisterSchemaRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{2}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{2}
 }
 func (m *RegisterSchemaRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterSchemaRequest.Unmarshal(m, b)
@@ -155,7 +155,7 @@ func (m *RegisterSchemaReply) Reset()         { *m = RegisterSchemaReply{} }
 func (m *RegisterSchemaReply) String() string { return proto.CompactTextString(m) }
 func (*RegisterSchemaReply) ProtoMessage()    {}
 func (*RegisterSchemaReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{3}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{3}
 }
 func (m *RegisterSchemaReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RegisterSchemaReply.Unmarshal(m, b)
@@ -175,6 +175,166 @@ func (m *RegisterSchemaReply) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RegisterSchemaReply proto.InternalMessageInfo
 
+type StartRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartRequest) Reset()         { *m = StartRequest{} }
+func (m *StartRequest) String() string { return proto.CompactTextString(m) }
+func (*StartRequest) ProtoMessage()    {}
+func (*StartRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{4}
+}
+func (m *StartRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartRequest.Unmarshal(m, b)
+}
+func (m *StartRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartRequest.Marshal(b, m, deterministic)
+}
+func (dst *StartRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartRequest.Merge(dst, src)
+}
+func (m *StartRequest) XXX_Size() int {
+	return xxx_messageInfo_StartRequest.Size(m)
+}
+func (m *StartRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartRequest proto.InternalMessageInfo
+
+func (m *StartRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+type StartReply struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartReply) Reset()         { *m = StartReply{} }
+func (m *StartReply) String() string { return proto.CompactTextString(m) }
+func (*StartReply) ProtoMessage()    {}
+func (*StartReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{5}
+}
+func (m *StartReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartReply.Unmarshal(m, b)
+}
+func (m *StartReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartReply.Marshal(b, m, deterministic)
+}
+func (dst *StartReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartReply.Merge(dst, src)
+}
+func (m *StartReply) XXX_Size() int {
+	return xxx_messageInfo_StartReply.Size(m)
+}
+func (m *StartReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartReply proto.InternalMessageInfo
+
+type StartFromAddressRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	Address              string   `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	FollowKey            []byte   `protobuf:"bytes,3,opt,name=followKey,proto3" json:"followKey,omitempty"`
+	ReadKey              []byte   `protobuf:"bytes,4,opt,name=readKey,proto3" json:"readKey,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartFromAddressRequest) Reset()         { *m = StartFromAddressRequest{} }
+func (m *StartFromAddressRequest) String() string { return proto.CompactTextString(m) }
+func (*StartFromAddressRequest) ProtoMessage()    {}
+func (*StartFromAddressRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{6}
+}
+func (m *StartFromAddressRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartFromAddressRequest.Unmarshal(m, b)
+}
+func (m *StartFromAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartFromAddressRequest.Marshal(b, m, deterministic)
+}
+func (dst *StartFromAddressRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartFromAddressRequest.Merge(dst, src)
+}
+func (m *StartFromAddressRequest) XXX_Size() int {
+	return xxx_messageInfo_StartFromAddressRequest.Size(m)
+}
+func (m *StartFromAddressRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartFromAddressRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartFromAddressRequest proto.InternalMessageInfo
+
+func (m *StartFromAddressRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *StartFromAddressRequest) GetAddress() string {
+	if m != nil {
+		return m.Address
+	}
+	return ""
+}
+
+func (m *StartFromAddressRequest) GetFollowKey() []byte {
+	if m != nil {
+		return m.FollowKey
+	}
+	return nil
+}
+
+func (m *StartFromAddressRequest) GetReadKey() []byte {
+	if m != nil {
+		return m.ReadKey
+	}
+	return nil
+}
+
+type StartFromAddressReply struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartFromAddressReply) Reset()         { *m = StartFromAddressReply{} }
+func (m *StartFromAddressReply) String() string { return proto.CompactTextString(m) }
+func (*StartFromAddressReply) ProtoMessage()    {}
+func (*StartFromAddressReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{7}
+}
+func (m *StartFromAddressReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartFromAddressReply.Unmarshal(m, b)
+}
+func (m *StartFromAddressReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartFromAddressReply.Marshal(b, m, deterministic)
+}
+func (dst *StartFromAddressReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartFromAddressReply.Merge(dst, src)
+}
+func (m *StartFromAddressReply) XXX_Size() int {
+	return xxx_messageInfo_StartFromAddressReply.Size(m)
+}
+func (m *StartFromAddressReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartFromAddressReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartFromAddressReply proto.InternalMessageInfo
+
 type ModelCreateRequest struct {
 	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
 	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
@@ -188,7 +348,7 @@ func (m *ModelCreateRequest) Reset()         { *m = ModelCreateRequest{} }
 func (m *ModelCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ModelCreateRequest) ProtoMessage()    {}
 func (*ModelCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{4}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{8}
 }
 func (m *ModelCreateRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ModelCreateRequest.Unmarshal(m, b)
@@ -240,7 +400,7 @@ func (m *ModelCreateReply) Reset()         { *m = ModelCreateReply{} }
 func (m *ModelCreateReply) String() string { return proto.CompactTextString(m) }
 func (*ModelCreateReply) ProtoMessage()    {}
 func (*ModelCreateReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{5}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{9}
 }
 func (m *ModelCreateReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ModelCreateReply.Unmarshal(m, b)
@@ -267,6 +427,1472 @@ func (m *ModelCreateReply) GetEntities() []string {
 	return nil
 }
 
+type ModelSaveRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	Values               []string `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelSaveRequest) Reset()         { *m = ModelSaveRequest{} }
+func (m *ModelSaveRequest) String() string { return proto.CompactTextString(m) }
+func (*ModelSaveRequest) ProtoMessage()    {}
+func (*ModelSaveRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{10}
+}
+func (m *ModelSaveRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelSaveRequest.Unmarshal(m, b)
+}
+func (m *ModelSaveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelSaveRequest.Marshal(b, m, deterministic)
+}
+func (dst *ModelSaveRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelSaveRequest.Merge(dst, src)
+}
+func (m *ModelSaveRequest) XXX_Size() int {
+	return xxx_messageInfo_ModelSaveRequest.Size(m)
+}
+func (m *ModelSaveRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelSaveRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelSaveRequest proto.InternalMessageInfo
+
+func (m *ModelSaveRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *ModelSaveRequest) GetModelName() string {
+	if m != nil {
+		return m.ModelName
+	}
+	return ""
+}
+
+func (m *ModelSaveRequest) GetValues() []string {
+	if m != nil {
+		return m.Values
+	}
+	return nil
+}
+
+type ModelSaveReply struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelSaveReply) Reset()         { *m = ModelSaveReply{} }
+func (m *ModelSaveReply) String() string { return proto.CompactTextString(m) }
+func (*ModelSaveReply) ProtoMessage()    {}
+func (*ModelSaveReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{11}
+}
+func (m *ModelSaveReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelSaveReply.Unmarshal(m, b)
+}
+func (m *ModelSaveReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelSaveReply.Marshal(b, m, deterministic)
+}
+func (dst *ModelSaveReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelSaveReply.Merge(dst, src)
+}
+func (m *ModelSaveReply) XXX_Size() int {
+	return xxx_messageInfo_ModelSaveReply.Size(m)
+}
+func (m *ModelSaveReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelSaveReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelSaveReply proto.InternalMessageInfo
+
+type ModelDeleteRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	EntityIDs            []string `protobuf:"bytes,3,rep,name=entityIDs,proto3" json:"entityIDs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelDeleteRequest) Reset()         { *m = ModelDeleteRequest{} }
+func (m *ModelDeleteRequest) String() string { return proto.CompactTextString(m) }
+func (*ModelDeleteRequest) ProtoMessage()    {}
+func (*ModelDeleteRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{12}
+}
+func (m *ModelDeleteRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelDeleteRequest.Unmarshal(m, b)
+}
+func (m *ModelDeleteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelDeleteRequest.Marshal(b, m, deterministic)
+}
+func (dst *ModelDeleteRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelDeleteRequest.Merge(dst, src)
+}
+func (m *ModelDeleteRequest) XXX_Size() int {
+	return xxx_messageInfo_ModelDeleteRequest.Size(m)
+}
+func (m *ModelDeleteRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelDeleteRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelDeleteRequest proto.InternalMessageInfo
+
+func (m *ModelDeleteRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *ModelDeleteRequest) GetModelName() string {
+	if m != nil {
+		return m.ModelName
+	}
+	return ""
+}
+
+func (m *ModelDeleteRequest) GetEntityIDs() []string {
+	if m != nil {
+		return m.EntityIDs
+	}
+	return nil
+}
+
+type ModelDeleteReply struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelDeleteReply) Reset()         { *m = ModelDeleteReply{} }
+func (m *ModelDeleteReply) String() string { return proto.CompactTextString(m) }
+func (*ModelDeleteReply) ProtoMessage()    {}
+func (*ModelDeleteReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{13}
+}
+func (m *ModelDeleteReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelDeleteReply.Unmarshal(m, b)
+}
+func (m *ModelDeleteReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelDeleteReply.Marshal(b, m, deterministic)
+}
+func (dst *ModelDeleteReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelDeleteReply.Merge(dst, src)
+}
+func (m *ModelDeleteReply) XXX_Size() int {
+	return xxx_messageInfo_ModelDeleteReply.Size(m)
+}
+func (m *ModelDeleteReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelDeleteReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelDeleteReply proto.InternalMessageInfo
+
+type ModelHasRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	EntityIDs            []string `protobuf:"bytes,3,rep,name=entityIDs,proto3" json:"entityIDs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelHasRequest) Reset()         { *m = ModelHasRequest{} }
+func (m *ModelHasRequest) String() string { return proto.CompactTextString(m) }
+func (*ModelHasRequest) ProtoMessage()    {}
+func (*ModelHasRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{14}
+}
+func (m *ModelHasRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelHasRequest.Unmarshal(m, b)
+}
+func (m *ModelHasRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelHasRequest.Marshal(b, m, deterministic)
+}
+func (dst *ModelHasRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelHasRequest.Merge(dst, src)
+}
+func (m *ModelHasRequest) XXX_Size() int {
+	return xxx_messageInfo_ModelHasRequest.Size(m)
+}
+func (m *ModelHasRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelHasRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelHasRequest proto.InternalMessageInfo
+
+func (m *ModelHasRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *ModelHasRequest) GetModelName() string {
+	if m != nil {
+		return m.ModelName
+	}
+	return ""
+}
+
+func (m *ModelHasRequest) GetEntityIDs() []string {
+	if m != nil {
+		return m.EntityIDs
+	}
+	return nil
+}
+
+type ModelHasReply struct {
+	Exists               bool     `protobuf:"varint,1,opt,name=exists,proto3" json:"exists,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelHasReply) Reset()         { *m = ModelHasReply{} }
+func (m *ModelHasReply) String() string { return proto.CompactTextString(m) }
+func (*ModelHasReply) ProtoMessage()    {}
+func (*ModelHasReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{15}
+}
+func (m *ModelHasReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelHasReply.Unmarshal(m, b)
+}
+func (m *ModelHasReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelHasReply.Marshal(b, m, deterministic)
+}
+func (dst *ModelHasReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelHasReply.Merge(dst, src)
+}
+func (m *ModelHasReply) XXX_Size() int {
+	return xxx_messageInfo_ModelHasReply.Size(m)
+}
+func (m *ModelHasReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelHasReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelHasReply proto.InternalMessageInfo
+
+func (m *ModelHasReply) GetExists() bool {
+	if m != nil {
+		return m.Exists
+	}
+	return false
+}
+
+type ModelFindRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	QueryJSON            []byte   `protobuf:"bytes,3,opt,name=queryJSON,proto3" json:"queryJSON,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelFindRequest) Reset()         { *m = ModelFindRequest{} }
+func (m *ModelFindRequest) String() string { return proto.CompactTextString(m) }
+func (*ModelFindRequest) ProtoMessage()    {}
+func (*ModelFindRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{16}
+}
+func (m *ModelFindRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelFindRequest.Unmarshal(m, b)
+}
+func (m *ModelFindRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelFindRequest.Marshal(b, m, deterministic)
+}
+func (dst *ModelFindRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelFindRequest.Merge(dst, src)
+}
+func (m *ModelFindRequest) XXX_Size() int {
+	return xxx_messageInfo_ModelFindRequest.Size(m)
+}
+func (m *ModelFindRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelFindRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelFindRequest proto.InternalMessageInfo
+
+func (m *ModelFindRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *ModelFindRequest) GetModelName() string {
+	if m != nil {
+		return m.ModelName
+	}
+	return ""
+}
+
+func (m *ModelFindRequest) GetQueryJSON() []byte {
+	if m != nil {
+		return m.QueryJSON
+	}
+	return nil
+}
+
+type ModelFindReply struct {
+	Entities             [][]byte `protobuf:"bytes,1,rep,name=entities,proto3" json:"entities,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelFindReply) Reset()         { *m = ModelFindReply{} }
+func (m *ModelFindReply) String() string { return proto.CompactTextString(m) }
+func (*ModelFindReply) ProtoMessage()    {}
+func (*ModelFindReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{17}
+}
+func (m *ModelFindReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelFindReply.Unmarshal(m, b)
+}
+func (m *ModelFindReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelFindReply.Marshal(b, m, deterministic)
+}
+func (dst *ModelFindReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelFindReply.Merge(dst, src)
+}
+func (m *ModelFindReply) XXX_Size() int {
+	return xxx_messageInfo_ModelFindReply.Size(m)
+}
+func (m *ModelFindReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelFindReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelFindReply proto.InternalMessageInfo
+
+func (m *ModelFindReply) GetEntities() [][]byte {
+	if m != nil {
+		return m.Entities
+	}
+	return nil
+}
+
+type ModelFindByIDRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	EntityID             string   `protobuf:"bytes,3,opt,name=entityID,proto3" json:"entityID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelFindByIDRequest) Reset()         { *m = ModelFindByIDRequest{} }
+func (m *ModelFindByIDRequest) String() string { return proto.CompactTextString(m) }
+func (*ModelFindByIDRequest) ProtoMessage()    {}
+func (*ModelFindByIDRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{18}
+}
+func (m *ModelFindByIDRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelFindByIDRequest.Unmarshal(m, b)
+}
+func (m *ModelFindByIDRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelFindByIDRequest.Marshal(b, m, deterministic)
+}
+func (dst *ModelFindByIDRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelFindByIDRequest.Merge(dst, src)
+}
+func (m *ModelFindByIDRequest) XXX_Size() int {
+	return xxx_messageInfo_ModelFindByIDRequest.Size(m)
+}
+func (m *ModelFindByIDRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelFindByIDRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelFindByIDRequest proto.InternalMessageInfo
+
+func (m *ModelFindByIDRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *ModelFindByIDRequest) GetModelName() string {
+	if m != nil {
+		return m.ModelName
+	}
+	return ""
+}
+
+func (m *ModelFindByIDRequest) GetEntityID() string {
+	if m != nil {
+		return m.EntityID
+	}
+	return ""
+}
+
+type ModelFindByIDReply struct {
+	Entity               string   `protobuf:"bytes,1,opt,name=entity,proto3" json:"entity,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ModelFindByIDReply) Reset()         { *m = ModelFindByIDReply{} }
+func (m *ModelFindByIDReply) String() string { return proto.CompactTextString(m) }
+func (*ModelFindByIDReply) ProtoMessage()    {}
+func (*ModelFindByIDReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{19}
+}
+func (m *ModelFindByIDReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ModelFindByIDReply.Unmarshal(m, b)
+}
+func (m *ModelFindByIDReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ModelFindByIDReply.Marshal(b, m, deterministic)
+}
+func (dst *ModelFindByIDReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ModelFindByIDReply.Merge(dst, src)
+}
+func (m *ModelFindByIDReply) XXX_Size() int {
+	return xxx_messageInfo_ModelFindByIDReply.Size(m)
+}
+func (m *ModelFindByIDReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ModelFindByIDReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ModelFindByIDReply proto.InternalMessageInfo
+
+func (m *ModelFindByIDReply) GetEntity() string {
+	if m != nil {
+		return m.Entity
+	}
+	return ""
+}
+
+type StartTransactionRequest struct {
+	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
+	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StartTransactionRequest) Reset()         { *m = StartTransactionRequest{} }
+func (m *StartTransactionRequest) String() string { return proto.CompactTextString(m) }
+func (*StartTransactionRequest) ProtoMessage()    {}
+func (*StartTransactionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{20}
+}
+func (m *StartTransactionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StartTransactionRequest.Unmarshal(m, b)
+}
+func (m *StartTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StartTransactionRequest.Marshal(b, m, deterministic)
+}
+func (dst *StartTransactionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StartTransactionRequest.Merge(dst, src)
+}
+func (m *StartTransactionRequest) XXX_Size() int {
+	return xxx_messageInfo_StartTransactionRequest.Size(m)
+}
+func (m *StartTransactionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_StartTransactionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StartTransactionRequest proto.InternalMessageInfo
+
+func (m *StartTransactionRequest) GetStoreID() string {
+	if m != nil {
+		return m.StoreID
+	}
+	return ""
+}
+
+func (m *StartTransactionRequest) GetModelName() string {
+	if m != nil {
+		return m.ModelName
+	}
+	return ""
+}
+
+type ReadTransactionRequest struct {
+	// Types that are valid to be assigned to Option:
+	//	*ReadTransactionRequest_StartTransactionRequest
+	//	*ReadTransactionRequest_ModelHasRequest
+	//	*ReadTransactionRequest_ModelFindRequest
+	//	*ReadTransactionRequest_ModelFindByIDRequest
+	Option               isReadTransactionRequest_Option `protobuf_oneof:"option"`
+	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
+	XXX_unrecognized     []byte                          `json:"-"`
+	XXX_sizecache        int32                           `json:"-"`
+}
+
+func (m *ReadTransactionRequest) Reset()         { *m = ReadTransactionRequest{} }
+func (m *ReadTransactionRequest) String() string { return proto.CompactTextString(m) }
+func (*ReadTransactionRequest) ProtoMessage()    {}
+func (*ReadTransactionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{21}
+}
+func (m *ReadTransactionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ReadTransactionRequest.Unmarshal(m, b)
+}
+func (m *ReadTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ReadTransactionRequest.Marshal(b, m, deterministic)
+}
+func (dst *ReadTransactionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ReadTransactionRequest.Merge(dst, src)
+}
+func (m *ReadTransactionRequest) XXX_Size() int {
+	return xxx_messageInfo_ReadTransactionRequest.Size(m)
+}
+func (m *ReadTransactionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ReadTransactionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ReadTransactionRequest proto.InternalMessageInfo
+
+type isReadTransactionRequest_Option interface {
+	isReadTransactionRequest_Option()
+}
+
+type ReadTransactionRequest_StartTransactionRequest struct {
+	StartTransactionRequest *StartTransactionRequest `protobuf:"bytes,1,opt,name=startTransactionRequest,proto3,oneof"`
+}
+
+type ReadTransactionRequest_ModelHasRequest struct {
+	ModelHasRequest *ModelHasRequest `protobuf:"bytes,2,opt,name=modelHasRequest,proto3,oneof"`
+}
+
+type ReadTransactionRequest_ModelFindRequest struct {
+	ModelFindRequest *ModelFindRequest `protobuf:"bytes,3,opt,name=modelFindRequest,proto3,oneof"`
+}
+
+type ReadTransactionRequest_ModelFindByIDRequest struct {
+	ModelFindByIDRequest *ModelFindByIDRequest `protobuf:"bytes,4,opt,name=modelFindByIDRequest,proto3,oneof"`
+}
+
+func (*ReadTransactionRequest_StartTransactionRequest) isReadTransactionRequest_Option() {}
+
+func (*ReadTransactionRequest_ModelHasRequest) isReadTransactionRequest_Option() {}
+
+func (*ReadTransactionRequest_ModelFindRequest) isReadTransactionRequest_Option() {}
+
+func (*ReadTransactionRequest_ModelFindByIDRequest) isReadTransactionRequest_Option() {}
+
+func (m *ReadTransactionRequest) GetOption() isReadTransactionRequest_Option {
+	if m != nil {
+		return m.Option
+	}
+	return nil
+}
+
+func (m *ReadTransactionRequest) GetStartTransactionRequest() *StartTransactionRequest {
+	if x, ok := m.GetOption().(*ReadTransactionRequest_StartTransactionRequest); ok {
+		return x.StartTransactionRequest
+	}
+	return nil
+}
+
+func (m *ReadTransactionRequest) GetModelHasRequest() *ModelHasRequest {
+	if x, ok := m.GetOption().(*ReadTransactionRequest_ModelHasRequest); ok {
+		return x.ModelHasRequest
+	}
+	return nil
+}
+
+func (m *ReadTransactionRequest) GetModelFindRequest() *ModelFindRequest {
+	if x, ok := m.GetOption().(*ReadTransactionRequest_ModelFindRequest); ok {
+		return x.ModelFindRequest
+	}
+	return nil
+}
+
+func (m *ReadTransactionRequest) GetModelFindByIDRequest() *ModelFindByIDRequest {
+	if x, ok := m.GetOption().(*ReadTransactionRequest_ModelFindByIDRequest); ok {
+		return x.ModelFindByIDRequest
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ReadTransactionRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ReadTransactionRequest_OneofMarshaler, _ReadTransactionRequest_OneofUnmarshaler, _ReadTransactionRequest_OneofSizer, []interface{}{
+		(*ReadTransactionRequest_StartTransactionRequest)(nil),
+		(*ReadTransactionRequest_ModelHasRequest)(nil),
+		(*ReadTransactionRequest_ModelFindRequest)(nil),
+		(*ReadTransactionRequest_ModelFindByIDRequest)(nil),
+	}
+}
+
+func _ReadTransactionRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ReadTransactionRequest)
+	// option
+	switch x := m.Option.(type) {
+	case *ReadTransactionRequest_StartTransactionRequest:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.StartTransactionRequest); err != nil {
+			return err
+		}
+	case *ReadTransactionRequest_ModelHasRequest:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelHasRequest); err != nil {
+			return err
+		}
+	case *ReadTransactionRequest_ModelFindRequest:
+		b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindRequest); err != nil {
+			return err
+		}
+	case *ReadTransactionRequest_ModelFindByIDRequest:
+		b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindByIDRequest); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ReadTransactionRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ReadTransactionRequest)
+	switch tag {
+	case 1: // option.startTransactionRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StartTransactionRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionRequest_StartTransactionRequest{msg}
+		return true, err
+	case 2: // option.modelHasRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelHasRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionRequest_ModelHasRequest{msg}
+		return true, err
+	case 3: // option.modelFindRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionRequest_ModelFindRequest{msg}
+		return true, err
+	case 4: // option.modelFindByIDRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindByIDRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionRequest_ModelFindByIDRequest{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ReadTransactionRequest_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ReadTransactionRequest)
+	// option
+	switch x := m.Option.(type) {
+	case *ReadTransactionRequest_StartTransactionRequest:
+		s := proto.Size(x.StartTransactionRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ReadTransactionRequest_ModelHasRequest:
+		s := proto.Size(x.ModelHasRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ReadTransactionRequest_ModelFindRequest:
+		s := proto.Size(x.ModelFindRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ReadTransactionRequest_ModelFindByIDRequest:
+		s := proto.Size(x.ModelFindByIDRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type ReadTransactionReply struct {
+	// Types that are valid to be assigned to Option:
+	//	*ReadTransactionReply_ModelHasReply
+	//	*ReadTransactionReply_ModelFindReply
+	//	*ReadTransactionReply_ModelFindByIDReply
+	Option               isReadTransactionReply_Option `protobuf_oneof:"option"`
+	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
+	XXX_unrecognized     []byte                        `json:"-"`
+	XXX_sizecache        int32                         `json:"-"`
+}
+
+func (m *ReadTransactionReply) Reset()         { *m = ReadTransactionReply{} }
+func (m *ReadTransactionReply) String() string { return proto.CompactTextString(m) }
+func (*ReadTransactionReply) ProtoMessage()    {}
+func (*ReadTransactionReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{22}
+}
+func (m *ReadTransactionReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ReadTransactionReply.Unmarshal(m, b)
+}
+func (m *ReadTransactionReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ReadTransactionReply.Marshal(b, m, deterministic)
+}
+func (dst *ReadTransactionReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ReadTransactionReply.Merge(dst, src)
+}
+func (m *ReadTransactionReply) XXX_Size() int {
+	return xxx_messageInfo_ReadTransactionReply.Size(m)
+}
+func (m *ReadTransactionReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ReadTransactionReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ReadTransactionReply proto.InternalMessageInfo
+
+type isReadTransactionReply_Option interface {
+	isReadTransactionReply_Option()
+}
+
+type ReadTransactionReply_ModelHasReply struct {
+	ModelHasReply *ModelHasReply `protobuf:"bytes,1,opt,name=modelHasReply,proto3,oneof"`
+}
+
+type ReadTransactionReply_ModelFindReply struct {
+	ModelFindReply *ModelFindReply `protobuf:"bytes,2,opt,name=modelFindReply,proto3,oneof"`
+}
+
+type ReadTransactionReply_ModelFindByIDReply struct {
+	ModelFindByIDReply *ModelFindByIDReply `protobuf:"bytes,3,opt,name=modelFindByIDReply,proto3,oneof"`
+}
+
+func (*ReadTransactionReply_ModelHasReply) isReadTransactionReply_Option() {}
+
+func (*ReadTransactionReply_ModelFindReply) isReadTransactionReply_Option() {}
+
+func (*ReadTransactionReply_ModelFindByIDReply) isReadTransactionReply_Option() {}
+
+func (m *ReadTransactionReply) GetOption() isReadTransactionReply_Option {
+	if m != nil {
+		return m.Option
+	}
+	return nil
+}
+
+func (m *ReadTransactionReply) GetModelHasReply() *ModelHasReply {
+	if x, ok := m.GetOption().(*ReadTransactionReply_ModelHasReply); ok {
+		return x.ModelHasReply
+	}
+	return nil
+}
+
+func (m *ReadTransactionReply) GetModelFindReply() *ModelFindReply {
+	if x, ok := m.GetOption().(*ReadTransactionReply_ModelFindReply); ok {
+		return x.ModelFindReply
+	}
+	return nil
+}
+
+func (m *ReadTransactionReply) GetModelFindByIDReply() *ModelFindByIDReply {
+	if x, ok := m.GetOption().(*ReadTransactionReply_ModelFindByIDReply); ok {
+		return x.ModelFindByIDReply
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ReadTransactionReply) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ReadTransactionReply_OneofMarshaler, _ReadTransactionReply_OneofUnmarshaler, _ReadTransactionReply_OneofSizer, []interface{}{
+		(*ReadTransactionReply_ModelHasReply)(nil),
+		(*ReadTransactionReply_ModelFindReply)(nil),
+		(*ReadTransactionReply_ModelFindByIDReply)(nil),
+	}
+}
+
+func _ReadTransactionReply_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ReadTransactionReply)
+	// option
+	switch x := m.Option.(type) {
+	case *ReadTransactionReply_ModelHasReply:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelHasReply); err != nil {
+			return err
+		}
+	case *ReadTransactionReply_ModelFindReply:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindReply); err != nil {
+			return err
+		}
+	case *ReadTransactionReply_ModelFindByIDReply:
+		b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindByIDReply); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ReadTransactionReply_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ReadTransactionReply)
+	switch tag {
+	case 1: // option.modelHasReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelHasReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionReply_ModelHasReply{msg}
+		return true, err
+	case 2: // option.modelFindReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionReply_ModelFindReply{msg}
+		return true, err
+	case 3: // option.modelFindByIDReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindByIDReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &ReadTransactionReply_ModelFindByIDReply{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ReadTransactionReply_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ReadTransactionReply)
+	// option
+	switch x := m.Option.(type) {
+	case *ReadTransactionReply_ModelHasReply:
+		s := proto.Size(x.ModelHasReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ReadTransactionReply_ModelFindReply:
+		s := proto.Size(x.ModelFindReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ReadTransactionReply_ModelFindByIDReply:
+		s := proto.Size(x.ModelFindByIDReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type WriteTransactionRequest struct {
+	// Types that are valid to be assigned to Option:
+	//	*WriteTransactionRequest_StartTransactionRequest
+	//	*WriteTransactionRequest_ModelCreateRequest
+	//	*WriteTransactionRequest_ModelSaveRequest
+	//	*WriteTransactionRequest_ModelDeleteRequest
+	//	*WriteTransactionRequest_ModelHasRequest
+	//	*WriteTransactionRequest_ModelFindRequest
+	//	*WriteTransactionRequest_ModelFindByIDRequest
+	Option               isWriteTransactionRequest_Option `protobuf_oneof:"option"`
+	XXX_NoUnkeyedLiteral struct{}                         `json:"-"`
+	XXX_unrecognized     []byte                           `json:"-"`
+	XXX_sizecache        int32                            `json:"-"`
+}
+
+func (m *WriteTransactionRequest) Reset()         { *m = WriteTransactionRequest{} }
+func (m *WriteTransactionRequest) String() string { return proto.CompactTextString(m) }
+func (*WriteTransactionRequest) ProtoMessage()    {}
+func (*WriteTransactionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{23}
+}
+func (m *WriteTransactionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WriteTransactionRequest.Unmarshal(m, b)
+}
+func (m *WriteTransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WriteTransactionRequest.Marshal(b, m, deterministic)
+}
+func (dst *WriteTransactionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WriteTransactionRequest.Merge(dst, src)
+}
+func (m *WriteTransactionRequest) XXX_Size() int {
+	return xxx_messageInfo_WriteTransactionRequest.Size(m)
+}
+func (m *WriteTransactionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WriteTransactionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WriteTransactionRequest proto.InternalMessageInfo
+
+type isWriteTransactionRequest_Option interface {
+	isWriteTransactionRequest_Option()
+}
+
+type WriteTransactionRequest_StartTransactionRequest struct {
+	StartTransactionRequest *StartTransactionRequest `protobuf:"bytes,1,opt,name=startTransactionRequest,proto3,oneof"`
+}
+
+type WriteTransactionRequest_ModelCreateRequest struct {
+	ModelCreateRequest *ModelCreateRequest `protobuf:"bytes,2,opt,name=modelCreateRequest,proto3,oneof"`
+}
+
+type WriteTransactionRequest_ModelSaveRequest struct {
+	ModelSaveRequest *ModelSaveRequest `protobuf:"bytes,3,opt,name=modelSaveRequest,proto3,oneof"`
+}
+
+type WriteTransactionRequest_ModelDeleteRequest struct {
+	ModelDeleteRequest *ModelDeleteRequest `protobuf:"bytes,4,opt,name=modelDeleteRequest,proto3,oneof"`
+}
+
+type WriteTransactionRequest_ModelHasRequest struct {
+	ModelHasRequest *ModelHasRequest `protobuf:"bytes,5,opt,name=modelHasRequest,proto3,oneof"`
+}
+
+type WriteTransactionRequest_ModelFindRequest struct {
+	ModelFindRequest *ModelFindRequest `protobuf:"bytes,6,opt,name=modelFindRequest,proto3,oneof"`
+}
+
+type WriteTransactionRequest_ModelFindByIDRequest struct {
+	ModelFindByIDRequest *ModelFindByIDRequest `protobuf:"bytes,7,opt,name=modelFindByIDRequest,proto3,oneof"`
+}
+
+func (*WriteTransactionRequest_StartTransactionRequest) isWriteTransactionRequest_Option() {}
+
+func (*WriteTransactionRequest_ModelCreateRequest) isWriteTransactionRequest_Option() {}
+
+func (*WriteTransactionRequest_ModelSaveRequest) isWriteTransactionRequest_Option() {}
+
+func (*WriteTransactionRequest_ModelDeleteRequest) isWriteTransactionRequest_Option() {}
+
+func (*WriteTransactionRequest_ModelHasRequest) isWriteTransactionRequest_Option() {}
+
+func (*WriteTransactionRequest_ModelFindRequest) isWriteTransactionRequest_Option() {}
+
+func (*WriteTransactionRequest_ModelFindByIDRequest) isWriteTransactionRequest_Option() {}
+
+func (m *WriteTransactionRequest) GetOption() isWriteTransactionRequest_Option {
+	if m != nil {
+		return m.Option
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetStartTransactionRequest() *StartTransactionRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_StartTransactionRequest); ok {
+		return x.StartTransactionRequest
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetModelCreateRequest() *ModelCreateRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_ModelCreateRequest); ok {
+		return x.ModelCreateRequest
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetModelSaveRequest() *ModelSaveRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_ModelSaveRequest); ok {
+		return x.ModelSaveRequest
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetModelDeleteRequest() *ModelDeleteRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_ModelDeleteRequest); ok {
+		return x.ModelDeleteRequest
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetModelHasRequest() *ModelHasRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_ModelHasRequest); ok {
+		return x.ModelHasRequest
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetModelFindRequest() *ModelFindRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_ModelFindRequest); ok {
+		return x.ModelFindRequest
+	}
+	return nil
+}
+
+func (m *WriteTransactionRequest) GetModelFindByIDRequest() *ModelFindByIDRequest {
+	if x, ok := m.GetOption().(*WriteTransactionRequest_ModelFindByIDRequest); ok {
+		return x.ModelFindByIDRequest
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*WriteTransactionRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _WriteTransactionRequest_OneofMarshaler, _WriteTransactionRequest_OneofUnmarshaler, _WriteTransactionRequest_OneofSizer, []interface{}{
+		(*WriteTransactionRequest_StartTransactionRequest)(nil),
+		(*WriteTransactionRequest_ModelCreateRequest)(nil),
+		(*WriteTransactionRequest_ModelSaveRequest)(nil),
+		(*WriteTransactionRequest_ModelDeleteRequest)(nil),
+		(*WriteTransactionRequest_ModelHasRequest)(nil),
+		(*WriteTransactionRequest_ModelFindRequest)(nil),
+		(*WriteTransactionRequest_ModelFindByIDRequest)(nil),
+	}
+}
+
+func _WriteTransactionRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*WriteTransactionRequest)
+	// option
+	switch x := m.Option.(type) {
+	case *WriteTransactionRequest_StartTransactionRequest:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.StartTransactionRequest); err != nil {
+			return err
+		}
+	case *WriteTransactionRequest_ModelCreateRequest:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelCreateRequest); err != nil {
+			return err
+		}
+	case *WriteTransactionRequest_ModelSaveRequest:
+		b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelSaveRequest); err != nil {
+			return err
+		}
+	case *WriteTransactionRequest_ModelDeleteRequest:
+		b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelDeleteRequest); err != nil {
+			return err
+		}
+	case *WriteTransactionRequest_ModelHasRequest:
+		b.EncodeVarint(5<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelHasRequest); err != nil {
+			return err
+		}
+	case *WriteTransactionRequest_ModelFindRequest:
+		b.EncodeVarint(6<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindRequest); err != nil {
+			return err
+		}
+	case *WriteTransactionRequest_ModelFindByIDRequest:
+		b.EncodeVarint(7<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindByIDRequest); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _WriteTransactionRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*WriteTransactionRequest)
+	switch tag {
+	case 1: // option.startTransactionRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StartTransactionRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_StartTransactionRequest{msg}
+		return true, err
+	case 2: // option.modelCreateRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelCreateRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_ModelCreateRequest{msg}
+		return true, err
+	case 3: // option.modelSaveRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelSaveRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_ModelSaveRequest{msg}
+		return true, err
+	case 4: // option.modelDeleteRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelDeleteRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_ModelDeleteRequest{msg}
+		return true, err
+	case 5: // option.modelHasRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelHasRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_ModelHasRequest{msg}
+		return true, err
+	case 6: // option.modelFindRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_ModelFindRequest{msg}
+		return true, err
+	case 7: // option.modelFindByIDRequest
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindByIDRequest)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionRequest_ModelFindByIDRequest{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _WriteTransactionRequest_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*WriteTransactionRequest)
+	// option
+	switch x := m.Option.(type) {
+	case *WriteTransactionRequest_StartTransactionRequest:
+		s := proto.Size(x.StartTransactionRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionRequest_ModelCreateRequest:
+		s := proto.Size(x.ModelCreateRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionRequest_ModelSaveRequest:
+		s := proto.Size(x.ModelSaveRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionRequest_ModelDeleteRequest:
+		s := proto.Size(x.ModelDeleteRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionRequest_ModelHasRequest:
+		s := proto.Size(x.ModelHasRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionRequest_ModelFindRequest:
+		s := proto.Size(x.ModelFindRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionRequest_ModelFindByIDRequest:
+		s := proto.Size(x.ModelFindByIDRequest)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type WriteTransactionReply struct {
+	// Types that are valid to be assigned to Option:
+	//	*WriteTransactionReply_ModelCreateReply
+	//	*WriteTransactionReply_ModelSaveReply
+	//	*WriteTransactionReply_ModelDeleteReply
+	//	*WriteTransactionReply_ModelHasReply
+	//	*WriteTransactionReply_ModelFindReply
+	//	*WriteTransactionReply_ModelFindByIDReply
+	Option               isWriteTransactionReply_Option `protobuf_oneof:"option"`
+	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
+	XXX_unrecognized     []byte                         `json:"-"`
+	XXX_sizecache        int32                          `json:"-"`
+}
+
+func (m *WriteTransactionReply) Reset()         { *m = WriteTransactionReply{} }
+func (m *WriteTransactionReply) String() string { return proto.CompactTextString(m) }
+func (*WriteTransactionReply) ProtoMessage()    {}
+func (*WriteTransactionReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{24}
+}
+func (m *WriteTransactionReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WriteTransactionReply.Unmarshal(m, b)
+}
+func (m *WriteTransactionReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WriteTransactionReply.Marshal(b, m, deterministic)
+}
+func (dst *WriteTransactionReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WriteTransactionReply.Merge(dst, src)
+}
+func (m *WriteTransactionReply) XXX_Size() int {
+	return xxx_messageInfo_WriteTransactionReply.Size(m)
+}
+func (m *WriteTransactionReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_WriteTransactionReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WriteTransactionReply proto.InternalMessageInfo
+
+type isWriteTransactionReply_Option interface {
+	isWriteTransactionReply_Option()
+}
+
+type WriteTransactionReply_ModelCreateReply struct {
+	ModelCreateReply *ModelCreateReply `protobuf:"bytes,1,opt,name=modelCreateReply,proto3,oneof"`
+}
+
+type WriteTransactionReply_ModelSaveReply struct {
+	ModelSaveReply *ModelSaveReply `protobuf:"bytes,2,opt,name=modelSaveReply,proto3,oneof"`
+}
+
+type WriteTransactionReply_ModelDeleteReply struct {
+	ModelDeleteReply *ModelDeleteReply `protobuf:"bytes,3,opt,name=modelDeleteReply,proto3,oneof"`
+}
+
+type WriteTransactionReply_ModelHasReply struct {
+	ModelHasReply *ModelHasReply `protobuf:"bytes,4,opt,name=modelHasReply,proto3,oneof"`
+}
+
+type WriteTransactionReply_ModelFindReply struct {
+	ModelFindReply *ModelFindReply `protobuf:"bytes,5,opt,name=modelFindReply,proto3,oneof"`
+}
+
+type WriteTransactionReply_ModelFindByIDReply struct {
+	ModelFindByIDReply *ModelFindByIDReply `protobuf:"bytes,6,opt,name=modelFindByIDReply,proto3,oneof"`
+}
+
+func (*WriteTransactionReply_ModelCreateReply) isWriteTransactionReply_Option() {}
+
+func (*WriteTransactionReply_ModelSaveReply) isWriteTransactionReply_Option() {}
+
+func (*WriteTransactionReply_ModelDeleteReply) isWriteTransactionReply_Option() {}
+
+func (*WriteTransactionReply_ModelHasReply) isWriteTransactionReply_Option() {}
+
+func (*WriteTransactionReply_ModelFindReply) isWriteTransactionReply_Option() {}
+
+func (*WriteTransactionReply_ModelFindByIDReply) isWriteTransactionReply_Option() {}
+
+func (m *WriteTransactionReply) GetOption() isWriteTransactionReply_Option {
+	if m != nil {
+		return m.Option
+	}
+	return nil
+}
+
+func (m *WriteTransactionReply) GetModelCreateReply() *ModelCreateReply {
+	if x, ok := m.GetOption().(*WriteTransactionReply_ModelCreateReply); ok {
+		return x.ModelCreateReply
+	}
+	return nil
+}
+
+func (m *WriteTransactionReply) GetModelSaveReply() *ModelSaveReply {
+	if x, ok := m.GetOption().(*WriteTransactionReply_ModelSaveReply); ok {
+		return x.ModelSaveReply
+	}
+	return nil
+}
+
+func (m *WriteTransactionReply) GetModelDeleteReply() *ModelDeleteReply {
+	if x, ok := m.GetOption().(*WriteTransactionReply_ModelDeleteReply); ok {
+		return x.ModelDeleteReply
+	}
+	return nil
+}
+
+func (m *WriteTransactionReply) GetModelHasReply() *ModelHasReply {
+	if x, ok := m.GetOption().(*WriteTransactionReply_ModelHasReply); ok {
+		return x.ModelHasReply
+	}
+	return nil
+}
+
+func (m *WriteTransactionReply) GetModelFindReply() *ModelFindReply {
+	if x, ok := m.GetOption().(*WriteTransactionReply_ModelFindReply); ok {
+		return x.ModelFindReply
+	}
+	return nil
+}
+
+func (m *WriteTransactionReply) GetModelFindByIDReply() *ModelFindByIDReply {
+	if x, ok := m.GetOption().(*WriteTransactionReply_ModelFindByIDReply); ok {
+		return x.ModelFindByIDReply
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*WriteTransactionReply) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _WriteTransactionReply_OneofMarshaler, _WriteTransactionReply_OneofUnmarshaler, _WriteTransactionReply_OneofSizer, []interface{}{
+		(*WriteTransactionReply_ModelCreateReply)(nil),
+		(*WriteTransactionReply_ModelSaveReply)(nil),
+		(*WriteTransactionReply_ModelDeleteReply)(nil),
+		(*WriteTransactionReply_ModelHasReply)(nil),
+		(*WriteTransactionReply_ModelFindReply)(nil),
+		(*WriteTransactionReply_ModelFindByIDReply)(nil),
+	}
+}
+
+func _WriteTransactionReply_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*WriteTransactionReply)
+	// option
+	switch x := m.Option.(type) {
+	case *WriteTransactionReply_ModelCreateReply:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelCreateReply); err != nil {
+			return err
+		}
+	case *WriteTransactionReply_ModelSaveReply:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelSaveReply); err != nil {
+			return err
+		}
+	case *WriteTransactionReply_ModelDeleteReply:
+		b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelDeleteReply); err != nil {
+			return err
+		}
+	case *WriteTransactionReply_ModelHasReply:
+		b.EncodeVarint(4<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelHasReply); err != nil {
+			return err
+		}
+	case *WriteTransactionReply_ModelFindReply:
+		b.EncodeVarint(5<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindReply); err != nil {
+			return err
+		}
+	case *WriteTransactionReply_ModelFindByIDReply:
+		b.EncodeVarint(6<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.ModelFindByIDReply); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _WriteTransactionReply_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*WriteTransactionReply)
+	switch tag {
+	case 1: // option.modelCreateReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelCreateReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionReply_ModelCreateReply{msg}
+		return true, err
+	case 2: // option.modelSaveReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelSaveReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionReply_ModelSaveReply{msg}
+		return true, err
+	case 3: // option.modelDeleteReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelDeleteReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionReply_ModelDeleteReply{msg}
+		return true, err
+	case 4: // option.modelHasReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelHasReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionReply_ModelHasReply{msg}
+		return true, err
+	case 5: // option.modelFindReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionReply_ModelFindReply{msg}
+		return true, err
+	case 6: // option.modelFindByIDReply
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(ModelFindByIDReply)
+		err := b.DecodeMessage(msg)
+		m.Option = &WriteTransactionReply_ModelFindByIDReply{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _WriteTransactionReply_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*WriteTransactionReply)
+	// option
+	switch x := m.Option.(type) {
+	case *WriteTransactionReply_ModelCreateReply:
+		s := proto.Size(x.ModelCreateReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionReply_ModelSaveReply:
+		s := proto.Size(x.ModelSaveReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionReply_ModelDeleteReply:
+		s := proto.Size(x.ModelDeleteReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionReply_ModelHasReply:
+		s := proto.Size(x.ModelHasReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionReply_ModelFindReply:
+		s := proto.Size(x.ModelFindReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WriteTransactionReply_ModelFindByIDReply:
+		s := proto.Size(x.ModelFindByIDReply)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
 type ListenRequest struct {
 	StoreID              string   `protobuf:"bytes,1,opt,name=storeID,proto3" json:"storeID,omitempty"`
 	ModelName            string   `protobuf:"bytes,2,opt,name=modelName,proto3" json:"modelName,omitempty"`
@@ -280,7 +1906,7 @@ func (m *ListenRequest) Reset()         { *m = ListenRequest{} }
 func (m *ListenRequest) String() string { return proto.CompactTextString(m) }
 func (*ListenRequest) ProtoMessage()    {}
 func (*ListenRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{6}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{25}
 }
 func (m *ListenRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListenRequest.Unmarshal(m, b)
@@ -332,7 +1958,7 @@ func (m *ListenReply) Reset()         { *m = ListenReply{} }
 func (m *ListenReply) String() string { return proto.CompactTextString(m) }
 func (*ListenReply) ProtoMessage()    {}
 func (*ListenReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_120f3cfc08b047b0, []int{7}
+	return fileDescriptor_api_70fa678ad90ed6cf, []int{26}
 }
 func (m *ListenReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListenReply.Unmarshal(m, b)
@@ -364,8 +1990,27 @@ func init() {
 	proto.RegisterType((*NewStoreReply)(nil), "api.pb.NewStoreReply")
 	proto.RegisterType((*RegisterSchemaRequest)(nil), "api.pb.RegisterSchemaRequest")
 	proto.RegisterType((*RegisterSchemaReply)(nil), "api.pb.RegisterSchemaReply")
+	proto.RegisterType((*StartRequest)(nil), "api.pb.StartRequest")
+	proto.RegisterType((*StartReply)(nil), "api.pb.StartReply")
+	proto.RegisterType((*StartFromAddressRequest)(nil), "api.pb.StartFromAddressRequest")
+	proto.RegisterType((*StartFromAddressReply)(nil), "api.pb.StartFromAddressReply")
 	proto.RegisterType((*ModelCreateRequest)(nil), "api.pb.ModelCreateRequest")
 	proto.RegisterType((*ModelCreateReply)(nil), "api.pb.ModelCreateReply")
+	proto.RegisterType((*ModelSaveRequest)(nil), "api.pb.ModelSaveRequest")
+	proto.RegisterType((*ModelSaveReply)(nil), "api.pb.ModelSaveReply")
+	proto.RegisterType((*ModelDeleteRequest)(nil), "api.pb.ModelDeleteRequest")
+	proto.RegisterType((*ModelDeleteReply)(nil), "api.pb.ModelDeleteReply")
+	proto.RegisterType((*ModelHasRequest)(nil), "api.pb.ModelHasRequest")
+	proto.RegisterType((*ModelHasReply)(nil), "api.pb.ModelHasReply")
+	proto.RegisterType((*ModelFindRequest)(nil), "api.pb.ModelFindRequest")
+	proto.RegisterType((*ModelFindReply)(nil), "api.pb.ModelFindReply")
+	proto.RegisterType((*ModelFindByIDRequest)(nil), "api.pb.ModelFindByIDRequest")
+	proto.RegisterType((*ModelFindByIDReply)(nil), "api.pb.ModelFindByIDReply")
+	proto.RegisterType((*StartTransactionRequest)(nil), "api.pb.StartTransactionRequest")
+	proto.RegisterType((*ReadTransactionRequest)(nil), "api.pb.ReadTransactionRequest")
+	proto.RegisterType((*ReadTransactionReply)(nil), "api.pb.ReadTransactionReply")
+	proto.RegisterType((*WriteTransactionRequest)(nil), "api.pb.WriteTransactionRequest")
+	proto.RegisterType((*WriteTransactionReply)(nil), "api.pb.WriteTransactionReply")
 	proto.RegisterType((*ListenRequest)(nil), "api.pb.ListenRequest")
 	proto.RegisterType((*ListenReply)(nil), "api.pb.ListenReply")
 }
@@ -384,7 +2029,16 @@ const _ = grpc.SupportPackageIsVersion4
 type APIClient interface {
 	NewStore(ctx context.Context, in *NewStoreRequest, opts ...grpc.CallOption) (*NewStoreReply, error)
 	RegisterSchema(ctx context.Context, in *RegisterSchemaRequest, opts ...grpc.CallOption) (*RegisterSchemaReply, error)
+	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error)
+	StartFromAddress(ctx context.Context, in *StartFromAddressRequest, opts ...grpc.CallOption) (*StartFromAddressReply, error)
 	ModelCreate(ctx context.Context, in *ModelCreateRequest, opts ...grpc.CallOption) (*ModelCreateReply, error)
+	ModelSave(ctx context.Context, in *ModelSaveRequest, opts ...grpc.CallOption) (*ModelSaveReply, error)
+	ModelDelete(ctx context.Context, in *ModelDeleteRequest, opts ...grpc.CallOption) (*ModelDeleteReply, error)
+	ModelHas(ctx context.Context, in *ModelHasRequest, opts ...grpc.CallOption) (*ModelHasReply, error)
+	ModelFind(ctx context.Context, in *ModelFindRequest, opts ...grpc.CallOption) (*ModelFindReply, error)
+	ModelFindByID(ctx context.Context, in *ModelFindByIDRequest, opts ...grpc.CallOption) (*ModelFindByIDReply, error)
+	ReadTransaction(ctx context.Context, opts ...grpc.CallOption) (API_ReadTransactionClient, error)
+	WriteTransaction(ctx context.Context, opts ...grpc.CallOption) (API_WriteTransactionClient, error)
 	Listen(ctx context.Context, in *ListenRequest, opts ...grpc.CallOption) (API_ListenClient, error)
 }
 
@@ -414,6 +2068,24 @@ func (c *aPIClient) RegisterSchema(ctx context.Context, in *RegisterSchemaReques
 	return out, nil
 }
 
+func (c *aPIClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error) {
+	out := new(StartReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/Start", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) StartFromAddress(ctx context.Context, in *StartFromAddressRequest, opts ...grpc.CallOption) (*StartFromAddressReply, error) {
+	out := new(StartFromAddressReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/StartFromAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aPIClient) ModelCreate(ctx context.Context, in *ModelCreateRequest, opts ...grpc.CallOption) (*ModelCreateReply, error) {
 	out := new(ModelCreateReply)
 	err := c.cc.Invoke(ctx, "/api.pb.API/ModelCreate", in, out, opts...)
@@ -423,8 +2095,115 @@ func (c *aPIClient) ModelCreate(ctx context.Context, in *ModelCreateRequest, opt
 	return out, nil
 }
 
+func (c *aPIClient) ModelSave(ctx context.Context, in *ModelSaveRequest, opts ...grpc.CallOption) (*ModelSaveReply, error) {
+	out := new(ModelSaveReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/ModelSave", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ModelDelete(ctx context.Context, in *ModelDeleteRequest, opts ...grpc.CallOption) (*ModelDeleteReply, error) {
+	out := new(ModelDeleteReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/ModelDelete", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ModelHas(ctx context.Context, in *ModelHasRequest, opts ...grpc.CallOption) (*ModelHasReply, error) {
+	out := new(ModelHasReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/ModelHas", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ModelFind(ctx context.Context, in *ModelFindRequest, opts ...grpc.CallOption) (*ModelFindReply, error) {
+	out := new(ModelFindReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/ModelFind", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ModelFindByID(ctx context.Context, in *ModelFindByIDRequest, opts ...grpc.CallOption) (*ModelFindByIDReply, error) {
+	out := new(ModelFindByIDReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/ModelFindByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ReadTransaction(ctx context.Context, opts ...grpc.CallOption) (API_ReadTransactionClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_API_serviceDesc.Streams[0], "/api.pb.API/ReadTransaction", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &aPIReadTransactionClient{stream}
+	return x, nil
+}
+
+type API_ReadTransactionClient interface {
+	Send(*ReadTransactionRequest) error
+	Recv() (*ReadTransactionReply, error)
+	grpc.ClientStream
+}
+
+type aPIReadTransactionClient struct {
+	grpc.ClientStream
+}
+
+func (x *aPIReadTransactionClient) Send(m *ReadTransactionRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *aPIReadTransactionClient) Recv() (*ReadTransactionReply, error) {
+	m := new(ReadTransactionReply)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *aPIClient) WriteTransaction(ctx context.Context, opts ...grpc.CallOption) (API_WriteTransactionClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_API_serviceDesc.Streams[1], "/api.pb.API/WriteTransaction", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &aPIWriteTransactionClient{stream}
+	return x, nil
+}
+
+type API_WriteTransactionClient interface {
+	Send(*WriteTransactionRequest) error
+	Recv() (*WriteTransactionReply, error)
+	grpc.ClientStream
+}
+
+type aPIWriteTransactionClient struct {
+	grpc.ClientStream
+}
+
+func (x *aPIWriteTransactionClient) Send(m *WriteTransactionRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *aPIWriteTransactionClient) Recv() (*WriteTransactionReply, error) {
+	m := new(WriteTransactionReply)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *aPIClient) Listen(ctx context.Context, in *ListenRequest, opts ...grpc.CallOption) (API_ListenClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_API_serviceDesc.Streams[0], "/api.pb.API/Listen", opts...)
+	stream, err := c.cc.NewStream(ctx, &_API_serviceDesc.Streams[2], "/api.pb.API/Listen", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +2238,16 @@ func (x *aPIListenClient) Recv() (*ListenReply, error) {
 type APIServer interface {
 	NewStore(context.Context, *NewStoreRequest) (*NewStoreReply, error)
 	RegisterSchema(context.Context, *RegisterSchemaRequest) (*RegisterSchemaReply, error)
+	Start(context.Context, *StartRequest) (*StartReply, error)
+	StartFromAddress(context.Context, *StartFromAddressRequest) (*StartFromAddressReply, error)
 	ModelCreate(context.Context, *ModelCreateRequest) (*ModelCreateReply, error)
+	ModelSave(context.Context, *ModelSaveRequest) (*ModelSaveReply, error)
+	ModelDelete(context.Context, *ModelDeleteRequest) (*ModelDeleteReply, error)
+	ModelHas(context.Context, *ModelHasRequest) (*ModelHasReply, error)
+	ModelFind(context.Context, *ModelFindRequest) (*ModelFindReply, error)
+	ModelFindByID(context.Context, *ModelFindByIDRequest) (*ModelFindByIDReply, error)
+	ReadTransaction(API_ReadTransactionServer) error
+	WriteTransaction(API_WriteTransactionServer) error
 	Listen(*ListenRequest, API_ListenServer) error
 }
 
@@ -503,6 +2291,42 @@ func _API_RegisterSchema_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _API_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).Start(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/Start",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).Start(ctx, req.(*StartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_StartFromAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartFromAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).StartFromAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/StartFromAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).StartFromAddress(ctx, req.(*StartFromAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _API_ModelCreate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ModelCreateRequest)
 	if err := dec(in); err != nil {
@@ -519,6 +2343,148 @@ func _API_ModelCreate_Handler(srv interface{}, ctx context.Context, dec func(int
 		return srv.(APIServer).ModelCreate(ctx, req.(*ModelCreateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ModelSave_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ModelSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ModelSave(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/ModelSave",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ModelSave(ctx, req.(*ModelSaveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ModelDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ModelDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ModelDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/ModelDelete",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ModelDelete(ctx, req.(*ModelDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ModelHas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ModelHasRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ModelHas(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/ModelHas",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ModelHas(ctx, req.(*ModelHasRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ModelFind_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ModelFindRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ModelFind(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/ModelFind",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ModelFind(ctx, req.(*ModelFindRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ModelFindByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ModelFindByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ModelFindByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/ModelFindByID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ModelFindByID(ctx, req.(*ModelFindByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ReadTransaction_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(APIServer).ReadTransaction(&aPIReadTransactionServer{stream})
+}
+
+type API_ReadTransactionServer interface {
+	Send(*ReadTransactionReply) error
+	Recv() (*ReadTransactionRequest, error)
+	grpc.ServerStream
+}
+
+type aPIReadTransactionServer struct {
+	grpc.ServerStream
+}
+
+func (x *aPIReadTransactionServer) Send(m *ReadTransactionReply) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *aPIReadTransactionServer) Recv() (*ReadTransactionRequest, error) {
+	m := new(ReadTransactionRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _API_WriteTransaction_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(APIServer).WriteTransaction(&aPIWriteTransactionServer{stream})
+}
+
+type API_WriteTransactionServer interface {
+	Send(*WriteTransactionReply) error
+	Recv() (*WriteTransactionRequest, error)
+	grpc.ServerStream
+}
+
+type aPIWriteTransactionServer struct {
+	grpc.ServerStream
+}
+
+func (x *aPIWriteTransactionServer) Send(m *WriteTransactionReply) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *aPIWriteTransactionServer) Recv() (*WriteTransactionRequest, error) {
+	m := new(WriteTransactionRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _API_Listen_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -555,11 +2521,51 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			Handler:    _API_RegisterSchema_Handler,
 		},
 		{
+			MethodName: "Start",
+			Handler:    _API_Start_Handler,
+		},
+		{
+			MethodName: "StartFromAddress",
+			Handler:    _API_StartFromAddress_Handler,
+		},
+		{
 			MethodName: "ModelCreate",
 			Handler:    _API_ModelCreate_Handler,
 		},
+		{
+			MethodName: "ModelSave",
+			Handler:    _API_ModelSave_Handler,
+		},
+		{
+			MethodName: "ModelDelete",
+			Handler:    _API_ModelDelete_Handler,
+		},
+		{
+			MethodName: "ModelHas",
+			Handler:    _API_ModelHas_Handler,
+		},
+		{
+			MethodName: "ModelFind",
+			Handler:    _API_ModelFind_Handler,
+		},
+		{
+			MethodName: "ModelFindByID",
+			Handler:    _API_ModelFindByID_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ReadTransaction",
+			Handler:       _API_ReadTransaction_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "WriteTransaction",
+			Handler:       _API_WriteTransaction_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
 		{
 			StreamName:    "Listen",
 			Handler:       _API_Listen_Handler,
@@ -569,30 +2575,73 @@ var _API_serviceDesc = grpc.ServiceDesc{
 	Metadata: "api.proto",
 }
 
-func init() { proto.RegisterFile("api.proto", fileDescriptor_api_120f3cfc08b047b0) }
+func init() { proto.RegisterFile("api.proto", fileDescriptor_api_70fa678ad90ed6cf) }
 
-var fileDescriptor_api_120f3cfc08b047b0 = []byte{
-	// 338 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x52, 0xc1, 0x4e, 0xc2, 0x40,
-	0x10, 0xb5, 0xad, 0xa9, 0x30, 0x04, 0xd4, 0x21, 0xe0, 0xa6, 0x6a, 0x24, 0x9b, 0x98, 0x78, 0x6a,
-	0x8c, 0x5e, 0x3c, 0x78, 0x31, 0xe2, 0xa1, 0x89, 0x12, 0x03, 0x67, 0x0f, 0x05, 0x26, 0xda, 0xa4,
-	0xd0, 0xda, 0x2e, 0x1a, 0xfe, 0xc3, 0x0f, 0x36, 0xbb, 0xdb, 0x2d, 0x52, 0x30, 0x1e, 0xbc, 0xed,
-	0x9b, 0x79, 0x33, 0x6f, 0xfa, 0x5e, 0xa1, 0x1e, 0xa6, 0x91, 0x9f, 0x66, 0x89, 0x48, 0xd0, 0x55,
-	0xcf, 0x31, 0x3f, 0x84, 0xfd, 0x01, 0x7d, 0x8e, 0x44, 0x92, 0xd1, 0x90, 0xde, 0x17, 0x94, 0x0b,
-	0x7e, 0x06, 0xcd, 0x55, 0x29, 0x8d, 0x97, 0xd8, 0x02, 0x3b, 0xe8, 0x33, 0xab, 0x67, 0x5d, 0xd4,
-	0x87, 0x76, 0xd0, 0xe7, 0x2f, 0xd0, 0x19, 0xd2, 0x6b, 0x94, 0x0b, 0xca, 0x46, 0x93, 0x37, 0x9a,
-	0x85, 0xc5, 0x24, 0x32, 0xd8, 0xcb, 0xe5, 0x58, 0xc9, 0x36, 0x10, 0x11, 0x76, 0xe7, 0xe1, 0x8c,
-	0x98, 0xad, 0xca, 0xea, 0x8d, 0x5d, 0x70, 0x73, 0x35, 0xce, 0x1c, 0x55, 0x2d, 0x10, 0xef, 0x40,
-	0xbb, 0xba, 0x3e, 0x8d, 0x97, 0x7c, 0x0a, 0xf8, 0x94, 0x4c, 0x29, 0xbe, 0xcf, 0x28, 0x14, 0xf4,
-	0xb7, 0xe4, 0x09, 0xd4, 0x67, 0x92, 0x3f, 0x58, 0xe9, 0xae, 0x0a, 0x52, 0xfc, 0x23, 0x8c, 0x17,
-	0x94, 0x33, 0xa7, 0xe7, 0x48, 0x71, 0x8d, 0xb8, 0x0f, 0x07, 0x6b, 0x2a, 0xf2, 0xfb, 0x3d, 0xa8,
-	0xd1, 0x5c, 0x44, 0x22, 0xa2, 0x9c, 0x59, 0x8a, 0x5d, 0x62, 0x3e, 0x81, 0xe6, 0xa3, 0x3c, 0x75,
-	0xfe, 0xdf, 0x83, 0x8c, 0xc8, 0x32, 0xe8, 0x17, 0x7e, 0x94, 0x98, 0x9f, 0x43, 0xc3, 0x88, 0xc8,
-	0x7b, 0xba, 0xe0, 0xea, 0x56, 0xa1, 0x50, 0xa0, 0xab, 0x2f, 0x1b, 0x9c, 0xbb, 0xe7, 0x00, 0x6f,
-	0xa1, 0x66, 0x02, 0xc4, 0x23, 0x5f, 0x07, 0xed, 0x57, 0x52, 0xf6, 0x3a, 0x9b, 0x0d, 0xe9, 0xf2,
-	0x0e, 0x0e, 0xa0, 0xb5, 0x6e, 0x3f, 0x9e, 0x1a, 0xea, 0xd6, 0xd4, 0xbd, 0xe3, 0xdf, 0xda, 0x7a,
-	0xdf, 0x03, 0x34, 0x7e, 0x38, 0x8a, 0x9e, 0x61, 0x6f, 0x86, 0xe9, 0xb1, 0xad, 0x3d, 0xbd, 0xe6,
-	0x06, 0x5c, 0xed, 0x01, 0x96, 0x97, 0xaf, 0x19, 0xef, 0xb5, 0xab, 0x65, 0x35, 0x77, 0x69, 0x8d,
-	0x5d, 0xf5, 0xc7, 0x5f, 0x7f, 0x07, 0x00, 0x00, 0xff, 0xff, 0x26, 0x3f, 0x8f, 0xc1, 0xfe, 0x02,
-	0x00, 0x00,
+var fileDescriptor_api_70fa678ad90ed6cf = []byte{
+	// 1029 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0xdd, 0x6e, 0x1b, 0x45,
+	0x14, 0x5e, 0xdb, 0x89, 0x13, 0x1f, 0x27, 0x8e, 0x39, 0x8d, 0xe3, 0xd5, 0xe2, 0x92, 0x6a, 0x24,
+	0x44, 0x2e, 0x2a, 0xab, 0x72, 0x6f, 0x40, 0x02, 0x41, 0x53, 0x37, 0xb2, 0x69, 0x09, 0x65, 0x6d,
+	0x04, 0x12, 0x42, 0xd5, 0x26, 0x1e, 0x92, 0xad, 0x76, 0xbd, 0xee, 0xee, 0xa6, 0x8d, 0x1f, 0x80,
+	0x17, 0x41, 0x3c, 0x09, 0x12, 0xef, 0xc1, 0x1b, 0xf0, 0x0a, 0x68, 0x66, 0x67, 0x66, 0xff, 0x9d,
+	0x0b, 0x3b, 0xdc, 0xf9, 0x9c, 0x39, 0x7f, 0x73, 0xe6, 0xfb, 0xce, 0xcc, 0x1a, 0x1a, 0xd6, 0xc2,
+	0xee, 0x2f, 0x7c, 0x2f, 0xf4, 0xb0, 0xce, 0x7f, 0x5e, 0x90, 0x8f, 0xe0, 0xe0, 0x9c, 0x7e, 0x98,
+	0x84, 0x9e, 0x4f, 0x4d, 0xfa, 0xee, 0x86, 0x06, 0x21, 0x39, 0x86, 0xfd, 0x58, 0xb5, 0x70, 0x96,
+	0xd8, 0x82, 0xea, 0x78, 0xa8, 0x57, 0x1e, 0x55, 0x4e, 0x1a, 0x66, 0x75, 0x3c, 0x24, 0xbf, 0x42,
+	0xc7, 0xa4, 0x57, 0x76, 0x10, 0x52, 0x7f, 0x72, 0x79, 0x4d, 0x5d, 0x4b, 0x78, 0xa2, 0x0e, 0x3b,
+	0x01, 0x73, 0x53, 0xd6, 0x52, 0x44, 0x84, 0xad, 0xb9, 0xe5, 0x52, 0xbd, 0xca, 0xd5, 0xfc, 0x37,
+	0x1e, 0x41, 0x3d, 0xe0, 0xee, 0x7a, 0x8d, 0x6b, 0x85, 0x44, 0x3a, 0xf0, 0x20, 0x1b, 0x7e, 0xe1,
+	0x2c, 0xc9, 0x09, 0xec, 0x4d, 0x42, 0xcb, 0x0f, 0xef, 0x4c, 0x46, 0xf6, 0x00, 0x84, 0x25, 0xf3,
+	0xfb, 0xbd, 0x02, 0x5d, 0x2e, 0x9e, 0xf9, 0x9e, 0xfb, 0x6c, 0x36, 0xf3, 0x69, 0x10, 0xdc, 0x5d,
+	0xb0, 0x0e, 0x3b, 0x56, 0x64, 0x2b, 0x6a, 0x96, 0x22, 0xf6, 0xa0, 0xf1, 0x9b, 0xe7, 0x38, 0xde,
+	0x87, 0x97, 0x74, 0xc9, 0x2b, 0xdf, 0x33, 0x63, 0x05, 0xf3, 0xf3, 0xa9, 0x35, 0x63, 0x6b, 0x5b,
+	0x7c, 0x4d, 0x8a, 0xa4, 0x0b, 0x9d, 0x7c, 0x19, 0xac, 0xc0, 0x19, 0xe0, 0x77, 0xde, 0x8c, 0x3a,
+	0xcf, 0x7d, 0x6a, 0x85, 0xf4, 0xee, 0xd2, 0x7a, 0xd0, 0x70, 0x99, 0xfd, 0x79, 0xdc, 0xd0, 0x58,
+	0xc1, 0xba, 0xfa, 0xde, 0x72, 0x6e, 0x68, 0xa0, 0xd7, 0x1e, 0xd5, 0x58, 0x57, 0x23, 0x89, 0xf4,
+	0xa1, 0x9d, 0xca, 0xc2, 0x0e, 0xd6, 0x80, 0x5d, 0x3a, 0x0f, 0xed, 0xd0, 0xa6, 0x81, 0x5e, 0xe1,
+	0xd6, 0x4a, 0x26, 0x17, 0xc2, 0x7e, 0x62, 0xbd, 0xbf, 0xb7, 0x9a, 0xda, 0xd0, 0x4a, 0xe4, 0x60,
+	0xbd, 0x78, 0x2b, 0x7a, 0x31, 0xa4, 0x0e, 0x5d, 0xbf, 0x17, 0x3d, 0x68, 0xf0, 0xfd, 0x2c, 0xc7,
+	0x43, 0x99, 0x3a, 0x56, 0x10, 0x14, 0x3b, 0x94, 0xb9, 0x58, 0xfe, 0x2b, 0x38, 0xe0, 0xba, 0x91,
+	0x15, 0xdc, 0x6f, 0xf2, 0xcf, 0x60, 0x3f, 0x4e, 0xc4, 0xce, 0xe2, 0x08, 0xea, 0xf4, 0xd6, 0x0e,
+	0xc2, 0x80, 0x67, 0xd9, 0x35, 0x85, 0x44, 0xae, 0x45, 0x95, 0x67, 0xf6, 0x7c, 0xb6, 0x81, 0x92,
+	0xde, 0xdd, 0x50, 0x7f, 0xf9, 0xed, 0xe4, 0xfb, 0x73, 0x09, 0x5d, 0xa5, 0x20, 0x8f, 0xc5, 0x69,
+	0x44, 0x99, 0x8a, 0xf0, 0xb1, 0x97, 0xc0, 0xc7, 0x5b, 0x38, 0x54, 0xd6, 0xa7, 0xcb, 0xf1, 0x70,
+	0xdd, 0xda, 0x64, 0xae, 0xe5, 0x78, 0x28, 0xe6, 0x81, 0x92, 0xc9, 0x63, 0x81, 0x8a, 0x38, 0x97,
+	0xec, 0x18, 0xb7, 0x10, 0x89, 0x84, 0x44, 0x7e, 0x10, 0x7c, 0x9f, 0xfa, 0xd6, 0x3c, 0xb0, 0x2e,
+	0x43, 0xdb, 0x9b, 0xaf, 0x59, 0x1c, 0xf9, 0xa7, 0x0a, 0x47, 0x26, 0xb5, 0x66, 0x05, 0x21, 0x7f,
+	0x81, 0x6e, 0x50, 0x9c, 0x8d, 0xa7, 0x68, 0x0e, 0x8e, 0xfb, 0xd1, 0xa8, 0xed, 0x97, 0x14, 0x35,
+	0xd2, 0xcc, 0xb2, 0x08, 0xf8, 0x1c, 0x0e, 0xdc, 0x34, 0x1c, 0x79, 0x6d, 0xcd, 0x41, 0x57, 0x06,
+	0xcd, 0xa0, 0x75, 0xa4, 0x99, 0x59, 0x0f, 0x3c, 0x83, 0xb6, 0x9b, 0x41, 0x10, 0xef, 0x70, 0x73,
+	0xa0, 0xa7, 0xa2, 0x24, 0xd6, 0x47, 0x9a, 0x99, 0xf3, 0x41, 0x13, 0x0e, 0xdd, 0x82, 0x13, 0xe7,
+	0x73, 0xae, 0x39, 0xe8, 0xe5, 0x62, 0x25, 0x6c, 0x46, 0x9a, 0x59, 0xe8, 0x7b, 0xba, 0x0b, 0x75,
+	0x6f, 0xc1, 0x76, 0x4c, 0xfe, 0xad, 0xc0, 0x61, 0xae, 0xc5, 0xec, 0x98, 0xbf, 0x82, 0x7d, 0x37,
+	0xc9, 0x14, 0xd1, 0xd6, 0x4e, 0xbe, 0x03, 0x0b, 0x67, 0x39, 0xd2, 0xcc, 0xb4, 0x35, 0x7e, 0x03,
+	0x2d, 0x37, 0x85, 0x6a, 0xd1, 0xc1, 0xa3, 0x82, 0xbd, 0x47, 0x01, 0x32, 0xf6, 0xf8, 0x0a, 0xd0,
+	0xcd, 0xa1, 0x4f, 0x74, 0xd0, 0x28, 0xd9, 0x75, 0x14, 0xa9, 0xc0, 0x2f, 0xb1, 0xe3, 0xbf, 0xb7,
+	0xa0, 0xfb, 0x93, 0x6f, 0x87, 0xf4, 0xff, 0x46, 0x95, 0xdc, 0x50, 0xea, 0xc2, 0x11, 0x6d, 0x49,
+	0x6f, 0x28, 0x65, 0xa1, 0x36, 0x94, 0xbe, 0xa8, 0x24, 0xbc, 0x12, 0x17, 0x45, 0x21, 0xbc, 0x12,
+	0xeb, 0x0a, 0x5e, 0xc9, 0xcb, 0x45, 0x56, 0x95, 0x1a, 0xfd, 0x02, 0x5c, 0xe9, 0xaa, 0x52, 0x16,
+	0xaa, 0xaa, 0xf4, 0x95, 0x51, 0xc0, 0x9c, 0xed, 0x8d, 0x30, 0xa7, 0xbe, 0x41, 0xe6, 0xec, 0x6c,
+	0x84, 0x39, 0x7f, 0xd5, 0xa0, 0x93, 0xc7, 0x11, 0x43, 0xae, 0xac, 0x3f, 0x71, 0xe7, 0x0b, 0xf8,
+	0xe8, 0x85, 0xc7, 0x1c, 0xa1, 0x36, 0xe7, 0xa3, 0x38, 0xa4, 0xee, 0xe9, 0x42, 0x0e, 0xa9, 0x55,
+	0xc5, 0x21, 0xa5, 0x51, 0x95, 0x24, 0xee, 0xda, 0x42, 0x90, 0x24, 0xd6, 0x55, 0x25, 0x09, 0x5d,
+	0x7e, 0x18, 0x6c, 0xad, 0x39, 0x0c, 0xb6, 0x37, 0x32, 0x0c, 0xea, 0x6b, 0x0f, 0x83, 0x4b, 0xd8,
+	0x7f, 0xc5, 0x9e, 0xbc, 0xf3, 0xfb, 0xbc, 0x47, 0x3f, 0x85, 0xa6, 0x4c, 0xb2, 0xe2, 0x02, 0x1d,
+	0xfc, 0xb9, 0x03, 0xb5, 0x67, 0xaf, 0xc7, 0xf8, 0x25, 0xec, 0xca, 0x0f, 0x01, 0x54, 0xb4, 0xc9,
+	0x7c, 0x2d, 0x18, 0x9d, 0xfc, 0x02, 0x7b, 0x48, 0x69, 0x78, 0x0e, 0xad, 0xf4, 0x33, 0x1e, 0x1f,
+	0x4a, 0xd3, 0xc2, 0xaf, 0x07, 0xe3, 0xe3, 0xb2, 0xe5, 0x28, 0xde, 0x53, 0xd8, 0xe6, 0xb3, 0x0e,
+	0x0f, 0x53, 0xa3, 0x4f, 0x7a, 0x63, 0x46, 0x1b, 0x39, 0x4d, 0xa1, 0x9d, 0x7d, 0x74, 0x63, 0x7a,
+	0x74, 0xe6, 0xbf, 0x0a, 0x8c, 0x87, 0xe5, 0x06, 0x51, 0xd4, 0x17, 0xd0, 0x4c, 0xf0, 0x06, 0x57,
+	0xcc, 0x4c, 0xa3, 0x94, 0x68, 0x44, 0xc3, 0xaf, 0xa1, 0xa1, 0x88, 0x83, 0xa5, 0xc3, 0xd2, 0x28,
+	0x61, 0x59, 0xa2, 0x8e, 0x88, 0x21, 0xb8, 0x62, 0x4a, 0x1a, 0xa5, 0x34, 0x23, 0x1a, 0x3b, 0x67,
+	0xc9, 0x1b, 0x2c, 0x1b, 0x8f, 0x46, 0x31, 0xc5, 0x12, 0xbb, 0x60, 0xc8, 0xc6, 0xd2, 0xb9, 0x68,
+	0x94, 0x50, 0x8c, 0x68, 0xf8, 0x52, 0x3c, 0x85, 0x25, 0x35, 0x70, 0xe5, 0x40, 0x34, 0x56, 0xb0,
+	0x8c, 0x68, 0xf8, 0x23, 0x1c, 0x64, 0x5e, 0x11, 0xf8, 0x49, 0x8c, 0xab, 0xa2, 0x17, 0x9c, 0xd1,
+	0x2b, 0x5d, 0xe7, 0x21, 0x4f, 0x2a, 0x4f, 0x2a, 0xf8, 0x33, 0xb4, 0xb3, 0x23, 0x36, 0xc6, 0x51,
+	0xc9, 0x25, 0x1e, 0xe3, 0xa8, 0x70, 0x3a, 0x8b, 0xc8, 0x9f, 0x43, 0x3d, 0xe2, 0x24, 0xaa, 0x0e,
+	0xa7, 0x06, 0x81, 0xf1, 0x20, 0xab, 0xe6, 0xbe, 0x4f, 0x2a, 0xa7, 0x5f, 0xc0, 0xb1, 0xed, 0xf5,
+	0x43, 0x7a, 0x1b, 0xda, 0x0e, 0xed, 0x5f, 0xf9, 0x8b, 0xcb, 0x37, 0x42, 0x78, 0x13, 0x5e, 0xb3,
+	0xaf, 0xce, 0xe0, 0xb4, 0x35, 0x8d, 0x14, 0xd3, 0x48, 0x7e, 0x5d, 0xf9, 0xa3, 0x5a, 0x9b, 0x4e,
+	0x5f, 0x5c, 0xd4, 0xf9, 0x9f, 0x00, 0x4f, 0xff, 0x0b, 0x00, 0x00, 0xff, 0xff, 0xe4, 0x81, 0x2a,
+	0x3f, 0x11, 0x10, 0x00, 0x00,
 }
