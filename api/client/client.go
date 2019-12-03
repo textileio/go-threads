@@ -159,7 +159,7 @@ func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool,
 }
 
 // ModelFind finds records by query
-func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([][]byte, error) {
+func (c *Client) ModelFind(storeID, modelName string, query *es.JSONQuery) ([][]byte, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return [][]byte{}, err

@@ -10,44 +10,155 @@ import (
 	dsquery "github.com/ipfs/go-datastore/query"
 )
 
+// JSONQuery is a json-seriable query representation
 type JSONQuery struct {
-	Ands []JSONCriterion
-	Ors  []JSONQuery
+	Ands []*JSONCriterion
+	Ors  []*JSONQuery
 	Sort JSONSort
 }
+
+// JSONCriterion represents a restriction on a field
 type JSONCriterion struct {
 	FieldPath string
 	Operation JSONOperation
 	Value     JSONValue
+	query     *JSONQuery
 }
 
+// JSONValue models a single value in JSON
 type JSONValue struct {
 	String *string
 	Bool   *bool
 	Float  *float64
 }
 
+// JSONSort represents a sort order on a field
 type JSONSort struct {
 	FieldPath string
 	Desc      bool
 }
 
+// JSONOperation models comparison operators
 type JSONOperation int
 
 const (
+	// Eq is "equals"
 	Eq = JSONOperation(eq)
+	// Ne is "not equal to"
 	Ne = JSONOperation(ne)
+	// Gt is "greater than"
 	Gt = JSONOperation(gt)
+	// Lt is "less than"
 	Lt = JSONOperation(lt)
+	// Ge is "greater than or equal to"
 	Ge = JSONOperation(ge)
+	// Le is "less than or equal to"
 	Le = JSONOperation(le)
 )
 
 type marshaledValue struct {
 	value   map[string]interface{}
-	rawJson []byte
+	rawJSON []byte
 }
 
+// JSONWhere starts to create a query condition for a field
+func JSONWhere(field string) *JSONCriterion {
+	return &JSONCriterion{
+		FieldPath: field,
+	}
+}
+
+// JSONAnd concatenates a new condition in an existing field.
+func (q *JSONQuery) JSONAnd(field string) *JSONCriterion {
+	return &JSONCriterion{
+		FieldPath: field,
+		query:     q,
+	}
+}
+
+// JSONOr concatenates a new condition that is sufficient
+// for an instance to satisfy, independant of the current Query.
+// Has left-associativity as: (a And b) Or c
+func (q *JSONQuery) JSONOr(orQuery *JSONQuery) *JSONQuery {
+	q.Ors = append(q.Ors, orQuery)
+	return q
+}
+
+// JSONOrderBy specify ascending order for the query results.
+// On multiple calls, only the last one is considered.
+func (q *JSONQuery) JSONOrderBy(field string) *JSONQuery {
+	q.Sort.FieldPath = field
+	q.Sort.Desc = false
+	return q
+}
+
+// JSONOrderByDesc specify descending order for the query results.
+// On multiple calls, only the last one is considered.
+func (q *JSONQuery) JSONOrderByDesc(field string) *JSONQuery {
+	q.Sort.FieldPath = field
+	q.Sort.Desc = true
+	return q
+}
+
+// JSONCriterion helpers
+
+// Eq is an equality operator against a field
+func (c *JSONCriterion) Eq(value interface{}) *JSONQuery {
+	return c.createcriterion(Eq, value)
+}
+
+// Ne is a not equal operator against a field
+func (c *JSONCriterion) Ne(value interface{}) *JSONQuery {
+	return c.createcriterion(Ne, value)
+}
+
+// Gt is a greater operator against a field
+func (c *JSONCriterion) Gt(value interface{}) *JSONQuery {
+	return c.createcriterion(Gt, value)
+}
+
+// Lt is a less operation against a field
+func (c *JSONCriterion) Lt(value interface{}) *JSONQuery {
+	return c.createcriterion(Lt, value)
+}
+
+// Ge is a greater or equal operator against a field
+func (c *JSONCriterion) Ge(value interface{}) *JSONQuery {
+	return c.createcriterion(Ge, value)
+}
+
+// Le is a less or equal operator against a field
+func (c *JSONCriterion) Le(value interface{}) *JSONQuery {
+	return c.createcriterion(Le, value)
+}
+
+func createValue(value interface{}) JSONValue {
+	s, ok := value.(string)
+	if ok {
+		return JSONValue{String: &s}
+	}
+	b, ok := value.(bool)
+	if ok {
+		return JSONValue{Bool: &b}
+	}
+	f, ok := value.(float64)
+	if ok {
+		return JSONValue{Float: &f}
+	}
+	return JSONValue{}
+}
+
+func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JSONQuery {
+	c.Operation = op
+	c.Value = createValue(value)
+	if c.query == nil {
+		c.query = &JSONQuery{}
+	}
+	c.query.Ands = append(c.query.Ands, c)
+	return c.query
+}
+
+// FindJSON queries for entities by JSONQuery
 func (t *Txn) FindJSON(q JSONQuery) ([]string, error) {
 	dsq := dsquery.Query{
 		Prefix: t.model.dsKey.String(),
@@ -72,7 +183,7 @@ func (t *Txn) FindJSON(q JSONQuery) ([]string, error) {
 			return nil, fmt.Errorf("error when matching entry with query: %v", err)
 		}
 		if ok {
-			values = append(values, marshaledValue{value: val, rawJson: res.Value})
+			values = append(values, marshaledValue{value: val, rawJSON: res.Value})
 		}
 	}
 
@@ -109,7 +220,7 @@ func (t *Txn) FindJSON(q JSONQuery) ([]string, error) {
 
 	res := make([]string, len(values))
 	for i := range values {
-		res[i] = string(values[i].rawJson)
+		res[i] = string(values[i].rawJSON)
 	}
 
 	return res, nil
@@ -152,7 +263,7 @@ func (q *JSONQuery) matchJSON(v map[string]interface{}) (bool, error) {
 	return false, nil
 }
 
-func compareJsonValue(value interface{}, critVal JSONValue) (int, error) {
+func compareJSONValue(value interface{}, critVal JSONValue) (int, error) {
 	if critVal.String != nil {
 		s, ok := value.(string)
 		if !ok {
@@ -189,7 +300,7 @@ func compareJsonValue(value interface{}, critVal JSONValue) (int, error) {
 
 func (c *JSONCriterion) match(value reflect.Value) (bool, error) {
 	valueInterface := value.Interface()
-	result, err := compareJsonValue(valueInterface, c.Value)
+	result, err := compareJSONValue(valueInterface, c.Value)
 	if err != nil {
 		return false, err
 	}
