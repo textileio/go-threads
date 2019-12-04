@@ -311,14 +311,17 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		return status.Error(codes.NotFound, "model not found")
 	}
 
-	listener := store.StateChangeListen()
-	defer listener.Discard()
+	l, err := store.Listen()
+	if err != nil {
+		return err
+	}
+	defer l.Close()
 
 	for {
 		select {
 		case _ = <-server.Context().Done():
 			return nil
-		case _, ok := <-listener.Channel():
+		case _, ok := <-l.Channel():
 			if !ok {
 				return nil
 			}
