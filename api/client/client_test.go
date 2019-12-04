@@ -201,18 +201,11 @@ func TestModelFind(t *testing.T) {
 		},
 	}
 
-	jsonResults, err := client.ModelFind(storeID, modelName, q)
+	rawResults, err := client.ModelFind(storeID, modelName, q, []*Person{})
 	if err != nil {
 		t.Fatalf("failed to find: %v", err)
 	}
-	results := make([]*Person, len(jsonResults))
-	for i, jsonResult := range jsonResults {
-		person := &Person{}
-		if err := json.Unmarshal(jsonResult, person); err != nil {
-			t.Fatalf("failed to unmarshal json result: %v", err)
-		}
-		results[i] = person
-	}
+	results := rawResults.([]*Person)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, but got %v", len(results))
 	}
@@ -287,6 +280,30 @@ func TestReadTransaction(t *testing.T) {
 	if !reflect.DeepEqual(foundPerson, person) {
 		t.Fatal("txn model found by id does't equal the original")
 	}
+
+	q := es.JSONQuery{
+		Ands: []es.JSONCriterion{
+			es.JSONCriterion{
+				FieldPath: "lastName",
+				Operation: es.Eq,
+				Value: es.JSONValue{
+					String: &person.LastName,
+				},
+			},
+		},
+	}
+
+	rawResults, err := txn.Find(q, []*Person{})
+	if err != nil {
+		t.Fatalf("failed to find: %v", err)
+	}
+	results := rawResults.([]*Person)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, but got %v", len(results))
+	}
+	if !reflect.DeepEqual(results[0], person) {
+		t.Fatal("model found by query does't equal the original")
+	}
 }
 
 func TestWriteTransaction(t *testing.T) {
@@ -341,6 +358,30 @@ func TestWriteTransaction(t *testing.T) {
 	}
 	if !reflect.DeepEqual(foundExistingPerson, existingPerson) {
 		t.Fatalf("txn model found by id does't equal the original")
+	}
+
+	q := es.JSONQuery{
+		Ands: []es.JSONCriterion{
+			es.JSONCriterion{
+				FieldPath: "lastName",
+				Operation: es.Eq,
+				Value: es.JSONValue{
+					String: &existingPerson.LastName,
+				},
+			},
+		},
+	}
+
+	rawResults, err := txn.Find(q, []*Person{})
+	if err != nil {
+		t.Fatalf("failed to find: %v", err)
+	}
+	results := rawResults.([]*Person)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, but got %v", len(results))
+	}
+	if !reflect.DeepEqual(results[0], existingPerson) {
+		t.Fatal("model found by query does't equal the original")
 	}
 
 	existingPerson.Age = 99

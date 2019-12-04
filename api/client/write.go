@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -66,25 +67,38 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *WriteTransaction) Find(query es.JSONQuery) ([][]byte, error) {
+func (t *WriteTransaction) Find(query es.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	innerReq := &pb.ModelFindRequest{QueryJSON: queryBytes}
 	option := &pb.WriteTransactionRequest_ModelFindRequest{ModelFindRequest: innerReq}
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	var resp *pb.WriteTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_ModelFindReply:
-		return x.ModelFindReply.GetEntities(), nil
+		sliceType := reflect.TypeOf(dummySlice)
+		elementType := sliceType.Elem().Elem()
+		length := len(x.ModelFindReply.GetEntities())
+		results := reflect.MakeSlice(sliceType, length, length)
+		for i, result := range x.ModelFindReply.GetEntities() {
+			target := reflect.New(elementType).Interface()
+			err := json.Unmarshal(result, target)
+			if err != nil {
+				return nil, err
+			}
+			val := results.Index(i)
+			val.Set(reflect.ValueOf(target))
+		}
+		return results.Interface(), nil
 	default:
-		return [][]byte{}, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+		return nil, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 

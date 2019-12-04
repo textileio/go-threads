@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
@@ -159,10 +160,10 @@ func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool,
 }
 
 // ModelFind finds records by query
-func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([][]byte, error) {
+func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	req := &pb.ModelFindRequest{
 		StoreID:   storeID,
@@ -171,9 +172,22 @@ func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery) ([][]b
 	}
 	resp, err := c.client.ModelFind(c.ctx, req)
 	if err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
-	return resp.GetEntities(), nil
+	sliceType := reflect.TypeOf(dummySlice)
+	elementType := sliceType.Elem().Elem()
+	length := len(resp.GetEntities())
+	results := reflect.MakeSlice(sliceType, length, length)
+	for i, result := range resp.GetEntities() {
+		target := reflect.New(elementType).Interface()
+		err := json.Unmarshal(result, target)
+		if err != nil {
+			return nil, err
+		}
+		val := results.Index(i)
+		val.Set(reflect.ValueOf(target))
+	}
+	return results.Interface(), nil
 }
 
 // ModelFindByID finds a record by id
