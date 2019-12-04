@@ -311,7 +311,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		return status.Error(codes.NotFound, "model not found")
 	}
 
-	l, err := store.Listen()
+	l, err := store.Listen(es.ListenOption{Model: req.ModelName, ID: core.EntityID(req.EntityID)})
 	if err != nil {
 		return err
 	}
