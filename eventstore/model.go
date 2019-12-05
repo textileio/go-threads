@@ -9,6 +9,7 @@ import (
 	"github.com/alecthomas/jsonschema"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
+	"github.com/textileio/go-textile-core/store"
 	core "github.com/textileio/go-textile-core/store"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -143,12 +144,27 @@ func (m *Model) Reduce(event core.Event) error {
 		return nil
 	}
 
-	if err := m.store.eventcodec.Reduce(event, m.store.datastore, m.dsKey); err != nil {
+	codecActions, err := m.store.eventcodec.Reduce(event, m.store.datastore, m.dsKey)
+	if err != nil {
 		return err
 	}
-	if err := m.store.notifyStateChanged(); err != nil {
-		log.Warning("model state changed notification failed: %v", err)
+	actions := make([]Action, len(codecActions))
+	for i, ca := range codecActions {
+		var actionType ActionType
+		switch codecActions[i].Type {
+		case store.Create:
+			actionType = ActionCreate
+		case store.Save:
+			actionType = ActionSave
+		case store.Delete:
+			actionType = ActionDelete
+		default:
+			panic("eventcodec action not recognized")
+		}
+		actions[i] = Action{Model: m.name, Type: actionType, ID: ca.EntityID}
 	}
+	m.store.notifyStateChanged(actions)
+
 	return nil
 }
 

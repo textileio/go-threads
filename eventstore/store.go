@@ -63,8 +63,8 @@ type Store struct {
 	jsonMode   bool
 	closed     bool
 
-	localEventsBus *localEventsBus
-	stateChanged   *stateChangedNotifee
+	localEventsBus      *localEventsBus
+	stateChangedNotifee *stateChangedNotifee
 }
 
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
@@ -102,16 +102,16 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Store{
-		ctx:            ctx,
-		cancel:         cancel,
-		datastore:      config.Datastore,
-		dispatcher:     newDispatcher(config.Datastore),
-		eventcodec:     config.EventCodec,
-		modelNames:     make(map[string]*Model),
-		jsonMode:       config.JsonMode,
-		localEventsBus: &localEventsBus{bus: broadcast.NewBroadcaster(0)},
-		stateChanged:   &stateChangedNotifee{bus: broadcast.NewBroadcaster(1)},
-		threadservice:  ts,
+		ctx:                 ctx,
+		cancel:              cancel,
+		datastore:           config.Datastore,
+		dispatcher:          newDispatcher(config.Datastore),
+		eventcodec:          config.EventCodec,
+		modelNames:          make(map[string]*Model),
+		jsonMode:            config.JsonMode,
+		localEventsBus:      &localEventsBus{bus: broadcast.NewBroadcaster(0)},
+		stateChangedNotifee: &stateChangedNotifee{},
+		threadservice:       ts,
 	}
 
 	if s.jsonMode {
@@ -256,25 +256,12 @@ func (s *Store) GetModel(name string) *Model {
 	return s.modelNames[name]
 }
 
-// StateChangeListen returns a listener which notifies when store state
-// changed; some model reduced a new event.
-func (s *Store) StateChangeListen() *StateChangeListener {
-	return s.stateChanged.Listen()
-}
-
 // dispatch applies external events to the store. This function guarantee
 // no interference with registered model states, and viceversa.
 func (s *Store) dispatch(e core.Event) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.dispatcher.Dispatch(e)
-}
-
-// localEventListen returns a listener which notifies *locally generated*
-// events in models of the store. Caller should call .Discard() when
-// done.
-func (s *Store) localEventListen() *LocalEventListener {
-	return s.localEventsBus.Listen()
 }
 
 // eventFromBytes generates an Event from its binary representation using
@@ -309,10 +296,10 @@ func (s *Store) Close() {
 	}
 	s.cancel()
 	s.localEventsBus.bus.Discard()
-	s.stateChanged.bus.Discard()
 	if !managedDatastore(s.datastore) {
 		_ = s.datastore.Close()
 	}
+	s.stateChangedNotifee.close()
 }
 
 // managedDatastore returns whether or not the datastore is
@@ -320,14 +307,6 @@ func (s *Store) Close() {
 func managedDatastore(ds ds.Datastore) bool {
 	_, ok := ds.(kt.KeyTransform)
 	return ok
-}
-
-func (s *Store) notifyStateChanged() error {
-	return s.stateChanged.bus.SendWithTimeout(struct{}{}, 0)
-}
-
-func (s *Store) broadcastLocalEvent(e core.Event) error {
-	return s.localEventsBus.bus.SendWithTimeout(e, busTimeout)
 }
 
 func (s *Store) writeTxn(m *Model, f func(txn *Txn) error) error {
@@ -348,81 +327,4 @@ func isValidModel(t interface{}) bool {
 		v = reflect.New(reflect.TypeOf(v))
 	}
 	return v.Elem().FieldByName(idFieldName).IsValid()
-}
-
-type localEventsBus struct {
-	bus *broadcast.Broadcaster
-}
-
-func (br *localEventsBus) Listen() *LocalEventListener {
-	l := &LocalEventListener{
-		listener: br.bus.Listen(),
-		c:        make(chan core.Event),
-	}
-
-	go func() {
-		for v := range l.listener.Channel() {
-			event := v.(core.Event)
-			l.c <- event
-		}
-		close(l.c)
-	}()
-
-	return l
-}
-
-// LocalEventListener notifies about store-local generated Events
-type LocalEventListener struct {
-	listener *broadcast.Listener
-	c        chan core.Event
-}
-
-// Channel returns an unbuffered channel to receive local events
-func (l *LocalEventListener) Channel() <-chan core.Event {
-	return l.c
-}
-
-// Discard indicates that no further events will be received
-// and ready for being garbage collected
-func (l *LocalEventListener) Discard() {
-	l.listener.Discard()
-}
-
-type stateChangedNotifee struct {
-	bus *broadcast.Broadcaster
-}
-
-func (scn *stateChangedNotifee) Listen() *StateChangeListener {
-	l := &StateChangeListener{
-		listener: scn.bus.Listen(),
-		c:        make(chan struct{}),
-	}
-
-	go func() {
-		for range l.listener.Channel() {
-
-			l.c <- struct{}{}
-		}
-		close(l.c)
-	}()
-
-	return l
-}
-
-// StateChangeListener notifies about store changed state
-type StateChangeListener struct {
-	listener *broadcast.Listener
-	c        chan struct{}
-}
-
-// Channel returns an unbuffered channel to receive
-// store change notifications
-func (scl *StateChangeListener) Channel() <-chan struct{} {
-	return scl.c
-}
-
-// Discard indicates that no further notifications will be received
-// and ready for being garbage collected
-func (scl *StateChangeListener) Discard() {
-	scl.listener.Discard()
 }

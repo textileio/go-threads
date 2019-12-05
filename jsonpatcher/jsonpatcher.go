@@ -82,52 +82,56 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, error) {
 	return events, nil
 }
 
-func (jp *jsonPatcher) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) error {
+func (jp *jsonPatcher) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) ([]core.ReduceAction, error) {
 	var op operation
 	if err := json.Unmarshal(e.Body(), &op); err != nil {
-		return err
+		return nil, err
 	}
 
+	var action core.ReduceAction
 	key := baseKey.ChildString(e.EntityID().String())
 	switch op.Type {
 	case create:
 		exist, err := datastore.Has(key)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if exist {
-			return errCantCreateExistingInstance
+			return nil, errCantCreateExistingInstance
 		}
 		if err := datastore.Put(key, op.JSONPatch); err != nil {
-			return fmt.Errorf("error when reducing create event: %v", err)
+			return nil, fmt.Errorf("error when reducing create event: %v", err)
 		}
+		action = core.ReduceAction{Type: core.Create, EntityID: e.EntityID()}
 		log.Debug("\tcreate operation applied")
 	case save:
 		value, err := datastore.Get(key)
 		if errors.Is(err, ds.ErrNotFound) {
-			return errSavingNonExistentInstance
+			return nil, errSavingNonExistentInstance
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 		patchedValue, err := jsonpatch.MergePatch(value, op.JSONPatch)
 		if err != nil {
-			return fmt.Errorf("error when reducing save event: %v", err)
+			return nil, fmt.Errorf("error when reducing save event: %v", err)
 		}
 		if err = datastore.Put(key, patchedValue); err != nil {
-			return err
+			return nil, err
 		}
+		action = core.ReduceAction{Type: core.Save, EntityID: e.EntityID()}
 		log.Debug("\tsave operation applied")
 	case delete:
 		if err := datastore.Delete(key); err != nil {
-			return err
+			return nil, err
 		}
+		action = core.ReduceAction{Type: core.Delete, EntityID: e.EntityID()}
 		log.Debug("\tdelete operation applied")
 	default:
-		return errUnknownOperation
+		return nil, errUnknownOperation
 	}
 
-	return nil
+	return []core.ReduceAction{action}, nil
 }
 
 // EventFromBytes returns a unmarshaled event from its bytes representation
