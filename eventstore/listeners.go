@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	ipldformat "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-textile-core/broadcast"
 	core "github.com/textileio/go-textile-core/store"
 )
@@ -38,8 +39,8 @@ func (s *Store) notifyStateChanged(actions []Action) {
 	s.stateChangedNotifee.notify(actions)
 }
 
-func (s *Store) broadcastLocalEvent(e core.Event) error {
-	return s.localEventsBus.bus.SendWithTimeout(e, busTimeout)
+func (s *Store) notifyTxnEvents(node ipldformat.Node) error {
+	return s.localEventsBus.send(node)
 }
 
 type ActionType int
@@ -183,16 +184,20 @@ type localEventsBus struct {
 	bus *broadcast.Broadcaster
 }
 
-func (br *localEventsBus) Listen() *LocalEventListener {
+func (leb *localEventsBus) send(node ipldformat.Node) error {
+	return leb.bus.SendWithTimeout(node, busTimeout)
+}
+
+func (leb *localEventsBus) Listen() *LocalEventListener {
 	l := &LocalEventListener{
-		listener: br.bus.Listen(),
-		c:        make(chan core.Event),
+		listener: leb.bus.Listen(),
+		c:        make(chan ipldformat.Node),
 	}
 
 	go func() {
 		for v := range l.listener.Channel() {
-			event := v.(core.Event)
-			l.c <- event
+			events := v.(ipldformat.Node)
+			l.c <- events
 		}
 		close(l.c)
 	}()
@@ -200,14 +205,15 @@ func (br *localEventsBus) Listen() *LocalEventListener {
 	return l
 }
 
-// LocalEventListener notifies about store-local generated Events
+// LocalEventListener notifies about new locally generated ipld.Nodes results
+// of transactions
 type LocalEventListener struct {
 	listener *broadcast.Listener
-	c        chan core.Event
+	c        chan ipldformat.Node
 }
 
 // Channel returns an unbuffered channel to receive local events
-func (l *LocalEventListener) Channel() <-chan core.Event {
+func (l *LocalEventListener) Channel() <-chan ipldformat.Node {
 	return l.c
 }
 

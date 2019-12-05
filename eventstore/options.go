@@ -20,7 +20,7 @@ type StoreOption func(*StoreConfig) error
 // StoreConfig has configuration parameters for a store
 type StoreConfig struct {
 	RepoPath   string
-	Datastore  ds.Datastore
+	Datastore  ds.TxnDatastore
 	EventCodec core.EventCodec
 	JsonMode   bool
 	Debug      bool
@@ -30,7 +30,7 @@ func newDefaultEventCodec(jsonMode bool) core.EventCodec {
 	return jsonpatcher.New(jsonMode)
 }
 
-func newDefaultDatastore(repoPath string) (ds.Datastore, error) {
+func newDefaultDatastore(repoPath string) (ds.TxnDatastore, error) {
 	path := filepath.Join(repoPath, defaultDatastorePath)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		return nil, err
