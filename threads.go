@@ -576,22 +576,22 @@ func (t *threads) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 // putRecord adds an existing record. See PutOption for more.This method
 // *should be thread-guarded*
 func (t *threads) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec thread.Record) error {
-	unknownRecords := []thread.Record{}
-	cid := rec.Cid()
-	for cid.Defined() {
-		exist, err := t.bstore.Has(cid)
+	var unknownRecords []thread.Record
+	c := rec.Cid()
+	for c.Defined() {
+		exist, err := t.bstore.Has(c)
 		if err != nil {
 			return err
 		}
 		if exist {
 			break
 		}
-		r, err := t.GetRecord(ctx, id, cid)
+		r, err := t.GetRecord(ctx, id, c)
 		if err != nil {
 			return err
 		}
 		unknownRecords = append(unknownRecords, r)
-		cid = r.PrevID()
+		c = r.PrevID()
 	}
 	if len(unknownRecords) == 0 {
 		return nil

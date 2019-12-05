@@ -44,7 +44,6 @@ const schema = `{
 }`
 
 var (
-	server   *api.Server
 	shutdown func()
 	client   *Client
 )
@@ -57,7 +56,7 @@ type Person struct {
 }
 
 func TestMain(m *testing.M) {
-	server, shutdown = makeServer()
+	_, shutdown = makeServer()
 	client = makeClient()
 	exitVal := m.Run()
 	shutdown()
@@ -191,7 +190,7 @@ func TestModelFind(t *testing.T) {
 
 	q := es.JSONQuery{
 		Ands: []es.JSONCriterion{
-			es.JSONCriterion{
+			{
 				FieldPath: "lastName",
 				Operation: es.Eq,
 				Value: es.JSONValue{
@@ -426,8 +425,8 @@ func makeServer() (*api.Server, func()) {
 	}
 	ts, err := es.DefaultThreadservice(
 		dir,
-		es.ListenPort(4006),
-		es.ProxyPort(5050),
+		es.ListenPort(4106),
+		es.ProxyPort(5150),
 		es.Debug(true))
 	if err != nil {
 		panic(err)
@@ -445,7 +444,7 @@ func makeServer() (*api.Server, func()) {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 }
 
