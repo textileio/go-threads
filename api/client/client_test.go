@@ -44,7 +44,6 @@ const schema = `{
 }`
 
 var (
-	server   *api.Server
 	shutdown func()
 	client   *Client
 )
@@ -57,7 +56,7 @@ type Person struct {
 }
 
 func TestMain(m *testing.M) {
-	server, shutdown = makeServer()
+	_, shutdown = makeServer()
 	client = makeClient()
 	exitVal := m.Run()
 	shutdown()
@@ -191,18 +190,11 @@ func TestModelFind(t *testing.T) {
 
 	q := es.JSONWhere("lastName").Eq(person.LastName)
 
-	jsonResults, err := client.ModelFind(storeID, modelName, q)
+	rawResults, err := client.ModelFind(storeID, modelName, q, []*Person{})
 	if err != nil {
 		t.Fatalf("failed to find: %v", err)
 	}
-	results := make([]*Person, len(jsonResults))
-	for i, jsonResult := range jsonResults {
-		person := &Person{}
-		if err := json.Unmarshal(jsonResult, person); err != nil {
-			t.Fatalf("failed to unmarshal json result: %v", err)
-		}
-		results[i] = person
-	}
+	results := rawResults.([]*Person)
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, but got %v", len(results))
 	}
@@ -277,6 +269,20 @@ func TestReadTransaction(t *testing.T) {
 	if !reflect.DeepEqual(foundPerson, person) {
 		t.Fatal("txn model found by id does't equal the original")
 	}
+
+	q := es.JSONWhere("lastName").Eq(person.LastName)
+
+	rawResults, err := txn.Find(q, []*Person{})
+	if err != nil {
+		t.Fatalf("failed to find: %v", err)
+	}
+	results := rawResults.([]*Person)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, but got %v", len(results))
+	}
+	if !reflect.DeepEqual(results[0], person) {
+		t.Fatal("model found by query does't equal the original")
+	}
 }
 
 func TestWriteTransaction(t *testing.T) {
@@ -331,6 +337,20 @@ func TestWriteTransaction(t *testing.T) {
 	}
 	if !reflect.DeepEqual(foundExistingPerson, existingPerson) {
 		t.Fatalf("txn model found by id does't equal the original")
+	}
+
+	q := es.JSONWhere("lastName").Eq(person.LastName)
+
+	rawResults, err := txn.Find(q, []*Person{})
+	if err != nil {
+		t.Fatalf("failed to find: %v", err)
+	}
+	results := rawResults.([]*Person)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, but got %v", len(results))
+	}
+	if !reflect.DeepEqual(results[0], existingPerson) {
+		t.Fatal("model found by query does't equal the original")
 	}
 
 	existingPerson.Age = 99
@@ -416,8 +436,8 @@ func makeServer() (*api.Server, func()) {
 	}
 	ts, err := es.DefaultThreadservice(
 		dir,
-		es.ListenPort(4006),
-		es.ProxyPort(5050),
+		es.ListenPort(4106),
+		es.ProxyPort(5150),
 		es.Debug(true))
 	if err != nil {
 		panic(err)
@@ -435,7 +455,7 @@ func makeServer() (*api.Server, func()) {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 }
 

@@ -11,9 +11,9 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
+	ipldformat "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	mh "github.com/multiformats/go-multihash"
+	"github.com/multiformats/go-multihash"
 	core "github.com/textileio/go-textile-core/store"
 )
 
@@ -46,6 +46,8 @@ var _ core.EventCodec = (*jsonPatcher)(nil)
 
 func init() {
 	cbornode.RegisterCborType(patchEvent{})
+	cbornode.RegisterCborType(recordEvents{})
+	cbornode.RegisterCborType(operation{})
 	cbornode.RegisterCborType(time.Time{})
 }
 
@@ -54,99 +56,123 @@ func New(jsonMode bool) core.EventCodec {
 	return &jsonPatcher{jsonMode: jsonMode}
 }
 
-func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, error) {
+func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, ipldformat.Node, error) {
+	revents := recordEvents{Patches: make([]patchEvent, len(actions))}
 	events := make([]core.Event, len(actions))
 	for i := range actions {
-		var eventPayload []byte
+		var op *operation
 		var err error
 		switch actions[i].Type {
 		case core.Create:
-			eventPayload, err = createEvent(actions[i].EntityID, actions[i].Current, jp.jsonMode)
+			op, err = createEvent(actions[i].EntityID, actions[i].Current, jp.jsonMode)
 		case core.Save:
-			eventPayload, err = saveEvent(actions[i].EntityID, actions[i].Previous, actions[i].Current, jp.jsonMode)
+			op, err = saveEvent(actions[i].EntityID, actions[i].Previous, actions[i].Current, jp.jsonMode)
 		case core.Delete:
-			eventPayload, err = deleteEvent(actions[i].EntityID)
+			op, err = deleteEvent(actions[i].EntityID)
 		default:
 			panic("unkown action type")
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		events[i] = patchEvent{
+		revents.Patches[i] = patchEvent{
 			Timestamp: time.Now(),
 			ID:        actions[i].EntityID,
-			TypeName:  actions[i].EntityType,
-			Patch:     eventPayload,
+			ModelName: actions[i].ModelName,
+			Patch:     *op,
 		}
+		events[i] = revents.Patches[i]
 	}
-	return events, nil
+
+	n, err := cbornode.WrapObject(revents, multihash.SHA2_256, -1)
+	if err != nil {
+		return nil, nil, err
+	}
+	return events, n, nil
 }
 
-func (jp *jsonPatcher) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) error {
-	var op operation
-	if err := json.Unmarshal(e.Body(), &op); err != nil {
-		return err
+func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]core.ReduceAction, error) {
+	txn, err := datastore.NewTransaction(false)
+	if err != nil {
+		return nil, err
 	}
+	defer txn.Discard()
 
-	key := baseKey.ChildString(e.EntityID().String())
-	switch op.Type {
-	case create:
-		exist, err := datastore.Has(key)
-		if err != nil {
-			return err
+	actions := make([]core.ReduceAction, len(events))
+	for i, e := range events {
+		je, ok := e.(patchEvent)
+		if !ok {
+			return nil, fmt.Errorf("event unrecognized for jsonpatcher eventcodec")
 		}
-		if exist {
-			return errCantCreateExistingInstance
+		key := baseKey.ChildString(e.Model()).ChildString(e.EntityID().String())
+		switch je.Patch.Type {
+		case create:
+			exist, err := txn.Has(key)
+			if err != nil {
+				return nil, err
+			}
+			if exist {
+				return nil, errCantCreateExistingInstance
+			}
+			if err := txn.Put(key, je.Patch.JSONPatch); err != nil {
+				return nil, fmt.Errorf("error when reducing create event: %v", err)
+			}
+			actions[i] = core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
+			log.Debug("\tcreate operation applied")
+		case save:
+			value, err := txn.Get(key)
+			if errors.Is(err, ds.ErrNotFound) {
+				return nil, errSavingNonExistentInstance
+			}
+			if err != nil {
+				return nil, err
+			}
+			patchedValue, err := jsonpatch.MergePatch(value, je.Patch.JSONPatch)
+			if err != nil {
+				return nil, fmt.Errorf("error when reducing save event: %v", err)
+			}
+			if err = txn.Put(key, patchedValue); err != nil {
+				return nil, err
+			}
+			actions[i] = core.ReduceAction{Type: core.Save, Model: e.Model(), EntityID: e.EntityID()}
+			log.Debug("\tsave operation applied")
+		case delete:
+			if err := txn.Delete(key); err != nil {
+				return nil, err
+			}
+			actions[i] = core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
+			log.Debug("\tdelete operation applied")
+		default:
+			return nil, errUnknownOperation
 		}
-		if err := datastore.Put(key, op.JSONPatch); err != nil {
-			return fmt.Errorf("error when reducing create event: %v", err)
-		}
-		log.Debug("\tcreate operation applied")
-	case save:
-		value, err := datastore.Get(key)
-		if errors.Is(err, ds.ErrNotFound) {
-			return errSavingNonExistentInstance
-		}
-		if err != nil {
-			return err
-		}
-		patchedValue, err := jsonpatch.MergePatch(value, op.JSONPatch)
-		if err != nil {
-			return fmt.Errorf("error when reducing save event: %v", err)
-		}
-		if err = datastore.Put(key, patchedValue); err != nil {
-			return err
-		}
-		log.Debug("\tsave operation applied")
-	case delete:
-		if err := datastore.Delete(key); err != nil {
-			return err
-		}
-		log.Debug("\tdelete operation applied")
-	default:
-		return errUnknownOperation
 	}
-
-	return nil
-}
-
-// EventFromBytes returns a unmarshaled event from its bytes representation
-func (jp *jsonPatcher) EventFromBytes(data []byte) (core.Event, error) {
-	event := &patchEvent{}
-	if err := cbornode.DecodeInto(data, &event); err != nil {
+	if err := txn.Commit(); err != nil {
 		return nil, err
 	}
 
-	var op operation
-	if err := json.Unmarshal(event.Patch, &op); err != nil {
-		log.Errorf("error while unmarshaling patch: %v", err)
-		return event, nil
-	}
-	log.Debug("unmarshaled event patch: %s", op.JSONPatch)
-	return event, nil
+	return actions, nil
 }
 
-func createEvent(id core.EntityID, v interface{}, jsonMode bool) ([]byte, error) {
+type recordEvents struct {
+	Patches []patchEvent
+}
+
+// EventsFromBytes returns a unmarshaled event from its bytes representation
+func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
+	revents := recordEvents{}
+	if err := cbornode.DecodeInto(data, &revents); err != nil {
+		return nil, err
+	}
+
+	res := make([]core.Event, len(revents.Patches))
+	for i := range revents.Patches {
+		res[i] = revents.Patches[i]
+	}
+
+	return res, nil
+}
+
+func createEvent(id core.EntityID, v interface{}, jsonMode bool) (*operation, error) {
 	var opBytes []byte
 
 	if jsonMode {
@@ -159,19 +185,14 @@ func createEvent(id core.EntityID, v interface{}, jsonMode bool) ([]byte, error)
 			return nil, err
 		}
 	}
-	op := operation{
+	return &operation{
 		Type:      create,
 		EntityID:  id,
 		JSONPatch: opBytes,
-	}
-	eventPayload, err := json.Marshal(op)
-	if err != nil {
-		return nil, err
-	}
-	return eventPayload, nil
+	}, nil
 }
 
-func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bool) ([]byte, error) {
+func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bool) (*operation, error) {
 	var prevBytes, currBytes []byte
 	if jsonMode {
 		strCurrJson := curr.(*string)
@@ -193,40 +214,26 @@ func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bo
 	if err != nil {
 		return nil, err
 	}
-	op := operation{
+	return &operation{
 		Type:      save,
 		EntityID:  id,
 		JSONPatch: jsonPatch,
-	}
-	eventPayload, err := json.Marshal(op)
-	if err != nil {
-		return nil, err
-	}
-	return eventPayload, nil
+	}, nil
 }
 
-func deleteEvent(id core.EntityID) ([]byte, error) {
-	op := operation{
+func deleteEvent(id core.EntityID) (*operation, error) {
+	return &operation{
 		Type:      delete,
 		EntityID:  id,
 		JSONPatch: nil,
-	}
-	eventPayload, err := json.Marshal(op)
-	if err != nil {
-		return nil, err
-	}
-	return eventPayload, nil
+	}, nil
 }
 
 type patchEvent struct {
 	Timestamp time.Time
 	ID        core.EntityID
-	TypeName  string
-	Patch     []byte
-}
-
-func (je patchEvent) Body() []byte {
-	return je.Patch
+	ModelName string
+	Patch     operation
 }
 
 func (je patchEvent) Time() []byte {
@@ -241,12 +248,8 @@ func (je patchEvent) EntityID() core.EntityID {
 	return je.ID
 }
 
-func (je patchEvent) Type() string {
-	return je.TypeName
-}
-
-func (je patchEvent) Node() (format.Node, error) {
-	return cbornode.WrapObject(je, mh.SHA2_256, -1)
+func (je patchEvent) Model() string {
+	return je.ModelName
 }
 
 var _ core.Event = (*patchEvent)(nil)

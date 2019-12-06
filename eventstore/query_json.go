@@ -161,7 +161,7 @@ func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JS
 // FindJSON queries for entities by JSONQuery
 func (t *Txn) FindJSON(q JSONQuery) ([]string, error) {
 	dsq := dsquery.Query{
-		Prefix: t.model.dsKey.String(),
+		Prefix: baseKey.ChildString(t.model.name).String(),
 	}
 	dsr, err := t.model.store.datastore.Query(dsq)
 	if err != nil {

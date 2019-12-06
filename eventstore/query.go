@@ -76,7 +76,7 @@ func (t *Txn) Find(res interface{}, q *Query) error {
 		q = &Query{}
 	}
 	dsq := dsquery.Query{
-		Prefix: t.model.dsKey.String(),
+		Prefix: baseKey.ChildString(t.model.name).String(),
 	}
 	dsr, err := t.model.store.datastore.Query(dsq)
 	if err != nil {

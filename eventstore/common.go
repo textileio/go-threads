@@ -111,19 +111,25 @@ func (bt *SimpleTx) Commit() error {
 
 type nullReducer struct{}
 
-func (n *nullReducer) Reduce(event core.Event) error {
+var _ Reducer = (*nullReducer)(nil)
+
+func (n *nullReducer) Reduce(event []core.Event) error {
 	return nil
 }
 
 type errorReducer struct{}
 
-func (n *errorReducer) Reduce(event core.Event) error {
+var _ Reducer = (*errorReducer)(nil)
+
+func (n *errorReducer) Reduce(event []core.Event) error {
 	return errors.New("error")
 }
 
 type slowReducer struct{}
 
-func (n *slowReducer) Reduce(event core.Event) error {
+var _ Reducer = (*slowReducer)(nil)
+
+func (n *slowReducer) Reduce(event []core.Event) error {
 	time.Sleep(2 * time.Second)
 	return nil
 }

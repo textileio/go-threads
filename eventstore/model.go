@@ -37,7 +37,6 @@ type Model struct {
 	name         string
 	schemaLoader gojsonschema.JSONLoader
 	valueType    reflect.Type
-	dsKey        ds.Key
 	store        *Store
 }
 
@@ -48,7 +47,6 @@ func newModel(name string, defaultInstance interface{}, s *Store) *Model {
 		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    reflect.TypeOf(defaultInstance),
-		dsKey:        baseKey.ChildString(name),
 		store:        s,
 	}
 	return m
@@ -60,7 +58,6 @@ func newModelFromSchema(name string, schema string, s *Store) *Model {
 		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    nil,
-		dsKey:        baseKey.ChildString(name),
 		store:        s,
 	}
 	return m
@@ -135,23 +132,6 @@ func (m *Model) FindJSON(q JSONQuery) (ret []string, err error) {
 	return
 }
 
-// Reduce processes an event into the model.
-func (m *Model) Reduce(event core.Event) error {
-	log.Debugf("reducer %s start", m.name)
-	if event.Type() != m.name {
-		log.Debugf("ignoring event from uninteresting type")
-		return nil
-	}
-
-	if err := m.store.eventcodec.Reduce(event, m.store.datastore, m.dsKey); err != nil {
-		return err
-	}
-	if err := m.store.notifyStateChanged(); err != nil {
-		log.Warning("model state changed notification failed: %v", err)
-	}
-	return nil
-}
-
 func (m *Model) validInstance(v interface{}) (bool, error) {
 	var vLoader gojsonschema.JSONLoader
 	if m.store.jsonMode {
@@ -198,7 +178,7 @@ func (t *Txn) Create(new ...interface{}) error {
 		if id == core.EmptyEntityID {
 			id = setNewEntityID(new[i], jsonMode)
 		}
-		key := t.model.dsKey.ChildString(id.String())
+		key := baseKey.ChildString(t.model.name).ChildString(id.String())
 		exists, err := t.model.store.datastore.Has(key)
 		if err != nil {
 			return err
@@ -208,11 +188,11 @@ func (t *Txn) Create(new ...interface{}) error {
 		}
 
 		a := core.Action{
-			Type:       core.Create,
-			EntityID:   id,
-			EntityType: t.model.name,
-			Previous:   nil,
-			Current:    new[i],
+			Type:      core.Create,
+			EntityID:  id,
+			ModelName: t.model.name,
+			Previous:  nil,
+			Current:   new[i],
 		}
 		t.actions = append(t.actions, a)
 	}
@@ -236,7 +216,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 		}
 
 		id := getEntityID(updated[i], t.model.store.jsonMode)
-		key := t.model.dsKey.ChildString(id.String())
+		key := baseKey.ChildString(t.model.name).ChildString(id.String())
 		beforeBytes, err := t.model.store.datastore.Get(key)
 		if err == ds.ErrNotFound {
 			return errCantSaveNonExistentInstance
@@ -255,11 +235,11 @@ func (t *Txn) Save(updated ...interface{}) error {
 			previous = before
 		}
 		t.actions = append(t.actions, core.Action{
-			Type:       core.Save,
-			EntityID:   id,
-			EntityType: t.model.name,
-			Previous:   previous,
-			Current:    updated[i],
+			Type:      core.Save,
+			EntityID:  id,
+			ModelName: t.model.name,
+			Previous:  previous,
+			Current:   updated[i],
 		})
 	}
 	return nil
@@ -272,7 +252,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 		if t.readonly {
 			return ErrReadonlyTx
 		}
-		key := t.model.dsKey.ChildString(ids[i].String())
+		key := baseKey.ChildString(t.model.name).ChildString(ids[i].String())
 		exists, err := t.model.store.datastore.Has(key)
 		if err != nil {
 			return err
@@ -281,11 +261,11 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 			return ErrNotFound
 		}
 		a := core.Action{
-			Type:       core.Delete,
-			EntityID:   ids[i],
-			EntityType: t.model.name,
-			Previous:   nil,
-			Current:    nil,
+			Type:      core.Delete,
+			EntityID:  ids[i],
+			ModelName: t.model.name,
+			Previous:  nil,
+			Current:   nil,
 		}
 		t.actions = append(t.actions, a)
 	}
@@ -296,7 +276,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 // otherwise.
 func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 	for i := range ids {
-		key := t.model.dsKey.ChildString(ids[i].String())
+		key := baseKey.ChildString(t.model.name).ChildString(ids[i].String())
 		exists, err := t.model.store.datastore.Has(key)
 		if err != nil {
 			return false, err
@@ -310,7 +290,7 @@ func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
-	key := t.model.dsKey.ChildString(id.String())
+	key := baseKey.ChildString(t.model.name).ChildString(id.String())
 	bytes, err := t.model.store.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
 		return ErrNotFound
@@ -336,19 +316,15 @@ func (t *Txn) Commit() error {
 	if t.discarded || t.commited {
 		return errAlreadyDiscardedCommitedTxn
 	}
-
-	events, err := t.model.store.eventcodec.Create(t.actions)
+	events, node, err := t.model.store.eventcodec.Create(t.actions)
 	if err != nil {
 		return err
 	}
-
-	for _, e := range events {
-		if err := t.model.store.dispatcher.Dispatch(e); err != nil {
-			return err
-		}
-		if err := t.model.store.broadcastLocalEvent(e); err != nil {
-			return err
-		}
+	if err := t.model.store.dispatcher.Dispatch(events); err != nil {
+		return err
+	}
+	if err := t.model.store.notifyTxnEvents(node); err != nil {
+		return err
 	}
 	return nil
 }
