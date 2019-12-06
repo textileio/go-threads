@@ -11,9 +11,12 @@ import (
 )
 
 var (
-	// ErrInvalidSortingField is returned when a query sorts
-	// a result by a non-existent field in the model schema.
+	// ErrInvalidSortingField is returned when a query sorts a result by a
+	// non-existent field in the model schema.
 	ErrInvalidSortingField = errors.New("sorting field doesn't correspond to instance type")
+	// ErrInvalidSliceType is returned when a query receives a result by a
+	// slice type which doesn't correspond to the model being queried.
+	ErrInvalidSliceType = errors.New("slice type doesn't correspond to model type")
 )
 
 // Query allows to build queries to fetch data from a model.
@@ -69,8 +72,11 @@ func (q *Query) OrderByDesc(field string) *Query {
 // pointers with the correct model type. If the slice isn't empty, will be emptied.
 func (t *Txn) Find(res interface{}, q *Query) error {
 	valRes := reflect.ValueOf(res)
-	if valRes.Kind() != reflect.Ptr || valRes.Elem().Kind() != reflect.Slice {
-		panic("result should be a slice")
+	if valRes.Kind() != reflect.Ptr || // Should be a pointer
+		valRes.Elem().Kind() != reflect.Slice || // To a slice
+		valRes.Elem().Type().Elem().Kind() != reflect.Ptr || // To a pointer
+		valRes.Elem().Type().Elem() != t.model.valueType { // To the model type
+		return ErrInvalidSliceType
 	}
 	if q == nil {
 		q = &Query{}
