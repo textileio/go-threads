@@ -174,20 +174,7 @@ func (c *Client) ModelFind(storeID, modelName string, query es.JSONQuery, dummyS
 	if err != nil {
 		return nil, err
 	}
-	sliceType := reflect.TypeOf(dummySlice)
-	elementType := sliceType.Elem().Elem()
-	length := len(resp.GetEntities())
-	results := reflect.MakeSlice(sliceType, length, length)
-	for i, result := range resp.GetEntities() {
-		target := reflect.New(elementType).Interface()
-		err := json.Unmarshal(result, target)
-		if err != nil {
-			return nil, err
-		}
-		val := results.Index(i)
-		val.Set(reflect.ValueOf(target))
-	}
-	return results.Interface(), nil
+	return processFindReply(resp, dummySlice)
 }
 
 // ModelFindByID finds a record by id
@@ -253,6 +240,23 @@ func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent
 		}
 	}()
 	return channel, cancel
+}
+
+func processFindReply(reply *pb.ModelFindReply, dummySlice interface{}) (interface{}, error) {
+	sliceType := reflect.TypeOf(dummySlice)
+	elementType := sliceType.Elem().Elem()
+	length := len(reply.GetEntities())
+	results := reflect.MakeSlice(sliceType, length, length)
+	for i, result := range reply.GetEntities() {
+		target := reflect.New(elementType).Interface()
+		err := json.Unmarshal(result, target)
+		if err != nil {
+			return nil, err
+		}
+		val := results.Index(i)
+		val.Set(reflect.ValueOf(target))
+	}
+	return results.Interface(), nil
 }
 
 func marshalItems(items []interface{}) ([]string, error) {

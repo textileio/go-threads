@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -86,20 +85,7 @@ func (t *ReadTransaction) Find(query es.JSONQuery, dummySlice interface{}) (inte
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_ModelFindReply:
-		sliceType := reflect.TypeOf(dummySlice)
-		elementType := sliceType.Elem().Elem()
-		length := len(x.ModelFindReply.GetEntities())
-		results := reflect.MakeSlice(sliceType, length, length)
-		for i, result := range x.ModelFindReply.GetEntities() {
-			target := reflect.New(elementType).Interface()
-			err := json.Unmarshal(result, target)
-			if err != nil {
-				return nil, err
-			}
-			val := results.Index(i)
-			val.Set(reflect.ValueOf(target))
-		}
-		return results.Interface(), nil
+		return processFindReply(x.ModelFindReply, dummySlice)
 	default:
 		return nil, fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
 	}
