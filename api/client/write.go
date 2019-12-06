@@ -66,25 +66,25 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *WriteTransaction) Find(query es.JSONQuery) ([][]byte, error) {
+func (t *WriteTransaction) Find(query es.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	innerReq := &pb.ModelFindRequest{QueryJSON: queryBytes}
 	option := &pb.WriteTransactionRequest_ModelFindRequest{ModelFindRequest: innerReq}
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	var resp *pb.WriteTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
-		return [][]byte{}, err
+		return nil, err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_ModelFindReply:
-		return x.ModelFindReply.GetEntities(), nil
+		return processFindReply(x.ModelFindReply, dummySlice)
 	default:
-		return [][]byte{}, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+		return nil, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 
