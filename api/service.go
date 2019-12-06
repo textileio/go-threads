@@ -404,12 +404,12 @@ func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc 
 	return &pb.ModelFindByIDReply{Entity: result}, nil
 }
 
-func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q es.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
+func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *es.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
 	q := &es.JSONQuery{}
 	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
 	}
-	stringEntities, err := findFunc(*q)
+	stringEntities, err := findFunc(q)
 	if err != nil {
 		return nil, err
 	}

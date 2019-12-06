@@ -36,6 +36,22 @@ func Where(field string) *Criterion {
 	}
 }
 
+// OrderBy specify ascending order for the query results.
+func OrderBy(field string) *Query {
+	q := &Query{}
+	q.sort.fieldPath = field
+	q.sort.desc = false
+	return q
+}
+
+// OrderByDesc specify descending order for the query results.
+func OrderByDesc(field string) *Query {
+	q := &Query{}
+	q.sort.fieldPath = field
+	q.sort.desc = true
+	return q
+}
+
 // And concatenates a new condition in an existing field.
 func (q *Query) And(field string) *Criterion {
 	return &Criterion{
