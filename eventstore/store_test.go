@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
+	ipldformat "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
 )
@@ -316,15 +317,15 @@ type mockEventCodec struct {
 
 var _ core.EventCodec = (*mockEventCodec)(nil)
 
-func (dec *mockEventCodec) Reduce(e core.Event, datastore ds.Datastore, baseKey ds.Key) ([]core.ReduceAction, error) {
+func (dec *mockEventCodec) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]core.ReduceAction, error) {
 	dec.called = true
 	return nil, nil
 }
-func (dec *mockEventCodec) Create(ops []core.Action) ([]core.Event, error) {
+func (dec *mockEventCodec) Create(ops []core.Action) ([]core.Event, ipldformat.Node, error) {
 	dec.called = true
-	return nil, nil
+	return nil, nil, nil
 }
-func (dec *mockEventCodec) EventFromBytes(data []byte) (core.Event, error) {
+func (dec *mockEventCodec) EventsFromBytes(data []byte) ([]core.Event, error) {
 	dec.called = true
 	return nil, nil
 }

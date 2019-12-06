@@ -18,7 +18,7 @@ func TestNewEventDispatcher(t *testing.T) {
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	event := newNullEvent(time.Now())
-	dispatcher.Dispatch(event)
+	dispatcher.Dispatch([]core.Event{event})
 }
 
 func TestRegister(t *testing.T) {
@@ -42,11 +42,11 @@ func TestDispatchLock(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := dispatcher.Dispatch(event); err != nil {
+		if err := dispatcher.Dispatch([]core.Event{event}); err != nil {
 			t.Error("unexpected error in dispatch call")
 		}
 	}()
-	if err := dispatcher.Dispatch(event); err != nil {
+	if err := dispatcher.Dispatch([]core.Event{event}); err != nil {
 		t.Error("unexpected error in dispatch call")
 	}
 	wg.Wait()
@@ -61,7 +61,7 @@ func TestDispatch(t *testing.T) {
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	event := newNullEvent(time.Now())
-	if err := dispatcher.Dispatch(event); err != nil {
+	if err := dispatcher.Dispatch([]core.Event{event}); err != nil {
 		t.Error("unexpected error in dispatch call")
 	}
 	results, err := dispatcher.Query(query.Query{})
@@ -72,7 +72,7 @@ func TestDispatch(t *testing.T) {
 		t.Errorf("expected 1 result, got %d", len(results))
 	}
 	dispatcher.Register(&errorReducer{})
-	err = dispatcher.Dispatch(event)
+	err = dispatcher.Dispatch([]core.Event{event})
 	if err == nil {
 		t.Error("expected error in dispatch call")
 	}
@@ -112,7 +112,7 @@ func TestDispatcherQuery(t *testing.T) {
 		time.Sleep(time.Millisecond)
 	}
 	for _, event := range events {
-		if err := dispatcher.Dispatch(event); err != nil {
+		if err := dispatcher.Dispatch([]core.Event{event}); err != nil {
 			t.Error("unexpected error in dispatch call")
 		}
 	}
@@ -135,10 +135,6 @@ type nullEvent struct {
 	Timestamp time.Time
 }
 
-func (n *nullEvent) Body() []byte {
-	return nil
-}
-
 func (n *nullEvent) Time() []byte {
 	t := n.Timestamp.UnixNano()
 	buf := new(bytes.Buffer)
@@ -151,7 +147,7 @@ func (n *nullEvent) EntityID() core.EntityID {
 	return "null"
 }
 
-func (n *nullEvent) Type() string {
+func (n *nullEvent) Model() string {
 	return "null"
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/go-textile-core/broadcast"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
+	"github.com/textileio/go-textile-core/store"
 	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-core/thread"
 	"github.com/textileio/go-textile-core/threadservice"
@@ -52,7 +53,7 @@ type Store struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	datastore     ds.Datastore
+	datastore     ds.TxnDatastore
 	dispatcher    *dispatcher
 	eventcodec    core.EventCodec
 	threadservice threadservice.Threadservice
@@ -119,7 +120,7 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 			return nil, err
 		}
 	}
-
+	s.dispatcher.Register(s)
 	return s, nil
 }
 
@@ -222,7 +223,6 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 
 	m := newModel(name, defaultInstance, s)
 	s.modelNames[name] = m
-	s.dispatcher.Register(m)
 	return m, nil
 }
 
@@ -247,7 +247,6 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 		}
 	}
 	s.modelNames[name] = m
-	s.dispatcher.Register(m)
 	return m, nil
 }
 
@@ -256,18 +255,44 @@ func (s *Store) GetModel(name string) *Model {
 	return s.modelNames[name]
 }
 
+// Reduce processes txn events into the models.
+func (s *Store) Reduce(events []core.Event) error {
+	codecActions, err := s.eventcodec.Reduce(events, s.datastore, baseKey)
+	if err != nil {
+		return err
+	}
+	actions := make([]Action, len(codecActions))
+	for i, ca := range codecActions {
+		var actionType ActionType
+		switch codecActions[i].Type {
+		case store.Create:
+			actionType = ActionCreate
+		case store.Save:
+			actionType = ActionSave
+		case store.Delete:
+			actionType = ActionDelete
+		default:
+			panic("eventcodec action not recognized")
+		}
+		actions[i] = Action{Model: ca.Model, Type: actionType, ID: ca.EntityID}
+	}
+	s.notifyStateChanged(actions)
+
+	return nil
+}
+
 // dispatch applies external events to the store. This function guarantee
 // no interference with registered model states, and viceversa.
-func (s *Store) dispatch(e core.Event) error {
+func (s *Store) dispatch(events []core.Event) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.dispatcher.Dispatch(e)
+	return s.dispatcher.Dispatch(events)
 }
 
 // eventFromBytes generates an Event from its binary representation using
 // the underlying EventCodec configured in the Store.
-func (s *Store) eventFromBytes(data []byte) (core.Event, error) {
-	return s.eventcodec.EventFromBytes(data)
+func (s *Store) eventsFromBytes(data []byte) ([]core.Event, error) {
+	return s.eventcodec.EventsFromBytes(data)
 }
 
 func (s *Store) readTxn(m *Model, f func(txn *Txn) error) error {
