@@ -24,129 +24,147 @@ communications:
 
 The above diagram depicts the different components inside a `Store`. Also, it 
 travels through their relationships caused by a transaction commit. The inverse 
-path, caused by a new event detected in other peer log in the thread, is somewhat 
-similar but in the other direction.
+path, caused by a new event detected in other peer log in the thread, is 
+somewhat similar but in the other direction.
 
-Arrows aren't always synchronous calls, but also channel notifications and other 
-mediums in order to inverse dependency between components. Arrows are conceptual 
-communications.
+Arrows aren't always synchronous calls, but also channel notifications and 
+other mediums in order to inverse dependency between components. Arrows are 
+conceptual communications.
 
 #### Models
 Models are part of `Store` public-api.
 Main responsibility: store instances of a user-defined schema.
 
-Models are json-schemas that describe instance types of the `Store`. They provide 
-the public API for creating, deleting, updating, and querying instances within 
-this model. They also provide read/write transactions which have _serializable isolation_ 
-within the `Store` scope.
-
+Models are json-schemas that describe instance types of the `Store`. They 
+provide the public API for creating, deleting, updating, and querying instances 
+within this model. They also provide read/write transactions which have 
+_serializable isolation_ within the `Store` scope.
 
 
 #### EventCodec
 This is an internal component not available in the public API.
-Main responibility: Transform actions done in instances within a transaction, to
-`Event`s (as bytes in the `Event` payload)
+Main responsibility: Transform and apply and encode/decode transaction actions.
 
-`EventCodec` is an abstraction used to transform actions applied to model instances in 
-a transaction, to `Event`. An `Event` is conceptually something that happened in the 
-`Store`.
+`EventCodec` is an abstraction used to:
+- Transform actions made in a txn, to an array of `store.Event` that will be 
+dispatcher to be reduced.
+- Encode actions made in a txn to a `ipldformat.Node` which will serve as 
+the next building block for the appended Record in the local peer log.
+- The reverse of last point, when receiving external actions to allow to be 
+dispatched.
 
-For example, if within a model `WriteTxn()`, a new instance is created and another 
-was updated, these two action will be sent to the `EventCodec` to transform them in 
-`Event`s. These `Event` have a byte payload with the encoded transformation. Currently, 
-the only implementation of `EventCodec` is a `jsonpatcher`, which transforms these actions 
-in json-merge/patches, and store them as payloads in events. 
+For example, if within a model `WriteTxn()`, a new instance is created and 
+other was updated, these two action will be sent to the `EventCodec` to 
+transform them in `Event`s. These `Event` have a byte payload with the encoded 
+transformation. Currently, the only implementation of `EventCodec` is a 
+`jsonpatcher`, which transforms these actions in json-merge/patches, and store 
+them as payloads in events. 
 
-These generated `Events` will be passed to the underlying `Threadservice` to add in 
-the peer own log in the thread associated with the `Store`. Likewise, `EventCodec` 
-also do the inverse transformation.  Given a `Event`, it transforms its byte payload 
-into actions that will be applied in the model.
+These events are also aggregated in a returned `ipldformat.Node`, which is the 
+compatible/analogous information to be used by `Threadservice` to add in 
+the peer own log in the thread associated with the `Store`. Likewise, 
+`EventCodec` also do the inverse transformation.  Given a `ipldformat.Node`, it 
+transforms its byte payload into actions that will be reduced in the store.
 
-The `EventCodec` abstraction allows an extensibility point. If instead of a json-patcher 
-we want to encode model changes as full instance snapshots (i.e: instead of generating 
-the json-patch, let generate the full instance data), we could provide another implementation 
-of the `EventCodec` to use in the Store.
+The `EventCodec` abstraction allows an extensibility point. If instead of a 
+json-patcher we want to encode model changes as full instance snapshots 
+(i.e: instead of generating the json-patch, let generate the full instance 
+data), we could provide another implementation of the `EventCodec` to use in 
+the Store.
 
-Similarly, more advanced encodings of JSON-Document changes can be implemented as `EventCodec` 
-such as JSON-Documents-Delta-CRDTs, or a hybrid json-patch with logical clocks.
-
-In summary, `EventCodec` encodes and decodes model actions to byte payloads. These payloads 
-will ultimately be stored in logs in a `Thread`, via the `Dispatcher` and eventually `Threadservice`.
+Similarly, more advanced encodings of JSON-Document changes can be implemented 
+as `EventCodec` such as JSON-Documents-Delta-CRDTs, or a hybrid json-patch 
+with logical clocks.
 
 
 #### Dispatcher
 This is an internal component not available in the public API.
-Main responsibility: Every new `Event`, generated internally through transactions or externally 
-via discovering new `Event` from peer logs, must go through the dispatcher which will dispatch 
-it to all `Model`s to perform the `Reduce()` action (change their state).
+Main responsibility: Source of truth regarding known `store.Event`s for the 
+`Store`. Will notify registered parties to let them know about new ones..
 
-Every `Event` generated in the `Store` is sent to a `Dispatcher` when write transactions 
-are committed. The dispatcher is responsible for broadcasting these events to all Reducers. 
-A reducer is a party which is interested in knowing about `Store` events. In particular for 
-`Store`, `Model` are reducers that apply `Event` changes using `EventCodecs`.
+Every `Event` generated in the `Store` is sent to a `Dispatcher` when write 
+transactions are committed. The dispatcher is responsible for broadcasting 
+these events to all registered Reducers. A reducer is a party which is 
+interested in knowing about `Store` events. Currently, the only reducer is the 
+`Store` itself.
 
-For example, if a particular instance is updated in a `Model`, these corresponding actions 
-will be encoded as `Event` by the `EventCodec` as mentioned in the last section. These `Events` 
-will be dispatched to the `Dispatcher`, which will broadcast them to all registered Reducers (which 
-include the original `Model` that generated them). The model will apply those changes to its 
-internal state (so to apply the originally intended changes of the instance).
+For example, if a particular instance is updated in a `Model`, these 
+corresponding actions will be encoded as `Event` by the `EventCodec` as 
+mentioned in the last section. These `Events` will be dispatched to the 
+`Dispatcher`, which will:
+- Store the new event in durable storage. If the txn made multiple changes, 
+this is done transactionally.
+- Broadcast them to all registered Reducers (which currently is only `Store`). 
+Reducers will apply those changes for their own interests.
 
-The implications of this design implies that all `Model` state change can only happen when 
-the `Dispatcher` sends events to reducers (`Model`s). A `Model` can't distinguish between 
-received `Events` generated locally or externally. External events are the results of `Threadservice` 
-dispatching new events to the `Dispatcher`; which means that new `Event`s where detected in 
-other peer logs of the same Thread.
+The implications of this design imply that real `Store` state changes can 
+only happen when the `Dispatcher` broadcast new `store.Event`s. 
+A `Reducer` can't distinguish between `Events` generated locally or externally. 
+External events are the results of `Threadservice` sending new events to the 
+`Dispatcher`, which means that new `Event`s where detected in other peer logs 
+of the same Thread.
 
 #### Datastore
 This is an internal component not available in the public API.
 Main responsibility: Delivering durable persistence for data.
 
-`Datastore` is the underlying persistence of `Model` instances and `Dispatcher` raw `Event` 
-information.
+`Datastore` is the underlying persistence of ``Model`` instances and 
+`Dispatcher` raw `Event` information. In both cases, their interface is a 
+`datastore.TxnDatastore` to have txn guarantees.
 
 #### Local Event Bus
 This is an internal component not available in the public API.
-Main responsibility: Deliver locally generated `Event` to other internal components. Currently, 
-only to `SingleThreadAdapter`. In the future could be used too feed other task needed to run 
-when *local changes* are created.
+Main responsibility: Deliver `ipldformat.Node` encoded information of changes 
+done in local commited transactions. Currently, only to `SingleThreadAdapter` 
+is listening to this bus. 
 
-`LocalEventBus` Is a `Broadcaster` which notifies interested parties about locally generated `Events`. 
-Its only user is a `StoreThreadAdapter` (which will be explained below).
 
-#### Store State-change broadcaster
+#### Store Listener
 This is part of the public-api. 
-Main responsibility: Notify external actors that the `Store` changed its state. S
+Main responsibility: Notify external actors that the `Store` changed its state, 
+with details about the change: in which model, what action (Create, Save, 
+Delete), and wich EntityID.
 
-Broadcaster useful for end-users that wants to be notified when any `Model` in 
-the `Store` has reduced a new local/remote `Event`. Saying it differently, when some data changed.
+Listeners are useful for clients that want to be notified about changes in the 
+`Store`. Recall that `Store` state can change by external events, such as 
+receiving external changes from other peers sharing the `Store`.
 
-### SingleThreadAdapter (StoreThreadAdapter)
+The client can configure which kind of events wants to be notified. Can add 
+any number of criterias; if more than one criteria is used they will be 
+interpreted as _OR_ conditions.
+A criteria contains the following information:
+- Which model to listen changes
+- What action is done (Create, Save, Delete)
+- Which EntitiID
+
+Any of the above three attributes can be set empty. For example, we can listen 
+to all changes of all entities in a model if only the first attribute is set 
+and the other two are left empty/default.
+
+### StoreThreadAdapter (SingleThreadAdapter, unique implementation)
 This is an internal component not available in the public API.
-Main responsibility: Map new `Event` generated in `Store`, to a Threads architecture. Currently, 
-one-to-one mapping, but could be different.
+Main responsibility: Responsible to be the two-way communication between 
+`Store` and `Threads`.
 
-`SingleThreadAdapter` is a component that maps `Events` in the `Store` sense, with `Events` in the 
-Thread sense. 
-Every time a new local `Event` is generated in the `Store` (by a `EventCodec` dispatched to `Dispatcher`), 
-will eventually reach the `SingleThreadAdapter`. At this point, `SingleThreadAdapter` will transform 
-it in an `Event` that will be appended in the local peer own log in the Thread (using `Threadservice`).
+Every time a new local `ipldformat.Node` is generated in the `Store` due to a 
+write transaction commit, the `StoreThreadAdapter` will notify `Threadservice` 
+that a new `Record` should be added to the local peer log.
 
-Similarly, when `Threadservice` detects new events in other peer logs, it will dispatch them to 
-`SingleThreadAdapter`. Then, it will transform it into a Store `Event` that will be dispatched to 
-`Dispatcher` and ultimately reach the `Model`, which will apply the change to their state (if this Event 
-corresponds to them).
+Similarly, when `Threadservice` detects new `Record`s in other peer logs, it 
+will dispatch them to `SingleThreadAdapter`. Then, it will transform it into a 
+Store `Event`s that will be dispatched to `Dispatcher` and ultimately will 
+be reduced to impact `Store` state.
 
-As said initially, currently, the `Store` is only mapped to a single Thread. But in other implementations 
-could decide to map different types of `Events` to different `Threads`. `SingleThreadAdapter` main decision 
-is where to send `Store` events to one or more Threads.
+As said initially, currently, the `Store` is only mapped to a single Thread. 
+But is possible to decide a different map, where a `Store` might be backed by 
+more than one thread or any other schema. This is the component that should 
+be taking this decisions.
 
-Note: `SingleThreadAdapter` is a biased name towards an implementation of mapping to a unique thread for 
-the `Store`. A better name for this component would be `StoreThreadAdapter`.
 
 ### Threadservice
 This component is part of the public-api so that it can be accessed.
 Main responsibility: Is the `Store` interface with Threads layer.
 
-`Threadservice` is the bidirectional communication interface between a Thread and the `Store`. 
-`Threadservice` will only interact with `StoreThreadAdapter`.
+`Threadservice` is the bidirectional communication interface to the underlying 
+Thread backing the `Store`. It only interacts with `StoreThreadAdapter`
 
