@@ -55,32 +55,32 @@ const (
 	msgTimeout = time.Second * 10
 	timeLayout = "03:04:05 PM"
 
-	schema = `{
-		"$schema": "http://json-schema.org/draft-04/schema#",
-		"$ref": "#/definitions/message",
-		"definitions": {
-			"message": {
-				"required": [
-					"ID",
-					"Body",
-					"Time"
-				],
-				"properties": {
-					"ID": {
-						"type": "string"
-					},
-					"Body": {
-						"type": "string"
-					},
-					"Time": {
-						"type": "integer"
-					}
-				},
-				"additionalProperties": false,
-				"type": "object"
-			}
-		}
-	}`
+	// schema = `{
+	// 	"$schema": "http://json-schema.org/draft-04/schema#",
+	// 	"$ref": "#/definitions/message",
+	// 	"definitions": {
+	// 		"message": {
+	// 			"required": [
+	// 				"ID",
+	// 				"Body",
+	// 				"Time"
+	// 			],
+	// 			"properties": {
+	// 				"ID": {
+	// 					"type": "string"
+	// 				},
+	// 				"Body": {
+	// 					"type": "string"
+	// 				},
+	// 				"Time": {
+	// 					"type": "integer"
+	// 				}
+	// 			},
+	// 			"additionalProperties": false,
+	// 			"type": "object"
+	// 		}
+	// 	}
+	// }`
 )
 
 func init() {

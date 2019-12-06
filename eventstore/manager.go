@@ -105,11 +105,18 @@ func (m *Manager) GetStore(id uuid.UUID) *Store {
 }
 
 // Close all the in-mem stores.
-func (m *Manager) Close() (err error) {
+func (m *Manager) Close() error {
+	var err error
 	for _, s := range m.stores {
-		s.Close()
+		if err = s.Close(); err != nil {
+			log.Error("error when closing manager datastore: %v", err)
+		}
 	}
-	return m.config.Datastore.Close()
+	err2 := m.config.Datastore.Close()
+	if err != nil {
+		return err
+	}
+	return err2
 }
 
 // getStoreConfig copies the manager's base config and

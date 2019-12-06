@@ -18,7 +18,6 @@ import (
 	"github.com/textileio/go-textile-core/broadcast"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
-	"github.com/textileio/go-textile-core/store"
 	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-core/thread"
 	"github.com/textileio/go-textile-core/threadservice"
@@ -36,6 +35,9 @@ var (
 	// ErrInvalidModel indicates that the registered model isn't valid,
 	// most probably doesn't have an EntityID.ID field.
 	ErrInvalidModel = errors.New("the model is valid")
+	// ErrInvalidModelType indicates the provided default type isn't compatible
+	// with a Model type.
+	ErrInvalidModelType = errors.New("the model type should be a pointer to a struct")
 
 	log             = logging.Logger("store")
 	dsStorePrefix   = ds.NewKey("/store")
@@ -213,6 +215,11 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	diType := reflect.TypeOf(defaultInstance)
+	if diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
+		return nil, ErrInvalidModelType
+	}
+
 	if _, ok := s.modelNames[name]; ok {
 		return nil, fmt.Errorf("already registered model")
 	}
@@ -265,11 +272,11 @@ func (s *Store) Reduce(events []core.Event) error {
 	for i, ca := range codecActions {
 		var actionType ActionType
 		switch codecActions[i].Type {
-		case store.Create:
+		case core.Create:
 			actionType = ActionCreate
-		case store.Save:
+		case core.Save:
 			actionType = ActionSave
-		case store.Delete:
+		case core.Delete:
 			actionType = ActionDelete
 		default:
 			panic("eventcodec action not recognized")
@@ -308,11 +315,11 @@ func (s *Store) readTxn(m *Model, f func(txn *Txn) error) error {
 }
 
 // Close closes the store
-func (s *Store) Close() {
+func (s *Store) Close() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.closed {
-		return
+		return nil
 	}
 	s.closed = true
 
@@ -322,9 +329,12 @@ func (s *Store) Close() {
 	s.cancel()
 	s.localEventsBus.bus.Discard()
 	if !managedDatastore(s.datastore) {
-		_ = s.datastore.Close()
+		if err := s.datastore.Close(); err != nil {
+			return err
+		}
 	}
 	s.stateChangedNotifee.close()
+	return nil
 }
 
 // managedDatastore returns whether or not the datastore is

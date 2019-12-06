@@ -134,11 +134,22 @@ func TestModelQuery(t *testing.T) {
 
 func TestInvalidSortField(t *testing.T) {
 	t.Parallel()
+
 	m, clean := createModelWithData(t)
 	defer clean()
 	var res []*book
 	if err := m.Find(&res, (&Query{}).OrderBy("WrongFieldName")); !errors.Is(err, ErrInvalidSortingField) {
 		t.Fatal("query should fail using an invalid field")
+	}
+}
+
+func TestInvalidSliceType(t *testing.T) {
+	t.Parallel()
+	m, clean := createModelWithData(t)
+	defer clean()
+	var res []*string
+	if err := m.Find(&res, &Query{}); !errors.Is(err, ErrInvalidSliceType) {
+		t.Fatal("query should fail when slice has incorrect type")
 	}
 }
 

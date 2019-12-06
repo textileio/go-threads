@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/peer"
 	tservopts "github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
@@ -101,7 +102,7 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 			ctx, cancel := context.WithTimeout(context.Background(), fetchEventTimeout)
 			event, err := threadcbor.EventFromRecord(ctx, a.api, rec.Value())
 			if err != nil {
-				block, err := rec.Value().GetBlock(ctx, a.api)
+				block, err := a.getBlockWithRetry(ctx, rec.Value(), 3, time.Millisecond*500)
 				if err != nil { // ToDo: Buffer them and retry...
 					log.Fatalf("error when getting block from record: %v", err)
 				}
@@ -157,4 +158,18 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 			cancel()
 		}
 	}
+}
+
+func (a *singleThreadAdapter) getBlockWithRetry(ctx context.Context, rec thread.Record, cantRetries int, backoffTime time.Duration) (format.Node, error) {
+	var err error
+	for i := 1; i <= cantRetries; i++ {
+		n, err := rec.GetBlock(ctx, a.api)
+		if err == nil {
+			return n, nil
+		}
+		log.Warningf("error when fetching block %s in retry %d", rec.Cid(), i)
+		time.Sleep(backoffTime)
+		backoffTime *= 2
+	}
+	return nil, err
 }

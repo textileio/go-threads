@@ -97,8 +97,8 @@ var (
 			name:   "EqByTitle1",
 			resIdx: []int{0},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Eq,
 						Value: JSONValue{
@@ -112,8 +112,8 @@ var (
 			name:   "NeByTitle1",
 			resIdx: []int{1, 2, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Ne,
 						Value: JSONValue{
@@ -127,8 +127,8 @@ var (
 			name:   "NeByTitle",
 			resIdx: []int{0, 1, 2, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Ne,
 						Value: JSONValue{
@@ -142,8 +142,8 @@ var (
 			name:   "EqByTitle",
 			resIdx: []int{},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Eq,
 						Value: JSONValue{
@@ -157,8 +157,8 @@ var (
 			name:   "LtByTitle",
 			resIdx: []int{},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Lt,
 						Value: JSONValue{
@@ -172,8 +172,8 @@ var (
 			name:   "GtByTitle",
 			resIdx: []int{0, 1, 2, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Gt,
 						Value: JSONValue{
@@ -187,8 +187,8 @@ var (
 			name:   "GtByTitleMax",
 			resIdx: []int{},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Gt,
 						Value: JSONValue{
@@ -204,8 +204,8 @@ var (
 			name:   "EqByTotalReads1",
 			resIdx: []int{0},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Eq,
 						Value: JSONValue{
@@ -219,8 +219,8 @@ var (
 			name:   "LtByTotalReads1",
 			resIdx: []int{},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Lt,
 						Value: JSONValue{
@@ -234,8 +234,8 @@ var (
 			name:   "LeByTotalReadsBigger",
 			resIdx: []int{0, 1, 2, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Le,
 						Value: JSONValue{
@@ -249,8 +249,8 @@ var (
 			name:   "GeByTotalReadsMin",
 			resIdx: []int{0, 1, 2, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Ge,
 						Value: JSONValue{
@@ -264,8 +264,8 @@ var (
 			name:   "LtByTotalReadsMidpoint",
 			resIdx: []int{0, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Lt,
 						Value: JSONValue{
@@ -279,8 +279,8 @@ var (
 			name:   "GtByTotalReadsMidpoint",
 			resIdx: []int{1, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Gt,
 						Value: JSONValue{
@@ -294,8 +294,8 @@ var (
 			name:   "LtByTotalReads2",
 			resIdx: []int{0, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.TotalReads",
 						Operation: Lt,
 						Value: JSONValue{
@@ -311,8 +311,8 @@ var (
 			name:   "EqByRating1",
 			resIdx: []int{0},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Eq,
 						Value: JSONValue{
@@ -326,8 +326,8 @@ var (
 			name:   "GtByRating1",
 			resIdx: []int{1, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Gt,
 						Value: JSONValue{
@@ -338,11 +338,41 @@ var (
 			},
 		},
 		jsonQueryTest{
+			name:   "LeByRatingMin",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Le,
+						Value: JSONValue{
+							Float: &ratingMin,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GeByRatingMin",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Ge,
+						Value: JSONValue{
+							Float: &ratingMin,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
 			name:   "LeByRatingMid",
 			resIdx: []int{0, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Le,
 						Value: JSONValue{
@@ -356,8 +386,8 @@ var (
 			name:   "GeByRatingMid",
 			resIdx: []int{1, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Ge,
 						Value: JSONValue{
@@ -371,8 +401,8 @@ var (
 			name:   "LeByRatingMax",
 			resIdx: []int{0, 1, 2, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Le,
 						Value: JSONValue{
@@ -386,8 +416,8 @@ var (
 			name:   "GtByRatingMax",
 			resIdx: []int{},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Gt,
 						Value: JSONValue{
@@ -402,8 +432,8 @@ var (
 			name:   "EqByBanned",
 			resIdx: []int{0, 3},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Banned",
 						Operation: Eq,
 						Value: JSONValue{
@@ -417,8 +447,8 @@ var (
 			name:   "NeByBanned",
 			resIdx: []int{1, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Banned",
 						Operation: Ne,
 						Value: JSONValue{
@@ -432,8 +462,8 @@ var (
 			name:   "EqByBannedFalse",
 			resIdx: []int{1, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Banned",
 						Operation: Eq,
 						Value: JSONValue{
@@ -449,8 +479,8 @@ var (
 			name:   "EqTitle1OrTitle3",
 			resIdx: []int{0, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Eq,
 						Value: JSONValue{
@@ -458,10 +488,10 @@ var (
 						},
 					},
 				},
-				Ors: []JSONQuery{
-					JSONQuery{
-						Ands: []JSONCriterion{
-							JSONCriterion{
+				Ors: []*JSONQuery{
+					&JSONQuery{
+						Ands: []*JSONCriterion{
+							&JSONCriterion{
 								FieldPath: "Title",
 								Operation: Eq,
 								Value: JSONValue{
@@ -477,8 +507,8 @@ var (
 			name:   "EqTitle2OrRating",
 			resIdx: []int{0, 1},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Title",
 						Operation: Eq,
 						Value: JSONValue{
@@ -486,10 +516,10 @@ var (
 						},
 					},
 				},
-				Ors: []JSONQuery{
-					JSONQuery{
-						Ands: []JSONCriterion{
-							JSONCriterion{
+				Ors: []*JSONQuery{
+					&JSONQuery{
+						Ands: []*JSONCriterion{
+							&JSONCriterion{
 								FieldPath: "Meta.Rating",
 								Operation: Eq,
 								Value: JSONValue{
@@ -572,8 +602,8 @@ var (
 			name:   "AllOrderedRatingsDescWithAnd",
 			resIdx: []int{2, 1},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Gt,
 						Value: JSONValue{
@@ -592,8 +622,8 @@ var (
 			name:   "AllOrderedRatingsDescWithAndDesc",
 			resIdx: []int{1, 2},
 			query: JSONQuery{
-				Ands: []JSONCriterion{
-					JSONCriterion{
+				Ands: []*JSONCriterion{
+					&JSONCriterion{
 						FieldPath: "Meta.Rating",
 						Operation: Gt,
 						Value: JSONValue{
