@@ -117,7 +117,7 @@ func (m *Manager) Close() (err error) {
 func getStoreConfig(id uuid.UUID, base *StoreConfig) *StoreConfig {
 	return &StoreConfig{
 		RepoPath: base.RepoPath,
-		Datastore: kt.Wrap(base.Datastore, kt.PrefixTransform{
+		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
 			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
 		}),
 		EventCodec: base.EventCodec,

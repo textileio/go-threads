@@ -20,7 +20,7 @@ var (
 
 // Reducer applies an event to an existing state.
 type Reducer interface {
-	Reduce(event core.Event) error
+	Reduce(events []core.Event) error
 }
 
 // dispatcher is used to dispatch events to registered reducers.
@@ -29,14 +29,14 @@ type Reducer interface {
 // Every event is dispatched to every registered reducer. When a given reducer is registered, it returns a `token`,
 // which can be used to deregister the reducer later.
 type dispatcher struct {
-	store    datastore.Datastore
+	store    datastore.TxnDatastore
 	reducers []Reducer
 	lock     sync.RWMutex
 	lastID   int
 }
 
 // NewDispatcher creates a new EventDispatcher
-func newDispatcher(store datastore.Datastore) *dispatcher {
+func newDispatcher(store datastore.TxnDatastore) *dispatcher {
 	return &dispatcher{
 		store: store,
 	}
@@ -56,29 +56,41 @@ func (d *dispatcher) Register(reducer Reducer) {
 }
 
 // Dispatch dispatches a payload to all registered reducers.
-func (d *dispatcher) Dispatch(event core.Event) error {
+// The logic is separated in two parts:
+// 1. Save all txn events with transaction guarantees.
+// 2. Notify all reducers about the known events.
+func (d *dispatcher) Dispatch(events []core.Event) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	key, err := getKey(event)
+
+	txn, err := d.store.NewTransaction(false)
 	if err != nil {
 		return err
 	}
-	// Encode and add an Event to event store
-	b := bytes.Buffer{}
-	e := gob.NewEncoder(&b)
-	if err := e.Encode(event); err != nil {
-		return err
+	defer txn.Discard()
+	for _, event := range events {
+		key, err := getKey(event)
+		if err != nil {
+			return err
+		}
+		// Encode and add an Event to event store
+		b := bytes.Buffer{}
+		e := gob.NewEncoder(&b)
+		if err := e.Encode(event); err != nil {
+			return err
+		}
+		if err := d.Store().Put(key, b.Bytes()); err != nil {
+			return err
+		}
 	}
-	if err := d.Store().Put(key, b.Bytes()); err != nil {
-		return err
-	}
+	txn.Commit()
 	// Safe to fire off reducers now that event is persisted
 	g, _ := errgroup.WithContext(context.Background())
 	for _, reducer := range d.reducers {
 		reducer := reducer
 		// Launch each reducer in a separate goroutine
 		g.Go(func() error {
-			return reducer.Reduce(event)
+			return reducer.Reduce(events)
 		})
 	}
 	// Wait for all reducers to complete or error out
@@ -109,6 +121,6 @@ func getKey(event core.Event) (key datastore.Key, err error) {
 	time := strconv.FormatInt(unix, 10)
 	key = dsDispatcherPrefix.ChildString(time).
 		ChildString(event.EntityID().String()).
-		ChildString(event.Type())
+		ChildString(event.Model())
 	return key, nil
 }

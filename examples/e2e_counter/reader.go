@@ -25,7 +25,8 @@ func runReaderPeer(repo string, port int) {
 	m, err := store.Register("counter", &myCounter{})
 	checkErr(err)
 
-	l := store.StateChangeListen()
+	l, err := store.Listen()
+	checkErr(err)
 	checkErr(store.StartFromAddr(writerAddr, fkey, rkey))
 	for range l.Channel() {
 		err := m.ReadTxn(func(txn *es.Txn) error {

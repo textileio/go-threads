@@ -121,12 +121,12 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 			if err != nil {
 				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadID, rec.LogID(), err)
 			}
-			storeEvent, err := a.store.eventFromBytes(node.RawData())
+			storeEvents, err := a.store.eventsFromBytes(node.RawData())
 			if err != nil {
 				log.Fatalf("error when unmarshaling event from bytes: %v", err)
 			}
 			log.Debugf("dispatching to store external new record: %s/%s", rec.ThreadID(), rec.LogID())
-			if err := a.store.dispatch(storeEvent); err != nil {
+			if err := a.store.dispatch(storeEvents); err != nil {
 				log.Fatal(err)
 			}
 			cancel()
@@ -145,19 +145,13 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 		case <-a.closeChan:
 			log.Infof("closing store-to-thread flow on thread %s", a.threadID)
 			return
-		case event, ok := <-l.Channel():
+		case node, ok := <-l.Channel():
 			if !ok {
 				log.Errorf("ending sending store local event to own thread since channel was closed for thread %s", a.threadID)
 				return
 			}
-			n, err := event.Node()
-			if err != nil {
-				log.Fatalf("error when generating node for own log for thread %s: %v", a.threadID, err)
-			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			log.Debugf("adding new local store event to own log from entityid: %s", event.EntityID())
-			_, err = a.api.AddRecord(ctx, a.threadID, n)
-			if err != nil {
+			if _, err := a.api.AddRecord(ctx, a.threadID, node); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()
