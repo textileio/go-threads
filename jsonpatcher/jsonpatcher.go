@@ -172,21 +172,6 @@ func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
 	return res, nil
 }
 
-// // EventsToBytes serializes a set of events of a txn to bytes, most probably for
-// // being a payload in a Log Record.
-// func (jp *jsonPatcher) EventsToBytes(events []core.Event) ([]byte, error) {
-// 	re := recordEvents{patches: make([]patchEvent, len(events))}
-
-// 	for i, e := range events {
-// 		pe, ok := e.(patchEvent)
-// 		if !ok {
-// 			return nil, fmt.Errorf("error when transforming events to bytes, events aren't from this codec")
-// 		}
-// 		re.patches[i] = pe
-// 	}
-
-// }
-
 func createEvent(id core.EntityID, v interface{}, jsonMode bool) (*operation, error) {
 	var opBytes []byte
 
