@@ -132,7 +132,7 @@ func TestModelQuery(t *testing.T) {
 	}
 }
 
-func TestInvalidSliceType(t *testing.T) {
+func TestInvalidSortField(t *testing.T) {
 	t.Parallel()
 
 	m, clean := createModelWithData(t)
@@ -143,7 +143,7 @@ func TestInvalidSliceType(t *testing.T) {
 	}
 }
 
-func TestInvalidSortField(t *testing.T) {
+func TestInvalidSliceType(t *testing.T) {
 	t.Parallel()
 	m, clean := createModelWithData(t)
 	defer clean()
