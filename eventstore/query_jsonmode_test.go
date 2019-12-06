@@ -338,6 +338,37 @@ var (
 			},
 		},
 		jsonQueryTest{
+			name:   "LeByRatingMin",
+			resIdx: []int{},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Le,
+						Value: JSONValue{
+							Float: &ratingMin,
+						},
+					},
+				},
+			},
+		},
+		jsonQueryTest{
+			name:   "GeByRatingMin",
+			resIdx: []int{0, 1, 2, 3},
+			query: JSONQuery{
+				Ands: []JSONCriterion{
+					JSONCriterion{
+						FieldPath: "Meta.Rating",
+						Operation: Ge,
+						Value: JSONValue{
+							Float: &ratingMin,
+						},
+					},
+				},
+			},
+		},
+
+		jsonQueryTest{
 			name:   "LeByRatingMid",
 			resIdx: []int{0, 3},
 			query: JSONQuery{

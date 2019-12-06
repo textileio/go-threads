@@ -95,8 +95,8 @@ func TestOptions(t *testing.T) {
 	}
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
-	ts.Close()
-	s.Close()
+	checkErr(t, ts.Close())
+	checkErr(t, s.Close())
 
 	time.Sleep(time.Second * 3)
 	ts, err = DefaultThreadservice(tmpDir, ProxyPort(0))
@@ -104,7 +104,7 @@ func TestOptions(t *testing.T) {
 	defer ts.Close()
 	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
-	defer s.Close()
+	checkErr(t, s.Close())
 }
 
 func TestListeners(t *testing.T) {

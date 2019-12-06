@@ -319,7 +319,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 
 	for {
 		select {
-		case _ = <-server.Context().Done():
+		case <-server.Context().Done():
 			return nil
 		case _, ok := <-l.Channel():
 			if !ok {
