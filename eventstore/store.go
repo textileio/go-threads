@@ -35,6 +35,9 @@ var (
 	// ErrInvalidModel indicates that the registered model isn't valid,
 	// most probably doesn't have an EntityID.ID field.
 	ErrInvalidModel = errors.New("the model is valid")
+	// ErrInvalidModelType indicates the provided default type isn't compatible
+	// with a Model type.
+	ErrInvalidModelType = errors.New("the model type should be a pointer to a struct")
 
 	log             = logging.Logger("store")
 	dsStorePrefix   = ds.NewKey("/store")
@@ -211,6 +214,11 @@ func (s *Store) Threadservice() threadservice.Threadservice {
 func (s *Store) Register(name string, defaultInstance interface{}) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	diType := reflect.TypeOf(defaultInstance)
+	if diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
+		return nil, ErrInvalidModelType
+	}
 
 	if _, ok := s.modelNames[name]; ok {
 		return nil, fmt.Errorf("already registered model")
