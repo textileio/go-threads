@@ -69,7 +69,7 @@ func (t *ReadTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *ReadTransaction) Find(query es.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (t *ReadTransaction) Find(query *es.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

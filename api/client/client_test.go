@@ -188,17 +188,7 @@ func TestModelFind(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	q := es.JSONQuery{
-		Ands: []es.JSONCriterion{
-			{
-				FieldPath: "lastName",
-				Operation: es.Eq,
-				Value: es.JSONValue{
-					String: &person.LastName,
-				},
-			},
-		},
-	}
+	q := es.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := client.ModelFind(storeID, modelName, q, []*Person{})
 	if err != nil {
@@ -280,17 +270,7 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatal("txn model found by id does't equal the original")
 	}
 
-	q := es.JSONQuery{
-		Ands: []es.JSONCriterion{
-			es.JSONCriterion{
-				FieldPath: "lastName",
-				Operation: es.Eq,
-				Value: es.JSONValue{
-					String: &person.LastName,
-				},
-			},
-		},
-	}
+	q := es.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := txn.Find(q, []*Person{})
 	if err != nil {
@@ -359,17 +339,7 @@ func TestWriteTransaction(t *testing.T) {
 		t.Fatalf("txn model found by id does't equal the original")
 	}
 
-	q := es.JSONQuery{
-		Ands: []es.JSONCriterion{
-			es.JSONCriterion{
-				FieldPath: "lastName",
-				Operation: es.Eq,
-				Value: es.JSONValue{
-					String: &existingPerson.LastName,
-				},
-			},
-		},
-	}
+	q := es.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := txn.Find(q, []*Person{})
 	if err != nil {
