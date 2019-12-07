@@ -161,6 +161,18 @@ func createValue(value interface{}) JSONValue {
 	if ok {
 		return JSONValue{Float: &f}
 	}
+	sp, ok := value.(*string)
+	if ok {
+		return JSONValue{String: sp}
+	}
+	bp, ok := value.(*bool)
+	if ok {
+		return JSONValue{Bool: bp}
+	}
+	fp, ok := value.(*float64)
+	if ok {
+		return JSONValue{Float: fp}
+	}
 	return JSONValue{}
 }
 
