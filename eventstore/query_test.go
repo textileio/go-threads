@@ -92,6 +92,15 @@ var (
 
 		queryTest{name: "SortAscFloat", query: Where("Meta.TotalReads").Gt(10).OrderBy("Meta.Rating"), resIdx: []int{1, 2, 3, 4}, ordered: true},
 		queryTest{name: "SortDescFloat", query: Where("Meta.TotalReads").Gt(10).OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1}, ordered: true},
+
+		queryTest{name: "SortAllAscString", query: OrderBy("Title"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
+		queryTest{name: "SortAllDescString", query: OrderByDesc("Title"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
+
+		queryTest{name: "SortAllAscInt", query: OrderBy("Meta.TotalReads"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
+		queryTest{name: "SortAllDescInt", query: OrderByDesc("Meta.TotalReads"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
+
+		queryTest{name: "SortAllAscFloat", query: OrderBy("Meta.Rating"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
+		queryTest{name: "SortAllDescFloat", query: OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
 	}
 )
 
