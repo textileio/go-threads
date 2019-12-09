@@ -61,6 +61,36 @@ func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartRep
 	return &pb.StartReply{}, nil
 }
 
+func (s *service) CreateInvite(ctx context.Context, req *pb.CreateInviteRequest) (*pb.CreateInviteReply, error) {
+	var err error
+	var store *es.Store
+	if store, err = s.getStore(req.GetStoreID()); err != nil {
+		return nil, err
+	}
+	tid, _, err := store.ThreadID()
+	if err != nil {
+		return nil, err
+	}
+	tinfo, err := store.Threadservice().Store().ThreadInfo(tid)
+	if err != nil {
+		return nil, err
+	}
+	host := store.Threadservice().Host()
+	id, _ := ma.NewComponent("p2p", host.ID().String())
+	thread, _ := ma.NewComponent("thread", tid.String())
+	addrs := host.Addrs()
+	res := make([]string, len(addrs))
+	for i := range addrs {
+		res[i] = addrs[i].Encapsulate(id).Encapsulate(thread).String()
+	}
+	reply := &pb.CreateInviteReply{
+		Addresses: res,
+		FollowKey: tinfo.FollowKey.Bytes(),
+		ReadKey:   tinfo.ReadKey.Bytes(),
+	}
+	return reply, nil
+}
+
 func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
 	var err error
 	var store *es.Store

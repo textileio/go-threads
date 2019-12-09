@@ -114,6 +114,19 @@ func TestModelCreate(t *testing.T) {
 	}
 }
 
+func TestCreateInvite(t *testing.T) {
+	storeID, err := client.NewStore()
+	checkErr(t, err)
+	err = client.Start(storeID)
+	checkErr(t, err)
+
+	_, err = client.CreateInvite(storeID)
+	if err != nil {
+		t.Fatalf("failed to create model: %v", err)
+	}
+	//@todo: Do proper parsing of the invites
+}
+
 func TestModelSave(t *testing.T) {
 	storeID, err := client.NewStore()
 	checkErr(t, err)

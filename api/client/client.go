@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	pb "github.com/textileio/go-textile-threads/api/pb"
@@ -143,6 +144,26 @@ func (c *Client) ModelDelete(storeID, modelName string, entityIDs ...string) err
 	}
 	_, err := c.client.ModelDelete(c.ctx, req)
 	return err
+}
+
+// CreateInvite retrives the components required to create a Thread/store invite.
+func (c *Client) CreateInvite(storeID string) ([]string, error) {
+	req := &pb.CreateInviteRequest{
+		StoreID: storeID,
+	}
+	resp, err := c.client.CreateInvite(c.ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	addrs := resp.GetAddresses()
+	res := make([]string, len(addrs))
+	for i := range addrs {
+		addr := addrs[i]
+		fKey := base58.Encode(resp.GetFollowKey())
+		rKey := base58.Encode(resp.GetReadKey())
+		res[i] = addr + "?" + fKey + "&" + rKey
+	}
+	return res, nil
 }
 
 // ModelHas checks if the specified entities exist
