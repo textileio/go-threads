@@ -146,12 +146,12 @@ func (c *Client) ModelDelete(storeID, modelName string, entityIDs ...string) err
 	return err
 }
 
-// CreateInvite retrives the components required to create a Thread/store invite.
-func (c *Client) CreateInvite(storeID string) ([]string, error) {
-	req := &pb.CreateInviteRequest{
+// GetStoreLink retrives the components required to create a Thread/store invite.
+func (c *Client) GetStoreLink(storeID string) ([]string, error) {
+	req := &pb.GetStoreLinkRequest{
 		StoreID: storeID,
 	}
-	resp, err := c.client.CreateInvite(c.ctx, req)
+	resp, err := c.client.GetStoreLink(c.ctx, req)
 	if err != nil {
 		return nil, err
 	}

@@ -114,13 +114,13 @@ func TestModelCreate(t *testing.T) {
 	}
 }
 
-func TestCreateInvite(t *testing.T) {
+func TestGetStoreLink(t *testing.T) {
 	storeID, err := client.NewStore()
 	checkErr(t, err)
 	err = client.Start(storeID)
 	checkErr(t, err)
 
-	_, err = client.CreateInvite(storeID)
+	_, err = client.GetStoreLink(storeID)
 	if err != nil {
 		t.Fatalf("failed to create model: %v", err)
 	}

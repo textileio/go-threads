@@ -61,7 +61,7 @@ func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartRep
 	return &pb.StartReply{}, nil
 }
 
-func (s *service) CreateInvite(ctx context.Context, req *pb.CreateInviteRequest) (*pb.CreateInviteReply, error) {
+func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest) (*pb.GetStoreLinkReply, error) {
 	var err error
 	var store *es.Store
 	if store, err = s.getStore(req.GetStoreID()); err != nil {
@@ -83,7 +83,7 @@ func (s *service) CreateInvite(ctx context.Context, req *pb.CreateInviteRequest)
 	for i := range addrs {
 		res[i] = addrs[i].Encapsulate(id).Encapsulate(thread).String()
 	}
-	reply := &pb.CreateInviteReply{
+	reply := &pb.GetStoreLinkReply{
 		Addresses: res,
 		FollowKey: tinfo.FollowKey.Bytes(),
 		ReadKey:   tinfo.ReadKey.Bytes(),
