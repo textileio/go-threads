@@ -124,7 +124,7 @@ func (m *Model) Find(result interface{}, q *Query) error {
 }
 
 // FindJSON executes a Query in in JSONMode and returns the result.
-func (m *Model) FindJSON(q JSONQuery) (ret []string, err error) {
+func (m *Model) FindJSON(q *JSONQuery) (ret []string, err error) {
 	m.ReadTxn(func(txn *Txn) error {
 		ret, err = txn.FindJSON(q)
 		return err
@@ -135,8 +135,8 @@ func (m *Model) FindJSON(q JSONQuery) (ret []string, err error) {
 func (m *Model) validInstance(v interface{}) (bool, error) {
 	var vLoader gojsonschema.JSONLoader
 	if m.store.jsonMode {
-		strJson := v.(*string)
-		vLoader = gojsonschema.NewBytesLoader([]byte(*strJson))
+		strJSON := v.(*string)
+		vLoader = gojsonschema.NewBytesLoader([]byte(*strJSON))
 	} else {
 		vLoader = gojsonschema.NewGoLoader(v)
 	}

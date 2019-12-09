@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	testQueryJsonModeSchema = `{
+	testQueryJSONModeSchema = `{
 		"$schema": "http://json-schema.org/draft-04/schema#",
 		"$ref": "#/definitions/book",
 		"definitions": {
@@ -61,7 +61,7 @@ const (
 
 type jsonQueryTest struct {
 	name    string
-	query   JSONQuery
+	query   *JSONQuery
 	resIdx  []int
 	ordered bool
 }
@@ -96,553 +96,200 @@ var (
 		jsonQueryTest{
 			name:   "EqByTitle1",
 			resIdx: []int{0},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Eq,
-						Value: JSONValue{
-							String: &title0,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Eq(&title0),
 		},
 		jsonQueryTest{
 			name:   "NeByTitle1",
 			resIdx: []int{1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Ne,
-						Value: JSONValue{
-							String: &title0,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Ne(&title0),
 		},
 		jsonQueryTest{
 			name:   "NeByTitle",
 			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Ne,
-						Value: JSONValue{
-							String: &title,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Ne(&title),
 		},
 		jsonQueryTest{
 			name:   "EqByTitle",
 			resIdx: []int{},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Eq,
-						Value: JSONValue{
-							String: &title,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Eq(&title),
 		},
 		jsonQueryTest{
 			name:   "LtByTitle",
 			resIdx: []int{},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Lt,
-						Value: JSONValue{
-							String: &title,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Lt(&title),
 		},
 		jsonQueryTest{
 			name:   "GtByTitle",
 			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Gt,
-						Value: JSONValue{
-							String: &title,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Gt(&title),
 		},
 		jsonQueryTest{
 			name:   "GtByTitleMax",
 			resIdx: []int{},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Gt,
-						Value: JSONValue{
-							String: &titleMax,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Gt(&titleMax),
 		},
 
 		// Ands "int" (which query interpret as float)
 		jsonQueryTest{
 			name:   "EqByTotalReads1",
 			resIdx: []int{0},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Eq,
-						Value: JSONValue{
-							Float: &totreadEq1,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Eq(&totreadEq1),
 		},
 		jsonQueryTest{
 			name:   "LtByTotalReads1",
 			resIdx: []int{},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Lt,
-						Value: JSONValue{
-							Float: &totreadEq1,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Lt(&totreadEq1),
 		},
 		jsonQueryTest{
 			name:   "LeByTotalReadsBigger",
 			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Le,
-						Value: JSONValue{
-							Float: &totreadMax,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Le(&totreadMax),
 		},
 		jsonQueryTest{
 			name:   "GeByTotalReadsMin",
 			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Ge,
-						Value: JSONValue{
-							Float: &totreadMin,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Ge(&totreadMin),
 		},
 		jsonQueryTest{
 			name:   "LtByTotalReadsMidpoint",
 			resIdx: []int{0, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Lt,
-						Value: JSONValue{
-							Float: &totreadMid,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Lt(&totreadMid),
 		},
 		jsonQueryTest{
 			name:   "GtByTotalReadsMidpoint",
 			resIdx: []int{1, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Gt,
-						Value: JSONValue{
-							Float: &totreadMid,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Gt(&totreadMid),
 		},
 		jsonQueryTest{
 			name:   "LtByTotalReads2",
 			resIdx: []int{0, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.TotalReads",
-						Operation: Lt,
-						Value: JSONValue{
-							Float: &totreadEq2,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.TotalReads").Lt(&totreadEq2),
 		},
 
 		// Ands float
 		jsonQueryTest{
 			name:   "EqByRating1",
 			resIdx: []int{0},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Eq,
-						Value: JSONValue{
-							Float: &rating1,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Eq(&rating1),
 		},
 		jsonQueryTest{
 			name:   "GtByRating1",
 			resIdx: []int{1, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Gt,
-						Value: JSONValue{
-							Float: &rating1,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Gt(&rating1),
 		},
 		jsonQueryTest{
 			name:   "LeByRatingMin",
 			resIdx: []int{},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Le,
-						Value: JSONValue{
-							Float: &ratingMin,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Le(&ratingMin),
 		},
 		jsonQueryTest{
 			name:   "GeByRatingMin",
 			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Ge,
-						Value: JSONValue{
-							Float: &ratingMin,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Ge(&ratingMin),
 		},
 		jsonQueryTest{
 			name:   "LeByRatingMid",
 			resIdx: []int{0, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Le,
-						Value: JSONValue{
-							Float: &ratingMid,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Le(&ratingMid),
 		},
 		jsonQueryTest{
 			name:   "GeByRatingMid",
 			resIdx: []int{1, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Ge,
-						Value: JSONValue{
-							Float: &ratingMid,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Ge(&ratingMid),
 		},
 		jsonQueryTest{
 			name:   "LeByRatingMax",
 			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Le,
-						Value: JSONValue{
-							Float: &ratingMax,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Le(&ratingMax),
 		},
 		jsonQueryTest{
 			name:   "GtByRatingMax",
 			resIdx: []int{},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Gt,
-						Value: JSONValue{
-							Float: &ratingMax,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Meta.Rating").Gt(&ratingMax),
 		},
 		// Ands bool
 		jsonQueryTest{
 			name:   "EqByBanned",
 			resIdx: []int{0, 3},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Banned",
-						Operation: Eq,
-						Value: JSONValue{
-							Bool: &boolTrue,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Banned").Eq(&boolTrue),
 		},
 		jsonQueryTest{
 			name:   "NeByBanned",
 			resIdx: []int{1, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Banned",
-						Operation: Ne,
-						Value: JSONValue{
-							Bool: &boolTrue,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Banned").Ne(&boolTrue),
 		},
 		jsonQueryTest{
 			name:   "EqByBannedFalse",
 			resIdx: []int{1, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Banned",
-						Operation: Eq,
-						Value: JSONValue{
-							Bool: &boolFalse,
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Banned").Eq(&boolFalse),
 		},
 
 		// Ors
 		jsonQueryTest{
 			name:   "EqTitle1OrTitle3",
 			resIdx: []int{0, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Eq,
-						Value: JSONValue{
-							String: &title0,
-						},
-					},
-				},
-				Ors: []*JSONQuery{
-					&JSONQuery{
-						Ands: []*JSONCriterion{
-							&JSONCriterion{
-								FieldPath: "Title",
-								Operation: Eq,
-								Value: JSONValue{
-									String: &title3,
-								},
-							},
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Eq(&title0).JSONOr(JSONWhere("Title").Eq(&title3)),
 		},
 		jsonQueryTest{
 			name:   "EqTitle2OrRating",
 			resIdx: []int{0, 1},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Title",
-						Operation: Eq,
-						Value: JSONValue{
-							String: &title1,
-						},
-					},
-				},
-				Ors: []*JSONQuery{
-					&JSONQuery{
-						Ands: []*JSONCriterion{
-							&JSONCriterion{
-								FieldPath: "Meta.Rating",
-								Operation: Eq,
-								Value: JSONValue{
-									Float: &rating1,
-								},
-							},
-						},
-					},
-				},
-			},
+			query:  JSONWhere("Title").Eq(&title1).JSONOr(JSONWhere("Meta.Rating").Eq(&rating1)),
 		},
 
 		// Ordering (string, int, float)
 		jsonQueryTest{
-			name:   "AllOrderedTitle",
-			resIdx: []int{0, 1, 2, 3},
-			query: JSONQuery{
-				Sort: JSONSort{
-					FieldPath: "Title",
-				},
-			},
+			name:    "AllOrderedTitle",
+			resIdx:  []int{0, 1, 2, 3},
+			query:   JSONOrderBy("Title"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedTitleDesc",
-			resIdx: []int{3, 2, 1, 0},
-			query: JSONQuery{
-				Sort: JSONSort{
-					FieldPath: "Title",
-					Desc:      true,
-				},
-			},
+			name:    "AllOrderedTitleDesc",
+			resIdx:  []int{3, 2, 1, 0},
+			query:   JSONOrderByDesc("Title"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedTotalReads",
-			resIdx: []int{0, 2, 1, 3},
-			query: JSONQuery{
-				Sort: JSONSort{
-					FieldPath: "Meta.TotalReads",
-					Desc:      false,
-				},
-			},
+			name:    "AllOrderedTotalReads",
+			resIdx:  []int{0, 2, 1, 3},
+			query:   JSONOrderBy("Meta.TotalReads"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedTotalReads",
-			resIdx: []int{3, 1, 2, 0},
-			query: JSONQuery{
-				Sort: JSONSort{
-					FieldPath: "Meta.TotalReads",
-					Desc:      true,
-				},
-			},
+			name:    "AllOrderedTotalReads",
+			resIdx:  []int{3, 1, 2, 0},
+			query:   JSONOrderByDesc("Meta.TotalReads"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedRatings",
-			resIdx: []int{3, 0, 1, 2},
-			query: JSONQuery{
-				Sort: JSONSort{
-					FieldPath: "Meta.Rating",
-					Desc:      false,
-				},
-			},
+			name:    "AllOrderedRatings",
+			resIdx:  []int{3, 0, 1, 2},
+			query:   JSONOrderBy("Meta.Rating"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedRatingsDesc",
-			resIdx: []int{2, 1, 0, 3},
-			query: JSONQuery{
-				Sort: JSONSort{
-					FieldPath: "Meta.Rating",
-					Desc:      true,
-				},
-			},
+			name:    "AllOrderedRatingsDesc",
+			resIdx:  []int{2, 1, 0, 3},
+			query:   JSONOrderByDesc("Meta.Rating"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedRatingsDescWithAnd",
-			resIdx: []int{2, 1},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Gt,
-						Value: JSONValue{
-							Float: &ratingMid,
-						},
-					},
-				},
-				Sort: JSONSort{
-					FieldPath: "Meta.TotalReads",
-					Desc:      false,
-				},
-			},
+			name:    "AllOrderedRatingsDescWithAnd",
+			resIdx:  []int{2, 1},
+			query:   JSONWhere("Meta.Rating").Gt(&ratingMid).JSONOrderBy("Meta.TotalReads"),
 			ordered: true,
 		},
 		jsonQueryTest{
-			name:   "AllOrderedRatingsDescWithAndDesc",
-			resIdx: []int{1, 2},
-			query: JSONQuery{
-				Ands: []*JSONCriterion{
-					&JSONCriterion{
-						FieldPath: "Meta.Rating",
-						Operation: Gt,
-						Value: JSONValue{
-							Float: &ratingMid,
-						},
-					},
-				},
-				Sort: JSONSort{
-					FieldPath: "Meta.TotalReads",
-					Desc:      true,
-				},
-			},
+			name:    "AllOrderedRatingsDescWithAndDesc",
+			resIdx:  []int{1, 2},
+			query:   JSONWhere("Meta.Rating").Gt(&ratingMid).JSONOrderByDesc("Meta.TotalReads"),
 			ordered: true,
 		},
 	}
 )
 
 func TestQueryJsonMode(t *testing.T) {
-	m, clean := createModelWithJsonData(t)
+	m, clean := createModelWithJSONData(t)
 	defer clean()
 
 	for _, q := range jsonQueries {
@@ -675,9 +322,9 @@ func TestQueryJsonMode(t *testing.T) {
 	}
 }
 
-func createModelWithJsonData(t *testing.T) (*Model, func()) {
+func createModelWithJSONData(t *testing.T) (*Model, func()) {
 	s, clean := createTestStore(t, WithJsonMode(true))
-	m, err := s.RegisterSchema("Book", testQueryJsonModeSchema)
+	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema)
 	checkErr(t, err)
 	for i := range jsonSampleData {
 		if err = m.Create(&jsonSampleData[i]); err != nil {

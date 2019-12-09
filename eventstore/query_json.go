@@ -68,6 +68,22 @@ func JSONWhere(field string) *JSONCriterion {
 	}
 }
 
+// JSONOrderBy specify ascending order for the query results.
+func JSONOrderBy(field string) *JSONQuery {
+	q := &JSONQuery{}
+	q.Sort.FieldPath = field
+	q.Sort.Desc = false
+	return q
+}
+
+// JSONOrderByDesc specify descending order for the query results.
+func JSONOrderByDesc(field string) *JSONQuery {
+	q := &JSONQuery{}
+	q.Sort.FieldPath = field
+	q.Sort.Desc = true
+	return q
+}
+
 // JSONAnd concatenates a new condition in an existing field.
 func (q *JSONQuery) JSONAnd(field string) *JSONCriterion {
 	return &JSONCriterion{
@@ -145,6 +161,18 @@ func createValue(value interface{}) JSONValue {
 	if ok {
 		return JSONValue{Float: &f}
 	}
+	sp, ok := value.(*string)
+	if ok {
+		return JSONValue{String: sp}
+	}
+	bp, ok := value.(*bool)
+	if ok {
+		return JSONValue{Bool: bp}
+	}
+	fp, ok := value.(*float64)
+	if ok {
+		return JSONValue{Float: fp}
+	}
 	return JSONValue{}
 }
 
@@ -159,7 +187,7 @@ func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JS
 }
 
 // FindJSON queries for entities by JSONQuery
-func (t *Txn) FindJSON(q JSONQuery) ([]string, error) {
+func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 	dsq := dsquery.Query{
 		Prefix: baseKey.ChildString(t.model.name).String(),
 	}
