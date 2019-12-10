@@ -34,10 +34,10 @@ const (
 var (
 	// ErrInvalidModel indicates that the registered model isn't valid,
 	// most probably doesn't have an EntityID.ID field.
-	ErrInvalidModel = errors.New("the model is valid")
+	ErrInvalidModel = errors.New("the model is invalid")
 	// ErrInvalidModelType indicates the provided default type isn't compatible
 	// with a Model type.
-	ErrInvalidModelType = errors.New("the model type should be a pointer to a struct")
+	ErrInvalidModelType = errors.New("the model type should be a non-nil pointer to a struct")
 
 	log             = logging.Logger("store")
 	dsStorePrefix   = ds.NewKey("/store")
@@ -216,7 +216,7 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	defer s.lock.Unlock()
 
 	diType := reflect.TypeOf(defaultInstance)
-	if diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
+	if reflect.ValueOf(defaultInstance).IsNil() || diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
 		return nil, ErrInvalidModelType
 	}
 
@@ -356,7 +356,12 @@ func (s *Store) writeTxn(m *Model, f func(txn *Txn) error) error {
 	return txn.Commit()
 }
 
-func isValidModel(t interface{}) bool {
+func isValidModel(t interface{}) (valid bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			valid = false
+		}
+	}()
 	v := reflect.ValueOf(t)
 	if v.Type().Kind() != reflect.Ptr {
 		v = reflect.New(reflect.TypeOf(v))
