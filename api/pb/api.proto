@@ -35,6 +35,16 @@ message StartFromAddressRequest {
 
 message StartFromAddressReply {}
 
+message GetStoreLinkRequest {
+    string storeID = 1;
+}
+
+message GetStoreLinkReply {
+    repeated string addresses = 1;
+    bytes followKey = 2;
+    bytes readKey = 3;
+}
+
 message ModelCreateRequest {
     string storeID = 1;
     string modelName = 2;
@@ -151,6 +161,7 @@ service API {
     rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
     rpc Start(StartRequest) returns (StartReply) {}
     rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
+    rpc GetStoreLink(GetStoreLinkRequest) returns (GetStoreLinkReply) {}
     rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
     rpc ModelSave(ModelSaveRequest) returns (ModelSaveReply) {}
     rpc ModelDelete(ModelDeleteRequest) returns (ModelDeleteReply) {}
