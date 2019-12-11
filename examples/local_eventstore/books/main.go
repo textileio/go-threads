@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
 	es "github.com/textileio/go-textile-threads/eventstore"
 )
@@ -127,7 +128,7 @@ func main() {
 		// Modify title
 		book := books[0]
 		book.Title = "ModifiedTitle"
-		model.Save(book)
+		_ = model.Save(book)
 		err = model.Find(&books, es.Where("Title").Eq("Title3"))
 		checkErr(err)
 		if len(books) != 0 {
@@ -140,7 +141,7 @@ func main() {
 		if len(books) != 1 {
 			panic("Book with ModifiedTitle should exist")
 		}
-		model.Delete(books[0].ID)
+		_ = model.Delete(books[0].ID)
 		err = model.Find(&books, es.Where("Title").Eq("ModifiedTitle"))
 		checkErr(err)
 		if len(books) != 0 {
@@ -152,7 +153,9 @@ func main() {
 func createMemStore() (*es.Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	ts, err := es.DefaultThreadservice(dir, es.ProxyPort(0))
+	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+	checkErr(err)
+	ts, err := es.DefaultThreadservice(dir, es.HostProxyAddr(addr))
 	checkErr(err)
 	s, err := es.NewStore(ts, es.WithRepoPath(dir))
 	checkErr(err)
@@ -160,7 +163,7 @@ func createMemStore() (*es.Store, func()) {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 }
 

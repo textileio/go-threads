@@ -70,7 +70,7 @@ type threads struct {
 
 // Config is used to specify thread instance options.
 type Config struct {
-	ProxyAddr string // defaults to 0.0.0.0:5050
+	ProxyAddr ma.Multiaddr // defaults to /ip4/0.0.0.0/tcp/5050
 	Debug     bool
 }
 
@@ -122,11 +122,9 @@ func NewThreads(
 
 	// Start a web RPC proxy
 	webrpc := grpcweb.WrapServer(t.rpc)
-	if conf.ProxyAddr == "" {
-		conf.ProxyAddr = "0.0.0.0:5050"
-	}
+	proxyAddr := util.TCPAddrFromMultiAddr(conf.ProxyAddr, "0.0.0.0:5050")
 	t.proxy = &http.Server{
-		Addr: conf.ProxyAddr,
+		Addr: proxyAddr,
 	}
 	t.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if webrpc.IsGrpcWebRequest(r) {

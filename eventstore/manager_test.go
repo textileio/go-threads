@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 var (
@@ -61,7 +63,9 @@ func TestManager_GetStore(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, ProxyPort(0))
+	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+	checkErr(t, err)
+	ts, err := DefaultThreadservice(dir, HostProxyAddr(addr))
 	checkErr(t, err)
 	man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 	checkErr(t, err)
@@ -94,7 +98,9 @@ func TestManager_GetStore(t *testing.T) {
 	checkErr(t, err)
 
 	t.Run("GetHydrated", func(t *testing.T) {
-		ts, err := DefaultThreadservice(dir, ProxyPort(0))
+		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+		checkErr(t, err)
+		ts, err := DefaultThreadservice(dir, HostProxyAddr(addr))
 		checkErr(t, err)
 		man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 		checkErr(t, err)
@@ -126,7 +132,9 @@ func TestManager_GetStore(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, ProxyPort(0))
+	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+	checkErr(t, err)
+	ts, err := DefaultThreadservice(dir, HostProxyAddr(addr))
 	checkErr(t, err)
 	m, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 	checkErr(t, err)

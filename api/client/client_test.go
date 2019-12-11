@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
@@ -447,10 +448,12 @@ func makeServer() (*api.Server, func()) {
 	if err != nil {
 		panic(err)
 	}
+	hostAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4106")
+	hostProxyAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/5150")
 	ts, err := es.DefaultThreadservice(
 		dir,
-		es.ListenPort(4106),
-		es.ProxyPort(5150),
+		es.HostAddr(hostAddr),
+		es.HostProxyAddr(hostProxyAddr),
 		es.Debug(true))
 	if err != nil {
 		panic(err)

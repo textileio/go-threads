@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
 )
 
@@ -31,7 +32,7 @@ type Comment struct {
 }
 
 func TestMain(m *testing.M) {
-	logging.SetLogLevel("*", "error")
+	_ = logging.SetLogLevel("*", "error")
 	os.Exit(m.Run())
 }
 
@@ -254,7 +255,7 @@ func TestGetInstance(t *testing.T) {
 	t.Run("WithReadTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.ReadTxn(func(txn *Txn) error {
-			txn.FindByID(newPerson.ID, person)
+			_ = txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
@@ -265,7 +266,7 @@ func TestGetInstance(t *testing.T) {
 	t.Run("WithUpdateTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.WriteTxn(func(txn *Txn) error {
-			txn.FindByID(newPerson.ID, person)
+			_ = txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
@@ -372,7 +373,7 @@ func TestInvalidActions(t *testing.T) {
 	})
 	t.Run("Save", func(t *testing.T) {
 		p := &PersonFake{Name: "fake"}
-		model.Create(p)
+		_ = model.Create(p)
 		if err := model.Save(p); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
@@ -399,7 +400,9 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, ProxyPort(0))
+	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+	checkErr(t, err)
+	ts, err := DefaultThreadservice(dir, HostProxyAddr(addr))
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
 	s, err := NewStore(ts, opts...)
@@ -408,6 +411,6 @@ func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 }

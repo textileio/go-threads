@@ -35,10 +35,12 @@ var threadsSuite = []map[string]func(tserv.Threadservice, tserv.Threadservice) f
 
 func ThreadsTest(t *testing.T) {
 	// Create two thread services.
-	m1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4006")
-	ts1 := newService(t, m1, "127.0.0.1:5050")
-	m2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4007")
-	ts2 := newService(t, m2, "127.0.0.1:5051")
+	h1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4006")
+	hp1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/5050")
+	ts1 := newService(t, h1, hp1)
+	h2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4007")
+	hp2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/5051")
+	ts2 := newService(t, h2, hp2)
 
 	ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)
 	ts2.Host().Peerstore().AddAddrs(ts1.Host().ID(), ts1.Host().Addrs(), peerstore.PermanentAddrTTL)
@@ -51,12 +53,12 @@ func ThreadsTest(t *testing.T) {
 	}
 }
 
-func newService(t *testing.T, listen ma.Multiaddr, proxyAddr string) tserv.Threadservice {
+func newService(t *testing.T, hostAddr ma.Multiaddr, hostProxyAddr ma.Multiaddr) tserv.Threadservice {
 	sk, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
 	check(t, err)
 	host, err := libp2p.New(
 		context.Background(),
-		libp2p.ListenAddrs(listen),
+		libp2p.ListenAddrs(hostAddr),
 		libp2p.Identity(sk),
 	)
 	check(t, err)
@@ -69,7 +71,7 @@ func newService(t *testing.T, listen ma.Multiaddr, proxyAddr string) tserv.Threa
 		bsrv.Blockstore(),
 		dag.NewDAGService(bsrv),
 		tstore.NewThreadstore(),
-		threads.Config{ProxyAddr: proxyAddr, Debug: true})
+		threads.Config{ProxyAddr: hostProxyAddr, Debug: true})
 	check(t, err)
 	return ts
 }
