@@ -101,6 +101,8 @@ func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	listenPort := flag.Int("port", 4006, "host port")
 	proxyPort := flag.Int("proxyPort", 5050, "grpc proxy port")
+	serverAddr := flag.String("apiAddr", "0.0.0.0:9000", "API server addr")
+	serverProxyAddr := flag.String("apiProxyAddr", "0.0.0.0:9091", "API server proxy addr")
 	flag.Parse()
 
 	util.SetupDefaultLoggingConfig(*repo)
@@ -132,6 +134,8 @@ func main() {
 	server, err := api.NewServer(context.Background(), ts, api.Config{
 		RepoPath: *repo,
 		Debug:    true,
+		Addr: *serverAddr,
+		ProxyAddr: *serverProxyAddr,
 	})
 	if err != nil {
 		log.Fatal(err)
