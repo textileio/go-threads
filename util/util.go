@@ -245,17 +245,18 @@ func ParseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
 }
 
-func TCPAddrFromMultiAddr(addr ma.Multiaddr, def string) string {
-	if addr == nil {
-		return def
+func TCPAddrFromMultiAddr(maddr ma.Multiaddr) (addr string, err error) {
+	if maddr == nil {
+		err = fmt.Errorf("invalid address")
+		return
 	}
-	ip4, err := addr.ValueForProtocol(ma.P_IP4)
+	ip4, err := maddr.ValueForProtocol(ma.P_IP4)
 	if err != nil {
-		return def
+		return
 	}
-	tcp, err := addr.ValueForProtocol(ma.P_TCP)
+	tcp, err := maddr.ValueForProtocol(ma.P_TCP)
 	if err != nil {
-		return def
+		return
 	}
-	return fmt.Sprintf("%s:%s", ip4, tcp)
+	return fmt.Sprintf("%s:%s", ip4, tcp), nil
 }

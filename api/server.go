@@ -34,8 +34,8 @@ type Server struct {
 // Config specifies server settings.
 type Config struct {
 	RepoPath  string
-	Addr      ma.Multiaddr // defaults to /ip4/127.0.0.1/tcp/9090
-	ProxyAddr ma.Multiaddr // defaults to /ip4/127.0.0.1/tcp/9091
+	Addr      ma.Multiaddr
+	ProxyAddr ma.Multiaddr
 	Debug     bool
 }
 
@@ -69,7 +69,10 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		cancel:  cancel,
 	}
 
-	addr := util.TCPAddrFromMultiAddr(conf.Addr, "127.0.0.1:9090")
+	addr, err := util.TCPAddrFromMultiAddr(conf.Addr)
+	if err != nil {
+		return nil, err
+	}
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -88,7 +91,10 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
 			return true
 		}))
-	proxyAddr := util.TCPAddrFromMultiAddr(conf.ProxyAddr, "127.0.0.1:9091")
+	proxyAddr, err := util.TCPAddrFromMultiAddr(conf.ProxyAddr)
+	if err != nil {
+		return nil, err
+	}
 	s.proxy = &http.Server{
 		Addr: proxyAddr,
 	}
@@ -117,7 +123,6 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		}
 		log.Info("proxy was shutdown")
 	}()
-	log.Infof("proxy listening at %s", s.proxy.Addr)
 
 	return s, nil
 }

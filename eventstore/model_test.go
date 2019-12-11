@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	logging "github.com/ipfs/go-log"
-	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
 )
 
@@ -255,24 +254,26 @@ func TestGetInstance(t *testing.T) {
 	t.Run("WithReadTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.ReadTxn(func(txn *Txn) error {
-			_ = txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
 		})
+		checkErr(t, err)
 	})
 	t.Run("WithUpdateTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.WriteTxn(func(txn *Txn) error {
-			_ = txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
 		})
+		checkErr(t, err)
 	})
 }
 
@@ -366,15 +367,17 @@ func TestInvalidActions(t *testing.T) {
 	model, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
-		p := &PersonFake{Name: "fake"}
-		if err := model.Create(p); !errors.Is(err, ErrInvalidSchemaInstance) {
+		f := &PersonFake{Name: "fake"}
+		if err := model.Create(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
 	t.Run("Save", func(t *testing.T) {
-		p := &PersonFake{Name: "fake"}
-		_ = model.Create(p)
-		if err := model.Save(p); !errors.Is(err, ErrInvalidSchemaInstance) {
+		r := &Person{Name: "real"}
+		err := model.Create(r)
+		checkErr(t, err)
+		f := &PersonFake{Name: "fake"}
+		if err := model.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
@@ -400,9 +403,7 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, HostProxyAddr(addr))
+	ts, err := DefaultThreadservice(dir)
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
 	s, err := NewStore(ts, opts...)

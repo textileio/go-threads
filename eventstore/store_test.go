@@ -10,7 +10,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	ipldformat "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
-	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
 )
 
@@ -22,9 +21,7 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
 
-	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	checkErr(t, err)
-	ts1, err := DefaultThreadservice(tmpDir1, HostProxyAddr(addr))
+	ts1, err := DefaultThreadservice(tmpDir1)
 	checkErr(t, err)
 	defer ts1.Close()
 
@@ -57,9 +54,7 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	addr2, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	checkErr(t, err)
-	ts2, err := DefaultThreadservice(tmpDir2, HostProxyAddr(addr2))
+	ts2, err := DefaultThreadservice(tmpDir2)
 	checkErr(t, err)
 	defer ts2.Close()
 
@@ -85,9 +80,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	checkErr(t, err)
-	ts, err := DefaultThreadservice(tmpDir, HostProxyAddr(addr))
+	ts, err := DefaultThreadservice(tmpDir)
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
@@ -107,9 +100,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, s.Close())
 
 	time.Sleep(time.Second * 3)
-	addr2, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	checkErr(t, err)
-	ts, err = DefaultThreadservice(tmpDir, HostProxyAddr(addr2))
+	ts, err = DefaultThreadservice(tmpDir)
 	checkErr(t, err)
 	defer ts.Close()
 	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))

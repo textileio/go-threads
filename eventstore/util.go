@@ -49,6 +49,13 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		}
 		config.HostAddr = addr
 	}
+	if config.HostProxyAddr == nil {
+		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+		if err != nil {
+			return nil, err
+		}
+		config.HostProxyAddr = addr
+	}
 
 	ipfsLitePath := filepath.Join(repoPath, defaultIpfsLitePath)
 	if err := os.MkdirAll(ipfsLitePath, os.ModePerm); err != nil {

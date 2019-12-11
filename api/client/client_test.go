@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -45,8 +46,10 @@ const schema = `{
 }`
 
 var (
-	shutdown func()
-	client   *Client
+	shutdown   func()
+	client     *Client
+	clientHost = "127.0.0.1"
+	clientPort = 9090
 )
 
 type Person struct {
@@ -448,20 +451,26 @@ func makeServer() (*api.Server, func()) {
 	if err != nil {
 		panic(err)
 	}
-	hostAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4106")
-	hostProxyAddr, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/5150")
 	ts, err := es.DefaultThreadservice(
 		dir,
-		es.HostAddr(hostAddr),
-		es.HostProxyAddr(hostProxyAddr),
 		es.Debug(true))
 	if err != nil {
 		panic(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
+	apiAddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", clientHost, clientPort))
+	if err != nil {
+		panic(err)
+	}
+	apiProxyAddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/0", clientHost))
+	if err != nil {
+		panic(err)
+	}
 	server, err := api.NewServer(context.Background(), ts, api.Config{
-		RepoPath: dir,
-		Debug:    true,
+		RepoPath:  dir,
+		Addr:      apiAddr,
+		ProxyAddr: apiProxyAddr,
+		Debug:     true,
 	})
 	if err != nil {
 		panic(err)
@@ -476,7 +485,7 @@ func makeServer() (*api.Server, func()) {
 }
 
 func makeClient() *Client {
-	client, err := NewClient("localhost", 9090)
+	client, err := NewClient(clientHost, clientPort)
 	if err != nil {
 		panic(err)
 	}

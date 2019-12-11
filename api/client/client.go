@@ -250,8 +250,8 @@ func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent
 		for {
 			event, err := stream.Recv()
 			if err != nil {
-				status := status.Convert(err)
-				if status == nil || (status != nil && status.Code() != codes.Canceled) {
+				stat := status.Convert(err)
+				if stat == nil || (stat.Code() != codes.Canceled) {
 					channel <- ListenEvent{err: err}
 				}
 				break

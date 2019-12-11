@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/store"
 	es "github.com/textileio/go-textile-threads/eventstore"
 )
@@ -115,9 +114,7 @@ func main() {
 func createJsonModeMemStore() (*es.Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	checkErr(err)
-	ts, err := es.DefaultThreadservice(dir, es.HostProxyAddr(addr))
+	ts, err := es.DefaultThreadservice(dir)
 	checkErr(err)
 	s, err := es.NewStore(ts, es.WithRepoPath(dir), es.WithJsonMode(true))
 	checkErr(err)
