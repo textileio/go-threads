@@ -61,7 +61,7 @@ func TestManager_GetStore(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, ProxyPort(0))
+	ts, err := DefaultThreadservice(dir)
 	checkErr(t, err)
 	man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 	checkErr(t, err)
@@ -94,7 +94,7 @@ func TestManager_GetStore(t *testing.T) {
 	checkErr(t, err)
 
 	t.Run("GetHydrated", func(t *testing.T) {
-		ts, err := DefaultThreadservice(dir, ProxyPort(0))
+		ts, err := DefaultThreadservice(dir)
 		checkErr(t, err)
 		man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 		checkErr(t, err)
@@ -126,7 +126,7 @@ func TestManager_GetStore(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, ProxyPort(0))
+	ts, err := DefaultThreadservice(dir)
 	checkErr(t, err)
 	m, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 	checkErr(t, err)

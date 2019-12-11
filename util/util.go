@@ -164,16 +164,6 @@ func DecodeKey(k string) (*sym.Key, error) {
 	return sym.NewKey(b)
 }
 
-// PadArgs returns args with min length l.
-func PadArgs(args []string, l int) []string {
-	if len(args) > l {
-		l = len(args)
-	}
-	padded := make([]string, l)
-	copy(padded, args)
-	return padded
-}
-
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
 func SetupDefaultLoggingConfig(repoPath string) {
 	lj := &lumberjack.Logger{
@@ -253,4 +243,20 @@ func ParseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
 		}
 	}
 	return peer.AddrInfosFromP2pAddrs(maddrs...)
+}
+
+func TCPAddrFromMultiAddr(maddr ma.Multiaddr) (addr string, err error) {
+	if maddr == nil {
+		err = fmt.Errorf("invalid address")
+		return
+	}
+	ip4, err := maddr.ValueForProtocol(ma.P_IP4)
+	if err != nil {
+		return
+	}
+	tcp, err := maddr.ValueForProtocol(ma.P_TCP)
+	if err != nil {
+		return
+	}
+	return fmt.Sprintf("%s:%s", ip4, tcp), nil
 }

@@ -11,7 +11,6 @@ import (
 func main() {
 	writer := flag.Bool("writer", false, "peer role")
 	repo := flag.String("repo", ".thread", "repo path for the store")
-	port := flag.Int("port", 5000, "porto to listen to")
 	clean := flag.Bool("clean", true, "deletes any previous state. a fresh start")
 	flag.Parse()
 
@@ -28,8 +27,8 @@ func main() {
 	util.SetupDefaultLoggingConfig(*repo)
 	// Run different things depending on flag
 	if *writer {
-		runWriterPeer(*repo, *port)
+		runWriterPeer(*repo)
 	} else {
-		runReaderPeer(*repo, *port)
+		runReaderPeer(*repo)
 	}
 }

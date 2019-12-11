@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
@@ -15,22 +16,42 @@ var log = logging.Logger("daemon")
 
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
-	listenPort := flag.Int("port", 4006, "host port")
-	proxyPort := flag.Int("proxyPort", 5050, "grpc proxy port")
-	addr := flag.String("addr", "0.0.0.0:9090", "api addr")
-	proxyAddr := flag.String("proxyAddr", "0.0.0.0:9091", "proxy api addr")
+	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
+	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5050", "Threads gRPC proxy bind address")
+	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/9090", "API bind address")
+	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/9091", "API gRPC proxy bind address")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
-	util.SetupDefaultLoggingConfig(*repo)
-	if err := logging.SetLogLevel("daemon", "debug"); err != nil {
+	hostAddr, err := ma.NewMultiaddr(*hostAddrStr)
+	if err != nil {
 		log.Fatal(err)
+	}
+	hostProxyAddr, err := ma.NewMultiaddr(*hostProxyAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	apiAddr, err := ma.NewMultiaddr(*apiAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	apiProxyAddr, err := ma.NewMultiaddr(*apiProxyAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	util.SetupDefaultLoggingConfig(*repo)
+	if *debug {
+		if err := logging.SetLogLevel("daemon", "debug"); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	ts, err := es.DefaultThreadservice(
 		*repo,
-		es.ListenPort(*listenPort),
-		es.ProxyPort(*proxyPort),
-		es.Debug(true))
+		es.HostAddr(hostAddr),
+		es.HostProxyAddr(hostProxyAddr),
+		es.Debug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,9 +60,9 @@ func main() {
 
 	server, err := api.NewServer(context.Background(), ts, api.Config{
 		RepoPath:  *repo,
-		Addr:      *addr,
-		ProxyAddr: *proxyAddr,
-		Debug:     true,
+		Addr:      apiAddr,
+		ProxyAddr: apiProxyAddr,
+		Debug:     *debug,
 	})
 	if err != nil {
 		log.Fatal(err)

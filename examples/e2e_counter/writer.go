@@ -18,10 +18,10 @@ type myCounter struct {
 	Count int
 }
 
-func runWriterPeer(repo string, port int) {
+func runWriterPeer(repo string) {
 	fmt.Printf("I'm a writer\n")
 
-	ts, err := es.DefaultThreadservice(repo, es.ProxyPort(0))
+	ts, err := es.DefaultThreadservice(repo)
 	checkErr(err)
 	defer ts.Close()
 	store, err := es.NewStore(ts, es.WithRepoPath(repo))
@@ -65,12 +65,13 @@ func runWriterPeer(repo string, port int) {
 func saveThreadMultiaddrForOtherPeer(store *es.Store, threadID thread.ID) {
 	host := store.Threadservice().Host()
 	tinfo, err := store.Threadservice().Store().ThreadInfo(threadID)
+	checkErr(err)
 
 	// Create listen addr
 	id, _ := multiaddr.NewComponent("p2p", host.ID().String())
-	thread, _ := multiaddr.NewComponent("thread", threadID.String())
+	threadComp, _ := multiaddr.NewComponent("thread", threadID.String())
 
-	listenAddr := host.Addrs()[0].Encapsulate(id).Encapsulate(thread).String()
+	listenAddr := host.Addrs()[0].Encapsulate(id).Encapsulate(threadComp).String()
 	followKey := base58.Encode(tinfo.FollowKey.Bytes())
 	readKey := base58.Encode(tinfo.ReadKey.Bytes())
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
@@ -33,8 +34,8 @@ type Server struct {
 // Config specifies server settings.
 type Config struct {
 	RepoPath  string
-	Addr      string // defaults to 0.0.0.0:9090
-	ProxyAddr string // defaults to 0.0.0.0:9091
+	Addr      ma.Multiaddr
+	ProxyAddr ma.Multiaddr
 	Debug     bool
 }
 
@@ -68,10 +69,11 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		cancel:  cancel,
 	}
 
-	if conf.Addr == "" {
-		conf.Addr = "0.0.0.0:9090"
+	addr, err := util.TCPAddrFromMultiAddr(conf.Addr)
+	if err != nil {
+		return nil, err
 	}
-	listener, err := net.Listen("tcp", conf.Addr)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
@@ -89,11 +91,12 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
 			return true
 		}))
-	if conf.ProxyAddr == "" {
-		conf.ProxyAddr = "0.0.0.0:9091"
+	proxyAddr, err := util.TCPAddrFromMultiAddr(conf.ProxyAddr)
+	if err != nil {
+		return nil, err
 	}
 	s.proxy = &http.Server{
-		Addr: conf.ProxyAddr,
+		Addr: proxyAddr,
 	}
 	s.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if webrpc.IsGrpcWebRequest(r) ||
@@ -120,7 +123,6 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		}
 		log.Info("proxy was shutdown")
 	}()
-	log.Infof("proxy listening at %s", s.proxy.Addr)
 
 	return s, nil
 }

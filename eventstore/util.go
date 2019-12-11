@@ -2,7 +2,6 @@ package eventstore
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -13,8 +12,8 @@ import (
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	host "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-core/peerstore"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
 	tserv "github.com/textileio/go-textile-core/threadservice"
@@ -24,8 +23,7 @@ import (
 )
 
 const (
-	defaultIpfsLitePath  = "ipfslite"
-	defaultListeningPort = 5002
+	defaultIpfsLitePath = "ipfslite"
 )
 
 // DefaultThreadService is a boostrapable default Threadservice with
@@ -37,11 +35,26 @@ type ThreadserviceBoostrapper interface {
 }
 
 func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostrapper, error) {
-	config := &Config{ProxyPort: 5050}
+	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
 		}
+	}
+
+	if config.HostAddr == nil {
+		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+		if err != nil {
+			return nil, err
+		}
+		config.HostAddr = addr
+	}
+	if config.HostProxyAddr == nil {
+		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
+		if err != nil {
+			return nil, err
+		}
+		config.HostProxyAddr = addr
 	}
 
 	ipfsLitePath := filepath.Join(repoPath, defaultIpfsLitePath)
@@ -60,18 +73,12 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		cancel()
 		return nil, err
 	}
-	listen, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", config.ListenPort))
-	if err != nil {
-		ds.Close()
-		cancel()
-		return nil, err
-	}
 	priv := util.LoadKey(filepath.Join(ipfsLitePath, "key"))
-	h, dht, err := ipfslite.SetupLibp2p(
+	h, d, err := ipfslite.SetupLibp2p(
 		ctx,
 		priv,
 		nil,
-		[]ma.Multiaddr{listen},
+		[]ma.Multiaddr{config.HostAddr},
 		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
 		libp2p.Peerstore(pstore),
 	)
@@ -81,7 +88,7 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		return nil, err
 	}
 
-	lite, err := ipfslite.New(ctx, ds, h, dht, nil)
+	lite, err := ipfslite.New(ctx, ds, h, d, nil)
 	if err != nil {
 		cancel()
 		ds.Close()
@@ -99,7 +106,7 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 	// Build a threadservice
 	api, err := t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Config{
 		Debug:     config.Debug,
-		ProxyAddr: fmt.Sprintf("0.0.0.0:%d", config.ProxyPort),
+		ProxyAddr: config.HostProxyAddr,
 	})
 	if err != nil {
 		cancel()
@@ -114,28 +121,28 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		pstore:        pstore,
 		ds:            ds,
 		host:          h,
-		dht:           dht,
+		dht:           d,
 	}, nil
 }
 
 type Config struct {
-	ListenPort int
-	ProxyPort  int
-	Debug      bool
+	HostAddr      ma.Multiaddr
+	HostProxyAddr ma.Multiaddr
+	Debug         bool
 }
 
 type Option func(c *Config) error
 
-func ListenPort(port int) Option {
+func HostAddr(addr ma.Multiaddr) Option {
 	return func(c *Config) error {
-		c.ListenPort = port
+		c.HostAddr = addr
 		return nil
 	}
 }
 
-func ProxyPort(port int) Option {
+func HostProxyAddr(addr ma.Multiaddr) Option {
 	return func(c *Config) error {
-		c.ProxyPort = port
+		c.HostProxyAddr = addr
 		return nil
 	}
 }

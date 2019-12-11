@@ -11,11 +11,11 @@ import (
 	es "github.com/textileio/go-textile-threads/eventstore"
 )
 
-func runReaderPeer(repo string, port int) {
+func runReaderPeer(repo string) {
 	fmt.Printf("I'm a model reader.\n")
 	writerAddr, fkey, rkey := getWriterAddr()
 
-	ts, err := es.DefaultThreadservice(repo, es.ProxyPort(0))
+	ts, err := es.DefaultThreadservice(repo)
 	checkErr(err)
 	defer ts.Close()
 	store, err := es.NewStore(ts, es.WithRepoPath(repo))

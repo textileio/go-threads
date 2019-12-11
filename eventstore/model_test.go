@@ -31,7 +31,7 @@ type Comment struct {
 }
 
 func TestMain(m *testing.M) {
-	logging.SetLogLevel("*", "error")
+	_ = logging.SetLogLevel("*", "error")
 	os.Exit(m.Run())
 }
 
@@ -254,24 +254,26 @@ func TestGetInstance(t *testing.T) {
 	t.Run("WithReadTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.ReadTxn(func(txn *Txn) error {
-			txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
 		})
+		checkErr(t, err)
 	})
 	t.Run("WithUpdateTx", func(t *testing.T) {
 		person := &Person{}
 		err = model.WriteTxn(func(txn *Txn) error {
-			txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, person)
 			checkErr(t, err)
 			if !reflect.DeepEqual(newPerson, person) {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
 		})
+		checkErr(t, err)
 	})
 }
 
@@ -365,15 +367,17 @@ func TestInvalidActions(t *testing.T) {
 	model, err := store.Register("Person", &Person{})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
-		p := &PersonFake{Name: "fake"}
-		if err := model.Create(p); !errors.Is(err, ErrInvalidSchemaInstance) {
+		f := &PersonFake{Name: "fake"}
+		if err := model.Create(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
 	t.Run("Save", func(t *testing.T) {
-		p := &PersonFake{Name: "fake"}
-		model.Create(p)
-		if err := model.Save(p); !errors.Is(err, ErrInvalidSchemaInstance) {
+		r := &Person{Name: "real"}
+		err := model.Create(r)
+		checkErr(t, err)
+		f := &PersonFake{Name: "fake"}
+		if err := model.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
@@ -399,7 +403,7 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir, ProxyPort(0))
+	ts, err := DefaultThreadservice(dir)
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
 	s, err := NewStore(ts, opts...)
@@ -408,6 +412,6 @@ func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 }

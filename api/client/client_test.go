@@ -3,12 +3,14 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
@@ -44,8 +46,10 @@ const schema = `{
 }`
 
 var (
-	shutdown func()
-	client   *Client
+	shutdown   func()
+	client     *Client
+	clientHost = "127.0.0.1"
+	clientPort = 9090
 )
 
 type Person struct {
@@ -449,16 +453,24 @@ func makeServer() (*api.Server, func()) {
 	}
 	ts, err := es.DefaultThreadservice(
 		dir,
-		es.ListenPort(4106),
-		es.ProxyPort(5150),
 		es.Debug(true))
 	if err != nil {
 		panic(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
+	apiAddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", clientHost, clientPort))
+	if err != nil {
+		panic(err)
+	}
+	apiProxyAddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/0", clientHost))
+	if err != nil {
+		panic(err)
+	}
 	server, err := api.NewServer(context.Background(), ts, api.Config{
-		RepoPath: dir,
-		Debug:    true,
+		RepoPath:  dir,
+		Addr:      apiAddr,
+		ProxyAddr: apiProxyAddr,
+		Debug:     true,
 	})
 	if err != nil {
 		panic(err)
@@ -473,7 +485,7 @@ func makeServer() (*api.Server, func()) {
 }
 
 func makeClient() *Client {
-	client, err := NewClient("localhost", 9090)
+	client, err := NewClient(clientHost, clientPort)
 	if err != nil {
 		panic(err)
 	}

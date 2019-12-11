@@ -54,33 +54,6 @@ var (
 const (
 	msgTimeout = time.Second * 10
 	timeLayout = "03:04:05 PM"
-
-	// schema = `{
-	// 	"$schema": "http://json-schema.org/draft-04/schema#",
-	// 	"$ref": "#/definitions/message",
-	// 	"definitions": {
-	// 		"message": {
-	// 			"required": [
-	// 				"ID",
-	// 				"Body",
-	// 				"Time"
-	// 			],
-	// 			"properties": {
-	// 				"ID": {
-	// 					"type": "string"
-	// 				},
-	// 				"Body": {
-	// 					"type": "string"
-	// 				},
-	// 				"Time": {
-	// 					"type": "integer"
-	// 				}
-	// 			},
-	// 			"additionalProperties": false,
-	// 			"type": "object"
-	// 		}
-	// 	}
-	// }`
 )
 
 func init() {
@@ -99,16 +72,37 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
-	listenPort := flag.Int("port", 4006, "host port")
-	proxyPort := flag.Int("proxyPort", 5050, "grpc proxy port")
+	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
+	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5050", "Threads gRPC proxy bind address")
+	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/9090", "API bind address")
+	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/9091", "API gRPC proxy bind address")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
-	util.SetupDefaultLoggingConfig(*repo)
-	if err := logging.SetLogLevel("shell", "debug"); err != nil {
+	hostAddr, err := ma.NewMultiaddr(*hostAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	hostProxyAddr, err := ma.NewMultiaddr(*hostProxyAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	apiAddr, err := ma.NewMultiaddr(*apiAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	apiProxyAddr, err := ma.NewMultiaddr(*apiProxyAddrStr)
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	var err error
+	util.SetupDefaultLoggingConfig(*repo)
+	if *debug {
+		if err := logging.SetLogLevel("shell", "debug"); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	shellPath := filepath.Join(*repo, "shell")
 	if err = os.MkdirAll(shellPath, os.ModePerm); err != nil {
 		log.Fatal(err)
@@ -120,9 +114,9 @@ func main() {
 
 	ts, err = es.DefaultThreadservice(
 		*repo,
-		es.ListenPort(*listenPort),
-		es.ProxyPort(*proxyPort),
-		es.Debug(true))
+		es.HostAddr(hostAddr),
+		es.HostProxyAddr(hostProxyAddr),
+		es.Debug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -130,8 +124,10 @@ func main() {
 	ts.Bootstrap(util.DefaultBoostrapPeers())
 
 	server, err := api.NewServer(context.Background(), ts, api.Config{
-		RepoPath: *repo,
-		Debug:    true,
+		RepoPath:  *repo,
+		Addr:      apiAddr,
+		ProxyAddr: apiProxyAddr,
+		Debug:     *debug,
 	})
 	if err != nil {
 		log.Fatal(err)

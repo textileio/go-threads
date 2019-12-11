@@ -20,7 +20,8 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir1, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
-	ts1, err := DefaultThreadservice(tmpDir1, ProxyPort(0))
+
+	ts1, err := DefaultThreadservice(tmpDir1)
 	checkErr(t, err)
 	defer ts1.Close()
 
@@ -53,7 +54,7 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	ts2, err := DefaultThreadservice(tmpDir2, ProxyPort(0))
+	ts2, err := DefaultThreadservice(tmpDir2)
 	checkErr(t, err)
 	defer ts2.Close()
 
@@ -79,7 +80,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	ts, err := DefaultThreadservice(tmpDir, ProxyPort(0))
+	ts, err := DefaultThreadservice(tmpDir)
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
@@ -99,7 +100,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, s.Close())
 
 	time.Sleep(time.Second * 3)
-	ts, err = DefaultThreadservice(tmpDir, ProxyPort(0))
+	ts, err = DefaultThreadservice(tmpDir)
 	checkErr(t, err)
 	defer ts.Close()
 	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
@@ -207,7 +208,7 @@ func TestListeners(t *testing.T) {
 	t.Run("EmptyFilterEvent", func(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t, ListenOption{Model: "Model3"})
-		expected := []Action{}
+		var expected []Action
 		assertActions(actions, expected)
 	})
 	t.Run("MixedComplexEvent", func(t *testing.T) {
@@ -232,7 +233,7 @@ func TestListeners(t *testing.T) {
 // Actions received with the ...ListenOption provided.
 func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	t.Helper()
-	s, close := createTestStore(t)
+	s, cls := createTestStore(t)
 	m1, err := s.Register("Model1", &dummyModel{})
 	checkErr(t, err)
 	m2, err := s.Register("Model2", &dummyModel{})
@@ -290,7 +291,7 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	checkErr(t, m1.Delete(i2.ID))
 
 	l.Close()
-	close()
+	cls()
 	// Expected generated actions:
 	// Model1 Save i1
 	// Model1 Create i2
