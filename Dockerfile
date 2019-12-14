@@ -56,11 +56,6 @@ RUN mkdir -p $THREADS_REPO \
   && adduser -D -h $THREADS_REPO -u 1000 -G users textile \
   && chown -R textile:users $THREADS_REPO
 
-EXPOSE 4006/tcp
-EXPOSE 5050/tcp
-EXPOSE 9090/tcp
-EXPOSE 9091/tcp
-
 # Switch to a non-privileged user
 USER textile
 
@@ -69,13 +64,10 @@ USER textile
 # Important this happens after the USER directive so permission are correct.
 VOLUME $THREADS_REPO
 
-# Init opts
-ENV INIT_ARGS \
-  -repo $THREADS_REPO \
-  -hostAddr "/ip4/0.0.0.0/tcp/4006" \
-  -hostProxyAddr "/ip4/0.0.0.0/tcp/5050" \
-  -apiAddr "/ip4/127.0.0.1/tcp/9090" \
-  -apiProxyAddr "/ip4/127.0.0.1/tcp/9091"
+EXPOSE 4006
+EXPOSE 5050
+EXPOSE 9090
+EXPOSE 9091
 
 # This just makes sure that:
 # 1. There's an fs-repo, and initializes one if there isn't.
@@ -83,4 +75,4 @@ ENV INIT_ARGS \
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start_threads"]
 
 # Execute the daemon subcommand by default
-CMD ["daemon", "--repo=/data/threads", "-debug"]
+CMD ["daemon", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/9091", "-debug"]
