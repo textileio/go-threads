@@ -5,4 +5,3 @@ Dockerfile
 dist
 examples
 .threads*
-*.framework
