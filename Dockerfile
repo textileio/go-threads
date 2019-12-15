@@ -75,4 +75,4 @@ EXPOSE 9091
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start_threads"]
 
 # Execute the daemon subcommand by default
-CMD ["daemon", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/9091", "-debug"]
+CMD ["daemon", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/9091"]
