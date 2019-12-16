@@ -1,3 +1,3 @@
 docker:
-	$(eval VERSION := $$(shell ggrep -oP 'const Version = "\K[^"]+' common/version.go))
-	docker build -t go-textile-threads:$(VERSION) .
+	$(eval VERSION := $(shell git --no-pager describe --abbrev=0 --tags --always))
+	docker build -t go-textile-threads:$(VERSION:v%=%) .
