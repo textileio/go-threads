@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	log = logging.Logger("api")
+	log = logging.Logger("threadsapi")
 )
 
 // Server provides a gRPC API to a store manager.
@@ -45,7 +45,7 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logger.Level{
-			"api": logger.DEBUG,
+			"threadsapi": logger.DEBUG,
 		})
 		if err != nil {
 			return nil, err

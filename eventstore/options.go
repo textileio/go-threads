@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultDatastorePath = "datastore"
+	defaultDatastorePath = "eventstore"
 )
 
 // StoreOption takes a StoreConfig and modifies it
