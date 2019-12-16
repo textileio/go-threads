@@ -148,12 +148,29 @@ message WriteTransactionReply {
 
 message ListenRequest {
     string storeID = 1;
-    string modelName = 2;
-    string entityID = 3;
+    message Filter {
+        string modelName = 1;
+        string entityID = 2;
+        enum Action {
+            ALL = 0;
+            CREATE = 1;
+            SAVE = 2;
+            DELETE = 3;
+        }
+        Action action = 3;
+    }
+    repeated Filter filters = 2;
 }
 
 message ListenReply {
-    string entity = 1;
+    string modelName = 1;
+    enum Action {
+        CREATE = 0;
+        SAVE = 1;
+        DELETE = 2;
+    }
+    Action action = 2;
+    string entity = 3;
 }
 
 service API {
