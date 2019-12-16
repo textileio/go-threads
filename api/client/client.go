@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"reflect"
 
 	"github.com/mr-tron/base58"
@@ -11,6 +10,7 @@ import (
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
+	"github.com/textileio/go-textile-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,9 +31,12 @@ type ListenEvent struct {
 }
 
 // NewClient starts the client
-func NewClient(host string, port int) (*Client, error) {
-	url := fmt.Sprintf("%v:%v", host, port)
-	conn, err := grpc.Dial(url, grpc.WithInsecure())
+func NewClient(maddr ma.Multiaddr) (*Client, error) {
+	addr, err := util.TCPAddrFromMultiAddr(maddr)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
