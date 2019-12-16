@@ -79,7 +79,7 @@ func (d *dispatcher) Dispatch(events []core.Event) error {
 		if err := e.Encode(event); err != nil {
 			return err
 		}
-		if err := d.Store().Put(key, b.Bytes()); err != nil {
+		if err := txn.Put(key, b.Bytes()); err != nil {
 			return err
 		}
 	}
