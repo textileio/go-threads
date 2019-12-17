@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -46,10 +45,10 @@ const schema = `{
 }`
 
 var (
-	shutdown   func()
-	client     *Client
-	clientHost = "127.0.0.1"
-	clientPort = 9090
+	shutdown        func()
+	client          *Client
+	clientAddr      = "/ip4/127.0.0.1/tcp/9090"
+	clientProxyAddr = "/ip4/127.0.0.1/tcp/0"
 )
 
 type Person struct {
@@ -471,11 +470,11 @@ func makeServer() (*api.Server, func()) {
 		panic(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
-	apiAddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/%d", clientHost, clientPort))
+	apiAddr, err := ma.NewMultiaddr(clientAddr)
 	if err != nil {
 		panic(err)
 	}
-	apiProxyAddr, err := ma.NewMultiaddr(fmt.Sprintf("/ip4/%s/tcp/0", clientHost))
+	apiProxyAddr, err := ma.NewMultiaddr(clientProxyAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -498,7 +497,11 @@ func makeServer() (*api.Server, func()) {
 }
 
 func makeClient() *Client {
-	client, err := NewClient(clientHost, clientPort)
+	addr, err := ma.NewMultiaddr(clientAddr)
+	if err != nil {
+		panic(err)
+	}
+	client, err := NewClient(addr)
 	if err != nil {
 		panic(err)
 	}
