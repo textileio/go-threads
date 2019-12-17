@@ -164,13 +164,13 @@ message ListenRequest {
 
 message ListenReply {
     string modelName = 1;
+    string entityID = 2;
     enum Action {
         CREATE = 0;
         SAVE = 1;
         DELETE = 2;
     }
-    Action action = 2;
-    string entity = 3;
+    Action action = 3;
 }
 
 service API {

@@ -329,19 +329,32 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 
 // Listen returns a stream of entities, trigged by a local or remote state change.
 func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
-	log.Debugf("received listen request for entity %s", req.EntityID)
-
 	store, err := s.getStore(req.StoreID)
 	if err != nil {
 		return err
 	}
 
-	model := store.GetModel(req.ModelName)
-	if model == nil {
-		return status.Error(codes.NotFound, "model not found")
+	options := make([]es.ListenOption, len(req.GetFilters()))
+	for i, filter := range req.GetFilters() {
+		var listenActionType es.ListenActionType
+		switch filter.GetAction() {
+		case pb.ListenRequest_Filter_ALL:
+			listenActionType = es.ListenAll
+		case pb.ListenRequest_Filter_CREATE:
+			listenActionType = es.ListenCreate
+		case pb.ListenRequest_Filter_DELETE:
+			listenActionType = es.ListenDelete
+		case pb.ListenRequest_Filter_SAVE:
+			listenActionType = es.ListenSave
+		}
+		options[i] = es.ListenOption{
+			Type:  listenActionType,
+			Model: filter.GetModelName(),
+			ID:    core.EntityID(filter.EntityID),
+		}
 	}
 
-	l, err := store.Listen(es.ListenOption{Model: req.ModelName, ID: core.EntityID(req.EntityID)})
+	l, err := store.Listen(options...)
 	if err != nil {
 		return err
 	}
@@ -351,19 +364,26 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		select {
 		case <-server.Context().Done():
 			return nil
-		case _, ok := <-l.Channel():
+		case action, ok := <-l.Channel():
 			if !ok {
 				return nil
 			}
-			err := model.ReadTxn(func(txn *es.Txn) error {
-				var res string
-				if err := txn.FindByID(core.EntityID(req.EntityID), &res); err != nil {
-					return err
-				}
-				return server.Send(&pb.ListenReply{
-					Entity: res,
-				})
-			})
+			var replyAction pb.ListenReply_Action
+			switch action.Type {
+			case es.ActionCreate:
+				replyAction = pb.ListenReply_CREATE
+			case es.ActionDelete:
+				replyAction = pb.ListenReply_DELETE
+			case es.ActionSave:
+				replyAction = pb.ListenReply_SAVE
+			}
+			// TODO: do we want to send the entity data in case of create and save?
+			reply := &pb.ListenReply{
+				ModelName: action.Model,
+				EntityID:  action.ID.String(),
+				Action:    replyAction,
+			}
+			err := server.Send(reply)
 			if err != nil {
 				return err
 			}

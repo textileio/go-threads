@@ -9,6 +9,7 @@ import (
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
+	"github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"google.golang.org/grpc"
@@ -26,8 +27,8 @@ type Client struct {
 
 // ListenEvent is used to send data or error values for Listen
 type ListenEvent struct {
-	data []byte
-	err  error
+	action es.Action
+	err    error
 }
 
 // NewClient starts the client
@@ -231,22 +232,45 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 	return &WriteTransaction{client: client, storeID: storeID, modelName: modelName}, nil
 }
 
-// Listen provides an update whenever the specified model is updated
-func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent, func()) {
+// Listen provides an update whenever the specified store, model type, or model instance is updated
+func (c *Client) Listen(storeID string, listenOptions ...es.ListenOption) (<-chan ListenEvent, func(), error) {
 	channel := make(chan ListenEvent)
 	ctx, cancel := context.WithCancel(c.ctx)
+	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
+	for i, listenOption := range listenOptions {
+		var action pb.ListenRequest_Filter_Action
+		switch listenOption.Type {
+		case es.ListenAll:
+			action = pb.ListenRequest_Filter_ALL
+		case es.ListenCreate:
+			action = pb.ListenRequest_Filter_CREATE
+		case es.ListenDelete:
+			action = pb.ListenRequest_Filter_DELETE
+		case es.ListenSave:
+			action = pb.ListenRequest_Filter_SAVE
+		default:
+			cancel()
+			return nil, nil, fmt.Errorf("unknown ListenOption.Type %v", listenOption.Type)
+		}
+		filters[i] = &pb.ListenRequest_Filter{
+			ModelName: listenOption.Model,
+			EntityID:  listenOption.ID.String(),
+			Action:    action,
+		}
+	}
+	req := &pb.ListenRequest{
+		StoreID: storeID,
+		Filters: filters,
+	}
+	stream, err := c.client.Listen(ctx, req)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
 	go func() {
 		defer close(channel)
-		req := &pb.ListenRequest{
-			StoreID:   storeID,
-			ModelName: modelName,
-			EntityID:  entityID,
-		}
-		stream, err := c.client.Listen(ctx, req)
-		if err != nil {
-			channel <- ListenEvent{err: err}
-			return
-		}
+
+	L:
 		for {
 			event, err := stream.Recv()
 			if err != nil {
@@ -256,11 +280,27 @@ func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent
 				}
 				break
 			}
-			bytes := []byte(event.GetEntity())
-			channel <- ListenEvent{data: bytes}
+			var actionType es.ActionType
+			switch event.GetAction() {
+			case pb.ListenReply_CREATE:
+				actionType = es.ActionCreate
+			case pb.ListenReply_DELETE:
+				actionType = es.ActionDelete
+			case pb.ListenReply_SAVE:
+				actionType = es.ActionSave
+			default:
+				channel <- ListenEvent{err: fmt.Errorf("unknown listen reply action %v", event.GetAction())}
+				break L
+			}
+			action := es.Action{
+				Model: event.GetModelName(),
+				ID:    store.EntityID(event.GetEntityID()),
+				Type:  actionType,
+			}
+			channel <- ListenEvent{action: action}
 		}
 	}()
-	return channel, cancel
+	return channel, cancel, nil
 }
 
 func processFindReply(reply *pb.ModelFindReply, dummySlice interface{}) (interface{}, error) {

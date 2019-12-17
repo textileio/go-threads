@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
@@ -395,8 +395,15 @@ func TestListen(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	channel, discard := client.Listen(storeID, modelName, person.ID)
+	opt := es.ListenOption{
+		Model: modelName,
+		ID:    store.EntityID(person.ID),
+	}
+	channel, discard, err := client.Listen(storeID, opt)
 	defer discard()
+	if err != nil {
+		t.Fatalf("failed to call listen: %v", err)
+	}
 
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -413,12 +420,15 @@ func TestListen(t *testing.T) {
 		if val.err != nil {
 			t.Fatalf("failed to receive first listen result: %v", val.err)
 		}
-		p := &Person{}
-		if err := json.Unmarshal(val.data, p); err != nil {
-			t.Fatalf("failed to unmarshal listen result: %v", err)
-		}
-		if p.Age != 30 {
-			t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
+		// p := &Person{}
+		// if err := json.Unmarshal(val.data, p); err != nil {
+		// 	t.Fatalf("failed to unmarshal listen result: %v", err)
+		// }
+		// if p.Age != 30 {
+		// 	t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
+		// }
+		if val.action.ID.String() != person.ID {
+			t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.ID.String())
 		}
 	}
 
@@ -429,12 +439,15 @@ func TestListen(t *testing.T) {
 		if val.err != nil {
 			t.Fatalf("failed to receive second listen result: %v", val.err)
 		}
-		p := &Person{}
-		if err := json.Unmarshal(val.data, p); err != nil {
-			t.Fatalf("failed to unmarshal listen result: %v", err)
-		}
-		if p.Age != 40 {
-			t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
+		// p := &Person{}
+		// if err := json.Unmarshal(val.data, p); err != nil {
+		// 	t.Fatalf("failed to unmarshal listen result: %v", err)
+		// }
+		// if p.Age != 40 {
+		// 	t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
+		// }
+		if val.action.ID.String() != person.ID {
+			t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.ID.String())
 		}
 	}
 }
