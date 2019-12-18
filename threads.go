@@ -366,7 +366,7 @@ func (t *threads) pullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// Delete a thread.
+// Delete a thread (@todo).
 func (t *threads) DeleteThread(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }

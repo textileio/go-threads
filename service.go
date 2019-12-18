@@ -41,13 +41,14 @@ func newService(t *threads) (*service, error) {
 		pubsub:  ps,
 	}
 
-	ts, err := t.store.Threads()
-	if err != nil {
-		return nil, err
-	}
-	for _, id := range ts {
-		go s.subscribe(id)
-	}
+	// @todo: clean up pubsub handling (we need to track the new-style topic handles)
+	//ts, err := t.store.Threads()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//for _, id := range ts {
+	//	go s.subscribe(id)
+	//}
 
 	// @todo: ts.pubsub.RegisterTopicValidator()
 
