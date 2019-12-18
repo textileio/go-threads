@@ -65,13 +65,13 @@ USER textile
 VOLUME $THREADS_REPO
 
 EXPOSE 4006
-EXPOSE 5050
-EXPOSE 9090
-EXPOSE 9091
+EXPOSE 5006
+EXPOSE 6006
+EXPOSE 7006
 
 # This just makes sure that:
 # 1. There's an fs-repo, and initializes one if there isn't.
 # 2. The API and Gateway are accessible from outside the container.
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start_threadsd"]
 
-CMD ["threadsd", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/9091"]
+CMD ["threadsd", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/7006"]

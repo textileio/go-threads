@@ -73,9 +73,9 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
-	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5050", "Threads gRPC proxy bind address")
-	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/9090", "API bind address")
-	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/9091", "API gRPC proxy bind address")
+	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5006", "Threads gRPC proxy bind address")
+	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
+	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/7006", "API gRPC proxy bind address")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
