@@ -1,0 +1,7 @@
+Dockerfile
+
+.github
+.circleci
+dist
+examples
+.threads*
