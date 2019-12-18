@@ -9,7 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/go-textile-core/thread"
 	iface "github.com/textileio/go-textile-core/threadstore"
-	threads "github.com/textileio/go-textile-threads"
+	threads "github.com/textileio/go-threads"
 	"github.com/whyrusleeping/base32"
 )
 

@@ -18,7 +18,7 @@ func TestNewEventDispatcher(t *testing.T) {
 	eventstore := NewTxMapDatastore()
 	dispatcher := newDispatcher(eventstore)
 	event := newNullEvent(time.Now())
-	dispatcher.Dispatch([]core.Event{event})
+	_ = dispatcher.Dispatch([]core.Event{event})
 }
 
 func TestRegister(t *testing.T) {
@@ -75,9 +75,10 @@ func TestDispatch(t *testing.T) {
 	err = dispatcher.Dispatch([]core.Event{event})
 	if err == nil {
 		t.Error("expected error in dispatch call")
-	}
-	if err.Error() != "error" {
-		t.Errorf("`%s` should be `error`", err)
+	} else {
+		if err.Error() != "error" {
+			t.Errorf("`%s` should be `error`", err)
+		}
 	}
 	results, err = dispatcher.Query(query.Query{})
 	if err != nil {
@@ -95,9 +96,10 @@ func TestValidStore(t *testing.T) {
 	store := dispatcher.Store()
 	if store == nil {
 		t.Error("store should not be nil")
-	}
-	if ok, _ := store.Has(datastore.NewKey("blah")); ok {
-		t.Error("store should be empty")
+	} else {
+		if ok, _ := store.Has(datastore.NewKey("blah")); ok {
+			t.Error("store should be empty")
+		}
 	}
 }
 

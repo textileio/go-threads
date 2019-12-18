@@ -27,11 +27,11 @@ import (
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
-	t "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/api"
-	"github.com/textileio/go-textile-threads/cbor"
-	es "github.com/textileio/go-textile-threads/eventstore"
-	util "github.com/textileio/go-textile-threads/util"
+	t "github.com/textileio/go-threads"
+	"github.com/textileio/go-threads/api"
+	"github.com/textileio/go-threads/cbor"
+	es "github.com/textileio/go-threads/eventstore"
+	util "github.com/textileio/go-threads/util"
 )
 
 var (
@@ -73,9 +73,9 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
-	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5050", "Threads gRPC proxy bind address")
-	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/9090", "API bind address")
-	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/9091", "API gRPC proxy bind address")
+	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5006", "Threads gRPC proxy bind address")
+	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
+	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/7006", "API gRPC proxy bind address")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
@@ -494,7 +494,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 		if err != nil {
 			return "", err
 		}
-		pid, err := peer.IDB58Decode(p2p)
+		pid, err := peer.Decode(p2p)
 		if err != nil {
 			return "", err
 		}

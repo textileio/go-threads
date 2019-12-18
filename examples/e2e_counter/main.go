@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-threads/util"
 )
 
 func main() {

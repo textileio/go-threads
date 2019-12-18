@@ -17,9 +17,9 @@ import (
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
 	tserv "github.com/textileio/go-textile-core/threadservice"
-	t "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/tstoreds"
-	util "github.com/textileio/go-textile-threads/util"
+	t "github.com/textileio/go-threads"
+	"github.com/textileio/go-threads/tstoreds"
+	util "github.com/textileio/go-threads/util"
 )
 
 const (

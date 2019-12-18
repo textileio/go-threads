@@ -129,7 +129,7 @@ func AddPeerFromAddress(addrStr string, pstore peerstore.Peerstore) (pid peer.ID
 	if err != nil {
 		return
 	}
-	pid, err = peer.IDB58Decode(p2p)
+	pid, err = peer.Decode(p2p)
 	if err != nil {
 		return
 	}

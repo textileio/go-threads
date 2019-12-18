@@ -10,8 +10,8 @@ import (
 	tservopts "github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
-	threadcbor "github.com/textileio/go-textile-threads/cbor"
-	"github.com/textileio/go-textile-threads/util"
+	threadcbor "github.com/textileio/go-threads/cbor"
+	"github.com/textileio/go-threads/util"
 )
 
 const (

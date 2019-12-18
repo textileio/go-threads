@@ -10,7 +10,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
 	tstore "github.com/textileio/go-textile-core/threadstore"
-	pt "github.com/textileio/go-textile-threads/test"
+	pt "github.com/textileio/go-threads/test"
 )
 
 type datastoreFactory func(tb testing.TB) (ds.Datastore, func())

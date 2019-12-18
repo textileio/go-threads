@@ -10,8 +10,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
 	core "github.com/textileio/go-textile-core/store"
-	pb "github.com/textileio/go-textile-threads/api/pb"
-	es "github.com/textileio/go-textile-threads/eventstore"
+	pb "github.com/textileio/go-threads/api/pb"
+	es "github.com/textileio/go-threads/eventstore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

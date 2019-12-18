@@ -23,7 +23,7 @@ jobs:
 
 workflows:
   version: 2
-  go-textile-threads:
+  go-threads:
     jobs:
       - test:
           filters:

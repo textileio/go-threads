@@ -2,7 +2,7 @@ package tstoremem
 
 import (
 	iface "github.com/textileio/go-textile-core/threadstore"
-	threads "github.com/textileio/go-textile-threads"
+	threads "github.com/textileio/go-threads"
 )
 
 // NewThreadstore creates an in-memory threadsafe collection of threads.

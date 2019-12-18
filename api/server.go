@@ -10,9 +10,9 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	tserv "github.com/textileio/go-textile-core/threadservice"
-	pb "github.com/textileio/go-textile-threads/api/pb"
-	es "github.com/textileio/go-textile-threads/eventstore"
-	"github.com/textileio/go-textile-threads/util"
+	pb "github.com/textileio/go-threads/api/pb"
+	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
 )
@@ -136,6 +136,6 @@ func (s *Server) Close() {
 	}
 
 	s.rpc.GracefulStop()
-	s.service.manager.Close()
+	_ = s.service.manager.Close()
 	s.cancel()
 }

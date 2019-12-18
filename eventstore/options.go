@@ -7,7 +7,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
 	core "github.com/textileio/go-textile-core/store"
-	"github.com/textileio/go-textile-threads/jsonpatcher"
+	"github.com/textileio/go-threads/jsonpatcher"
 )
 
 const (

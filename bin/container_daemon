@@ -13,8 +13,8 @@ if [ $(id -u) -eq 0 ]; then
 fi
 
 # if the first argument is daemon
-if [ "$1" = "daemon" ]; then
+if [ "$1" = "threadsd" ]; then
 	shift
 fi
 
-exec threads "$@"
+exec threadsd "$@"

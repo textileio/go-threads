@@ -9,7 +9,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-core/thread"
-	es "github.com/textileio/go-textile-threads/eventstore"
+	es "github.com/textileio/go-threads/eventstore"
 )
 
 type myCounter struct {

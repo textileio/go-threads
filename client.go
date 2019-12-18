@@ -14,8 +14,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/thread"
-	"github.com/textileio/go-textile-threads/cbor"
-	pb "github.com/textileio/go-textile-threads/pb"
+	"github.com/textileio/go-threads/cbor"
+	pb "github.com/textileio/go-threads/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -202,7 +202,7 @@ func (s *service) getRecords(
 				log.Error(err)
 				return
 			}
-			pid, err := peer.IDB58Decode(p)
+			pid, err := peer.Decode(p)
 			if err != nil {
 				log.Error(err)
 				return
@@ -319,7 +319,7 @@ func (s *service) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec
 				log.Error(err)
 				return
 			}
-			pid, err := peer.IDB58Decode(p)
+			pid, err := peer.Decode(p)
 			if err != nil {
 				log.Error(err)
 				return
@@ -389,7 +389,7 @@ func (s *service) dial(
 // getDialOption returns the WithDialer option to dial via libp2p.
 func (s *service) getDialOption() grpc.DialOption {
 	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (net.Conn, error) {
-		id, err := peer.IDB58Decode(peerIDStr)
+		id, err := peer.Decode(peerIDStr)
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}

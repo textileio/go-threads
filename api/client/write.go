@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	pb "github.com/textileio/go-textile-threads/api/pb"
-	es "github.com/textileio/go-textile-threads/eventstore"
+	pb "github.com/textileio/go-threads/api/pb"
+	es "github.com/textileio/go-threads/eventstore"
 )
 
 // WriteTransaction encapsulates a write transaction

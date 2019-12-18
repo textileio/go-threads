@@ -20,10 +20,10 @@ import (
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
-	threads "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/cbor"
-	tstore "github.com/textileio/go-textile-threads/tstoremem"
-	"github.com/textileio/go-textile-threads/util"
+	threads "github.com/textileio/go-threads"
+	"github.com/textileio/go-threads/cbor"
+	tstore "github.com/textileio/go-threads/tstoremem"
+	"github.com/textileio/go-threads/util"
 )
 
 var threadsSuite = []map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){
@@ -35,11 +35,11 @@ var threadsSuite = []map[string]func(tserv.Threadservice, tserv.Threadservice) f
 
 func ThreadsTest(t *testing.T) {
 	// Create two thread services.
-	h1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4006")
-	hp1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/5050")
+	h1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	hp1, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	ts1 := newService(t, h1, hp1)
-	h2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/4007")
-	hp2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/5051")
+	h2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
+	hp2, _ := ma.NewMultiaddr("/ip4/127.0.0.1/tcp/0")
 	ts2 := newService(t, h2, hp2)
 
 	ts1.Host().Peerstore().AddAddrs(ts2.Host().ID(), ts2.Host().Addrs(), peerstore.PermanentAddrTTL)

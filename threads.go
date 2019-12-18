@@ -24,16 +24,12 @@ import (
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
 	tstore "github.com/textileio/go-textile-core/threadstore"
-	"github.com/textileio/go-textile-threads/cbor"
-	pb "github.com/textileio/go-textile-threads/pb"
-	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-threads/cbor"
+	pb "github.com/textileio/go-threads/pb"
+	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
 )
-
-func init() {
-	ma.SwapToP2pMultiaddrs() // /ipfs -> /p2p for peer addresses
-}
 
 var (
 	log = logging.Logger("threads")
@@ -231,7 +227,7 @@ func (t *threads) AddThread(
 	if err != nil {
 		return
 	}
-	pid, err := peer.IDB58Decode(p)
+	pid, err := peer.Decode(p)
 	if err != nil {
 		return
 	}
@@ -264,7 +260,7 @@ func (t *threads) AddThread(
 		return
 	}
 
-	// @todo: ensure does not exist? or overwrite with newer info from owner?
+	// @todo: ensure not overwrite with newer info from owner?
 	for _, l := range lgs {
 		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
 			return
@@ -370,7 +366,7 @@ func (t *threads) pullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// Delete a thread.
+// Delete a thread (@todo).
 func (t *threads) DeleteThread(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
@@ -425,7 +421,7 @@ func (t *threads) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 				log.Error(err)
 				return
 			}
-			pid, err := peer.IDB58Decode(p)
+			pid, err := peer.Decode(p)
 			if err != nil {
 				log.Error(err)
 				return

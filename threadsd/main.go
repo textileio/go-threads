@@ -7,19 +7,19 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-threads/api"
-	es "github.com/textileio/go-textile-threads/eventstore"
-	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-threads/api"
+	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/util"
 )
 
-var log = logging.Logger("daemon")
+var log = logging.Logger("threadsd")
 
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
-	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5050", "Threads gRPC proxy bind address")
-	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/9090", "API bind address")
-	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/9091", "API gRPC proxy bind address")
+	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5006", "Threads gRPC proxy bind address")
+	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
+	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/7006", "API gRPC proxy bind address")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
@@ -42,7 +42,7 @@ func main() {
 
 	util.SetupDefaultLoggingConfig(*repo)
 	if *debug {
-		if err := logging.SetLogLevel("daemon", "debug"); err != nil {
+		if err := logging.SetLogLevel("threadsd", "debug"); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -72,7 +72,7 @@ func main() {
 	fmt.Println("Welcome to Threads!")
 	fmt.Println("Your peer ID is " + ts.Host().ID().String())
 
-	log.Debug("daemon started")
+	log.Debug("threadsd started")
 
 	select {}
 }

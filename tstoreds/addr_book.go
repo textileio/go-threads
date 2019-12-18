@@ -16,7 +16,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/thread"
 	"github.com/textileio/go-textile-core/threadstore"
-	pb "github.com/textileio/go-textile-threads/pb"
+	pb "github.com/textileio/go-threads/pb"
 	"github.com/whyrusleeping/base32"
 )
 

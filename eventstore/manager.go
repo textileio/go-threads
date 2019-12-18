@@ -8,7 +8,7 @@ import (
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/textileio/go-textile-core/threadservice"
-	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 )
 

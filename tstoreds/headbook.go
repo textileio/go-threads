@@ -9,7 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/go-textile-core/thread"
 	tstore "github.com/textileio/go-textile-core/threadstore"
-	pb "github.com/textileio/go-textile-threads/pb"
+	pb "github.com/textileio/go-threads/pb"
 )
 
 type dsHeadBook struct {

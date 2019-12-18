@@ -4,7 +4,7 @@
   "description": "gRPC client for interacting with remote Threads.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/textileio/go-textile-threads.git"
+    "url": "git+https://github.com/textileio/go-threads.git"
   },
   "author": "Textile",
   "license": "MIT",
