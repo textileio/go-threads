@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/mr-tron/base58"
@@ -24,10 +25,51 @@ type Client struct {
 	conn   *grpc.ClientConn
 }
 
+// ActionType describes the type of event action when subscribing to data updates
+type ActionType int
+
+const (
+	// ActionCreate represents an event for creating a new entity
+	ActionCreate ActionType = iota + 1
+	// ActionSave represents an event for saving changes to an existing entity
+	ActionSave
+	// ActionDelete represents an event for deleting existing entity
+	ActionDelete
+)
+
+// Action represents a data event delivered to a listener
+type Action struct {
+	Model    string
+	Type     ActionType
+	EntityID string
+	Entity   []byte
+}
+
+// ListenActionType describes the type of event action when receiving data updates
+type ListenActionType int
+
+const (
+	// ListenAll specifies that Create, Save, and Delete events should be listened for
+	ListenAll ListenActionType = iota
+	// ListenCreate specifies that Create events should be listened for
+	ListenCreate
+	// ListenSave specifies that Save events should be listened for
+	ListenSave
+	// ListenDelete specifies that Delete events should be listened for
+	ListenDelete
+)
+
+// ListenOption represents a filter to apply when listening for data updates
+type ListenOption struct {
+	Type     ListenActionType
+	Model    string
+	EntityID string
+}
+
 // ListenEvent is used to send data or error values for Listen
 type ListenEvent struct {
-	data []byte
-	err  error
+	action Action
+	err    error
 }
 
 // NewClient starts the client
@@ -234,22 +276,45 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 	return &WriteTransaction{client: client, storeID: storeID, modelName: modelName}, nil
 }
 
-// Listen provides an update whenever the specified model is updated
-func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent, func()) {
+// Listen provides an update whenever the specified store, model type, or model instance is updated
+func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan ListenEvent, func(), error) {
 	channel := make(chan ListenEvent)
 	ctx, cancel := context.WithCancel(c.ctx)
+	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
+	for i, listenOption := range listenOptions {
+		var action pb.ListenRequest_Filter_Action
+		switch listenOption.Type {
+		case ListenAll:
+			action = pb.ListenRequest_Filter_ALL
+		case ListenCreate:
+			action = pb.ListenRequest_Filter_CREATE
+		case ListenDelete:
+			action = pb.ListenRequest_Filter_DELETE
+		case ListenSave:
+			action = pb.ListenRequest_Filter_SAVE
+		default:
+			cancel()
+			return nil, nil, fmt.Errorf("unknown ListenOption.Type %v", listenOption.Type)
+		}
+		filters[i] = &pb.ListenRequest_Filter{
+			ModelName: listenOption.Model,
+			EntityID:  listenOption.EntityID,
+			Action:    action,
+		}
+	}
+	req := &pb.ListenRequest{
+		StoreID: storeID,
+		Filters: filters,
+	}
+	stream, err := c.client.Listen(ctx, req)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
 	go func() {
 		defer close(channel)
-		req := &pb.ListenRequest{
-			StoreID:   storeID,
-			ModelName: modelName,
-			EntityID:  entityID,
-		}
-		stream, err := c.client.Listen(ctx, req)
-		if err != nil {
-			channel <- ListenEvent{err: err}
-			return
-		}
+
+	ExitStreamRecv:
 		for {
 			event, err := stream.Recv()
 			if err != nil {
@@ -259,11 +324,28 @@ func (c *Client) Listen(storeID, modelName, entityID string) (<-chan ListenEvent
 				}
 				break
 			}
-			bytes := []byte(event.GetEntity())
-			channel <- ListenEvent{data: bytes}
+			var actionType ActionType
+			switch event.GetAction() {
+			case pb.ListenReply_CREATE:
+				actionType = ActionCreate
+			case pb.ListenReply_DELETE:
+				actionType = ActionDelete
+			case pb.ListenReply_SAVE:
+				actionType = ActionSave
+			default:
+				channel <- ListenEvent{err: fmt.Errorf("unknown listen reply action %v", event.GetAction())}
+				break ExitStreamRecv
+			}
+			action := Action{
+				Model:    event.GetModelName(),
+				Type:     actionType,
+				EntityID: event.GetEntityID(),
+				Entity:   event.GetEntity(),
+			}
+			channel <- ListenEvent{action: action}
 		}
 	}()
-	return channel, cancel
+	return channel, cancel, nil
 }
 
 func processFindReply(reply *pb.ModelFindReply, dummySlice interface{}) (interface{}, error) {

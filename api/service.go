@@ -329,46 +329,89 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 
 // Listen returns a stream of entities, trigged by a local or remote state change.
 func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
-	log.Debugf("received listen request for entity %s", req.EntityID)
-
 	store, err := s.getStore(req.StoreID)
 	if err != nil {
 		return err
 	}
 
-	model := store.GetModel(req.ModelName)
-	if model == nil {
-		return status.Error(codes.NotFound, "model not found")
+	options := make([]es.ListenOption, len(req.GetFilters()))
+	for i, filter := range req.GetFilters() {
+		var listenActionType es.ListenActionType
+		switch filter.GetAction() {
+		case pb.ListenRequest_Filter_ALL:
+			listenActionType = es.ListenAll
+		case pb.ListenRequest_Filter_CREATE:
+			listenActionType = es.ListenCreate
+		case pb.ListenRequest_Filter_DELETE:
+			listenActionType = es.ListenDelete
+		case pb.ListenRequest_Filter_SAVE:
+			listenActionType = es.ListenSave
+		default:
+			return status.Errorf(codes.InvalidArgument, "invalid filter action %v", filter.GetAction())
+		}
+		options[i] = es.ListenOption{
+			Type:  listenActionType,
+			Model: filter.GetModelName(),
+			ID:    core.EntityID(filter.EntityID),
+		}
 	}
 
-	l, err := store.Listen(es.ListenOption{Model: req.ModelName, ID: core.EntityID(req.EntityID)})
+	l, err := store.Listen(options...)
 	if err != nil {
 		return err
 	}
 	defer l.Close()
 
 	for {
+		err = nil
 		select {
 		case <-server.Context().Done():
 			return nil
-		case _, ok := <-l.Channel():
+		case action, ok := <-l.Channel():
 			if !ok {
 				return nil
 			}
-			err := model.ReadTxn(func(txn *es.Txn) error {
-				var res string
-				if err := txn.FindByID(core.EntityID(req.EntityID), &res); err != nil {
-					return err
-				}
-				return server.Send(&pb.ListenReply{
-					Entity: res,
-				})
-			})
+			var replyAction pb.ListenReply_Action
+			var entity []byte
+			switch action.Type {
+			case es.ActionCreate:
+				replyAction = pb.ListenReply_CREATE
+				entity, err = s.entityForAction(store, action)
+			case es.ActionDelete:
+				replyAction = pb.ListenReply_DELETE
+			case es.ActionSave:
+				replyAction = pb.ListenReply_SAVE
+				entity, err = s.entityForAction(store, action)
+			default:
+				err = status.Errorf(codes.Internal, "unknown action type %v", action.Type)
+			}
+			if err != nil {
+				return err
+			}
+			reply := &pb.ListenReply{
+				ModelName: action.Model,
+				EntityID:  action.ID.String(),
+				Action:    replyAction,
+				Entity:    entity,
+			}
+			err := server.Send(reply)
 			if err != nil {
 				return err
 			}
 		}
 	}
+}
+
+func (s *service) entityForAction(store *es.Store, action es.Action) ([]byte, error) {
+	model := store.GetModel(action.Model)
+	if model == nil {
+		return nil, status.Error(codes.NotFound, "model not found")
+	}
+	var res string
+	if err := model.FindByID(action.ID, &res); err != nil {
+		return nil, err
+	}
+	return []byte(res), nil
 }
 
 func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc func(...interface{}) error) (*pb.ModelCreateReply, error) {
