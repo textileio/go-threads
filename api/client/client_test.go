@@ -9,7 +9,6 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-threads/api"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
@@ -394,9 +393,9 @@ func TestListen(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	opt := es.ListenOption{
-		Model: modelName,
-		ID:    store.EntityID(person.ID),
+	opt := ListenOption{
+		Model:    modelName,
+		EntityID: person.ID,
 	}
 	channel, discard, err := client.Listen(storeID, opt)
 	defer discard()
@@ -426,8 +425,8 @@ func TestListen(t *testing.T) {
 		// if p.Age != 30 {
 		// 	t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
 		// }
-		if val.action.ID.String() != person.ID {
-			t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.ID.String())
+		if val.action.EntityID != person.ID {
+			t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.EntityID)
 		}
 	}
 
@@ -445,8 +444,8 @@ func TestListen(t *testing.T) {
 		// if p.Age != 40 {
 		// 	t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
 		// }
-		if val.action.ID.String() != person.ID {
-			t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.ID.String())
+		if val.action.EntityID != person.ID {
+			t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.EntityID)
 		}
 	}
 }

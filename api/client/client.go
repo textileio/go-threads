@@ -9,7 +9,6 @@ import (
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto/symmetric"
-	"github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-textile-threads/api/pb"
 	es "github.com/textileio/go-textile-threads/eventstore"
 	"github.com/textileio/go-textile-threads/util"
@@ -26,9 +25,49 @@ type Client struct {
 	conn   *grpc.ClientConn
 }
 
+// ActionType describes the type of event action when subscribing to data updates
+type ActionType int
+
+const (
+	// ActionCreate represents an event for creating a new entity
+	ActionCreate ActionType = iota + 1
+	// ActionSave represents an event for saving changes to an existing entity
+	ActionSave
+	// ActionDelete represents an event for deleting existing entity
+	ActionDelete
+)
+
+// Action represents a data event delivered to a listener
+type Action struct {
+	Model    string
+	Type     ActionType
+	EntityID string
+}
+
+// ListenActionType describes the type of event action when receiving data updates
+type ListenActionType int
+
+const (
+	// ListenAll specifies that Create, Save, and Delete events should be listened for
+	ListenAll ListenActionType = iota
+	// ListenCreate specifies that Create events should be listened for
+	ListenCreate
+	// ListenSave specifies that Save events should be listened for
+	ListenSave
+	// ListenDelete specifies that Delete events should be listened for
+	ListenDelete
+)
+
+// ListenOption represents a filter to apply when listening for data updates
+type ListenOption struct {
+	Type     ListenActionType
+	Model    string
+	EntityID string
+}
+
 // ListenEvent is used to send data or error values for Listen
 type ListenEvent struct {
-	action es.Action
+	action Action
 	err    error
 }
 
@@ -237,20 +276,20 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 }
 
 // Listen provides an update whenever the specified store, model type, or model instance is updated
-func (c *Client) Listen(storeID string, listenOptions ...es.ListenOption) (<-chan ListenEvent, func(), error) {
+func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan ListenEvent, func(), error) {
 	channel := make(chan ListenEvent)
 	ctx, cancel := context.WithCancel(c.ctx)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
 	for i, listenOption := range listenOptions {
 		var action pb.ListenRequest_Filter_Action
 		switch listenOption.Type {
-		case es.ListenAll:
+		case ListenAll:
 			action = pb.ListenRequest_Filter_ALL
-		case es.ListenCreate:
+		case ListenCreate:
 			action = pb.ListenRequest_Filter_CREATE
-		case es.ListenDelete:
+		case ListenDelete:
 			action = pb.ListenRequest_Filter_DELETE
-		case es.ListenSave:
+		case ListenSave:
 			action = pb.ListenRequest_Filter_SAVE
 		default:
 			cancel()
@@ -258,7 +297,7 @@ func (c *Client) Listen(storeID string, listenOptions ...es.ListenOption) (<-cha
 		}
 		filters[i] = &pb.ListenRequest_Filter{
 			ModelName: listenOption.Model,
-			EntityID:  listenOption.ID.String(),
+			EntityID:  listenOption.EntityID,
 			Action:    action,
 		}
 	}
@@ -284,22 +323,22 @@ func (c *Client) Listen(storeID string, listenOptions ...es.ListenOption) (<-cha
 				}
 				break
 			}
-			var actionType es.ActionType
+			var actionType ActionType
 			switch event.GetAction() {
 			case pb.ListenReply_CREATE:
-				actionType = es.ActionCreate
+				actionType = ActionCreate
 			case pb.ListenReply_DELETE:
-				actionType = es.ActionDelete
+				actionType = ActionDelete
 			case pb.ListenReply_SAVE:
-				actionType = es.ActionSave
+				actionType = ActionSave
 			default:
 				channel <- ListenEvent{err: fmt.Errorf("unknown listen reply action %v", event.GetAction())}
 				break L
 			}
-			action := es.Action{
-				Model: event.GetModelName(),
-				ID:    store.EntityID(event.GetEntityID()),
-				Type:  actionType,
+			action := Action{
+				Model:    event.GetModelName(),
+				EntityID: event.GetEntityID(),
+				Type:     actionType,
 			}
 			channel <- ListenEvent{action: action}
 		}
