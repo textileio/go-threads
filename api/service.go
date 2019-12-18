@@ -346,6 +346,8 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			listenActionType = es.ListenDelete
 		case pb.ListenRequest_Filter_SAVE:
 			listenActionType = es.ListenSave
+		default:
+			return status.Errorf(codes.InvalidArgument, "invalid filter action %v", filter.GetAction())
 		}
 		options[i] = es.ListenOption{
 			Type:  listenActionType,
@@ -380,6 +382,8 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			case es.ActionSave:
 				replyAction = pb.ListenReply_SAVE
 				entity, err = s.entityForAction(store, action)
+			default:
+				err = status.Errorf(codes.Internal, "unknown action type %v", action.Type)
 			}
 			if err != nil {
 				return err
