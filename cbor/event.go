@@ -112,7 +112,7 @@ func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Reco
 
 	event, ok := block.(*Event)
 	if !ok {
-		return nil, fmt.Errorf("invalid event")
+		return EventFromNode(block)
 	}
 	return event, nil
 }

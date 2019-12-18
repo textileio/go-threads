@@ -48,7 +48,7 @@ var (
 
 	cursor = green(">  ")
 
-	log = logging.Logger("shell")
+	log = logging.Logger("chat")
 )
 
 const (
@@ -98,16 +98,16 @@ func main() {
 
 	util.SetupDefaultLoggingConfig(*repo)
 	if *debug {
-		if err := logging.SetLogLevel("shell", "debug"); err != nil {
+		if err := logging.SetLogLevel("chat", "debug"); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	shellPath := filepath.Join(*repo, "shell")
-	if err = os.MkdirAll(shellPath, os.ModePerm); err != nil {
+	chatPath := filepath.Join(*repo, "chat")
+	if err = os.MkdirAll(chatPath, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
-	ds, err = ipfslite.BadgerDatastore(shellPath)
+	ds, err = ipfslite.BadgerDatastore(chatPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,17 +155,17 @@ func main() {
 				logError(err)
 				continue
 			}
-			event, err := cbor.EventFromRecord(ctx, ts, rec.Value())
-			if err != nil {
-				logError(err)
-				continue
-			}
 			key, err := ts.Store().ReadKey(rec.ThreadID())
 			if err != nil {
 				logError(err)
 				continue
 			}
 			if key == nil {
+				continue // just following, we don't have the read key
+			}
+			event, err := cbor.EventFromRecord(ctx, ts, rec.Value())
+			if err != nil {
+				logError(err)
 				continue
 			}
 			node, err := event.GetBody(ctx, ts, key)
@@ -199,7 +199,7 @@ func main() {
 		}
 	}()
 
-	log.Debug("shell started")
+	log.Debug("chat started")
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
