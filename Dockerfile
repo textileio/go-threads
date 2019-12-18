@@ -5,7 +5,7 @@ MAINTAINER Andrew Hill <andrew@textile.io>
 # https://hub.docker.com/r/ipfs/go-ipfs/dockerfile
 
 # Get source
-ENV SRC_DIR /go-textile-threads
+ENV SRC_DIR /go-threads
 
 # Download packages first so they can be cached.
 COPY go.mod go.sum $SRC_DIR/
@@ -16,7 +16,7 @@ COPY . $SRC_DIR
 
 # build source
 RUN cd $SRC_DIR \
-  && go install github.com/textileio/go-textile-threads/daemon
+  && go install github.com/textileio/go-threads/threadsd
 
 # Get su-exec, a very minimal tool for dropping privileges,
 # and tini, a very minimal init daemon for containers
@@ -40,9 +40,9 @@ FROM busybox:1-glibc
 MAINTAINER Sander Pick <sander@textile.io>
 
 # Get the threads binary, entrypoint script, and TLS CAs from the build container.
-ENV SRC_DIR /go-textile-threads
-COPY --from=0 /go/bin/daemon /usr/local/bin/threads
-COPY --from=0 $SRC_DIR/bin/container_daemon /usr/local/bin/start_threads
+ENV SRC_DIR /go-threads
+COPY --from=0 /go/bin/threadsd /usr/local/bin/threadsd
+COPY --from=0 $SRC_DIR/bin/container_daemon /usr/local/bin/start_threadsd
 COPY --from=0 /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=0 /tmp/tini /sbin/tini
 COPY --from=0 /etc/ssl/certs /etc/ssl/certs
@@ -60,7 +60,7 @@ RUN mkdir -p $THREADS_REPO \
 USER textile
 
 # Expose the fs-repo as a volume.
-# start_threads initializes an fs-repo if none is mounted.
+# start_threadsd initializes an fs-repo if none is mounted.
 # Important this happens after the USER directive so permission are correct.
 VOLUME $THREADS_REPO
 
@@ -72,7 +72,6 @@ EXPOSE 9091
 # This just makes sure that:
 # 1. There's an fs-repo, and initializes one if there isn't.
 # 2. The API and Gateway are accessible from outside the container.
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start_threads"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start_threadsd"]
 
-# Execute the daemon subcommand by default
-CMD ["daemon", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/9091"]
+CMD ["threadsd", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/9091"]
