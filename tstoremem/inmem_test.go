@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	tstore "github.com/textileio/go-textile-core/threadstore"
-	pt "github.com/textileio/go-textile-threads/test"
-	m "github.com/textileio/go-textile-threads/tstoremem"
+	pt "github.com/textileio/go-threads/test"
+	m "github.com/textileio/go-threads/tstoremem"
 )
 
 func TestInMemoryThreadstore(t *testing.T) {

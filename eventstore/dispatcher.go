@@ -83,7 +83,9 @@ func (d *dispatcher) Dispatch(events []core.Event) error {
 			return err
 		}
 	}
-	txn.Commit()
+	if err := txn.Commit(); err != nil {
+		return err
+	}
 	// Safe to fire off reducers now that event is persisted
 	g, _ := errgroup.WithContext(context.Background())
 	for _, reducer := range d.reducers {

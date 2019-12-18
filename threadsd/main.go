@@ -7,12 +7,12 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-threads/api"
-	es "github.com/textileio/go-textile-threads/eventstore"
-	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-threads/api"
+	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/util"
 )
 
-var log = logging.Logger("daemon")
+var log = logging.Logger("threadsd")
 
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
@@ -42,7 +42,7 @@ func main() {
 
 	util.SetupDefaultLoggingConfig(*repo)
 	if *debug {
-		if err := logging.SetLogLevel("daemon", "debug"); err != nil {
+		if err := logging.SetLogLevel("threadsd", "debug"); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -72,7 +72,7 @@ func main() {
 	fmt.Println("Welcome to Threads!")
 	fmt.Println("Your peer ID is " + ts.Host().ID().String())
 
-	log.Debug("daemon started")
+	log.Debug("threadsd started")
 
 	select {}
 }

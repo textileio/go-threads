@@ -20,10 +20,10 @@ import (
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	tserv "github.com/textileio/go-textile-core/threadservice"
-	threads "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/cbor"
-	tstore "github.com/textileio/go-textile-threads/tstoremem"
-	"github.com/textileio/go-textile-threads/util"
+	threads "github.com/textileio/go-threads"
+	"github.com/textileio/go-threads/cbor"
+	tstore "github.com/textileio/go-threads/tstoremem"
+	"github.com/textileio/go-threads/util"
 )
 
 var threadsSuite = []map[string]func(tserv.Threadservice, tserv.Threadservice) func(*testing.T){

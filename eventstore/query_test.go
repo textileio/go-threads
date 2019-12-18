@@ -31,76 +31,76 @@ type queryTest struct {
 
 var (
 	sampleData = []book{
-		book{Title: "Title1", Author: "Author1", Meta: bookStats{TotalReads: 10, Rating: 3.3}},
-		book{Title: "Title2", Author: "Author1", Meta: bookStats{TotalReads: 20, Rating: 3.6}},
-		book{Title: "Title3", Author: "Author1", Meta: bookStats{TotalReads: 30, Rating: 3.9}},
-		book{Title: "Title4", Author: "Author2", Meta: bookStats{TotalReads: 114, Rating: 4.0}},
-		book{Title: "Title5", Author: "Author3", Meta: bookStats{TotalReads: 500, Rating: 4.8}},
+		{Title: "Title1", Author: "Author1", Meta: bookStats{TotalReads: 10, Rating: 3.3}},
+		{Title: "Title2", Author: "Author1", Meta: bookStats{TotalReads: 20, Rating: 3.6}},
+		{Title: "Title3", Author: "Author1", Meta: bookStats{TotalReads: 30, Rating: 3.9}},
+		{Title: "Title4", Author: "Author2", Meta: bookStats{TotalReads: 114, Rating: 4.0}},
+		{Title: "Title5", Author: "Author3", Meta: bookStats{TotalReads: 500, Rating: 4.8}},
 	}
 
 	queries = []queryTest{
-		queryTest{name: "AllNil", query: nil, resIdx: []int{0, 1, 2, 3, 4}},
-		queryTest{name: "AllExplicit", query: &Query{}, resIdx: []int{0, 1, 2, 3, 4}},
+		{name: "AllNil", query: nil, resIdx: []int{0, 1, 2, 3, 4}},
+		{name: "AllExplicit", query: &Query{}, resIdx: []int{0, 1, 2, 3, 4}},
 
-		queryTest{name: "FromAuthor1", query: Where("Author").Eq("Author1"), resIdx: []int{0, 1, 2}},
-		queryTest{name: "FromAuthor2", query: Where("Author").Eq("Author2"), resIdx: []int{3}},
-		queryTest{name: "FromAuthor3", query: Where("Author").Eq("Author3"), resIdx: []int{4}},
+		{name: "FromAuthor1", query: Where("Author").Eq("Author1"), resIdx: []int{0, 1, 2}},
+		{name: "FromAuthor2", query: Where("Author").Eq("Author2"), resIdx: []int{3}},
+		{name: "FromAuthor3", query: Where("Author").Eq("Author3"), resIdx: []int{4}},
 
-		queryTest{name: "AndAuthor1Title2", query: Where("Author").Eq("Author1").And("Title").Eq("Title2"), resIdx: []int{1}},
-		queryTest{name: "AndAuthorNestedTotalReads", query: Where("Author").Eq("Author1").And("Meta.TotalReads").Eq(10), resIdx: []int{0}},
+		{name: "AndAuthor1Title2", query: Where("Author").Eq("Author1").And("Title").Eq("Title2"), resIdx: []int{1}},
+		{name: "AndAuthorNestedTotalReads", query: Where("Author").Eq("Author1").And("Meta.TotalReads").Eq(10), resIdx: []int{0}},
 
-		queryTest{name: "OrAuthor", query: Where("Author").Eq("Author1").Or(Where("Author").Eq("Author3")), resIdx: []int{0, 1, 2, 4}},
+		{name: "OrAuthor", query: Where("Author").Eq("Author1").Or(Where("Author").Eq("Author3")), resIdx: []int{0, 1, 2, 4}},
 
-		queryTest{name: "NeAuthor", query: Where("Author").Ne("Author1"), resIdx: []int{3, 4}},
-		queryTest{name: "NeTotalReads", query: Where("Meta.TotalReads").Ne(30), resIdx: []int{0, 1, 3, 4}},
-		queryTest{name: "NeRating", query: Where("Meta.Rating").Ne(3.6), resIdx: []int{0, 2, 3, 4}},
+		{name: "NeAuthor", query: Where("Author").Ne("Author1"), resIdx: []int{3, 4}},
+		{name: "NeTotalReads", query: Where("Meta.TotalReads").Ne(30), resIdx: []int{0, 1, 3, 4}},
+		{name: "NeRating", query: Where("Meta.Rating").Ne(3.6), resIdx: []int{0, 2, 3, 4}},
 
-		queryTest{name: "GtAuthor", query: Where("Author").Gt("Author2"), resIdx: []int{4}},
-		queryTest{name: "GtTotalReads", query: Where("Meta.TotalReads").Gt(30), resIdx: []int{3, 4}},
-		queryTest{name: "GtRating", query: Where("Meta.Rating").Gt(3.6), resIdx: []int{2, 3, 4}},
+		{name: "GtAuthor", query: Where("Author").Gt("Author2"), resIdx: []int{4}},
+		{name: "GtTotalReads", query: Where("Meta.TotalReads").Gt(30), resIdx: []int{3, 4}},
+		{name: "GtRating", query: Where("Meta.Rating").Gt(3.6), resIdx: []int{2, 3, 4}},
 
-		queryTest{name: "GeAuthor", query: Where("Author").Ge("Author2"), resIdx: []int{3, 4}},
-		queryTest{name: "GeTotalReads", query: Where("Meta.TotalReads").Ge(30), resIdx: []int{2, 3, 4}},
-		queryTest{name: "GeRating", query: Where("Meta.Rating").Ge(3.6), resIdx: []int{1, 2, 3, 4}},
+		{name: "GeAuthor", query: Where("Author").Ge("Author2"), resIdx: []int{3, 4}},
+		{name: "GeTotalReads", query: Where("Meta.TotalReads").Ge(30), resIdx: []int{2, 3, 4}},
+		{name: "GeRating", query: Where("Meta.Rating").Ge(3.6), resIdx: []int{1, 2, 3, 4}},
 
-		queryTest{name: "LtAuthor", query: Where("Author").Lt("Author2"), resIdx: []int{0, 1, 2}},
-		queryTest{name: "LtTotalReads", query: Where("Meta.TotalReads").Lt(30), resIdx: []int{0, 1}},
-		queryTest{name: "LtRating", query: Where("Meta.Rating").Lt(3.6), resIdx: []int{0}},
+		{name: "LtAuthor", query: Where("Author").Lt("Author2"), resIdx: []int{0, 1, 2}},
+		{name: "LtTotalReads", query: Where("Meta.TotalReads").Lt(30), resIdx: []int{0, 1}},
+		{name: "LtRating", query: Where("Meta.Rating").Lt(3.6), resIdx: []int{0}},
 
-		queryTest{name: "LeAuthor", query: Where("Author").Le("Author2"), resIdx: []int{0, 1, 2, 3}},
-		queryTest{name: "LeTotalReads", query: Where("Meta.TotalReads").Le(30), resIdx: []int{0, 1, 2}},
-		queryTest{name: "LeRating", query: Where("Meta.Rating").Le(3.6), resIdx: []int{0, 1}},
+		{name: "LeAuthor", query: Where("Author").Le("Author2"), resIdx: []int{0, 1, 2, 3}},
+		{name: "LeTotalReads", query: Where("Meta.TotalReads").Le(30), resIdx: []int{0, 1, 2}},
+		{name: "LeRating", query: Where("Meta.Rating").Le(3.6), resIdx: []int{0, 1}},
 
-		queryTest{name: "FnAuthor", query: Where("Author").Fn(func(value interface{}) (bool, error) {
+		{name: "FnAuthor", query: Where("Author").Fn(func(value interface{}) (bool, error) {
 			v := value.(string)
 			return v == "Author1" || v == "Author2", nil
 		}), resIdx: []int{0, 1, 2, 3}},
-		queryTest{name: "FnTotalReads", query: Where("Meta.TotalReads").Fn(func(value interface{}) (bool, error) {
+		{name: "FnTotalReads", query: Where("Meta.TotalReads").Fn(func(value interface{}) (bool, error) {
 			v := value.(int)
 			return v >= 20 && v < 500, nil
 		}), resIdx: []int{1, 2, 3}},
-		queryTest{name: "FnRating", query: Where("Meta.Rating").Fn(func(value interface{}) (bool, error) {
+		{name: "FnRating", query: Where("Meta.Rating").Fn(func(value interface{}) (bool, error) {
 			v := value.(float64)
 			return v >= 3.6 && v <= 4.0 && v != 3.9, nil
 		}), resIdx: []int{1, 3}},
 
-		queryTest{name: "SortAscString", query: Where("Meta.TotalReads").Gt(20).OrderBy("Author"), resIdx: []int{2, 3, 4}, ordered: true},
-		queryTest{name: "SortDescString", query: Where("Meta.TotalReads").Gt(20).OrderByDesc("Author"), resIdx: []int{4, 3, 2}, ordered: true},
+		{name: "SortAscString", query: Where("Meta.TotalReads").Gt(20).OrderBy("Author"), resIdx: []int{2, 3, 4}, ordered: true},
+		{name: "SortDescString", query: Where("Meta.TotalReads").Gt(20).OrderByDesc("Author"), resIdx: []int{4, 3, 2}, ordered: true},
 
-		queryTest{name: "SortAscInt", query: Where("Meta.TotalReads").Gt(10).OrderBy("Meta.TotalReads"), resIdx: []int{1, 2, 3, 4}, ordered: true},
-		queryTest{name: "SortDescInt", query: Where("Meta.TotalReads").Gt(10).OrderByDesc("Meta.TotalReads"), resIdx: []int{4, 3, 2, 1}, ordered: true},
+		{name: "SortAscInt", query: Where("Meta.TotalReads").Gt(10).OrderBy("Meta.TotalReads"), resIdx: []int{1, 2, 3, 4}, ordered: true},
+		{name: "SortDescInt", query: Where("Meta.TotalReads").Gt(10).OrderByDesc("Meta.TotalReads"), resIdx: []int{4, 3, 2, 1}, ordered: true},
 
-		queryTest{name: "SortAscFloat", query: Where("Meta.TotalReads").Gt(10).OrderBy("Meta.Rating"), resIdx: []int{1, 2, 3, 4}, ordered: true},
-		queryTest{name: "SortDescFloat", query: Where("Meta.TotalReads").Gt(10).OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1}, ordered: true},
+		{name: "SortAscFloat", query: Where("Meta.TotalReads").Gt(10).OrderBy("Meta.Rating"), resIdx: []int{1, 2, 3, 4}, ordered: true},
+		{name: "SortDescFloat", query: Where("Meta.TotalReads").Gt(10).OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1}, ordered: true},
 
-		queryTest{name: "SortAllAscString", query: OrderBy("Title"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
-		queryTest{name: "SortAllDescString", query: OrderByDesc("Title"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
+		{name: "SortAllAscString", query: OrderBy("Title"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
+		{name: "SortAllDescString", query: OrderByDesc("Title"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
 
-		queryTest{name: "SortAllAscInt", query: OrderBy("Meta.TotalReads"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
-		queryTest{name: "SortAllDescInt", query: OrderByDesc("Meta.TotalReads"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
+		{name: "SortAllAscInt", query: OrderBy("Meta.TotalReads"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
+		{name: "SortAllDescInt", query: OrderByDesc("Meta.TotalReads"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
 
-		queryTest{name: "SortAllAscFloat", query: OrderBy("Meta.Rating"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
-		queryTest{name: "SortAllDescFloat", query: OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
+		{name: "SortAllAscFloat", query: OrderBy("Meta.Rating"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
+		{name: "SortAllDescFloat", query: OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
 	}
 )
 

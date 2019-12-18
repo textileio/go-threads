@@ -27,11 +27,11 @@ import (
 	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
-	t "github.com/textileio/go-textile-threads"
-	"github.com/textileio/go-textile-threads/api"
-	"github.com/textileio/go-textile-threads/cbor"
-	es "github.com/textileio/go-textile-threads/eventstore"
-	util "github.com/textileio/go-textile-threads/util"
+	t "github.com/textileio/go-threads"
+	"github.com/textileio/go-threads/api"
+	"github.com/textileio/go-threads/cbor"
+	es "github.com/textileio/go-threads/eventstore"
+	util "github.com/textileio/go-threads/util"
 )
 
 var (
@@ -494,7 +494,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 		if err != nil {
 			return "", err
 		}
-		pid, err := peer.IDB58Decode(p2p)
+		pid, err := peer.Decode(p2p)
 		if err != nil {
 			return "", err
 		}

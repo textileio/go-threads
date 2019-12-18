@@ -14,8 +14,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-textile-core/crypto"
 	"github.com/textileio/go-textile-core/thread"
-	"github.com/textileio/go-textile-threads/cbor"
-	pb "github.com/textileio/go-textile-threads/pb"
+	"github.com/textileio/go-threads/cbor"
+	pb "github.com/textileio/go-threads/pb"
 	"google.golang.org/grpc/codes"
 )
 

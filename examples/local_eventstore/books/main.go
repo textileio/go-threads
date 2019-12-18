@@ -5,7 +5,7 @@ import (
 	"os"
 
 	core "github.com/textileio/go-textile-core/store"
-	es "github.com/textileio/go-textile-threads/eventstore"
+	es "github.com/textileio/go-threads/eventstore"
 )
 
 type book struct {

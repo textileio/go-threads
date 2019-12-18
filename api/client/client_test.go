@@ -10,9 +10,9 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-threads/api"
-	es "github.com/textileio/go-textile-threads/eventstore"
-	"github.com/textileio/go-textile-threads/util"
+	"github.com/textileio/go-threads/api"
+	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/util"
 )
 
 const modelName = "Person"
