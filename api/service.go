@@ -361,6 +361,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	defer l.Close()
 
 	for {
+		err = nil
 		select {
 		case <-server.Context().Done():
 			return nil
@@ -369,19 +370,25 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 				return nil
 			}
 			var replyAction pb.ListenReply_Action
+			var entity []byte
 			switch action.Type {
 			case es.ActionCreate:
 				replyAction = pb.ListenReply_CREATE
+				entity, err = s.entityForAction(store, action)
 			case es.ActionDelete:
 				replyAction = pb.ListenReply_DELETE
 			case es.ActionSave:
 				replyAction = pb.ListenReply_SAVE
+				entity, err = s.entityForAction(store, action)
 			}
-			// TODO: do we want to send the entity data in case of create and save?
+			if err != nil {
+				return err
+			}
 			reply := &pb.ListenReply{
 				ModelName: action.Model,
 				EntityID:  action.ID.String(),
 				Action:    replyAction,
+				Entity:    entity,
 			}
 			err := server.Send(reply)
 			if err != nil {
@@ -389,6 +396,18 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			}
 		}
 	}
+}
+
+func (s *service) entityForAction(store *es.Store, action es.Action) ([]byte, error) {
+	model := store.GetModel(action.Model)
+	if model == nil {
+		return nil, status.Error(codes.NotFound, "model not found")
+	}
+	var res string
+	if err := model.FindByID(action.ID, &res); err != nil {
+		return nil, err
+	}
+	return []byte(res), nil
 }
 
 func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc func(...interface{}) error) (*pb.ModelCreateReply, error) {

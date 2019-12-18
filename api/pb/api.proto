@@ -171,6 +171,7 @@ message ListenReply {
         DELETE = 2;
     }
     Action action = 3;
+    bytes entity = 4;
 }
 
 service API {

@@ -42,6 +42,7 @@ type Action struct {
 	Model    string
 	Type     ActionType
 	EntityID string
+	Entity   []byte
 }
 
 // ListenActionType describes the type of event action when receiving data updates
@@ -337,8 +338,9 @@ func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan L
 			}
 			action := Action{
 				Model:    event.GetModelName(),
-				EntityID: event.GetEntityID(),
 				Type:     actionType,
+				EntityID: event.GetEntityID(),
+				Entity:   event.GetEntity(),
 			}
 			channel <- ListenEvent{action: action}
 		}
