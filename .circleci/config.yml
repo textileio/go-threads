@@ -20,12 +20,30 @@ jobs:
           name: run tests
           command: |
             go test -v ./...
+  proto-gen:
+    macos:
+      xcode: '11.3.0'
+    steps:
+      - checkout
+      - run:
+          name: install grpc and protoc
+          command: curl -fsSL https://goo.gl/getgrpc | bash -
+      # - run:
+      #     name: install grpc
+      #     command: brew tap grpc/grpc
+      # - run:
+      #     name: install protobuf
+      #     command: brew install protobuf
 
 workflows:
   version: 2
   go-threads:
     jobs:
-      - test:
+      # - test:
+      #     filters:
+      #       tags:
+      #         only: /.*/
+      - proto-gen:
           filters:
             tags:
               only: /.*/
