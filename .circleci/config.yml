@@ -30,7 +30,7 @@ jobs:
           command: brew install protobuf
       - run:
           name: install grpc
-          command: brew tap grpc/grpc
+          command: brew install grpc
 
 workflows:
   version: 2
