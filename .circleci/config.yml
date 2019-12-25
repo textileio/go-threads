@@ -26,14 +26,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: install grpc and protoc
-          command: curl -fsSL https://goo.gl/getgrpc | bash -
-      # - run:
-      #     name: install grpc
-      #     command: brew tap grpc/grpc
-      # - run:
-      #     name: install protobuf
-      #     command: brew install protobuf
+          name: install protobuf
+          command: brew install protobuf
+      - run:
+          name: install grpc
+          command: brew tap grpc/grpc
 
 workflows:
   version: 2
