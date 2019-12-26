@@ -22,6 +22,9 @@ vendor/
 *.js
 *.d.ts
 
+# Dart PB Files
+*.dart
+
 # vscode config folder
 .vscode/
 
