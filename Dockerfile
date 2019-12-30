@@ -74,4 +74,4 @@ EXPOSE 7006
 # 2. The API and Gateway are accessible from outside the container.
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/start_threadsd"]
 
-CMD ["threadsd", "--repo=/data/threads", "--apiProxyAddr=/ip4/0.0.0.0/tcp/7006"]
+CMD ["threadsd", "--repo=/data/threads", "--apiAddr=/ip4/0.0.0.0/tcp/6006", "--apiProxyAddr=/ip4/0.0.0.0/tcp/7006"]
