@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/textileio/go-threads/core/store"
-	es "github.com/textileio/go-threads/eventstore"
+	core "github.com/textileio/go-threads/core/store"
+	"github.com/textileio/go-threads/store"
 )
 
 var (
@@ -84,7 +84,7 @@ func main() {
 
 		idxStart := strings.Index(book2, `"ID":"`)
 		id := book2[idxStart+6 : idxStart+6+36] // Fast way of getting generated ID
-		entityID := store.EntityID(id)
+		entityID := core.EntityID(id)
 
 		// Try .Has(...)
 		exists, err := model.Has(entityID)
@@ -111,12 +111,12 @@ func main() {
 	}
 }
 
-func createJsonModeMemStore() (*es.Store, func()) {
+func createJsonModeMemStore() (*store.Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	ts, err := es.DefaultThreadservice(dir)
+	ts, err := store.DefaultService(dir)
 	checkErr(err)
-	s, err := es.NewStore(ts, es.WithRepoPath(dir), es.WithJsonMode(true))
+	s, err := store.NewStore(ts, store.WithRepoPath(dir), store.WithJsonMode(true))
 	checkErr(err)
 	return s, func() {
 		if err := ts.Close(); err != nil {
