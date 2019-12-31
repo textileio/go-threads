@@ -48,7 +48,7 @@ Main responsibility: Transform and apply and encode/decode transaction actions.
 `EventCodec` is an abstraction used to:
 - Transform actions made in a txn, to an array of `store.Event` that will be 
 dispatcher to be reduced.
-- Encode actions made in a txn to a `ipldformat.Node` which will serve as 
+- Encode actions made in a txn to a `format.Node` which will serve as 
 the next building block for the appended Record in the local peer log.
 - The reverse of last point, when receiving external actions to allow to be 
 dispatched.
@@ -60,10 +60,10 @@ transformation. Currently, the only implementation of `EventCodec` is a
 `jsonpatcher`, which transforms these actions in json-merge/patches, and store 
 them as payloads in events. 
 
-These events are also aggregated in a returned `ipldformat.Node`, which is the 
+These events are also aggregated in a returned `format.Node`, which is the 
 compatible/analogous information to be used by `Threadservice` to add in 
 the peer own log in the thread associated with the `Store`. Likewise, 
-`EventCodec` also do the inverse transformation.  Given a `ipldformat.Node`, it 
+`EventCodec` also do the inverse transformation.  Given a `format.Node`, it 
 transforms its byte payload into actions that will be reduced in the store.
 
 The `EventCodec` abstraction allows an extensibility point. If instead of a 
@@ -114,7 +114,7 @@ Main responsibility: Delivering durable persistence for data.
 
 #### Local Event Bus
 This is an internal component not available in the public API.
-Main responsibility: Deliver `ipldformat.Node` encoded information of changes 
+Main responsibility: Deliver `format.Node` encoded information of changes 
 done in local commited transactions. Currently, only to `SingleThreadAdapter` 
 is listening to this bus. 
 
@@ -146,7 +146,7 @@ This is an internal component not available in the public API.
 Main responsibility: Responsible to be the two-way communication between 
 `Store` and `Threads`.
 
-Every time a new local `ipldformat.Node` is generated in the `Store` due to a 
+Every time a new local `format.Node` is generated in the `Store` due to a 
 write transaction commit, the `StoreThreadAdapter` will notify `Threadservice` 
 that a new `Record` should be added to the local peer log.
 

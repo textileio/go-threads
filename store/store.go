@@ -15,12 +15,9 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/options"
-	core "github.com/textileio/go-textile-core/store"
-	"github.com/textileio/go-textile-core/thread"
-	"github.com/textileio/go-textile-core/threadservice"
-	ts "github.com/textileio/go-threads"
 	"github.com/textileio/go-threads/broadcast"
+	service "github.com/textileio/go-threads/core/service"
+	core "github.com/textileio/go-threads/core/store"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
@@ -55,11 +52,11 @@ type Store struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	datastore     ds.TxnDatastore
-	dispatcher    *dispatcher
-	eventcodec    core.EventCodec
-	threadservice threadservice.Threadservice
-	adapter       *singleThreadAdapter
+	datastore  ds.TxnDatastore
+	dispatcher *dispatcher
+	eventcodec core.EventCodec
+	service    service.Service
+	adapter    *singleThreadAdapter
 
 	lock       sync.RWMutex
 	modelNames map[string]*Model
@@ -72,8 +69,8 @@ type Store struct {
 
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, error) {
-	config := &StoreConfig{}
+func NewStore(ts service.Service, opts ...Option) (*Store, error) {
+	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
@@ -84,7 +81,7 @@ func NewStore(ts threadservice.Threadservice, opts ...StoreOption) (*Store, erro
 
 // newStore is used directly by a store manager to create new stores
 // with the same config.
-func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, error) {
+func newStore(ts service.Service, config *Config) (*Store, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath)
 		if err != nil {
@@ -114,7 +111,7 @@ func newStore(ts threadservice.Threadservice, config *StoreConfig) (*Store, erro
 		jsonMode:            config.JsonMode,
 		localEventsBus:      &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChangedNotifee: &stateChangedNotifee{},
-		threadservice:       ts,
+		service:             ts,
 	}
 
 	if s.jsonMode {
@@ -146,15 +143,15 @@ func (s *Store) reregisterSchemas() error {
 }
 
 // ThreadID returns the store's theadID if it exists.
-func (s *Store) ThreadID() (thread.ID, bool, error) {
+func (s *Store) ThreadID() (service.ID, bool, error) {
 	v, err := s.datastore.Get(dsStoreThreadID)
 	if err == ds.ErrNotFound {
-		return thread.ID{}, false, nil
+		return service.ID{}, false, nil
 	}
 	if err != nil {
-		return thread.ID{}, false, err
+		return service.ID{}, false, err
 	}
-	id, err := thread.Cast(v)
+	id, err := service.Cast(v)
 	return id, true, err
 }
 
@@ -167,8 +164,8 @@ func (s *Store) Start() error {
 		return err
 	}
 	if !found {
-		id = thread.NewIDV1(thread.Raw, 32)
-		if _, err := util.CreateThread(s.threadservice, id); err != nil {
+		id = service.NewIDV1(service.Raw, 32)
+		if _, err := util.CreateThread(s.service, id); err != nil {
 			return err
 		}
 		if err := s.datastore.Put(dsStoreThreadID, id.Bytes()); err != nil {
@@ -185,11 +182,11 @@ func (s *Store) Start() error {
 // and before any operation on them. It pulls the current Store thread from
 // thread addr
 func (s *Store) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
-	idstr, err := addr.ValueForProtocol(ts.ThreadCode)
+	idstr, err := addr.ValueForProtocol(service.ThreadCode)
 	if err != nil {
 		return err
 	}
-	maThreadID, err := thread.Decode(idstr)
+	maThreadID, err := service.Decode(idstr)
 	if err != nil {
 		return err
 	}
@@ -199,15 +196,15 @@ func (s *Store) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.K
 	if err = s.Start(); err != nil {
 		return err
 	}
-	if _, err = s.threadservice.AddThread(s.ctx, addr, options.FollowKey(followKey), options.ReadKey(readKey)); err != nil {
+	if _, err = s.service.AddThread(s.ctx, addr, service.FollowKey(followKey), service.ReadKey(readKey)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Threadservice returns the Threadservice used by the store
-func (s *Store) Threadservice() threadservice.Threadservice {
-	return s.threadservice
+// Service returns the Service used by the store
+func (s *Store) Service() service.Service {
+	return s.service
 }
 
 // Register a new model in the store by infering using a defaultInstance

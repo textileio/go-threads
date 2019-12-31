@@ -7,10 +7,8 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/peer"
-	tservopts "github.com/textileio/go-textile-core/options"
-	"github.com/textileio/go-textile-core/thread"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	threadcbor "github.com/textileio/go-threads/cbor"
+	service "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -19,11 +17,11 @@ const (
 	fetchEventTimeout = time.Second * 15
 )
 
-// SingleThreadAdapter connects a Store with a Threadservice
+// SingleThreadAdapter connects a Store with a Service
 type singleThreadAdapter struct {
-	api        tserv.Threadservice
+	api        service.Service
 	store      *Store
-	threadID   thread.ID
+	threadID   service.ID
 	ownLogID   peer.ID
 	closeChan  chan struct{}
 	goRoutines sync.WaitGroup
@@ -35,9 +33,9 @@ type singleThreadAdapter struct {
 
 // NewSingleThreadAdapter returns a new Adapter which maps
 // a Store with a single Thread
-func newSingleThreadAdapter(store *Store, threadID thread.ID) *singleThreadAdapter {
+func newSingleThreadAdapter(store *Store, threadID service.ID) *singleThreadAdapter {
 	a := &singleThreadAdapter{
-		api:       store.Threadservice(),
+		api:       store.Service(),
 		threadID:  threadID,
 		store:     store,
 		closeChan: make(chan struct{}),
@@ -59,7 +57,7 @@ func (a *singleThreadAdapter) Close() {
 	a.goRoutines.Wait()
 }
 
-// Start starts connection from Store to Threadservice, and viceversa
+// Start starts connection from Store to Service, and viceversa
 func (a *singleThreadAdapter) Start() {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -83,7 +81,7 @@ func (a *singleThreadAdapter) Start() {
 
 func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 	defer a.goRoutines.Done()
-	sub := a.api.Subscribe(tservopts.ThreadID(a.threadID))
+	sub := a.api.Subscribe(service.ThreadID(a.threadID))
 	defer sub.Discard()
 	wg.Done()
 	for {
@@ -160,7 +158,7 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 	}
 }
 
-func (a *singleThreadAdapter) getBlockWithRetry(ctx context.Context, rec thread.Record, cantRetries int, backoffTime time.Duration) (format.Node, error) {
+func (a *singleThreadAdapter) getBlockWithRetry(ctx context.Context, rec service.Record, cantRetries int, backoffTime time.Duration) (format.Node, error) {
 	var err error
 	for i := 1; i <= cantRetries; i++ {
 		n, err := rec.GetBlock(ctx, a.api)

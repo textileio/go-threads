@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	core "github.com/textileio/go-textile-core/store"
+	core "github.com/textileio/go-threads/core/store"
 )
 
 type book struct {

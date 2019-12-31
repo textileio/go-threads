@@ -9,8 +9,8 @@ import (
 
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	ipldformat "github.com/ipfs/go-ipld-format"
-	core "github.com/textileio/go-textile-core/store"
+	format "github.com/ipfs/go-ipld-format"
+	core "github.com/textileio/go-threads/core/store"
 )
 
 func TestNewEventDispatcher(t *testing.T) {
@@ -153,7 +153,7 @@ func (n *nullEvent) Model() string {
 	return "null"
 }
 
-func (n *nullEvent) Node() (ipldformat.Node, error) {
+func (n *nullEvent) Node() (format.Node, error) {
 	return nil, nil
 }
 

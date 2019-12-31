@@ -6,7 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	mb "github.com/multiformats/go-multibase"
-	core "github.com/textileio/go-threads/core/service"
 )
 
 const (
@@ -37,12 +36,12 @@ func threadStB(s string) ([]byte, error) {
 }
 
 func threadVal(b []byte) error {
-	_, err := core.Cast(b)
+	_, err := Cast(b)
 	return err
 }
 
 func threadBtS(b []byte) (string, error) {
-	m, err := core.Cast(b)
+	m, err := Cast(b)
 	if err != nil {
 		return "", err
 	}

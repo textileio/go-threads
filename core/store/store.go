@@ -78,7 +78,7 @@ type EventCodec interface {
 	Reduce(events []Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]ReduceAction, error)
 	// Create corresponding events to be dispatched
 	Create(ops []Action) ([]Event, format.Node, error)
-	// EventsFromBytes deserializes a ipldformat.Node bytes payload into
+	// EventsFromBytes deserializes a format.Node bytes payload into
 	// Events.
 	EventsFromBytes(data []byte) ([]Event, error)
 }

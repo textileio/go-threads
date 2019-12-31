@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	ma "github.com/multiformats/go-multiaddr"
-	core "github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-threads/api/pb"
+	core "github.com/textileio/go-threads/core/store"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	es "github.com/textileio/go-threads/eventstore"
 	"google.golang.org/grpc/codes"

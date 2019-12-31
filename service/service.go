@@ -42,8 +42,8 @@ var (
 	PullInterval = time.Second * 10
 )
 
-// threads is an implementation of Threadservice.
-type threads struct {
+// service is an implementation of core.Service.
+type service struct {
 	format.DAGService
 	host   host.Host
 	bstore bs.Blockstore
@@ -68,7 +68,7 @@ type Config struct {
 	Debug     bool
 }
 
-// NewService creates an instance of threads from the given host and thread store.
+// NewService creates an instance of service from the given host and thread store.
 func NewService(
 	ctx context.Context,
 	h host.Host,
@@ -80,8 +80,8 @@ func NewService(
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logger.Level{
-			"threads":     logger.DEBUG,
-			"threadstore": logger.DEBUG,
+			"threadservice": logger.DEBUG,
+			"logstore":      logger.DEBUG,
 		})
 		if err != nil {
 			return nil, err
@@ -89,7 +89,7 @@ func NewService(
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	t := &threads{
+	t := &service{
 		DAGService: ds,
 		host:       h,
 		bstore:     bstore,
@@ -105,7 +105,7 @@ func NewService(
 		return nil, err
 	}
 
-	listener, err := gostream.Listen(h, ThreadProtocol)
+	listener, err := gostream.Listen(h, core.ThreadProtocol)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +152,8 @@ func NewService(
 	return t, nil
 }
 
-// Close the threads instance.
-func (t *threads) Close() (err error) {
+// Close the service instance.
+func (t *service) Close() (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if err := t.proxy.Shutdown(ctx); err != nil {
@@ -179,7 +179,7 @@ func (t *threads) Close() (err error) {
 	t.cancel()
 
 	if len(errs) > 0 {
-		return fmt.Errorf("failed while closing threads; err(s): %q", errs)
+		return fmt.Errorf("failed while closing service; err(s): %q", errs)
 	}
 
 	t.pullLock.Lock()
@@ -193,17 +193,17 @@ func (t *threads) Close() (err error) {
 }
 
 // Host returns the underlying libp2p host.
-func (t *threads) Host() host.Host {
+func (t *service) Host() host.Host {
 	return t.host
 }
 
 // Store returns the threadstore.
-func (t *threads) Store() lstore.Logstore {
+func (t *service) Store() lstore.Logstore {
 	return t.store
 }
 
 // AddThread from a multiaddress.
-func (t *threads) AddThread(
+func (t *service) AddThread(
 	ctx context.Context,
 	addr ma.Multiaddr,
 	opts ...core.AddOption,
@@ -213,7 +213,7 @@ func (t *threads) AddThread(
 		opt(args)
 	}
 
-	idstr, err := addr.ValueForProtocol(ThreadCode)
+	idstr, err := addr.ValueForProtocol(core.ThreadCode)
 	if err != nil {
 		return
 	}
@@ -274,7 +274,7 @@ func (t *threads) AddThread(
 	return t.store.ThreadInfo(id)
 }
 
-func (t *threads) getThreadSemaphore(id core.ID) chan struct{} {
+func (t *service) getThreadSemaphore(id core.ID) chan struct{} {
 	var ptl chan struct{}
 	var ok bool
 	t.pullLock.Lock()
@@ -290,7 +290,7 @@ func (t *threads) getThreadSemaphore(id core.ID) chan struct{} {
 // Logs owned by this host are traversed locally.
 // Remotely addressed logs are pulled from the network.
 // Is thread-safe.
-func (t *threads) PullThread(ctx context.Context, id core.ID) error {
+func (t *service) PullThread(ctx context.Context, id core.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
 	ptl := t.getThreadSemaphore(id)
 	select {
@@ -309,7 +309,7 @@ func (t *threads) PullThread(ctx context.Context, id core.ID) error {
 
 // pullThread for new records. It's internal and *not* thread-safe,
 // it assumes we currently own the thread-lock.
-func (t *threads) pullThread(ctx context.Context, id core.ID) error {
+func (t *service) pullThread(ctx context.Context, id core.ID) error {
 	lgs, err := t.getLogs(id)
 	if err != nil {
 		return err
@@ -365,12 +365,12 @@ func (t *threads) pullThread(ctx context.Context, id core.ID) error {
 }
 
 // Delete a thread (@todo).
-func (t *threads) DeleteThread(ctx context.Context, id core.ID) error {
+func (t *service) DeleteThread(ctx context.Context, id core.ID) error {
 	panic("implement me")
 }
 
 // AddFollower to a thread.
-func (t *threads) AddFollower(ctx context.Context, id core.ID, pid peer.ID) error {
+func (t *service) AddFollower(ctx context.Context, id core.ID, pid peer.ID) error {
 	info, err := t.store.ThreadInfo(id)
 	if err != nil {
 		return err
@@ -439,7 +439,7 @@ func (t *threads) AddFollower(ctx context.Context, id core.ID, pid peer.ID) erro
 }
 
 // AddRecord with body. See AddOption for more.
-func (t *threads) AddRecord(ctx context.Context, id core.ID, body format.Node) (r core.ThreadRecord, err error) {
+func (t *service) AddRecord(ctx context.Context, id core.ID, body format.Node) (r core.ThreadRecord, err error) {
 	// Get or create a log for the new node
 	lg, err := util.GetOrCreateOwnLog(t, id)
 	if err != nil {
@@ -474,7 +474,7 @@ func (t *threads) AddRecord(ctx context.Context, id core.ID, body format.Node) (
 }
 
 // GetRecord returns the record at cid.
-func (t *threads) GetRecord(ctx context.Context, id core.ID, rid cid.Cid) (core.Record, error) {
+func (t *service) GetRecord(ctx context.Context, id core.ID, rid cid.Cid) (core.Record, error) {
 	fk, err := t.store.FollowKey(id)
 	if err != nil {
 		return nil, err
@@ -524,7 +524,7 @@ func (l *subscription) Channel() <-chan core.ThreadRecord {
 }
 
 // Subscribe returns a read-only channel of records.
-func (t *threads) Subscribe(opts ...core.SubOption) core.Subscription {
+func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
 	args := &core.SubOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -560,7 +560,7 @@ func (t *threads) Subscribe(opts ...core.SubOption) core.Subscription {
 }
 
 // PutRecord adds an existing record. This method is thread-safe
-func (t *threads) PutRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
+func (t *service) PutRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
 	tsph := t.getThreadSemaphore(id)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
@@ -569,7 +569,7 @@ func (t *threads) PutRecord(ctx context.Context, id core.ID, lid peer.ID, rec co
 
 // putRecord adds an existing record. See PutOption for more.This method
 // *should be thread-guarded*
-func (t *threads) putRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
+func (t *service) putRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
 	var unknownRecords []core.Record
 	c := rec.Cid()
 	for c.Defined() {
@@ -644,12 +644,12 @@ func (t *threads) putRecord(ctx context.Context, id core.ID, lid peer.ID, rec co
 }
 
 // getPrivKey returns the host's private key.
-func (t *threads) getPrivKey() ic.PrivKey {
+func (t *service) getPrivKey() ic.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
 }
 
 // createRecord creates a new record with the given body as a new event body.
-func (t *threads) createRecord(
+func (t *service) createRecord(
 	ctx context.Context,
 	id core.ID,
 	lg core.LogInfo,
@@ -692,7 +692,7 @@ func (t *threads) createRecord(
 }
 
 // getLogs returns info about the logs in the given thread.
-func (t *threads) getLogs(id core.ID) ([]core.LogInfo, error) {
+func (t *service) getLogs(id core.ID) ([]core.LogInfo, error) {
 	lgs := make([]core.LogInfo, 0)
 	ti, err := t.store.ThreadInfo(id)
 	if err != nil {
@@ -712,7 +712,7 @@ func (t *threads) getLogs(id core.ID) ([]core.LogInfo, error) {
 // offset but not farther than limit.
 // It is possible to reach limit before offset, meaning that the caller
 // will be responsible for the remaining traversal.
-func (t *threads) getLocalRecords(
+func (t *service) getLocalRecords(
 	ctx context.Context,
 	id core.ID,
 	lid peer.ID,
@@ -767,7 +767,7 @@ func (t *threads) getLocalRecords(
 }
 
 // startPulling periodically pulls on all threads.
-func (t *threads) startPulling() {
+func (t *service) startPulling() {
 	pull := func() {
 		ts, err := t.store.Threads()
 		if err != nil {
@@ -805,7 +805,7 @@ func (t *threads) startPulling() {
 
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
-func (t *threads) createExternalLogIfNotExist(tid core.ID, lid peer.ID, pubKey ic.PubKey,
+func (t *service) createExternalLogIfNotExist(tid core.ID, lid peer.ID, pubKey ic.PubKey,
 	privKey ic.PrivKey, addrs []ma.Multiaddr) error {
 	tsph := t.getThreadSemaphore(tid)
 	tsph <- struct{}{}
@@ -831,7 +831,7 @@ func (t *threads) createExternalLogIfNotExist(tid core.ID, lid peer.ID, pubKey i
 
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
 // and will add them in the local peer store. It assumes  Is thread-safe.
-func (t *threads) updateRecordsFromLog(tid core.ID, lid peer.ID) {
+func (t *service) updateRecordsFromLog(tid core.ID, lid peer.ID) {
 	tsph := t.getThreadSemaphore(tid)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()

@@ -19,14 +19,14 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-// server implements the threads gRPC server.
+// server implements the service gRPC server.
 type server struct {
-	threads *threads
+	threads *service
 	pubsub  *pubsub.PubSub
 }
 
-// newServer creates a new threads network server.
-func newServer(t *threads) (*server, error) {
+// newServer creates a new service network server.
+func newServer(t *service) (*server, error) {
 	ps, err := pubsub.NewGossipSub(
 		t.ctx,
 		t.host,

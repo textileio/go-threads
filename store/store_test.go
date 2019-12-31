@@ -8,9 +8,9 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
-	ipldformat "github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
-	core "github.com/textileio/go-textile-core/store"
+	core "github.com/textileio/go-threads/core/store"
 )
 
 func TestE2EWithThreads(t *testing.T) {
@@ -21,7 +21,7 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
 
-	ts1, err := DefaultThreadservice(tmpDir1)
+	ts1, err := DefaultService(tmpDir1)
 	checkErr(t, err)
 	defer ts1.Close()
 
@@ -37,13 +37,13 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, m1.Save(dummyInstance))
 
 	// Boilerplate to generate peer1 thread-addr and get follow/read keys
-	peer1ThreadStore := s1.Threadservice().Store()
+	peer1ThreadStore := s1.Service().Store()
 	threadID, _, err := s1.ThreadID()
 	checkErr(t, err)
 	threadInfo, err := peer1ThreadStore.ThreadInfo(threadID)
 	checkErr(t, err)
-	peer1Addr := s1.Threadservice().Host().Addrs()[0]
-	peer1ID, err := multiaddr.NewComponent("p2p", s1.Threadservice().Host().ID().String())
+	peer1Addr := s1.Service().Host().Addrs()[0]
+	peer1ID, err := multiaddr.NewComponent("p2p", s1.Service().Host().ID().String())
 	checkErr(t, err)
 	threadComp, err := multiaddr.NewComponent("thread", threadID.String())
 	checkErr(t, err)
@@ -54,7 +54,7 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	ts2, err := DefaultThreadservice(tmpDir2)
+	ts2, err := DefaultService(tmpDir2)
 	checkErr(t, err)
 	defer ts2.Close()
 
@@ -80,7 +80,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	ts, err := DefaultThreadservice(tmpDir)
+	ts, err := DefaultService(tmpDir)
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
@@ -100,7 +100,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, s.Close())
 
 	time.Sleep(time.Second * 3)
-	ts, err = DefaultThreadservice(tmpDir)
+	ts, err = DefaultService(tmpDir)
 	checkErr(t, err)
 	defer ts.Close()
 	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
@@ -322,7 +322,7 @@ func (dec *mockEventCodec) Reduce(events []core.Event, datastore ds.TxnDatastore
 	dec.called = true
 	return nil, nil
 }
-func (dec *mockEventCodec) Create(ops []core.Action) ([]core.Event, ipldformat.Node, error) {
+func (dec *mockEventCodec) Create(ops []core.Action) ([]core.Event, format.Node, error) {
 	dec.called = true
 	return nil, nil, nil
 }

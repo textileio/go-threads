@@ -393,7 +393,7 @@ func (s *server) getDialOption() grpc.DialOption {
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}
-		return gostream.Dial(ctx, s.threads.host, id, ThreadProtocol)
+		return gostream.Dial(ctx, s.threads.host, id, core.ThreadProtocol)
 	})
 }
 

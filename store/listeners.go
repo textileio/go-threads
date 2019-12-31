@@ -4,22 +4,22 @@ import (
 	"fmt"
 	"sync"
 
-	ipldformat "github.com/ipfs/go-ipld-format"
-	core "github.com/textileio/go-textile-core/store"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/broadcast"
+	core "github.com/textileio/go-threads/core/store"
 )
 
-// Listen returns a StoreListener which notifies about actions applying the
+// Listen returns a Listener which notifies about actions applying the
 // defined filters. The Store *won't* wait for slow receivers, so if the
 // channel is full, the action will be dropped.
-func (s *Store) Listen(los ...ListenOption) (StoreListener, error) {
+func (s *Store) Listen(los ...ListenOption) (Listener, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.closed {
 		return nil, fmt.Errorf("can't listen on closed Store")
 	}
 
-	sl := &storeListener{
+	sl := &listener{
 		scn:     s.stateChangedNotifee,
 		filters: los,
 		c:       make(chan Action, 1),
@@ -39,7 +39,7 @@ func (s *Store) notifyStateChanged(actions []Action) {
 	s.stateChangedNotifee.notify(actions)
 }
 
-func (s *Store) notifyTxnEvents(node ipldformat.Node) error {
+func (s *Store) notifyTxnEvents(node format.Node) error {
 	return s.localEventsBus.send(node)
 }
 
@@ -71,23 +71,23 @@ type ListenOption struct {
 	ID    core.EntityID
 }
 
-type StoreListener interface {
+type Listener interface {
 	Channel() <-chan Action
 	Close()
 }
 
 type stateChangedNotifee struct {
 	lock      sync.Mutex
-	listeners []*storeListener
+	listeners []*listener
 }
 
-type storeListener struct {
+type listener struct {
 	scn     *stateChangedNotifee
 	filters []ListenOption
 	c       chan Action
 }
 
-var _ StoreListener = (*storeListener)(nil)
+var _ Listener = (*listener)(nil)
 
 func (scn *stateChangedNotifee) notify(actions []Action) {
 	for _, a := range actions {
@@ -103,13 +103,13 @@ func (scn *stateChangedNotifee) notify(actions []Action) {
 	}
 }
 
-func (scn *stateChangedNotifee) addListener(sl *storeListener) {
+func (scn *stateChangedNotifee) addListener(sl *listener) {
 	scn.lock.Lock()
 	defer scn.lock.Unlock()
 	scn.listeners = append(scn.listeners, sl)
 }
 
-func (scn *stateChangedNotifee) remove(sl *storeListener) bool {
+func (scn *stateChangedNotifee) remove(sl *listener) bool {
 	scn.lock.Lock()
 	defer scn.lock.Unlock()
 	for i := range scn.listeners {
@@ -133,19 +133,19 @@ func (scn *stateChangedNotifee) close() {
 
 // Channel returns an unbuffered channel to receive
 // store change notifications
-func (sl *storeListener) Channel() <-chan Action {
+func (sl *listener) Channel() <-chan Action {
 	return sl.c
 }
 
 // Close indicates that no further notifications will be received
 // and ready for being garbage collected
-func (sl *storeListener) Close() {
+func (sl *listener) Close() {
 	if ok := sl.scn.remove(sl); ok {
 		close(sl.c)
 	}
 }
 
-func (sl *storeListener) evaluate(a Action) bool {
+func (sl *listener) evaluate(a Action) bool {
 	if len(sl.filters) == 0 {
 		return true
 	}
@@ -184,19 +184,19 @@ type localEventsBus struct {
 	bus *broadcast.Broadcaster
 }
 
-func (leb *localEventsBus) send(node ipldformat.Node) error {
+func (leb *localEventsBus) send(node format.Node) error {
 	return leb.bus.SendWithTimeout(node, busTimeout)
 }
 
 func (leb *localEventsBus) Listen() *LocalEventListener {
 	l := &LocalEventListener{
 		listener: leb.bus.Listen(),
-		c:        make(chan ipldformat.Node),
+		c:        make(chan format.Node),
 	}
 
 	go func() {
 		for v := range l.listener.Channel() {
-			events := v.(ipldformat.Node)
+			events := v.(format.Node)
 			l.c <- events
 		}
 		close(l.c)
@@ -209,11 +209,11 @@ func (leb *localEventsBus) Listen() *LocalEventListener {
 // of transactions
 type LocalEventListener struct {
 	listener *broadcast.Listener
-	c        chan ipldformat.Node
+	c        chan format.Node
 }
 
 // Channel returns an unbuffered channel to receive local events
-func (l *LocalEventListener) Channel() <-chan ipldformat.Node {
+func (l *LocalEventListener) Channel() <-chan format.Node {
 	return l.c
 }
 

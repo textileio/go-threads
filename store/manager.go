@@ -7,7 +7,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
-	"github.com/textileio/go-textile-core/threadservice"
+	"github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 )
@@ -19,15 +19,15 @@ var (
 type Manager struct {
 	io.Closer
 
-	config *StoreConfig
+	config *Config
 
-	threadservice threadservice.Threadservice
-	stores        map[uuid.UUID]*Store
+	service service.Service
+	stores  map[uuid.UUID]*Store
 }
 
 // NewManager hydrates stores from prefixes and starts them.
-func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, error) {
-	config := &StoreConfig{}
+func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
+	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
@@ -48,9 +48,9 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 	}
 
 	m := &Manager{
-		config:        config,
-		threadservice: ts,
-		stores:        make(map[uuid.UUID]*Store),
+		config:  config,
+		service: ts,
+		stores:  make(map[uuid.UUID]*Store),
 	}
 
 	results, err := m.config.Datastore.Query(query.Query{
@@ -73,7 +73,7 @@ func NewManager(ts threadservice.Threadservice, opts ...StoreOption) (*Manager, 
 		if _, ok := m.stores[id]; ok {
 			continue
 		}
-		s, err := newStore(m.threadservice, getStoreConfig(id, m.config))
+		s, err := newStore(m.service, getStoreConfig(id, m.config))
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func (m *Manager) NewStore() (id uuid.UUID, store *Store, err error) {
 	if err != nil {
 		return
 	}
-	store, err = newStore(m.threadservice, getStoreConfig(id, m.config))
+	store, err = newStore(m.service, getStoreConfig(id, m.config))
 	if err != nil {
 		return
 	}
@@ -124,8 +124,8 @@ func (m *Manager) Close() error {
 
 // getStoreConfig copies the manager's base config and
 // wraps the datastore with an id prefix.
-func getStoreConfig(id uuid.UUID, base *StoreConfig) *StoreConfig {
-	return &StoreConfig{
+func getStoreConfig(id uuid.UUID, base *Config) *Config {
+	return &Config{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
 			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),

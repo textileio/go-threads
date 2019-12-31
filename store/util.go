@@ -16,9 +16,9 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
-	tserv "github.com/textileio/go-textile-core/threadservice"
-	t "github.com/textileio/go-threads"
-	"github.com/textileio/go-threads/tstoreds"
+	coreservice "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/logstore/lstoreds"
+	"github.com/textileio/go-threads/service"
 	util "github.com/textileio/go-threads/util"
 )
 
@@ -26,16 +26,16 @@ const (
 	defaultIpfsLitePath = "ipfslite"
 )
 
-// DefaultThreadService is a boostrapable default Threadservice with
+// DefaultService is a boostrapable default Service with
 // sane defaults.
-type ThreadserviceBoostrapper interface {
-	tserv.Threadservice
+type ServiceBoostrapper interface {
+	coreservice.Service
 	GetIpfsLite() *ipfslite.Peer
 	Bootstrap(addrs []peer.AddrInfo)
 }
 
-func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostrapper, error) {
-	config := &Config{}
+func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper, error) {
+	config := &ServiceConfig{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
@@ -95,16 +95,16 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		return nil, err
 	}
 
-	// Build a threadstore
-	tstore, err := tstoreds.NewThreadstore(ctx, ds, tstoreds.DefaultOpts())
+	// Build a logstore
+	tstore, err := lstoreds.NewLogstore(ctx, ds, lstoreds.DefaultOpts())
 	if err != nil {
 		cancel()
 		ds.Close()
 		return nil, err
 	}
 
-	// Build a threadservice
-	api, err := t.NewThreads(ctx, h, lite.BlockStore(), lite, tstore, t.Config{
+	// Build a service
+	api, err := service.NewService(ctx, h, lite.BlockStore(), lite, tstore, service.Config{
 		Debug:     config.Debug,
 		ProxyAddr: config.HostProxyAddr,
 	})
@@ -114,49 +114,49 @@ func DefaultThreadservice(repoPath string, opts ...Option) (ThreadserviceBoostra
 		return nil, err
 	}
 
-	return &tservBoostrapper{
-		cancel:        cancel,
-		Threadservice: api,
-		litepeer:      lite,
-		pstore:        pstore,
-		ds:            ds,
-		host:          h,
-		dht:           d,
+	return &servBoostrapper{
+		cancel:   cancel,
+		Service:  api,
+		litepeer: lite,
+		pstore:   pstore,
+		ds:       ds,
+		host:     h,
+		dht:      d,
 	}, nil
 }
 
-type Config struct {
+type ServiceConfig struct {
 	HostAddr      ma.Multiaddr
 	HostProxyAddr ma.Multiaddr
 	Debug         bool
 }
 
-type Option func(c *Config) error
+type ServiceOption func(c *ServiceConfig) error
 
-func HostAddr(addr ma.Multiaddr) Option {
-	return func(c *Config) error {
+func HostAddr(addr ma.Multiaddr) ServiceOption {
+	return func(c *ServiceConfig) error {
 		c.HostAddr = addr
 		return nil
 	}
 }
 
-func HostProxyAddr(addr ma.Multiaddr) Option {
-	return func(c *Config) error {
+func HostProxyAddr(addr ma.Multiaddr) ServiceOption {
+	return func(c *ServiceConfig) error {
 		c.HostProxyAddr = addr
 		return nil
 	}
 }
 
-func Debug(enabled bool) Option {
-	return func(c *Config) error {
+func Debug(enabled bool) ServiceOption {
+	return func(c *ServiceConfig) error {
 		c.Debug = enabled
 		return nil
 	}
 }
 
-type tservBoostrapper struct {
+type servBoostrapper struct {
 	cancel context.CancelFunc
-	tserv.Threadservice
+	coreservice.Service
 	litepeer *ipfslite.Peer
 	pstore   peerstore.Peerstore
 	ds       datastore.Datastore
@@ -164,18 +164,18 @@ type tservBoostrapper struct {
 	dht      *dht.IpfsDHT
 }
 
-var _ ThreadserviceBoostrapper = (*tservBoostrapper)(nil)
+var _ ServiceBoostrapper = (*servBoostrapper)(nil)
 
-func (tsb *tservBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
+func (tsb *servBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
 	tsb.litepeer.Bootstrap(addrs)
 }
 
-func (tsb *tservBoostrapper) GetIpfsLite() *ipfslite.Peer {
+func (tsb *servBoostrapper) GetIpfsLite() *ipfslite.Peer {
 	return tsb.litepeer
 }
 
-func (tsb *tservBoostrapper) Close() error {
-	if err := tsb.Threadservice.Close(); err != nil {
+func (tsb *servBoostrapper) Close() error {
+	if err := tsb.Service.Close(); err != nil {
 		return err
 	}
 	tsb.cancel()
@@ -189,5 +189,5 @@ func (tsb *tservBoostrapper) Close() error {
 		return err
 	}
 	return tsb.ds.Close()
-	// Threadstore closed by threadservice
+	// Logstore closed by service
 }

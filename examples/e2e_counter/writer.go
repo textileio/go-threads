@@ -7,8 +7,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
-	core "github.com/textileio/go-textile-core/store"
 	"github.com/textileio/go-textile-core/thread"
+	core "github.com/textileio/go-threads/core/store"
 	es "github.com/textileio/go-threads/eventstore"
 )
 

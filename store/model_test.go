@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	logging "github.com/ipfs/go-log"
-	core "github.com/textileio/go-textile-core/store"
+	core "github.com/textileio/go-threads/core/store"
 )
 
 const (
@@ -400,10 +400,10 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 	}
 }
 
-func createTestStore(t *testing.T, opts ...StoreOption) (*Store, func()) {
+func createTestStore(t *testing.T, opts ...Option) (*Store, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultThreadservice(dir)
+	ts, err := DefaultService(dir)
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
 	s, err := NewStore(ts, opts...)
