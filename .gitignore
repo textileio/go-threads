@@ -25,6 +25,7 @@ vendor/
 # Dart PB Files
 api/pb/dart/.dart_tool
 api/pb/dart/.packages
+api/pb/dart/lib/*.dart
 
 # vscode config folder
 .vscode/

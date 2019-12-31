@@ -5,6 +5,7 @@ PROTOC_GEN_TS_PATH = "./node_modules/.bin/protoc-gen-ts"
 all: $(GO)
 
 %.pb.go: %.proto
+	mkdir -p ./dart/lib && \
 	protoc -I=. -I=$(GOPATH)/src \
 	--plugin="protoc-gen-ts=${PROTOC_GEN_TS_PATH}" --js_out="import_style=commonjs,binary:." --ts_out="service=grpc-web:." \
 	--dart_out="grpc:dart/lib/." \
