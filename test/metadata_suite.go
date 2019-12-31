@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/textileio/go-textile-core/thread"
-	tstore "github.com/textileio/go-textile-core/threadstore"
+	core "github.com/textileio/go-threads/core/logstore"
+	"github.com/textileio/go-threads/core/service"
 )
 
 const (
@@ -16,14 +16,14 @@ const (
 	errStrValueShouldExist = "value should exist for key"
 )
 
-var metadataBookSuite = map[string]func(mb tstore.ThreadMetadata) func(*testing.T){
+var metadataBookSuite = map[string]func(mb core.ThreadMetadata) func(*testing.T){
 	"Int64":    testMetadataBookInt64,
 	"String":   testMetadataBookString,
 	"Byte":     testMetadataBookBytes,
 	"NotFound": testMetadataBookNotFound,
 }
 
-type MetadataBookFactory func() (tstore.ThreadMetadata, func())
+type MetadataBookFactory func() (core.ThreadMetadata, func())
 
 func MetadataBookTest(t *testing.T, factory MetadataBookFactory) {
 	for name, test := range metadataBookSuite {
@@ -35,11 +35,11 @@ func MetadataBookTest(t *testing.T, factory MetadataBookFactory) {
 	}
 }
 
-func testMetadataBookInt64(mb tstore.ThreadMetadata) func(*testing.T) {
+func testMetadataBookInt64(mb core.ThreadMetadata) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Run("Put&Get", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			key, value := "key1", int64(42)
 			if err := mb.PutInt64(tid, key, value); err != nil {
@@ -60,11 +60,11 @@ func testMetadataBookInt64(mb tstore.ThreadMetadata) func(*testing.T) {
 	}
 }
 
-func testMetadataBookString(mb tstore.ThreadMetadata) func(*testing.T) {
+func testMetadataBookString(mb core.ThreadMetadata) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Run("Put&Get", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			key, value := "key1", "textile"
 			if err := mb.PutString(tid, key, value); err != nil {
@@ -85,11 +85,11 @@ func testMetadataBookString(mb tstore.ThreadMetadata) func(*testing.T) {
 	}
 }
 
-func testMetadataBookBytes(mb tstore.ThreadMetadata) func(*testing.T) {
+func testMetadataBookBytes(mb core.ThreadMetadata) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Run("Put&Get", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			key, value := "key1", []byte("textile")
 			if err := mb.PutBytes(tid, key, value); err != nil {
@@ -108,7 +108,7 @@ func testMetadataBookBytes(mb tstore.ThreadMetadata) func(*testing.T) {
 		})
 		t.Run("Immutable Put", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			key, value := "key1", []byte("textile")
 			if err := mb.PutBytes(tid, key, value); err != nil {
@@ -130,11 +130,11 @@ func testMetadataBookBytes(mb tstore.ThreadMetadata) func(*testing.T) {
 	}
 }
 
-func testMetadataBookNotFound(mb tstore.ThreadMetadata) func(*testing.T) {
+func testMetadataBookNotFound(mb core.ThreadMetadata) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Run("Int64", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			if v, err := mb.GetInt64(tid, "textile"); v != nil || err != nil {
 				t.Fatalf(errStrNotFoundKey)
@@ -142,7 +142,7 @@ func testMetadataBookNotFound(mb tstore.ThreadMetadata) func(*testing.T) {
 		})
 		t.Run("String", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			if v, err := mb.GetInt64(tid, "textile"); v != nil || err != nil {
 				t.Fatalf(errStrNotFoundKey)
@@ -150,7 +150,7 @@ func testMetadataBookNotFound(mb tstore.ThreadMetadata) func(*testing.T) {
 		})
 		t.Run("Bytes", func(t *testing.T) {
 			t.Parallel()
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := service.NewIDV1(service.Raw, 24)
 
 			if v, err := mb.GetInt64(tid, "textile"); v != nil || err != nil {
 				t.Fatalf(errStrNotFoundKey)

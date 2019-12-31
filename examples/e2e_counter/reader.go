@@ -7,7 +7,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
+	"github.com/textileio/go-threads/crypto/symmetric"
 	es "github.com/textileio/go-threads/eventstore"
 )
 

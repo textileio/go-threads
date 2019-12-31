@@ -10,17 +10,17 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	pt "github.com/libp2p/go-libp2p-core/test"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-textile-core/thread"
-	tstore "github.com/textileio/go-textile-core/threadstore"
+	core "github.com/textileio/go-threads/core/logstore"
+	"github.com/textileio/go-threads/core/service"
 )
 
-var headBookSuite = map[string]func(hb tstore.HeadBook) func(*testing.T){
+var headBookSuite = map[string]func(hb core.HeadBook) func(*testing.T){
 	"AddGetHeads": testHeadBookAddHeads,
 	"SetGetHeads": testHeadBookSetHeads,
 	"ClearHeads":  testHeadBookClearHeads,
 }
 
-type HeadBookFactory func() (tstore.HeadBook, func())
+type HeadBookFactory func() (core.HeadBook, func())
 
 func HeadBookTest(t *testing.T, factory HeadBookFactory) {
 	for name, test := range headBookSuite {
@@ -37,9 +37,9 @@ func HeadBookTest(t *testing.T, factory HeadBookFactory) {
 	}
 }
 
-func testHeadBookAddHeads(hb tstore.HeadBook) func(t *testing.T) {
+func testHeadBookAddHeads(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
@@ -78,9 +78,9 @@ func testHeadBookAddHeads(hb tstore.HeadBook) func(t *testing.T) {
 	}
 }
 
-func testHeadBookSetHeads(hb tstore.HeadBook) func(t *testing.T) {
+func testHeadBookSetHeads(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
@@ -118,9 +118,9 @@ func testHeadBookSetHeads(hb tstore.HeadBook) func(t *testing.T) {
 	}
 }
 
-func testHeadBookClearHeads(hb tstore.HeadBook) func(t *testing.T) {
+func testHeadBookClearHeads(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPublicKey(pub)
@@ -162,7 +162,7 @@ func testHeadBookClearHeads(hb tstore.HeadBook) func(t *testing.T) {
 	}
 }
 
-var logHeadbookBenchmarkSuite = map[string]func(hb tstore.HeadBook) func(*testing.B){
+var logHeadbookBenchmarkSuite = map[string]func(hb core.HeadBook) func(*testing.B){
 	"Heads":      benchmarkHeads,
 	"AddHeads":   benchmarkAddHeads,
 	"SetHeads":   benchmarkSetHeads,
@@ -187,9 +187,9 @@ func BenchmarkHeadBook(b *testing.B, factory HeadBookFactory) {
 	}
 }
 
-func benchmarkHeads(hb tstore.HeadBook) func(*testing.B) {
+func benchmarkHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -213,9 +213,9 @@ func benchmarkHeads(hb tstore.HeadBook) func(*testing.B) {
 	}
 }
 
-func benchmarkAddHeads(hb tstore.HeadBook) func(*testing.B) {
+func benchmarkAddHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -237,9 +237,9 @@ func benchmarkAddHeads(hb tstore.HeadBook) func(*testing.B) {
 	}
 }
 
-func benchmarkSetHeads(hb tstore.HeadBook) func(*testing.B) {
+func benchmarkSetHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -261,9 +261,9 @@ func benchmarkSetHeads(hb tstore.HeadBook) func(*testing.B) {
 	}
 }
 
-func benchmarkClearHeads(hb tstore.HeadBook) func(*testing.B) {
+func benchmarkClearHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := service.NewIDV1(service.Raw, 24)
 
 		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {

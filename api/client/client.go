@@ -8,8 +8,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
 	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/crypto/symmetric"
 	es "github.com/textileio/go-threads/eventstore"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"

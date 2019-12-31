@@ -24,12 +24,12 @@ import (
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
-	sym "github.com/textileio/go-textile-core/crypto/symmetric"
 	"github.com/textileio/go-textile-core/options"
 	"github.com/textileio/go-textile-core/thread"
 	t "github.com/textileio/go-threads"
 	"github.com/textileio/go-threads/api"
 	"github.com/textileio/go-threads/cbor"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	es "github.com/textileio/go-threads/eventstore"
 	util "github.com/textileio/go-threads/util"
 )

@@ -9,9 +9,9 @@ import (
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-textile-core/crypto"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
-	"github.com/textileio/go-textile-core/thread"
+	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/crypto"
+	"github.com/textileio/go-threads/crypto/symmetric"
 )
 
 func init() {
@@ -32,7 +32,7 @@ type eventHeader struct {
 }
 
 // NewEvent create a new event by wrapping the body node.
-func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (thread.Event, error) {
+func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (service.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey
 }
 
 // GetEvent returns the event node for the given cid.
-func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (thread.Event, error) {
+func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (service.Event, error) {
 	node, err := dag.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func EventFromNode(node format.Node) (*Event, error) {
 }
 
 // EventFromRecord returns the event within the given node.
-func EventFromRecord(ctx context.Context, dag format.DAGService, rec thread.Record) (*Event, error) {
+func EventFromRecord(ctx context.Context, dag format.DAGService, rec service.Record) (*Event, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (e *Event) HeaderID() cid.Cid {
 }
 
 // GetHeader returns the header node.
-func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (thread.EventHeader, error) {
+func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (service.EventHeader, error) {
 	if e.header == nil {
 		coded, err := dag.Get(ctx, e.obj.Header)
 		if err != nil {
