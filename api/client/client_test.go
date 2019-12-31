@@ -11,7 +11,7 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/api"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -204,7 +204,7 @@ func TestModelFind(t *testing.T) {
 	err = client.ModelCreate(storeID, modelName, person)
 	checkErr(t, err)
 
-	q := es.JSONWhere("lastName").Eq(person.LastName)
+	q := store.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := client.ModelFind(storeID, modelName, q, []*Person{})
 	if err != nil {
@@ -286,7 +286,7 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatal("txn model found by id does't equal the original")
 	}
 
-	q := es.JSONWhere("lastName").Eq(person.LastName)
+	q := store.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := txn.Find(q, []*Person{})
 	if err != nil {
@@ -355,7 +355,7 @@ func TestWriteTransaction(t *testing.T) {
 		t.Fatalf("txn model found by id does't equal the original")
 	}
 
-	q := es.JSONWhere("lastName").Eq(person.LastName)
+	q := store.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := txn.Find(q, []*Person{})
 	if err != nil {
@@ -399,10 +399,10 @@ func TestListen(t *testing.T) {
 		EntityID: person.ID,
 	}
 	channel, discard, err := client.Listen(storeID, opt)
-	defer discard()
 	if err != nil {
 		t.Fatalf("failed to call listen: %v", err)
 	}
+	defer discard()
 
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -463,9 +463,9 @@ func makeServer() (*api.Server, func()) {
 	if err != nil {
 		panic(err)
 	}
-	ts, err := es.DefaultThreadservice(
+	ts, err := store.DefaultService(
 		dir,
-		es.Debug(true))
+		store.WithServiceDebug(true))
 	if err != nil {
 		panic(err)
 	}

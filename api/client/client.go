@@ -10,7 +10,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/crypto/symmetric"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -226,7 +226,7 @@ func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool,
 }
 
 // ModelFind finds records by query
-func (c *Client) ModelFind(storeID, modelName string, query *es.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (c *Client) ModelFind(storeID, modelName string, query *store.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

@@ -133,21 +133,21 @@ type ServiceConfig struct {
 
 type ServiceOption func(c *ServiceConfig) error
 
-func HostAddr(addr ma.Multiaddr) ServiceOption {
+func WithServiceHostAddr(addr ma.Multiaddr) ServiceOption {
 	return func(c *ServiceConfig) error {
 		c.HostAddr = addr
 		return nil
 	}
 }
 
-func HostProxyAddr(addr ma.Multiaddr) ServiceOption {
+func WithServiceHostProxyAddr(addr ma.Multiaddr) ServiceOption {
 	return func(c *ServiceConfig) error {
 		c.HostProxyAddr = addr
 		return nil
 	}
 }
 
-func Debug(enabled bool) ServiceOption {
+func WithServiceDebug(enabled bool) ServiceOption {
 	return func(c *ServiceConfig) error {
 		c.Debug = enabled
 		return nil

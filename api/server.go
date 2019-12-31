@@ -9,9 +9,9 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	tserv "github.com/textileio/go-textile-core/threadservice"
 	pb "github.com/textileio/go-threads/api/pb"
-	es "github.com/textileio/go-threads/eventstore"
+	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
@@ -41,7 +41,7 @@ type Config struct {
 
 // NewServer starts and returns a new server with the given threadservice.
 // The threadservice is *not* managed by the server.
-func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Server, error) {
+func NewServer(ctx context.Context, ts core.Service, conf Config) (*Server, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logger.Level{
@@ -52,11 +52,11 @@ func NewServer(ctx context.Context, ts tserv.Threadservice, conf Config) (*Serve
 		}
 	}
 
-	manager, err := es.NewManager(
+	manager, err := store.NewManager(
 		ts,
-		es.WithJsonMode(true),
-		es.WithRepoPath(conf.RepoPath),
-		es.WithDebug(true))
+		store.WithJsonMode(true),
+		store.WithRepoPath(conf.RepoPath),
+		store.WithDebug(true))
 	if err != nil {
 		return nil, err
 	}
