@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/textileio/go-threads/api/pb"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/store"
 )
 
 // WriteTransaction encapsulates a write transaction
@@ -66,7 +66,7 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *WriteTransaction) Find(query *es.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (t *WriteTransaction) Find(query *store.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
