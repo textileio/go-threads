@@ -23,7 +23,8 @@ vendor/
 *.d.ts
 
 # Dart PB Files
-*.dart
+api/pb/dart/.dart_tool
+api/pb/dart/.packages
 
 # vscode config folder
 .vscode/

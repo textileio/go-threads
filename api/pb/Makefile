@@ -7,7 +7,7 @@ all: $(GO)
 %.pb.go: %.proto
 	protoc -I=. -I=$(GOPATH)/src \
 	--plugin="protoc-gen-ts=${PROTOC_GEN_TS_PATH}" --js_out="import_style=commonjs,binary:." --ts_out="service=grpc-web:." \
-	--dart_out="grpc:." \
+	--dart_out="grpc:dart/lib/." \
 	--go_out=\
 	plugins=grpc:\
 	. $<
@@ -17,6 +17,6 @@ clean:
 	rm -f *pb_test.go
 	rm -f *.js
 	rm -f *.d.ts
-	rm -f *.dart
+	rm -f ./dart/lib/*.dart
 
 .PHONY: clean
