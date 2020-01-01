@@ -15,7 +15,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/crypto"
-	pb "github.com/textileio/go-threads/pb"
+	pb "github.com/textileio/go-threads/service/pb"
 	"google.golang.org/grpc/codes"
 )
 

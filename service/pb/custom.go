@@ -1,11 +1,11 @@
-package threads_pb
+package service_pb
 
 import (
 	"encoding/json"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pt "github.com/libp2p/go-libp2p-core/test"
 	ma "github.com/multiformats/go-multiaddr"
@@ -223,17 +223,17 @@ func (k ProtoKey) Size() int {
 
 // ProtoPubKey is a custom type used by gogo to serde raw public keys into the PubKey type, and back.
 type ProtoPubKey struct {
-	ic.PubKey
+	crypto.PubKey
 }
 
 var _ customGogoType = (*ProtoPubKey)(nil)
 
 func (k ProtoPubKey) Marshal() ([]byte, error) {
-	return ic.MarshalPublicKey(k)
+	return crypto.MarshalPublicKey(k)
 }
 
 func (k ProtoPubKey) MarshalTo(data []byte) (n int, err error) {
-	b, err := ic.MarshalPublicKey(k)
+	b, err := crypto.MarshalPublicKey(k)
 	return copy(data, b), err
 }
 
@@ -243,7 +243,7 @@ func (k ProtoPubKey) MarshalJSON() ([]byte, error) {
 }
 
 func (k *ProtoPubKey) Unmarshal(data []byte) (err error) {
-	k.PubKey, err = ic.UnmarshalPublicKey(data)
+	k.PubKey, err = crypto.UnmarshalPublicKey(data)
 	return err
 }
 
@@ -263,17 +263,17 @@ func (k ProtoPubKey) Size() int {
 
 // ProtoPrivKey is a custom type used by gogo to serde raw private keys into the PrivKey type, and back.
 type ProtoPrivKey struct {
-	ic.PrivKey
+	crypto.PrivKey
 }
 
 var _ customGogoType = (*ProtoPrivKey)(nil)
 
 func (k ProtoPrivKey) Marshal() ([]byte, error) {
-	return ic.MarshalPrivateKey(k)
+	return crypto.MarshalPrivateKey(k)
 }
 
 func (k ProtoPrivKey) MarshalTo(data []byte) (n int, err error) {
-	b, err := ic.MarshalPrivateKey(k)
+	b, err := crypto.MarshalPrivateKey(k)
 	return copy(data, b), err
 }
 
@@ -283,7 +283,7 @@ func (k ProtoPrivKey) MarshalJSON() ([]byte, error) {
 }
 
 func (k *ProtoPrivKey) Unmarshal(data []byte) (err error) {
-	k.PrivKey, err = ic.UnmarshalPrivateKey(data)
+	k.PrivKey, err = crypto.UnmarshalPrivateKey(data)
 	return err
 }
 
@@ -303,21 +303,21 @@ func (k ProtoPrivKey) Size() int {
 
 // NewPopulatedProtoPeerID generates a populated instance of the custom gogo type ProtoPeerID.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoPeerID(r randyThreads) *ProtoPeerID {
+func NewPopulatedProtoPeerID(r randyService) *ProtoPeerID {
 	id, _ := pt.RandPeerID()
 	return &ProtoPeerID{ID: id}
 }
 
 // NewPopulatedProtoAddr generates a populated instance of the custom gogo type ProtoAddr.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoAddr(r randyThreads) *ProtoAddr {
+func NewPopulatedProtoAddr(r randyService) *ProtoAddr {
 	a, _ := ma.NewMultiaddr("/ip4/123.123.123.123/tcp/7001")
 	return &ProtoAddr{Multiaddr: a}
 }
 
 // NewPopulatedProtoCid generates a populated instance of the custom gogo type ProtoCid.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoCid(r randyThreads) *ProtoCid {
+func NewPopulatedProtoCid(r randyService) *ProtoCid {
 	hash, _ := mh.Encode([]byte("hashy"), mh.SHA2_256)
 	c := cid.NewCidV1(cid.DagCBOR, hash)
 	return &ProtoCid{Cid: c}
@@ -325,28 +325,28 @@ func NewPopulatedProtoCid(r randyThreads) *ProtoCid {
 
 // NewPopulatedProtoThreadID generates a populated instance of the custom gogo type ProtoThreadID.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoThreadID(r randyThreads) *ProtoThreadID {
+func NewPopulatedProtoThreadID(r randyService) *ProtoThreadID {
 	id := service.NewIDV1(service.Raw, 16)
 	return &ProtoThreadID{ID: id}
 }
 
 // NewPopulatedProtoKey generates a populated instance of the custom gogo type ProtoKey.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoKey(r randyThreads) *ProtoKey {
+func NewPopulatedProtoKey(r randyService) *ProtoKey {
 	k, _ := symmetric.CreateKey()
 	return &ProtoKey{Key: k}
 }
 
 // NewPopulatedProtoPubKey generates a populated instance of the custom gogo type ProtoPubKey.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoPubKey(r randyThreads) *ProtoPubKey {
-	_, k, _ := ic.GenerateKeyPair(ic.RSA, 512)
+func NewPopulatedProtoPubKey(r randyService) *ProtoPubKey {
+	_, k, _ := crypto.GenerateKeyPair(crypto.RSA, 512)
 	return &ProtoPubKey{PubKey: k}
 }
 
 // NewPopulatedProtoPrivKey generates a populated instance of the custom gogo type ProtoPrivKey.
 // It is required by gogo-generated tests.
-func NewPopulatedProtoPrivKey(r randyThreads) *ProtoPrivKey {
-	k, _, _ := ic.GenerateKeyPair(ic.RSA, 512)
+func NewPopulatedProtoPrivKey(r randyService) *ProtoPrivKey {
+	k, _, _ := crypto.GenerateKeyPair(crypto.RSA, 512)
 	return &ProtoPrivKey{PrivKey: k}
 }

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package threads.pb;
+package service.pb;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
@@ -165,8 +165,8 @@ message PushRecordRequest {
 // PushRecordReply is the response from a PushRecordRequest.
 message PushRecordReply {}
 
-// Threads is the peer-to-peer network API for thread orchestration.
-service Threads {
+// Service is the peer-to-peer network API for thread orchestration.
+service Service {
     // GetLogs from a peer.
     rpc GetLogs(GetLogsRequest) returns (GetLogsReply) {}
 

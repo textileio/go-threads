@@ -11,7 +11,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/crypto"
-	pb "github.com/textileio/go-threads/pb"
+	pb "github.com/textileio/go-threads/service/pb"
 )
 
 func init() {

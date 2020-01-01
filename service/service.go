@@ -23,7 +23,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/service"
-	pb "github.com/textileio/go-threads/pb"
+	pb "github.com/textileio/go-threads/service/pb"
 	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
@@ -110,7 +110,7 @@ func NewService(
 		return nil, err
 	}
 	go func() {
-		pb.RegisterThreadsServer(t.rpc, t.server)
+		pb.RegisterServiceServer(t.rpc, t.server)
 		t.rpc.Serve(listener)
 	}()
 
