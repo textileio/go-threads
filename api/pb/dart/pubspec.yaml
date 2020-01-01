@@ -1,5 +1,5 @@
 name: threads_client_grpc
-version: 0.0.2
+version: 0.1.2
 description: gRPC protobufs for interacting with remote Threads.
 homepage: https://github.com/textileio/go-threads
 repository: https://github.com/textileio/go-threads
