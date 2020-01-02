@@ -11,7 +11,7 @@ import (
 
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/api"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -67,36 +67,36 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewStore(t *testing.T) {
-	_, err := client.NewStore()
+	_, err := client.NewStore(context.Background())
 	if err != nil {
 		t.Fatalf("failed to create new store: %v", err)
 	}
 }
 
 func TestRegisterSchema(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
 }
 
 func TestStart(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	if err != nil {
 		t.Fatalf("failed to start: %v", err)
 	}
 }
 
 func TestStartFromAddress(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
 
 	// TODO: figure out how to test this
@@ -104,26 +104,26 @@ func TestStartFromAddress(t *testing.T) {
 }
 
 func TestModelCreate(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
-	err = client.ModelCreate(storeID, modelName, createPerson())
+	err = client.ModelCreate(context.Background(), storeID, modelName, createPerson())
 	if err != nil {
 		t.Fatalf("failed to create model: %v", err)
 	}
 }
 
 func TestGetStoreLink(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
-	_, err = client.GetStoreLink(storeID)
+	_, err = client.GetStoreLink(context.Background(), storeID)
 	if err != nil {
 		t.Fatalf("failed to create model: %v", err)
 	}
@@ -131,58 +131,58 @@ func TestGetStoreLink(t *testing.T) {
 }
 
 func TestModelSave(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
 	person := createPerson()
 
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
 	person.Age = 30
-	err = client.ModelSave(storeID, modelName, person)
+	err = client.ModelSave(context.Background(), storeID, modelName, person)
 	if err != nil {
 		t.Fatalf("failed to save model: %v", err)
 	}
 }
 
 func TestModelDelete(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
 	person := createPerson()
 
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
-	err = client.ModelDelete(storeID, modelName, person.ID)
+	err = client.ModelDelete(context.Background(), storeID, modelName, person.ID)
 	if err != nil {
 		t.Fatalf("failed to delete model: %v", err)
 	}
 }
 
 func TestModelHas(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
 	person := createPerson()
 
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
-	exists, err := client.ModelHas(storeID, modelName, person.ID)
+	exists, err := client.ModelHas(context.Background(), storeID, modelName, person.ID)
 	if err != nil {
 		t.Fatalf("failed to check model has: %v", err)
 	}
@@ -192,21 +192,21 @@ func TestModelHas(t *testing.T) {
 }
 
 func TestModelFind(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
 	person := createPerson()
 
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
-	q := es.JSONWhere("lastName").Eq(person.LastName)
+	q := store.JSONWhere("lastName").Eq(person.LastName)
 
-	rawResults, err := client.ModelFind(storeID, modelName, q, []*Person{})
+	rawResults, err := client.ModelFind(context.Background(), storeID, modelName, q, []*Person{})
 	if err != nil {
 		t.Fatalf("failed to find: %v", err)
 	}
@@ -220,20 +220,20 @@ func TestModelFind(t *testing.T) {
 }
 
 func TestModelFindByID(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
 	person := createPerson()
 
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
 	newPerson := &Person{}
-	err = client.ModelFindByID(storeID, modelName, person.ID, newPerson)
+	err = client.ModelFindByID(context.Background(), storeID, modelName, person.ID, newPerson)
 	if err != nil {
 		t.Fatalf("failed to find model by id: %v", err)
 	}
@@ -243,17 +243,17 @@ func TestModelFindByID(t *testing.T) {
 }
 
 func TestReadTransaction(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 	person := createPerson()
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
-	txn, err := client.ReadTransaction(storeID, modelName)
+	txn, err := client.ReadTransaction(context.Background(), storeID, modelName)
 	if err != nil {
 		t.Fatalf("failed to create read txn: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestReadTransaction(t *testing.T) {
 		t.Fatal("txn model found by id does't equal the original")
 	}
 
-	q := es.JSONWhere("lastName").Eq(person.LastName)
+	q := store.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := txn.Find(q, []*Person{})
 	if err != nil {
@@ -302,17 +302,17 @@ func TestReadTransaction(t *testing.T) {
 }
 
 func TestWriteTransaction(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 	existingPerson := createPerson()
-	err = client.ModelCreate(storeID, modelName, existingPerson)
+	err = client.ModelCreate(context.Background(), storeID, modelName, existingPerson)
 	checkErr(t, err)
 
-	txn, err := client.WriteTransaction(storeID, modelName)
+	txn, err := client.WriteTransaction(context.Background(), storeID, modelName)
 	if err != nil {
 		t.Fatalf("failed to create write txn: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestWriteTransaction(t *testing.T) {
 		t.Fatalf("txn model found by id does't equal the original")
 	}
 
-	q := es.JSONWhere("lastName").Eq(person.LastName)
+	q := store.JSONWhere("lastName").Eq(person.LastName)
 
 	rawResults, err := txn.Find(q, []*Person{})
 	if err != nil {
@@ -382,24 +382,23 @@ func TestWriteTransaction(t *testing.T) {
 }
 
 func TestListen(t *testing.T) {
-	storeID, err := client.NewStore()
+	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 	checkErr(t, err)
-	err = client.Start(storeID)
+	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
 
 	person := createPerson()
 
-	err = client.ModelCreate(storeID, modelName, person)
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
 	checkErr(t, err)
 
 	opt := ListenOption{
 		Model:    modelName,
 		EntityID: person.ID,
 	}
-	channel, discard, err := client.Listen(storeID, opt)
-	defer discard()
+	channel, err := client.Listen(context.Background(), storeID, opt)
 	if err != nil {
 		t.Fatalf("failed to call listen: %v", err)
 	}
@@ -407,9 +406,9 @@ func TestListen(t *testing.T) {
 	go func() {
 		time.Sleep(1 * time.Second)
 		person.Age = 30
-		_ = client.ModelSave(storeID, modelName, person)
+		_ = client.ModelSave(context.Background(), storeID, modelName, person)
 		person.Age = 40
-		_ = client.ModelSave(storeID, modelName, person)
+		_ = client.ModelSave(context.Background(), storeID, modelName, person)
 	}()
 
 	val, ok := <-channel
@@ -463,9 +462,9 @@ func makeServer() (*api.Server, func()) {
 	if err != nil {
 		panic(err)
 	}
-	ts, err := es.DefaultThreadservice(
+	ts, err := store.DefaultService(
 		dir,
-		es.Debug(true))
+		store.WithServiceDebug(true))
 	if err != nil {
 		panic(err)
 	}

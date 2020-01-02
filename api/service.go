@@ -8,17 +8,17 @@ import (
 
 	"github.com/google/uuid"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
-	core "github.com/textileio/go-textile-core/store"
 	pb "github.com/textileio/go-threads/api/pb"
-	es "github.com/textileio/go-threads/eventstore"
+	corestore "github.com/textileio/go-threads/core/store"
+	"github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/store"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // service is a gRPC service for a store manager.
 type service struct {
-	manager *es.Manager
+	manager *store.Manager
 }
 
 // NewStore adds a new store into the manager.
@@ -39,11 +39,11 @@ func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.Ne
 func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
 	log.Debugf("received register schema request in store %s", req.StoreID)
 
-	store, err := s.getStore(req.StoreID)
+	st, err := s.getStore(req.StoreID)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = store.RegisterSchema(req.Name, req.Schema); err != nil {
+	if _, err = st.RegisterSchema(req.Name, req.Schema); err != nil {
 		return nil, err
 	}
 
@@ -51,11 +51,11 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 }
 
 func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartReply, error) {
-	store, err := s.getStore(req.GetStoreID())
+	st, err := s.getStore(req.GetStoreID())
 	if err != nil {
 		return nil, err
 	}
-	if err := store.Start(); err != nil {
+	if err := st.Start(); err != nil {
 		return nil, err
 	}
 	return &pb.StartReply{}, nil
@@ -63,19 +63,19 @@ func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartRep
 
 func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest) (*pb.GetStoreLinkReply, error) {
 	var err error
-	var store *es.Store
-	if store, err = s.getStore(req.GetStoreID()); err != nil {
+	var st *store.Store
+	if st, err = s.getStore(req.GetStoreID()); err != nil {
 		return nil, err
 	}
-	tid, _, err := store.ThreadID()
+	tid, _, err := st.ThreadID()
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := store.Threadservice().Store().ThreadInfo(tid)
+	tinfo, err := st.Service().Store().ThreadInfo(tid)
 	if err != nil {
 		return nil, err
 	}
-	host := store.Threadservice().Host()
+	host := st.Service().Host()
 	id, _ := ma.NewComponent("p2p", host.ID().String())
 	thread, _ := ma.NewComponent("thread", tid.String())
 	addrs := host.Addrs()
@@ -93,10 +93,10 @@ func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest)
 
 func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
 	var err error
-	var store *es.Store
+	var st *store.Store
 	var addr ma.Multiaddr
 	var readKey, followKey *symmetric.Key
-	if store, err = s.getStore(req.GetStoreID()); err != nil {
+	if st, err = s.getStore(req.GetStoreID()); err != nil {
 		return nil, err
 	}
 	if addr, err = ma.NewMultiaddr(req.GetAddress()); err != nil {
@@ -108,7 +108,7 @@ func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddress
 	if followKey, err = symmetric.NewKey(req.GetFollowKey()); err != nil {
 		return nil, err
 	}
-	if err = store.StartFromAddr(addr, followKey, readKey); err != nil {
+	if err = st.StartFromAddr(addr, followKey, readKey); err != nil {
 		return nil, err
 	}
 	return &pb.StartFromAddressReply{}, nil
@@ -186,7 +186,7 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return err
 	}
 
-	return model.ReadTxn(func(txn *es.Txn) error {
+	return model.ReadTxn(func(txn *store.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -254,7 +254,7 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return err
 	}
 
-	return model.WriteTxn(func(txn *es.Txn) error {
+	return model.WriteTxn(func(txn *store.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -329,34 +329,34 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 
 // Listen returns a stream of entities, trigged by a local or remote state change.
 func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
-	store, err := s.getStore(req.StoreID)
+	st, err := s.getStore(req.StoreID)
 	if err != nil {
 		return err
 	}
 
-	options := make([]es.ListenOption, len(req.GetFilters()))
+	options := make([]store.ListenOption, len(req.GetFilters()))
 	for i, filter := range req.GetFilters() {
-		var listenActionType es.ListenActionType
+		var listenActionType store.ListenActionType
 		switch filter.GetAction() {
 		case pb.ListenRequest_Filter_ALL:
-			listenActionType = es.ListenAll
+			listenActionType = store.ListenAll
 		case pb.ListenRequest_Filter_CREATE:
-			listenActionType = es.ListenCreate
+			listenActionType = store.ListenCreate
 		case pb.ListenRequest_Filter_DELETE:
-			listenActionType = es.ListenDelete
+			listenActionType = store.ListenDelete
 		case pb.ListenRequest_Filter_SAVE:
-			listenActionType = es.ListenSave
+			listenActionType = store.ListenSave
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid filter action %v", filter.GetAction())
 		}
-		options[i] = es.ListenOption{
+		options[i] = store.ListenOption{
 			Type:  listenActionType,
 			Model: filter.GetModelName(),
-			ID:    core.EntityID(filter.EntityID),
+			ID:    corestore.EntityID(filter.EntityID),
 		}
 	}
 
-	l, err := store.Listen(options...)
+	l, err := st.Listen(options...)
 	if err != nil {
 		return err
 	}
@@ -374,14 +374,14 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			var replyAction pb.ListenReply_Action
 			var entity []byte
 			switch action.Type {
-			case es.ActionCreate:
+			case store.ActionCreate:
 				replyAction = pb.ListenReply_CREATE
-				entity, err = s.entityForAction(store, action)
-			case es.ActionDelete:
+				entity, err = s.entityForAction(st, action)
+			case store.ActionDelete:
 				replyAction = pb.ListenReply_DELETE
-			case es.ActionSave:
+			case store.ActionSave:
 				replyAction = pb.ListenReply_SAVE
-				entity, err = s.entityForAction(store, action)
+				entity, err = s.entityForAction(st, action)
 			default:
 				err = status.Errorf(codes.Internal, "unknown action type %v", action.Type)
 			}
@@ -402,7 +402,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 }
 
-func (s *service) entityForAction(store *es.Store, action es.Action) ([]byte, error) {
+func (s *service) entityForAction(store *store.Store, action store.Action) ([]byte, error) {
 	model := store.GetModel(action.Model)
 	if model == nil {
 		return nil, status.Error(codes.NotFound, "model not found")
@@ -445,10 +445,10 @@ func (s *service) processSaveRequest(req *pb.ModelSaveRequest, saveFunc func(...
 	return &pb.ModelSaveReply{}, nil
 }
 
-func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc func(...core.EntityID) error) (*pb.ModelDeleteReply, error) {
-	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
+func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc func(...corestore.EntityID) error) (*pb.ModelDeleteReply, error) {
+	entityIDs := make([]corestore.EntityID, len(req.GetEntityIDs()))
 	for i, ID := range req.GetEntityIDs() {
-		entityIDs[i] = core.EntityID(ID)
+		entityIDs[i] = corestore.EntityID(ID)
 	}
 	if err := deleteFunc(entityIDs...); err != nil {
 		return nil, err
@@ -456,10 +456,10 @@ func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc fu
 	return &pb.ModelDeleteReply{}, nil
 }
 
-func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...core.EntityID) (bool, error)) (*pb.ModelHasReply, error) {
-	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
+func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...corestore.EntityID) (bool, error)) (*pb.ModelHasReply, error) {
+	entityIDs := make([]corestore.EntityID, len(req.GetEntityIDs()))
 	for i, ID := range req.GetEntityIDs() {
-		entityIDs[i] = core.EntityID(ID)
+		entityIDs[i] = corestore.EntityID(ID)
 	}
 	exists, err := hasFunc(entityIDs...)
 	if err != nil {
@@ -468,8 +468,8 @@ func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...cor
 	return &pb.ModelHasReply{Exists: exists}, nil
 }
 
-func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc func(id core.EntityID, v interface{}) error) (*pb.ModelFindByIDReply, error) {
-	entityID := core.EntityID(req.EntityID)
+func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc func(id corestore.EntityID, v interface{}) error) (*pb.ModelFindByIDReply, error) {
+	entityID := corestore.EntityID(req.EntityID)
 	var result string
 	if err := findFunc(entityID, &result); err != nil {
 		return nil, err
@@ -477,8 +477,8 @@ func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc 
 	return &pb.ModelFindByIDReply{Entity: result}, nil
 }
 
-func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *es.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
-	q := &es.JSONQuery{}
+func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *store.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
+	q := &store.JSONQuery{}
 	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
 	}
@@ -493,24 +493,24 @@ func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *
 	return &pb.ModelFindReply{Entities: byteEntities}, nil
 }
 
-func (s *service) getStore(idStr string) (*es.Store, error) {
+func (s *service) getStore(idStr string) (*store.Store, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		return nil, err
 	}
-	store := s.manager.GetStore(id)
-	if store == nil {
+	st := s.manager.GetStore(id)
+	if st == nil {
 		return nil, status.Error(codes.NotFound, "store not found")
 	}
-	return store, nil
+	return st, nil
 }
 
-func (s *service) getModel(storeID string, modelName string) (*es.Model, error) {
-	store, err := s.getStore(storeID)
+func (s *service) getModel(storeID string, modelName string) (*store.Model, error) {
+	st, err := s.getStore(storeID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "store not found")
 	}
-	model := store.GetModel(modelName)
+	model := st.GetModel(modelName)
 	if model == nil {
 		return nil, status.Error(codes.NotFound, "model not found")
 	}

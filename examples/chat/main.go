@@ -24,20 +24,19 @@ import (
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
-	sym "github.com/textileio/go-textile-core/crypto/symmetric"
-	"github.com/textileio/go-textile-core/options"
-	"github.com/textileio/go-textile-core/thread"
-	t "github.com/textileio/go-threads"
 	"github.com/textileio/go-threads/api"
 	"github.com/textileio/go-threads/cbor"
-	es "github.com/textileio/go-threads/eventstore"
+	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
+	store "github.com/textileio/go-threads/store"
 	util "github.com/textileio/go-threads/util"
 )
 
 var (
 	ctx      context.Context
 	ds       datastore.Batching
-	ts       es.ThreadserviceBoostrapper
+	ts       store.ServiceBoostrapper
 	threadID thread.ID
 
 	grey  = color.New(color.FgHiBlack).SprintFunc()
@@ -112,11 +111,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ts, err = es.DefaultThreadservice(
+	ts, err = store.DefaultService(
 		*repo,
-		es.HostAddr(hostAddr),
-		es.HostProxyAddr(hostProxyAddr),
-		es.Debug(*debug))
+		store.WithServiceHostAddr(hostAddr),
+		store.WithServiceHostProxyAddr(hostProxyAddr),
+		store.WithServiceDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -423,7 +422,7 @@ func addCmd(args []string) (out string, err error) {
 		if !util.CanDial(addr, ts.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
 		}
-		info, err := ts.AddThread(ctx, addr, options.FollowKey(fk), options.ReadKey(rk))
+		info, err := ts.AddThread(ctx, addr, core.FollowKey(fk), core.ReadKey(rk))
 		if err != nil {
 			return "", err
 		}
@@ -483,7 +482,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 	if err != nil {
 		return
 	}
-	ta, err := ma.NewMultiaddr("/" + t.Thread + "/" + id.String())
+	ta, err := ma.NewMultiaddr("/" + thread.Name + "/" + id.String())
 	if err != nil {
 		return
 	}

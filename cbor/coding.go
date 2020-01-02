@@ -5,7 +5,7 @@ import (
 	"github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-textile-core/crypto"
+	"github.com/textileio/go-threads/crypto"
 )
 
 // EncodeBlock returns a node by encrypting the block's raw bytes with key.

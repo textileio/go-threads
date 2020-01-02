@@ -8,7 +8,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/api"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -47,11 +47,11 @@ func main() {
 		}
 	}
 
-	ts, err := es.DefaultThreadservice(
+	ts, err := store.DefaultService(
 		*repo,
-		es.HostAddr(hostAddr),
-		es.HostProxyAddr(hostProxyAddr),
-		es.Debug(*debug))
+		store.WithServiceHostAddr(hostAddr),
+		store.WithServiceHostProxyAddr(hostProxyAddr),
+		store.WithServiceDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}

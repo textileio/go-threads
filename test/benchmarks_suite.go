@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
-	"github.com/textileio/go-textile-core/thread"
-	tstore "github.com/textileio/go-textile-core/threadstore"
+	core "github.com/textileio/go-threads/core/logstore"
+	"github.com/textileio/go-threads/core/thread"
 )
 
-var threadstoreBenchmarks = map[string]func(tstore.Threadstore, chan *logpair) func(*testing.B){
+var threadstoreBenchmarks = map[string]func(core.Logstore, chan *logpair) func(*testing.B){
 	"AddAddrs": benchmarkAddAddrs,
 	"SetAddrs": benchmarkSetAddrs,
 	"GetAddrs": benchmarkGetAddrs,
@@ -21,7 +21,7 @@ var threadstoreBenchmarks = map[string]func(tstore.Threadstore, chan *logpair) f
 	"Get1000LogsWithAddrs": benchmarkGet1000LogsWithAddrs,
 }
 
-func BenchmarkThreadstore(b *testing.B, factory ThreadstoreFactory, variant string) {
+func BenchmarkLogstore(b *testing.B, factory LogstoreFactory, variant string) {
 	// Parameterises benchmarks to tackle logs with 1, 10, 100 multiaddrs.
 	params := []struct {
 		n  int
@@ -65,7 +65,7 @@ func BenchmarkThreadstore(b *testing.B, factory ThreadstoreFactory, variant stri
 	}
 }
 
-func benchmarkAddAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkAddAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
@@ -76,7 +76,7 @@ func benchmarkAddAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing
 	}
 }
 
-func benchmarkSetAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkSetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
@@ -87,7 +87,7 @@ func benchmarkSetAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing
 	}
 }
 
-func benchmarkGetAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkGetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		pp := <-addrs
@@ -100,7 +100,7 @@ func benchmarkGetAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing
 	}
 }
 
-func benchmarkAddGetAndClearAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkAddGetAndClearAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
@@ -113,7 +113,7 @@ func benchmarkAddGetAndClearAddrs(ts tstore.Threadstore, addrs chan *logpair) fu
 	}
 }
 
-func benchmarkGet1000LogsWithAddrs(ts tstore.Threadstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkGet1000LogsWithAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		var logs = make([]*logpair, 1000)

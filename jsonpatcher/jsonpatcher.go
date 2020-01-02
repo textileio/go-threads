@@ -11,10 +11,10 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	ipldformat "github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
-	core "github.com/textileio/go-textile-core/store"
+	core "github.com/textileio/go-threads/core/store"
 )
 
 type operationType int
@@ -56,7 +56,7 @@ func New(jsonMode bool) core.EventCodec {
 	return &jsonPatcher{jsonMode: jsonMode}
 }
 
-func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, ipldformat.Node, error) {
+func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node, error) {
 	revents := recordEvents{Patches: make([]patchEvent, len(actions))}
 	events := make([]core.Event, len(actions))
 	for i := range actions {

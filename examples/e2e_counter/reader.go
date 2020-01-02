@@ -7,18 +7,18 @@ import (
 
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/crypto/symmetric"
+	s "github.com/textileio/go-threads/store"
 )
 
 func runReaderPeer(repo string) {
 	fmt.Printf("I'm a model reader.\n")
 	writerAddr, fkey, rkey := getWriterAddr()
 
-	ts, err := es.DefaultThreadservice(repo)
+	ts, err := s.DefaultService(repo)
 	checkErr(err)
 	defer ts.Close()
-	store, err := es.NewStore(ts, es.WithRepoPath(repo))
+	store, err := s.NewStore(ts, s.WithRepoPath(repo))
 	checkErr(err)
 	defer store.Close()
 
@@ -29,7 +29,7 @@ func runReaderPeer(repo string) {
 	checkErr(err)
 	checkErr(store.StartFromAddr(writerAddr, fkey, rkey))
 	for range l.Channel() {
-		err := m.ReadTxn(func(txn *es.Txn) error {
+		err := m.ReadTxn(func(txn *s.Txn) error {
 			var res []*myCounter
 			if err := txn.Find(&res, nil); err != nil {
 				return err

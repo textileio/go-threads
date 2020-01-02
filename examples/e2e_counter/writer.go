@@ -7,9 +7,9 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
-	core "github.com/textileio/go-textile-core/store"
-	"github.com/textileio/go-textile-core/thread"
-	es "github.com/textileio/go-threads/eventstore"
+	core "github.com/textileio/go-threads/core/store"
+	"github.com/textileio/go-threads/core/thread"
+	s "github.com/textileio/go-threads/store"
 )
 
 type myCounter struct {
@@ -21,10 +21,10 @@ type myCounter struct {
 func runWriterPeer(repo string) {
 	fmt.Printf("I'm a writer\n")
 
-	ts, err := es.DefaultThreadservice(repo)
+	ts, err := s.DefaultService(repo)
 	checkErr(err)
 	defer ts.Close()
-	store, err := es.NewStore(ts, es.WithRepoPath(repo))
+	store, err := s.NewStore(ts, s.WithRepoPath(repo))
 	checkErr(err)
 	defer store.Close()
 
@@ -35,7 +35,7 @@ func runWriterPeer(repo string) {
 
 	var counter *myCounter
 	var counters []*myCounter
-	checkErr(m.Find(&counters, es.Where("Name").Eq("TestCounter")))
+	checkErr(m.Find(&counters, s.Where("Name").Eq("TestCounter")))
 	if len(counters) > 0 {
 		counter = counters[0]
 	} else {
@@ -49,7 +49,7 @@ func runWriterPeer(repo string) {
 
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
-		err = m.WriteTxn(func(txn *es.Txn) error {
+		err = m.WriteTxn(func(txn *s.Txn) error {
 			c := &myCounter{}
 			if err = txn.FindByID(counter.ID, c); err != nil {
 				return err
@@ -62,9 +62,9 @@ func runWriterPeer(repo string) {
 	}
 }
 
-func saveThreadMultiaddrForOtherPeer(store *es.Store, threadID thread.ID) {
-	host := store.Threadservice().Host()
-	tinfo, err := store.Threadservice().Store().ThreadInfo(threadID)
+func saveThreadMultiaddrForOtherPeer(store *s.Store, threadID thread.ID) {
+	host := store.Service().Host()
+	tinfo, err := store.Service().Store().ThreadInfo(threadID)
 	checkErr(err)
 
 	// Create listen addr

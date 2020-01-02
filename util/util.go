@@ -9,15 +9,15 @@ import (
 	"strings"
 
 	logging "github.com/ipfs/go-log"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	sym "github.com/textileio/go-textile-core/crypto/symmetric"
-	"github.com/textileio/go-textile-core/thread"
-	tserv "github.com/textileio/go-textile-core/threadservice"
+	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	logger "github.com/whyrusleeping/go-logging"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -31,7 +31,7 @@ var (
 )
 
 // CreateThread creates a new set of keys.
-func CreateThread(t tserv.Threadservice, id thread.ID) (info thread.Info, err error) {
+func CreateThread(s service.Service, id thread.ID) (info thread.Info, err error) {
 	info.ID = id
 	info.FollowKey, err = sym.CreateKey()
 	if err != nil {
@@ -41,13 +41,13 @@ func CreateThread(t tserv.Threadservice, id thread.ID) (info thread.Info, err er
 	if err != nil {
 		return
 	}
-	err = t.Store().AddThread(info)
+	err = s.Store().AddThread(info)
 	return
 }
 
 // CreateLog creates a new log with the given peer as host.
 func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
-	sk, pk, err := ic.GenerateEd25519Key(rand.Reader)
+	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return
 	}
@@ -69,8 +69,8 @@ func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 }
 
 // GetLog returns the log with the given thread and log id.
-func GetLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = t.Store().LogInfo(id, lid)
+func GetLog(s service.Service, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+	info, err = s.Store().LogInfo(id, lid)
 	if err != nil {
 		return
 	}
@@ -81,18 +81,18 @@ func GetLog(t tserv.Threadservice, id thread.ID, lid peer.ID) (info thread.LogIn
 }
 
 // GetOwnLoad returns the log owned by the host under the given thread.
-func GetOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := t.Store().LogsWithKeys(id)
+func GetOwnLog(s service.Service, id thread.ID) (info thread.LogInfo, err error) {
+	logs, err := s.Store().LogsWithKeys(id)
 	if err != nil {
 		return
 	}
 	for _, lid := range logs {
-		sk, err := t.Store().PrivKey(id, lid)
+		sk, err := s.Store().PrivKey(id, lid)
 		if err != nil {
 			return info, err
 		}
 		if sk != nil {
-			return t.Store().LogInfo(id, lid)
+			return s.Store().LogInfo(id, lid)
 		}
 	}
 	return info, nil
@@ -100,19 +100,19 @@ func GetOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo, err er
 
 // GetOrCreateOwnLoad returns the log owned by the host under the given thread.
 // If no log exists, a new one is created under the given thread.
-func GetOrCreateOwnLog(t tserv.Threadservice, id thread.ID) (info thread.LogInfo, err error) {
-	info, err = GetOwnLog(t, id)
+func GetOrCreateOwnLog(s service.Service, id thread.ID) (info thread.LogInfo, err error) {
+	info, err = GetOwnLog(s, id)
 	if err != nil {
 		return info, err
 	}
 	if info.PubKey != nil {
 		return
 	}
-	info, err = CreateLog(t.Host().ID())
+	info, err = CreateLog(s.Host().ID())
 	if err != nil {
 		return
 	}
-	err = t.Store().AddLog(id, info)
+	err = s.Store().AddLog(id, info)
 	return info, err
 }
 
@@ -195,15 +195,15 @@ func SetLogLevels(systems map[string]logger.Level) error {
 	return nil
 }
 
-func LoadKey(pth string) ic.PrivKey {
-	var priv ic.PrivKey
+func LoadKey(pth string) crypto.PrivKey {
+	var priv crypto.PrivKey
 	_, err := os.Stat(pth)
 	if os.IsNotExist(err) {
-		priv, _, err = ic.GenerateKeyPair(ic.Ed25519, 0)
+		priv, _, err = crypto.GenerateKeyPair(crypto.Ed25519, 0)
 		if err != nil {
 			panic(err)
 		}
-		key, err := ic.MarshalPrivateKey(priv)
+		key, err := crypto.MarshalPrivateKey(priv)
 		if err != nil {
 			panic(err)
 		}
@@ -217,7 +217,7 @@ func LoadKey(pth string) ic.PrivKey {
 		if err != nil {
 			panic(err)
 		}
-		priv, err = ic.UnmarshalPrivateKey(key)
+		priv, err = crypto.UnmarshalPrivateKey(key)
 		if err != nil {
 			panic(err)
 		}

@@ -8,9 +8,9 @@ import (
 
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/crypto/symmetric"
 	pb "github.com/textileio/go-threads/api/pb"
-	es "github.com/textileio/go-threads/eventstore"
+	"github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -20,8 +20,6 @@ import (
 // Client provides the client api
 type Client struct {
 	client pb.APIClient
-	ctx    context.Context
-	cancel context.CancelFunc
 	conn   *grpc.ClientConn
 }
 
@@ -82,11 +80,8 @@ func NewClient(maddr ma.Multiaddr) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 	client := &Client{
 		client: pb.NewAPIClient(conn),
-		ctx:    ctx,
-		cancel: cancel,
 		conn:   conn,
 	}
 	return client, nil
@@ -94,13 +89,12 @@ func NewClient(maddr ma.Multiaddr) (*Client, error) {
 
 // Close closes the client's grpc connection and cancels any active requests
 func (c *Client) Close() error {
-	c.cancel()
 	return c.conn.Close()
 }
 
 // NewStore cereates a new Store
-func (c *Client) NewStore() (string, error) {
-	resp, err := c.client.NewStore(c.ctx, &pb.NewStoreRequest{})
+func (c *Client) NewStore(ctx context.Context) (string, error) {
+	resp, err := c.client.NewStore(ctx, &pb.NewStoreRequest{})
 	if err != nil {
 		return "", err
 	}
@@ -108,36 +102,36 @@ func (c *Client) NewStore() (string, error) {
 }
 
 // RegisterSchema registers a new model shecma
-func (c *Client) RegisterSchema(storeID, name, schema string) error {
+func (c *Client) RegisterSchema(ctx context.Context, storeID, name, schema string) error {
 	req := &pb.RegisterSchemaRequest{
 		StoreID: storeID,
 		Name:    name,
 		Schema:  schema,
 	}
-	_, err := c.client.RegisterSchema(c.ctx, req)
+	_, err := c.client.RegisterSchema(ctx, req)
 	return err
 }
 
 // Start starts the specified Store
-func (c *Client) Start(storeID string) error {
-	_, err := c.client.Start(c.ctx, &pb.StartRequest{StoreID: storeID})
+func (c *Client) Start(ctx context.Context, storeID string) error {
+	_, err := c.client.Start(ctx, &pb.StartRequest{StoreID: storeID})
 	return err
 }
 
 // StartFromAddress starts the specified Store with the provided address and keys
-func (c *Client) StartFromAddress(storeID string, addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
+func (c *Client) StartFromAddress(ctx context.Context, storeID string, addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
 	req := &pb.StartFromAddressRequest{
 		StoreID:   storeID,
 		Address:   addr.String(),
 		FollowKey: followKey.Bytes(),
 		ReadKey:   readKey.Bytes(),
 	}
-	_, err := c.client.StartFromAddress(c.ctx, req)
+	_, err := c.client.StartFromAddress(ctx, req)
 	return err
 }
 
 // ModelCreate creates new instances of model objects
-func (c *Client) ModelCreate(storeID, modelName string, items ...interface{}) error {
+func (c *Client) ModelCreate(ctx context.Context, storeID, modelName string, items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
@@ -149,7 +143,7 @@ func (c *Client) ModelCreate(storeID, modelName string, items ...interface{}) er
 		Values:    values,
 	}
 
-	resp, err := c.client.ModelCreate(c.ctx, req)
+	resp, err := c.client.ModelCreate(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -165,7 +159,7 @@ func (c *Client) ModelCreate(storeID, modelName string, items ...interface{}) er
 }
 
 // ModelSave saves existing instances
-func (c *Client) ModelSave(storeID, modelName string, items ...interface{}) error {
+func (c *Client) ModelSave(ctx context.Context, storeID, modelName string, items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
@@ -176,27 +170,27 @@ func (c *Client) ModelSave(storeID, modelName string, items ...interface{}) erro
 		ModelName: modelName,
 		Values:    values,
 	}
-	_, err = c.client.ModelSave(c.ctx, req)
+	_, err = c.client.ModelSave(ctx, req)
 	return err
 }
 
 // ModelDelete deletes data
-func (c *Client) ModelDelete(storeID, modelName string, entityIDs ...string) error {
+func (c *Client) ModelDelete(ctx context.Context, storeID, modelName string, entityIDs ...string) error {
 	req := &pb.ModelDeleteRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
 		EntityIDs: entityIDs,
 	}
-	_, err := c.client.ModelDelete(c.ctx, req)
+	_, err := c.client.ModelDelete(ctx, req)
 	return err
 }
 
 // GetStoreLink retrives the components required to create a Thread/store invite.
-func (c *Client) GetStoreLink(storeID string) ([]string, error) {
+func (c *Client) GetStoreLink(ctx context.Context, storeID string) ([]string, error) {
 	req := &pb.GetStoreLinkRequest{
 		StoreID: storeID,
 	}
-	resp, err := c.client.GetStoreLink(c.ctx, req)
+	resp, err := c.client.GetStoreLink(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -212,13 +206,13 @@ func (c *Client) GetStoreLink(storeID string) ([]string, error) {
 }
 
 // ModelHas checks if the specified entities exist
-func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool, error) {
+func (c *Client) ModelHas(ctx context.Context, storeID, modelName string, entityIDs ...string) (bool, error) {
 	req := &pb.ModelHasRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
 		EntityIDs: entityIDs,
 	}
-	resp, err := c.client.ModelHas(c.ctx, req)
+	resp, err := c.client.ModelHas(ctx, req)
 	if err != nil {
 		return false, err
 	}
@@ -226,7 +220,7 @@ func (c *Client) ModelHas(storeID, modelName string, entityIDs ...string) (bool,
 }
 
 // ModelFind finds records by query
-func (c *Client) ModelFind(storeID, modelName string, query *es.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (c *Client) ModelFind(ctx context.Context, storeID, modelName string, query *store.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
@@ -236,7 +230,7 @@ func (c *Client) ModelFind(storeID, modelName string, query *es.JSONQuery, dummy
 		ModelName: modelName,
 		QueryJSON: queryBytes,
 	}
-	resp, err := c.client.ModelFind(c.ctx, req)
+	resp, err := c.client.ModelFind(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -244,13 +238,13 @@ func (c *Client) ModelFind(storeID, modelName string, query *es.JSONQuery, dummy
 }
 
 // ModelFindByID finds a record by id
-func (c *Client) ModelFindByID(storeID, modelName, entityID string, entity interface{}) error {
+func (c *Client) ModelFindByID(ctx context.Context, storeID, modelName, entityID string, entity interface{}) error {
 	req := &pb.ModelFindByIDRequest{
 		StoreID:   storeID,
 		ModelName: modelName,
 		EntityID:  entityID,
 	}
-	resp, err := c.client.ModelFindByID(c.ctx, req)
+	resp, err := c.client.ModelFindByID(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -259,8 +253,8 @@ func (c *Client) ModelFindByID(storeID, modelName, entityID string, entity inter
 }
 
 // ReadTransaction returns a read transaction that can be started and used and ended
-func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, error) {
-	client, err := c.client.ReadTransaction(c.ctx)
+func (c *Client) ReadTransaction(ctx context.Context, storeID, modelName string) (*ReadTransaction, error) {
+	client, err := c.client.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -268,8 +262,8 @@ func (c *Client) ReadTransaction(storeID, modelName string) (*ReadTransaction, e
 }
 
 // WriteTransaction returns a read transaction that can be started and used and ended
-func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction, error) {
-	client, err := c.client.WriteTransaction(c.ctx)
+func (c *Client) WriteTransaction(ctx context.Context, storeID, modelName string) (*WriteTransaction, error) {
+	client, err := c.client.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -277,9 +271,8 @@ func (c *Client) WriteTransaction(storeID, modelName string) (*WriteTransaction,
 }
 
 // Listen provides an update whenever the specified store, model type, or model instance is updated
-func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan ListenEvent, func(), error) {
+func (c *Client) Listen(ctx context.Context, storeID string, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
 	channel := make(chan ListenEvent)
-	ctx, cancel := context.WithCancel(c.ctx)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
 	for i, listenOption := range listenOptions {
 		var action pb.ListenRequest_Filter_Action
@@ -293,8 +286,7 @@ func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan L
 		case ListenSave:
 			action = pb.ListenRequest_Filter_SAVE
 		default:
-			cancel()
-			return nil, nil, fmt.Errorf("unknown ListenOption.Type %v", listenOption.Type)
+			return nil, fmt.Errorf("unknown ListenOption.Type %v", listenOption.Type)
 		}
 		filters[i] = &pb.ListenRequest_Filter{
 			ModelName: listenOption.Model,
@@ -308,8 +300,7 @@ func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan L
 	}
 	stream, err := c.client.Listen(ctx, req)
 	if err != nil {
-		cancel()
-		return nil, nil, err
+		return nil, err
 	}
 	go func() {
 		defer close(channel)
@@ -345,7 +336,7 @@ func (c *Client) Listen(storeID string, listenOptions ...ListenOption) (<-chan L
 			channel <- ListenEvent{action: action}
 		}
 	}()
-	return channel, cancel, nil
+	return channel, nil
 }
 
 func processFindReply(reply *pb.ModelFindReply, dummySlice interface{}) (interface{}, error) {

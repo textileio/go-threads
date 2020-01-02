@@ -7,11 +7,11 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-textile-core/thread"
-	tstore "github.com/textileio/go-textile-core/threadstore"
+	core "github.com/textileio/go-threads/core/logstore"
+	"github.com/textileio/go-threads/core/thread"
 )
 
-var addressBookSuite = map[string]func(book tstore.AddrBook) func(*testing.T){
+var addressBookSuite = map[string]func(book core.AddrBook) func(*testing.T){
 	"AddAddress":           testAddAddress,
 	"Clear":                testClearWorks,
 	"SetNegativeTTLClears": testSetNegativeTTLClears,
@@ -23,7 +23,7 @@ var addressBookSuite = map[string]func(book tstore.AddrBook) func(*testing.T){
 	"ThreadsWithAddresses": testThreadsFromddrs,
 }
 
-type AddrBookFactory func() (tstore.AddrBook, func())
+type AddrBookFactory func() (core.AddrBook, func())
 
 func AddrBookTest(t *testing.T, factory AddrBookFactory) {
 	for name, test := range addressBookSuite {
@@ -40,7 +40,7 @@ func AddrBookTest(t *testing.T, factory AddrBookFactory) {
 	}
 }
 
-func testAddAddress(ab tstore.AddrBook) func(*testing.T) {
+func testAddAddress(ab core.AddrBook) func(*testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -137,7 +137,7 @@ func testAddAddress(ab tstore.AddrBook) func(*testing.T) {
 	}
 }
 
-func testClearWorks(ab tstore.AddrBook) func(t *testing.T) {
+func testClearWorks(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -160,7 +160,7 @@ func testClearWorks(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testSetNegativeTTLClears(ab tstore.AddrBook) func(t *testing.T) {
+func testSetNegativeTTLClears(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -182,7 +182,7 @@ func testSetNegativeTTLClears(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testUpdateTTLs(ab tstore.AddrBook) func(t *testing.T) {
+func testUpdateTTLs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -238,7 +238,7 @@ func testUpdateTTLs(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testNilAddrsDontBreak(ab tstore.AddrBook) func(t *testing.T) {
+func testNilAddrsDontBreak(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -249,7 +249,7 @@ func testNilAddrsDontBreak(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testAddressesExpire(ab tstore.AddrBook) func(t *testing.T) {
+func testAddressesExpire(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -296,7 +296,7 @@ func testAddressesExpire(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testClearWithIterator(ab tstore.AddrBook) func(t *testing.T) {
+func testClearWithIterator(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -325,7 +325,7 @@ func testClearWithIterator(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testLogsWithAddrs(ab tstore.AddrBook) func(t *testing.T) {
+func testLogsWithAddrs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -355,7 +355,7 @@ func testLogsWithAddrs(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testThreadsFromddrs(ab tstore.AddrBook) func(t *testing.T) {
+func testThreadsFromddrs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		// cannot run in parallel as the store is modified.
 		// go runs sequentially in the specified order
@@ -387,7 +387,7 @@ func testThreadsFromddrs(ab tstore.AddrBook) func(t *testing.T) {
 	}
 }
 
-func checkedAddrs(t *testing.T, ab tstore.AddrBook, tid thread.ID, id peer.ID) []ma.Multiaddr {
+func checkedAddrs(t *testing.T, ab core.AddrBook, tid thread.ID, id peer.ID) []ma.Multiaddr {
 	addrs, err := ab.Addrs(tid, id)
 	if err != nil {
 		t.Fatal("error when getting addresses")
