@@ -15,7 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/service/pb"
 	"github.com/whyrusleeping/base32"
 )
@@ -59,7 +59,7 @@ type addrsRecord struct {
 
 // cacheKey is a comparable struct used as a key in the book cache
 type cacheKey struct {
-	threadID service.ID
+	threadID thread.ID
 	peerID   peer.ID
 }
 
@@ -102,12 +102,12 @@ func NewAddrBook(ctx context.Context, ds ds.Batching, opts Options) (*DsAddrBook
 }
 
 // AddAddr will add a new address if it's not already in the AddrBook.
-func (ab *DsAddrBook) AddAddr(t service.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) error {
+func (ab *DsAddrBook) AddAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) error {
 	return ab.AddAddrs(t, p, []ma.Multiaddr{addr}, ttl)
 }
 
 // AddAddrs will add many multiple addresses if they aren't already in the AddrBook.
-func (ab *DsAddrBook) AddAddrs(t service.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
+func (ab *DsAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
 	if ttl <= 0 {
 		return nil
 	}
@@ -118,11 +118,11 @@ func (ab *DsAddrBook) AddAddrs(t service.ID, p peer.ID, addrs []ma.Multiaddr, tt
 	return nil
 }
 
-func (ab *DsAddrBook) SetAddr(t service.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) error {
+func (ab *DsAddrBook) SetAddr(t thread.ID, p peer.ID, addr ma.Multiaddr, ttl time.Duration) error {
 	return ab.SetAddrs(t, p, []ma.Multiaddr{addr}, ttl)
 }
 
-func (ab *DsAddrBook) SetAddrs(t service.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
+func (ab *DsAddrBook) SetAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration) error {
 	addrs = cleanAddrs(addrs)
 	if ttl <= 0 {
 		err := ab.deleteAddrs(t, p, addrs)
@@ -134,7 +134,7 @@ func (ab *DsAddrBook) SetAddrs(t service.ID, p peer.ID, addrs []ma.Multiaddr, tt
 	return nil
 }
 
-func (ab *DsAddrBook) UpdateAddrs(t service.ID, p peer.ID, oldTTL time.Duration, newTTL time.Duration) error {
+func (ab *DsAddrBook) UpdateAddrs(t thread.ID, p peer.ID, oldTTL time.Duration, newTTL time.Duration) error {
 	pr, err := ab.loadRecord(t, p, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to update ttls for log %s: %w", p.Pretty(), err)
@@ -161,7 +161,7 @@ func (ab *DsAddrBook) UpdateAddrs(t service.ID, p peer.ID, oldTTL time.Duration,
 	return nil
 }
 
-func (ab *DsAddrBook) Addrs(t service.ID, p peer.ID) ([]ma.Multiaddr, error) {
+func (ab *DsAddrBook) Addrs(t thread.ID, p peer.ID) ([]ma.Multiaddr, error) {
 	pr, err := ab.loadRecord(t, p, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load peerstore entry for log %s while querying addrs: %w", p.Pretty(), err)
@@ -176,7 +176,7 @@ func (ab *DsAddrBook) Addrs(t service.ID, p peer.ID) ([]ma.Multiaddr, error) {
 	return addrs, nil
 }
 
-func (ab *DsAddrBook) AddrStream(ctx context.Context, t service.ID, p peer.ID) (<-chan ma.Multiaddr, error) {
+func (ab *DsAddrBook) AddrStream(ctx context.Context, t thread.ID, p peer.ID) (<-chan ma.Multiaddr, error) {
 	initial, err := ab.Addrs(t, p)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (ab *DsAddrBook) AddrStream(ctx context.Context, t service.ID, p peer.ID) (
 	return ab.subsManager.AddrStream(ctx, p, initial), nil
 }
 
-func (ab *DsAddrBook) ClearAddrs(t service.ID, p peer.ID) error {
+func (ab *DsAddrBook) ClearAddrs(t thread.ID, p peer.ID) error {
 	ab.cache.Remove(genCacheKey(t, p))
 
 	key := genDSKey(t, p)
@@ -194,7 +194,7 @@ func (ab *DsAddrBook) ClearAddrs(t service.ID, p peer.ID) error {
 	return nil
 }
 
-func (ab *DsAddrBook) LogsWithAddrs(t service.ID) (peer.IDSlice, error) {
+func (ab *DsAddrBook) LogsWithAddrs(t thread.ID) (peer.IDSlice, error) {
 	ids, err := uniqueLogIds(ab.ds, logBookBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())), func(result query.Result) string {
 		return ds.RawKey(result.Key).Name()
 	})
@@ -204,7 +204,7 @@ func (ab *DsAddrBook) LogsWithAddrs(t service.ID) (peer.IDSlice, error) {
 	return ids, nil
 }
 
-func (ab *DsAddrBook) ThreadsFromAddrs() (service.IDSlice, error) {
+func (ab *DsAddrBook) ThreadsFromAddrs() (thread.IDSlice, error) {
 	ids, err := uniqueThreadIds(ab.ds, logBookBase, func(result query.Result) string {
 		return ds.RawKey(result.Key).Parent().Name()
 	})
@@ -221,7 +221,7 @@ func (ab *DsAddrBook) ThreadsFromAddrs() (service.IDSlice, error) {
 // as a result and the update argument is true, the resulting state is saved in the datastore.
 //
 // If the cache argument is true, the record is inserted in the cache when loaded from the datastore.
-func (ab *DsAddrBook) loadRecord(t service.ID, p peer.ID, cache bool, update bool) (pr *addrsRecord, err error) {
+func (ab *DsAddrBook) loadRecord(t thread.ID, p peer.ID, cache bool, update bool) (pr *addrsRecord, err error) {
 	cacheKey := genCacheKey(t, p)
 	if e, ok := ab.cache.Get(cacheKey); ok {
 		pr = e.(*addrsRecord)
@@ -333,15 +333,15 @@ func (r *addrsRecord) flush(write ds.Write) (err error) {
 	return nil
 }
 
-func genDSKey(t service.ID, p peer.ID) ds.Key {
+func genDSKey(t thread.ID, p peer.ID) ds.Key {
 	return logBookBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())).ChildString(base32.RawStdEncoding.EncodeToString([]byte(p)))
 }
 
-func genCacheKey(t service.ID, p peer.ID) cacheKey {
+func genCacheKey(t thread.ID, p peer.ID) cacheKey {
 	return cacheKey{threadID: t, peerID: p}
 }
 
-func (ab *DsAddrBook) setAddrs(t service.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration, mode ttlWriteMode) (err error) {
+func (ab *DsAddrBook) setAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr, ttl time.Duration, mode ttlWriteMode) (err error) {
 	pr, err := ab.loadRecord(t, p, true, false)
 	if err != nil {
 		return fmt.Errorf("failed to load peerstore entry for log %v while setting addrs, err: %v", p, err)
@@ -404,7 +404,7 @@ Outer:
 	return pr.flush(ab.ds)
 }
 
-func (ab *DsAddrBook) deleteAddrs(t service.ID, p peer.ID, addrs []ma.Multiaddr) (err error) {
+func (ab *DsAddrBook) deleteAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr) (err error) {
 	pr, err := ab.loadRecord(t, p, false, false)
 	if err != nil {
 		return fmt.Errorf("failed to load peerstore entry for log %v while deleting addrs, err: %v", p, err)

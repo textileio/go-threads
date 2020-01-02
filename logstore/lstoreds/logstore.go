@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	lstore "github.com/textileio/go-threads/logstore"
 	"github.com/whyrusleeping/base32"
 )
@@ -61,7 +61,7 @@ func NewLogstore(ctx context.Context, store ds.Batching, opts Options) (core.Log
 }
 
 // uniqueThreadIds extracts and returns unique thread IDs from database keys.
-func uniqueThreadIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Result) string) (service.IDSlice, error) {
+func uniqueThreadIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Result) string) (thread.IDSlice, error) {
 	var (
 		q       = query.Query{Prefix: prefix.String(), KeysOnly: true}
 		results query.Results
@@ -82,13 +82,13 @@ func uniqueThreadIds(ds ds.Datastore, prefix ds.Key, extractor func(result query
 	}
 
 	if len(idset) == 0 {
-		return service.IDSlice{}, nil
+		return thread.IDSlice{}, nil
 	}
 
-	ids := make(service.IDSlice, 0, len(idset))
+	ids := make(thread.IDSlice, 0, len(idset))
 	for id := range idset {
 		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, err := service.Cast(pid)
+		id, err := thread.Cast(pid)
 		if err == nil {
 			ids = append(ids, id)
 		}
@@ -132,12 +132,12 @@ func uniqueLogIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Re
 	return ids, nil
 }
 
-func dsThreadKey(t service.ID, baseKey ds.Key) ds.Key {
+func dsThreadKey(t thread.ID, baseKey ds.Key) ds.Key {
 	key := baseKey.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
 	return key
 }
 
-func dsLogKey(t service.ID, p peer.ID, baseKey ds.Key) ds.Key {
+func dsLogKey(t thread.ID, p peer.ID, baseKey ds.Key) ds.Key {
 	key := baseKey.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
 	key = key.ChildString(base32.RawStdEncoding.EncodeToString([]byte(p)))
 	return key

@@ -12,7 +12,7 @@ import (
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 var threadstoreSuite = map[string]func(core.Logstore) func(*testing.T){
@@ -42,7 +42,7 @@ func LogstoreTest(t *testing.T, factory LogstoreFactory) {
 
 func testAddrStream(ts core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		addrs, pid := getAddrs(t, 100), peer.ID("testlog")
 		err := ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
@@ -128,7 +128,7 @@ func testAddrStream(ts core.Logstore) func(t *testing.T) {
 
 func testGetStreamBeforeLogAdded(ts core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		addrs, pid := getAddrs(t, 10), peer.ID("testlog")
 
@@ -183,7 +183,7 @@ func testGetStreamBeforeLogAdded(ts core.Logstore) func(t *testing.T) {
 
 func testAddrStreamDuplicates(ts core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		addrs, pid := getAddrs(t, 10), peer.ID("testlog")
 
@@ -228,11 +228,11 @@ func testAddrStreamDuplicates(ts core.Logstore) func(t *testing.T) {
 
 func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tids := make([]service.ID, 0)
+		tids := make([]thread.ID, 0)
 		addrs := getAddrs(t, 10)
 
 		for _, a := range addrs {
-			tid := service.NewIDV1(service.Raw, 24)
+			tid := thread.NewIDV1(thread.Raw, 24)
 			tids = append(tids, tid)
 			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p, _ := peer.IDFromPrivateKey(priv)
@@ -268,9 +268,9 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 
 func testMetadata(ts core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tids := make([]service.ID, 10)
+		tids := make([]thread.ID, 10)
 		for i := range tids {
-			tids[i] = service.NewIDV1(service.Raw, 24)
+			tids[i] = thread.NewIDV1(thread.Raw, 24)
 		}
 		for _, p := range tids {
 			if err := ts.PutString(p, "AgentVersion", "string"); err != nil {

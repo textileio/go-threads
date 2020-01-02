@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	threadcbor "github.com/textileio/go-threads/cbor"
 	service "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -21,7 +22,7 @@ const (
 type singleThreadAdapter struct {
 	api        service.Service
 	store      *Store
-	threadID   service.ID
+	threadID   thread.ID
 	ownLogID   peer.ID
 	closeChan  chan struct{}
 	goRoutines sync.WaitGroup
@@ -33,7 +34,7 @@ type singleThreadAdapter struct {
 
 // NewSingleThreadAdapter returns a new Adapter which maps
 // a Store with a single Thread
-func newSingleThreadAdapter(store *Store, threadID service.ID) *singleThreadAdapter {
+func newSingleThreadAdapter(store *Store, threadID thread.ID) *singleThreadAdapter {
 	a := &singleThreadAdapter{
 		api:       store.Service(),
 		threadID:  threadID,

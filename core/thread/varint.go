@@ -1,4 +1,4 @@
-package service
+package thread
 
 // Version of varint function that work with a string rather than
 // []byte to avoid unnecessary allocation

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 var internKeys = map[string]bool{
@@ -12,7 +12,7 @@ var internKeys = map[string]bool{
 }
 
 type metakey struct {
-	id  service.ID
+	id  thread.ID
 	key string
 }
 
@@ -31,12 +31,12 @@ func NewThreadMetadata() core.ThreadMetadata {
 	}
 }
 
-func (ts *memoryThreadMetadata) PutInt64(t service.ID, key string, val int64) error {
+func (ts *memoryThreadMetadata) PutInt64(t thread.ID, key string, val int64) error {
 	ts.putValue(t, key, val)
 	return nil
 }
 
-func (ts *memoryThreadMetadata) GetInt64(t service.ID, key string) (*int64, error) {
+func (ts *memoryThreadMetadata) GetInt64(t thread.ID, key string) (*int64, error) {
 	val, ok := ts.getValue(t, key).(int64)
 	if !ok {
 		return nil, nil
@@ -44,12 +44,12 @@ func (ts *memoryThreadMetadata) GetInt64(t service.ID, key string) (*int64, erro
 	return &val, nil
 }
 
-func (ts *memoryThreadMetadata) PutString(t service.ID, key string, val string) error {
+func (ts *memoryThreadMetadata) PutString(t thread.ID, key string, val string) error {
 	ts.putValue(t, key, val)
 	return nil
 }
 
-func (ts *memoryThreadMetadata) GetString(t service.ID, key string) (*string, error) {
+func (ts *memoryThreadMetadata) GetString(t thread.ID, key string) (*string, error) {
 	val, ok := ts.getValue(t, key).(string)
 	if !ok {
 		return nil, nil
@@ -57,14 +57,14 @@ func (ts *memoryThreadMetadata) GetString(t service.ID, key string) (*string, er
 	return &val, nil
 }
 
-func (ts *memoryThreadMetadata) PutBytes(t service.ID, key string, val []byte) error {
+func (ts *memoryThreadMetadata) PutBytes(t thread.ID, key string, val []byte) error {
 	b := make([]byte, len(val))
 	copy(b, val)
 	ts.putValue(t, key, b)
 	return nil
 }
 
-func (ts *memoryThreadMetadata) GetBytes(t service.ID, key string) (*[]byte, error) {
+func (ts *memoryThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error) {
 	val, ok := ts.getValue(t, key).([]byte)
 	if !ok {
 		return nil, nil
@@ -72,7 +72,7 @@ func (ts *memoryThreadMetadata) GetBytes(t service.ID, key string) (*[]byte, err
 	return &val, nil
 }
 
-func (ts *memoryThreadMetadata) putValue(t service.ID, key string, val interface{}) {
+func (ts *memoryThreadMetadata) putValue(t thread.ID, key string, val interface{}) {
 	ts.dslock.Lock()
 	defer ts.dslock.Unlock()
 	if vals, ok := val.(string); ok && internKeys[key] {
@@ -85,7 +85,7 @@ func (ts *memoryThreadMetadata) putValue(t service.ID, key string, val interface
 	ts.ds[metakey{t, key}] = val
 }
 
-func (ts *memoryThreadMetadata) getValue(t service.ID, key string) interface{} {
+func (ts *memoryThreadMetadata) getValue(t thread.ID, key string) interface{} {
 	ts.dslock.RLock()
 	defer ts.dslock.RUnlock()
 	if v, ok := ts.ds[metakey{t, key}]; ok {

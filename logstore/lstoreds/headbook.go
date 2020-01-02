@@ -8,7 +8,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/service/pb"
 )
 
@@ -31,12 +31,12 @@ func NewHeadBook(ds ds.TxnDatastore) core.HeadBook {
 }
 
 // AddHead addes a new head to a log.
-func (hb *dsHeadBook) AddHead(t service.ID, p peer.ID, head cid.Cid) error {
+func (hb *dsHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
 	return hb.AddHeads(t, p, []cid.Cid{head})
 }
 
 // AddHeads adds multiple heads to a log.
-func (hb *dsHeadBook) AddHeads(t service.ID, p peer.ID, heads []cid.Cid) error {
+func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	txn, err := hb.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("error when creating txn in datastore: %w", err)
@@ -78,11 +78,11 @@ func (hb *dsHeadBook) AddHeads(t service.ID, p peer.ID, heads []cid.Cid) error {
 	return txn.Commit()
 }
 
-func (hb *dsHeadBook) SetHead(t service.ID, p peer.ID, c cid.Cid) error {
+func (hb *dsHeadBook) SetHead(t thread.ID, p peer.ID, c cid.Cid) error {
 	return hb.SetHeads(t, p, []cid.Cid{c})
 }
 
-func (hb *dsHeadBook) SetHeads(t service.ID, p peer.ID, heads []cid.Cid) error {
+func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	key := dsLogKey(t, p, hbBase)
 	hr := pb.HeadBookRecord{}
 	for i := range heads {
@@ -104,7 +104,7 @@ func (hb *dsHeadBook) SetHeads(t service.ID, p peer.ID, heads []cid.Cid) error {
 	return nil
 }
 
-func (hb *dsHeadBook) Heads(t service.ID, p peer.ID) ([]cid.Cid, error) {
+func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 	key := dsLogKey(t, p, hbBase)
 	v, err := hb.ds.Get(key)
 	if err == ds.ErrNotFound {
@@ -124,7 +124,7 @@ func (hb *dsHeadBook) Heads(t service.ID, p peer.ID) ([]cid.Cid, error) {
 	return ret, nil
 }
 
-func (hb *dsHeadBook) ClearHeads(t service.ID, p peer.ID) error {
+func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	key := dsLogKey(t, p, hbBase)
 	if err := hb.ds.Delete(key); err != nil {
 		return fmt.Errorf("error when deleting heads from %s", key)

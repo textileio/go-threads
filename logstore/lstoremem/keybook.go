@@ -4,23 +4,23 @@ import (
 	"errors"
 	"sync"
 
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 type memoryKeyBook struct {
 	sync.RWMutex
 
-	pks map[service.ID]map[peer.ID]ic.PubKey
-	sks map[service.ID]map[peer.ID]ic.PrivKey
-	rks map[service.ID][]byte
-	fks map[service.ID][]byte
+	pks map[thread.ID]map[peer.ID]crypto.PubKey
+	sks map[thread.ID]map[peer.ID]crypto.PrivKey
+	rks map[thread.ID][]byte
+	fks map[thread.ID][]byte
 }
 
-func (mkb *memoryKeyBook) getPubKey(t service.ID, p peer.ID) (ic.PubKey, bool) {
+func (mkb *memoryKeyBook) getPubKey(t thread.ID, p peer.ID) (crypto.PubKey, bool) {
 	lmap, found := mkb.pks[t]
 	if lmap == nil {
 		return nil, found
@@ -29,7 +29,7 @@ func (mkb *memoryKeyBook) getPubKey(t service.ID, p peer.ID) (ic.PubKey, bool) {
 	return hmap, found
 }
 
-func (mkb *memoryKeyBook) getPrivKey(t service.ID, p peer.ID) (ic.PrivKey, bool) {
+func (mkb *memoryKeyBook) getPrivKey(t thread.ID, p peer.ID) (crypto.PrivKey, bool) {
 	lmap, found := mkb.sks[t]
 	if lmap == nil {
 		return nil, found
@@ -42,14 +42,14 @@ var _ core.KeyBook = (*memoryKeyBook)(nil)
 
 func NewKeyBook() core.KeyBook {
 	return &memoryKeyBook{
-		pks: map[service.ID]map[peer.ID]ic.PubKey{},
-		sks: map[service.ID]map[peer.ID]ic.PrivKey{},
-		rks: map[service.ID][]byte{},
-		fks: map[service.ID][]byte{},
+		pks: map[thread.ID]map[peer.ID]crypto.PubKey{},
+		sks: map[thread.ID]map[peer.ID]crypto.PrivKey{},
+		rks: map[thread.ID][]byte{},
+		fks: map[thread.ID][]byte{},
 	}
 }
 
-func (mkb *memoryKeyBook) LogsWithKeys(t service.ID) (peer.IDSlice, error) {
+func (mkb *memoryKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
 	mkb.RLock()
 	ps := make(map[peer.ID]struct{})
 	if mkb.pks[t] != nil {
@@ -70,9 +70,9 @@ func (mkb *memoryKeyBook) LogsWithKeys(t service.ID) (peer.IDSlice, error) {
 	return pids, nil
 }
 
-func (mkb *memoryKeyBook) ThreadsFromKeys() (service.IDSlice, error) {
+func (mkb *memoryKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
 	mkb.RLock()
-	ts := make(map[service.ID]struct{})
+	ts := make(map[thread.ID]struct{})
 	for t := range mkb.pks {
 		ts[t] = struct{}{}
 	}
@@ -80,21 +80,21 @@ func (mkb *memoryKeyBook) ThreadsFromKeys() (service.IDSlice, error) {
 		ts[t] = struct{}{}
 	}
 	mkb.RUnlock()
-	var tids service.IDSlice
+	var tids thread.IDSlice
 	for t := range ts {
 		tids = append(tids, t)
 	}
 	return tids, nil
 }
 
-func (mkb *memoryKeyBook) PubKey(t service.ID, p peer.ID) (ic.PubKey, error) {
+func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) (crypto.PubKey, error) {
 	mkb.RLock()
 	pk, _ := mkb.getPubKey(t, p)
 	mkb.RUnlock()
 	return pk, nil
 }
 
-func (mkb *memoryKeyBook) AddPubKey(t service.ID, p peer.ID, pk ic.PubKey) error {
+func (mkb *memoryKeyBook) AddPubKey(t thread.ID, p peer.ID, pk crypto.PubKey) error {
 	// check it's correct first
 	if !p.MatchesPublicKey(pk) {
 		return errors.New("ID does not match PublicKey")
@@ -102,21 +102,21 @@ func (mkb *memoryKeyBook) AddPubKey(t service.ID, p peer.ID, pk ic.PubKey) error
 
 	mkb.Lock()
 	if mkb.pks[t] == nil {
-		mkb.pks[t] = make(map[peer.ID]ic.PubKey, 1)
+		mkb.pks[t] = make(map[peer.ID]crypto.PubKey, 1)
 	}
 	mkb.pks[t][p] = pk
 	mkb.Unlock()
 	return nil
 }
 
-func (mkb *memoryKeyBook) PrivKey(t service.ID, p peer.ID) (ic.PrivKey, error) {
+func (mkb *memoryKeyBook) PrivKey(t thread.ID, p peer.ID) (crypto.PrivKey, error) {
 	mkb.RLock()
 	sk, _ := mkb.getPrivKey(t, p)
 	mkb.RUnlock()
 	return sk, nil
 }
 
-func (mkb *memoryKeyBook) AddPrivKey(t service.ID, p peer.ID, sk ic.PrivKey) error {
+func (mkb *memoryKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk crypto.PrivKey) error {
 	if sk == nil {
 		return errors.New("sk is nil (PrivKey)")
 	}
@@ -128,14 +128,14 @@ func (mkb *memoryKeyBook) AddPrivKey(t service.ID, p peer.ID, sk ic.PrivKey) err
 
 	mkb.Lock()
 	if mkb.sks[t] == nil {
-		mkb.sks[t] = make(map[peer.ID]ic.PrivKey, 1)
+		mkb.sks[t] = make(map[peer.ID]crypto.PrivKey, 1)
 	}
 	mkb.sks[t][p] = sk
 	mkb.Unlock()
 	return nil
 }
 
-func (mkb *memoryKeyBook) ReadKey(t service.ID) (key *sym.Key, err error) {
+func (mkb *memoryKeyBook) ReadKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
 	b := mkb.rks[t]
 	if b != nil {
@@ -145,7 +145,7 @@ func (mkb *memoryKeyBook) ReadKey(t service.ID) (key *sym.Key, err error) {
 	return key, err
 }
 
-func (mkb *memoryKeyBook) AddReadKey(t service.ID, key *sym.Key) error {
+func (mkb *memoryKeyBook) AddReadKey(t thread.ID, key *sym.Key) error {
 	if key == nil {
 		return errors.New("key is nil (ReadKey)")
 	}
@@ -156,7 +156,7 @@ func (mkb *memoryKeyBook) AddReadKey(t service.ID, key *sym.Key) error {
 	return nil
 }
 
-func (mkb *memoryKeyBook) FollowKey(t service.ID) (key *sym.Key, err error) {
+func (mkb *memoryKeyBook) FollowKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
 	b := mkb.fks[t]
 	if b != nil {
@@ -166,7 +166,7 @@ func (mkb *memoryKeyBook) FollowKey(t service.ID) (key *sym.Key, err error) {
 	return
 }
 
-func (mkb *memoryKeyBook) AddFollowKey(t service.ID, key *sym.Key) error {
+func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, key *sym.Key) error {
 	if key == nil {
 		return errors.New("key is nil (FollowKey)")
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 )
 
@@ -29,7 +30,7 @@ func ReadKey(key *symmetric.Key) AddOption {
 
 // SubOptions defines options for a thread subscription.
 type SubOptions struct {
-	ThreadIDs IDSlice
+	ThreadIDs thread.IDSlice
 }
 
 // SubOption is a thread subscription option.
@@ -38,7 +39,7 @@ type SubOption func(*SubOptions)
 // ThreadID restricts the subscription to the given thread.
 // Use this option multiple times to build up a list of threads
 // to subscribe to.
-func ThreadID(id ID) SubOption {
+func ThreadID(id thread.ID) SubOption {
 	return func(args *SubOptions) {
 		args.ThreadIDs = append(args.ThreadIDs, id)
 	}

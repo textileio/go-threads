@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/go-threads/broadcast"
 	service "github.com/textileio/go-threads/core/service"
 	core "github.com/textileio/go-threads/core/store"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
@@ -143,15 +144,15 @@ func (s *Store) reregisterSchemas() error {
 }
 
 // ThreadID returns the store's theadID if it exists.
-func (s *Store) ThreadID() (service.ID, bool, error) {
+func (s *Store) ThreadID() (thread.ID, bool, error) {
 	v, err := s.datastore.Get(dsStoreThreadID)
 	if err == ds.ErrNotFound {
-		return service.ID{}, false, nil
+		return thread.ID{}, false, nil
 	}
 	if err != nil {
-		return service.ID{}, false, err
+		return thread.ID{}, false, err
 	}
-	id, err := service.Cast(v)
+	id, err := thread.Cast(v)
 	return id, true, err
 }
 
@@ -164,7 +165,7 @@ func (s *Store) Start() error {
 		return err
 	}
 	if !found {
-		id = service.NewIDV1(service.Raw, 32)
+		id = thread.NewIDV1(thread.Raw, 32)
 		if _, err := util.CreateThread(s.service, id); err != nil {
 			return err
 		}
@@ -182,11 +183,11 @@ func (s *Store) Start() error {
 // and before any operation on them. It pulls the current Store thread from
 // thread addr
 func (s *Store) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
-	idstr, err := addr.ValueForProtocol(service.ThreadCode)
+	idstr, err := addr.ValueForProtocol(thread.Code)
 	if err != nil {
 		return err
 	}
-	maThreadID, err := service.Decode(idstr)
+	maThreadID, err := thread.Decode(idstr)
 	if err != nil {
 		return err
 	}

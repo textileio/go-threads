@@ -8,7 +8,7 @@ import (
 
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 var threadstoreBenchmarks = map[string]func(core.Logstore, chan *logpair) func(*testing.B){
@@ -67,7 +67,7 @@ func BenchmarkLogstore(b *testing.B, factory LogstoreFactory, variant string) {
 
 func benchmarkAddAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
@@ -78,7 +78,7 @@ func benchmarkAddAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 
 func benchmarkSetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
@@ -89,7 +89,7 @@ func benchmarkSetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 
 func benchmarkGetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 		pp := <-addrs
 		_ = ts.SetAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
 
@@ -102,7 +102,7 @@ func benchmarkGetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 
 func benchmarkAddGetAndClearAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
@@ -115,7 +115,7 @@ func benchmarkAddGetAndClearAddrs(ts core.Logstore, addrs chan *logpair) func(*t
 
 func benchmarkGet1000LogsWithAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 		var logs = make([]*logpair, 1000)
 		for i := range logs {
 			pp := <-addrs

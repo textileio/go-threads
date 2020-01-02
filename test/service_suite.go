@@ -13,12 +13,13 @@ import (
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	dag "github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/service"
 	"github.com/textileio/go-threads/util"
@@ -52,7 +53,7 @@ func ServiceTest(t *testing.T) {
 }
 
 func newService(t *testing.T, hostAddr ma.Multiaddr, hostProxyAddr ma.Multiaddr) core.Service {
-	sk, _, err := ic.GenerateKeyPair(ic.Ed25519, 0)
+	sk, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
 	check(t, err)
 	host, err := libp2p.New(
 		context.Background(),
@@ -86,7 +87,7 @@ func testAddPull(ts1, _ core.Service) func(t *testing.T) {
 		}()
 
 		ctx := context.Background()
-		th, err := util.CreateThread(ts1, core.NewIDV1(core.Raw, 32))
+		th, err := util.CreateThread(ts1, thread.NewIDV1(thread.Raw, 32))
 		check(t, err)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
@@ -137,7 +138,7 @@ func testAddPull(ts1, _ core.Service) func(t *testing.T) {
 func testAddPeer(ts1, ts2 core.Service) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
-		th, err := util.CreateThread(ts1, core.NewIDV1(core.Raw, 32))
+		th, err := util.CreateThread(ts1, thread.NewIDV1(thread.Raw, 32))
 		check(t, err)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
@@ -174,7 +175,7 @@ func testAddPeer(ts1, ts2 core.Service) func(t *testing.T) {
 func testAddFollower(ts1, ts2 core.Service) func(t *testing.T) {
 	return func(t *testing.T) {
 		ctx := context.Background()
-		th, err := util.CreateThread(ts1, core.NewIDV1(core.Raw, 32))
+		th, err := util.CreateThread(ts1, thread.NewIDV1(thread.Raw, 32))
 		check(t, err)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{

@@ -7,7 +7,7 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/whyrusleeping/base32"
 )
 
@@ -28,7 +28,7 @@ func NewThreadMetadata(ds ds.Datastore) core.ThreadMetadata {
 	}
 }
 
-func (ts *dsThreadMetadata) GetInt64(t service.ID, key string) (*int64, error) {
+func (ts *dsThreadMetadata) GetInt64(t thread.ID, key string) (*int64, error) {
 	var val int64
 	err := ts.getValue(t, key, &val)
 	if err == ds.ErrNotFound {
@@ -40,11 +40,11 @@ func (ts *dsThreadMetadata) GetInt64(t service.ID, key string) (*int64, error) {
 	return &val, nil
 }
 
-func (ts *dsThreadMetadata) PutInt64(t service.ID, key string, val int64) error {
+func (ts *dsThreadMetadata) PutInt64(t thread.ID, key string, val int64) error {
 	return ts.setValue(t, key, val)
 }
 
-func (ts *dsThreadMetadata) GetString(t service.ID, key string) (*string, error) {
+func (ts *dsThreadMetadata) GetString(t thread.ID, key string) (*string, error) {
 	var val string
 	err := ts.getValue(t, key, &val)
 	if err == ds.ErrNotFound {
@@ -56,11 +56,11 @@ func (ts *dsThreadMetadata) GetString(t service.ID, key string) (*string, error)
 	return &val, nil
 }
 
-func (ts *dsThreadMetadata) PutString(t service.ID, key string, val string) error {
+func (ts *dsThreadMetadata) PutString(t thread.ID, key string, val string) error {
 	return ts.setValue(t, key, val)
 }
 
-func (ts *dsThreadMetadata) GetBytes(t service.ID, key string) (*[]byte, error) {
+func (ts *dsThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error) {
 	var val []byte
 	err := ts.getValue(t, key, &val)
 	if err == ds.ErrNotFound {
@@ -72,17 +72,17 @@ func (ts *dsThreadMetadata) GetBytes(t service.ID, key string) (*[]byte, error) 
 	return &val, nil
 }
 
-func (ts *dsThreadMetadata) PutBytes(t service.ID, key string, val []byte) error {
+func (ts *dsThreadMetadata) PutBytes(t thread.ID, key string, val []byte) error {
 	return ts.setValue(t, key, val)
 }
 
-func keyMeta(t service.ID, k string) ds.Key {
+func keyMeta(t thread.ID, k string) ds.Key {
 	key := tmetaBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
 	key = key.ChildString(k)
 	return key
 }
 
-func (ts *dsThreadMetadata) getValue(t service.ID, key string, res interface{}) error {
+func (ts *dsThreadMetadata) getValue(t thread.ID, key string, res interface{}) error {
 	k := keyMeta(t, key)
 	v, err := ts.ds.Get(k)
 	if err == ds.ErrNotFound {
@@ -98,7 +98,7 @@ func (ts *dsThreadMetadata) getValue(t service.ID, key string, res interface{}) 
 	return nil
 }
 
-func (ts *dsThreadMetadata) setValue(t service.ID, key string, val interface{}) error {
+func (ts *dsThreadMetadata) setValue(t thread.ID, key string, val interface{}) error {
 	k := keyMeta(t, key)
 
 	var buf bytes.Buffer

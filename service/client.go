@@ -14,6 +14,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/service/pb"
 	"google.golang.org/grpc"
@@ -26,7 +27,7 @@ const (
 )
 
 // getLogs in a thread.
-func (s *server) getLogs(ctx context.Context, id core.ID, pid peer.ID) ([]core.LogInfo, error) {
+func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thread.LogInfo, error) {
 	fk, err := s.threads.store.FollowKey(id)
 	if err != nil {
 		return nil, err
@@ -51,7 +52,8 @@ func (s *server) getLogs(ctx context.Context, id core.ID, pid peer.ID) ([]core.L
 	if err != nil {
 		return nil, err
 	}
-	client := pb.NewThreadsClient(conn)
+	// @todo: Retain connections.
+	client := pb.NewServiceClient(conn)
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
 		log.Warningf("get logs from %s failed: %s", pid.String(), err)
@@ -60,7 +62,7 @@ func (s *server) getLogs(ctx context.Context, id core.ID, pid peer.ID) ([]core.L
 
 	log.Debugf("received %d logs from %s", len(reply.Logs), pid.String())
 
-	lgs := make([]core.LogInfo, len(reply.Logs))
+	lgs := make([]thread.LogInfo, len(reply.Logs))
 	for i, l := range reply.Logs {
 		lgs[i] = logFromProto(l)
 	}
@@ -69,7 +71,7 @@ func (s *server) getLogs(ctx context.Context, id core.ID, pid peer.ID) ([]core.L
 }
 
 // pushLog to a peer.
-func (s *server) pushLog(ctx context.Context, id core.ID, lid peer.ID, pid peer.ID, fk *sym.Key, rk *sym.Key) error {
+func (s *server) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid peer.ID, fk *sym.Key, rk *sym.Key) error {
 	lg, err := s.threads.store.LogInfo(id, lid)
 	if err != nil {
 		return err
@@ -97,7 +99,7 @@ func (s *server) pushLog(ctx context.Context, id core.ID, lid peer.ID, pid peer.
 	if err != nil {
 		return fmt.Errorf("dial %s failed: %s", pid.String(), err)
 	}
-	client := pb.NewThreadsClient(conn)
+	client := pb.NewServiceClient(conn)
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
 		log.Warningf("push log to %s failed: %s", pid.String(), err)
@@ -151,7 +153,7 @@ func (r *records) Store(p peer.ID, key cid.Cid, value core.Record) {
 // getRecords from log addresses.
 func (s *server) getRecords(
 	ctx context.Context,
-	id core.ID,
+	id thread.ID,
 	lid peer.ID,
 	offsets map[peer.ID]cid.Cid,
 	limit int,
@@ -220,7 +222,7 @@ func (s *server) getRecords(
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			client := pb.NewThreadsClient(conn)
+			client := pb.NewServiceClient(conn)
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
 				log.Warningf("get records from %s failed: %s", p, err)
@@ -264,7 +266,7 @@ func (s *server) getRecords(
 }
 
 // pushRecord to log addresses and thread topic.
-func (s *server) pushRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
+func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	// Collect known writers
 	addrs := make([]ma.Multiaddr, 0)
 	info, err := s.threads.store.ThreadInfo(id)
@@ -337,7 +339,7 @@ func (s *server) pushRecord(ctx context.Context, id core.ID, lid peer.ID, rec co
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			client := pb.NewThreadsClient(conn)
+			client := pb.NewServiceClient(conn)
 			if _, err = client.PushRecord(cctx, req); err != nil {
 				if status.Convert(err).Code() == codes.NotFound {
 					log.Debugf("pushing log %s to %s...", lid.String(), p)
@@ -393,12 +395,12 @@ func (s *server) getDialOption() grpc.DialOption {
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}
-		return gostream.Dial(ctx, s.threads.host, id, core.ThreadProtocol)
+		return gostream.Dial(ctx, s.threads.host, id, thread.Protocol)
 	})
 }
 
 // publish a request to a thread.
-func (s *server) publish(id core.ID, req *pb.PushRecordRequest) error {
+func (s *server) publish(id thread.ID, req *pb.PushRecordRequest) error {
 	data, err := req.Marshal()
 	if err != nil {
 		return err

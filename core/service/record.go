@@ -5,8 +5,9 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipld-format"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 // Record is the most basic component of a log.
@@ -26,7 +27,7 @@ type Record interface {
 	Sig() []byte
 
 	// Verify returns a non-nil error if the node signature is valid.
-	Verify(pk ic.PubKey) error
+	Verify(pk crypto.PubKey) error
 }
 
 // ThreadRecord wraps Record within a thread and log context.
@@ -35,7 +36,7 @@ type ThreadRecord interface {
 	Value() Record
 
 	// ThreadID returns the record's thread ID.
-	ThreadID() ID
+	ThreadID() thread.ID
 
 	// LogID returns the record's log ID.
 	LogID() peer.ID

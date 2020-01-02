@@ -8,7 +8,7 @@ import (
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 var addressBookSuite = map[string]func(book core.AddrBook) func(*testing.T){
@@ -42,7 +42,7 @@ func AddrBookTest(t *testing.T, factory AddrBookFactory) {
 
 func testAddAddress(ab core.AddrBook) func(*testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		t.Run("add a single address", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
@@ -139,7 +139,7 @@ func testAddAddress(ab core.AddrBook) func(*testing.T) {
 
 func testClearWorks(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs := GenerateAddrs(5)
@@ -162,7 +162,7 @@ func testClearWorks(ab core.AddrBook) func(t *testing.T) {
 
 func testSetNegativeTTLClears(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		id := GeneratePeerIDs(1)[0]
 		addrs := GenerateAddrs(100)
@@ -184,7 +184,7 @@ func testSetNegativeTTLClears(ab core.AddrBook) func(t *testing.T) {
 
 func testUpdateTTLs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		t.Run("update ttl of log with no addrs", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
@@ -240,7 +240,7 @@ func testUpdateTTLs(ab core.AddrBook) func(t *testing.T) {
 
 func testNilAddrsDontBreak(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		id := GeneratePeerIDs(1)[0]
 
@@ -251,7 +251,7 @@ func testNilAddrsDontBreak(ab core.AddrBook) func(t *testing.T) {
 
 func testAddressesExpire(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs1 := GenerateAddrs(3)
@@ -298,7 +298,7 @@ func testAddressesExpire(ab core.AddrBook) func(t *testing.T) {
 
 func testClearWithIterator(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs := GenerateAddrs(100)
@@ -327,7 +327,7 @@ func testClearWithIterator(ab core.AddrBook) func(t *testing.T) {
 
 func testLogsWithAddrs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := service.NewIDV1(service.Raw, 24)
+		tid := thread.NewIDV1(thread.Raw, 24)
 
 		// cannot run in parallel as the store is modified.
 		// go runs sequentially in the specified order
@@ -368,9 +368,9 @@ func testThreadsFromddrs(ab core.AddrBook) func(t *testing.T) {
 		})
 
 		t.Run("non-empty addrbook", func(t *testing.T) {
-			tids := make([]service.ID, 3)
+			tids := make([]thread.ID, 3)
 			for i := range tids {
-				tids[i] = service.NewIDV1(service.Raw, 24)
+				tids[i] = thread.NewIDV1(thread.Raw, 24)
 				ids := GeneratePeerIDs(2)
 				addrs := GenerateAddrs(4)
 
@@ -387,7 +387,7 @@ func testThreadsFromddrs(ab core.AddrBook) func(t *testing.T) {
 	}
 }
 
-func checkedAddrs(t *testing.T, ab core.AddrBook, tid service.ID, id peer.ID) []ma.Multiaddr {
+func checkedAddrs(t *testing.T, ab core.AddrBook, tid thread.ID, id peer.ID) []ma.Multiaddr {
 	addrs, err := ab.Addrs(tid, id)
 	if err != nil {
 		t.Fatal("error when getting addresses")

@@ -1,4 +1,4 @@
-package service
+package thread
 
 import (
 	"encoding/binary"

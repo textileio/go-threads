@@ -7,7 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 // logstore is a collection of books for storing thread logs.
@@ -51,8 +51,8 @@ func (ts *logstore) Close() (err error) {
 }
 
 // Threads returns a list of the thread IDs in the store.
-func (ts *logstore) Threads() (service.IDSlice, error) {
-	set := map[service.ID]struct{}{}
+func (ts *logstore) Threads() (thread.IDSlice, error) {
+	set := map[thread.ID]struct{}{}
 	threadsFromKeys, err := ts.ThreadsFromKeys()
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (ts *logstore) Threads() (service.IDSlice, error) {
 		set[t] = struct{}{}
 	}
 
-	ids := make(service.IDSlice, 0, len(set))
+	ids := make(thread.IDSlice, 0, len(set))
 	for t := range set {
 		ids = append(ids, t)
 	}
@@ -77,7 +77,7 @@ func (ts *logstore) Threads() (service.IDSlice, error) {
 }
 
 // AddThread adds a thread with keys.
-func (ts *logstore) AddThread(info service.Info) error {
+func (ts *logstore) AddThread(info thread.Info) error {
 	if info.FollowKey == nil {
 		return fmt.Errorf("a follow-key is required to add a thread")
 	}
@@ -93,7 +93,7 @@ func (ts *logstore) AddThread(info service.Info) error {
 }
 
 // ThreadInfo returns thread info of the given id.
-func (ts *logstore) ThreadInfo(id service.ID) (info service.Info, err error) {
+func (ts *logstore) ThreadInfo(id thread.ID) (info thread.Info, err error) {
 	set := map[peer.ID]struct{}{}
 	logsWithKeys, err := ts.LogsWithKeys(id)
 	if err != nil {
@@ -124,7 +124,7 @@ func (ts *logstore) ThreadInfo(id service.ID) (info service.Info, err error) {
 		return
 	}
 
-	return service.Info{
+	return thread.Info{
 		ID:        id,
 		Logs:      ids,
 		FollowKey: fk,
@@ -133,7 +133,7 @@ func (ts *logstore) ThreadInfo(id service.ID) (info service.Info, err error) {
 }
 
 // AddLog adds a log under the given thread.
-func (ts *logstore) AddLog(id service.ID, lg service.LogInfo) error {
+func (ts *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 	err := ts.AddPubKey(id, lg.ID, lg.PubKey)
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func (ts *logstore) AddLog(id service.ID, lg service.LogInfo) error {
 }
 
 // LogInfo returns info about the given thread.
-func (ts *logstore) LogInfo(id service.ID, lid peer.ID) (info service.LogInfo, err error) {
+func (ts *logstore) LogInfo(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
 	pk, err := ts.PubKey(id, lid)
 	if err != nil {
 		return

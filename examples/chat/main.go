@@ -27,6 +27,7 @@ import (
 	"github.com/textileio/go-threads/api"
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	store "github.com/textileio/go-threads/store"
 	util "github.com/textileio/go-threads/util"
@@ -36,7 +37,7 @@ var (
 	ctx      context.Context
 	ds       datastore.Batching
 	ts       store.ServiceBoostrapper
-	threadID core.ID
+	threadID thread.ID
 
 	grey  = color.New(color.FgHiBlack).SprintFunc()
 	green = color.New(color.FgHiGreen).SprintFunc()
@@ -267,7 +268,7 @@ func handleLine(line string) (out string, err error) {
 			}
 			return enterCmd(parts[1])
 		case "exit":
-			threadID = core.Undef
+			threadID = thread.Undef
 			cursor = green(">  ")
 			return
 		case "add":
@@ -353,9 +354,9 @@ func threadsCmd() (out string, err error) {
 		return
 	}
 
-	var id core.ID
+	var id thread.ID
 	for i, e := range all {
-		id, err = core.Cast(e.Value)
+		id, err = thread.Cast(e.Value)
 		if err != nil {
 			return
 		}
@@ -374,7 +375,7 @@ func enterCmd(name string) (out string, err error) {
 		err = fmt.Errorf("thread not found")
 		return
 	}
-	threadID, err = core.Cast(idv)
+	threadID, err = thread.Cast(idv)
 	if err != nil {
 		return
 	}
@@ -416,7 +417,7 @@ func addCmd(args []string) (out string, err error) {
 		return
 	}
 
-	var id core.ID
+	var id thread.ID
 	if addr != nil {
 		if !util.CanDial(addr, ts.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
@@ -427,7 +428,7 @@ func addCmd(args []string) (out string, err error) {
 		}
 		id = info.ID
 	} else {
-		th, err := util.CreateThread(ts, core.NewIDV1(core.Raw, 32))
+		th, err := util.CreateThread(ts, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			return "", err
 		}
@@ -453,7 +454,7 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 		err = fmt.Errorf("thread not found")
 		return
 	}
-	id, err := core.Cast(idv)
+	id, err := thread.Cast(idv)
 	if err != nil {
 		return
 	}
@@ -476,12 +477,12 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 	return
 }
 
-func threadAddressCmd(id core.ID) (out string, err error) {
+func threadAddressCmd(id thread.ID) (out string, err error) {
 	lg, err := util.GetOwnLog(ts, id)
 	if err != nil {
 		return
 	}
-	ta, err := ma.NewMultiaddr("/" + core.Thread + "/" + id.String())
+	ta, err := ma.NewMultiaddr("/" + thread.Name + "/" + id.String())
 	if err != nil {
 		return
 	}
@@ -523,7 +524,7 @@ func threadAddressCmd(id core.ID) (out string, err error) {
 	return
 }
 
-func threadKeysCmd(id core.ID) (out string, err error) {
+func threadKeysCmd(id thread.ID) (out string, err error) {
 	info, err := ts.Store().ThreadInfo(id)
 	if err != nil {
 		return
@@ -540,7 +541,7 @@ func threadKeysCmd(id core.ID) (out string, err error) {
 	return
 }
 
-func addFollowerCmd(id core.ID, addrStr string) (out string, err error) {
+func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 	if addrStr == "" {
 		err = fmt.Errorf("enter a peer address")
 		return
@@ -557,7 +558,7 @@ func addFollowerCmd(id core.ID, addrStr string) (out string, err error) {
 	return "Added follower " + pid.String(), nil
 }
 
-func sendMessage(id core.ID, txt string) error {
+func sendMessage(id thread.ID, txt string) error {
 	if strings.TrimSpace(txt) == "" {
 		return fmt.Errorf("missing message")
 	}
@@ -588,7 +589,7 @@ func threadName(id string) (name string, err error) {
 	}
 
 	for _, e := range all {
-		i, err := core.Cast(e.Value)
+		i, err := thread.Cast(e.Value)
 		if err != nil {
 			return "", err
 		}

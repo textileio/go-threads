@@ -10,7 +10,7 @@ import (
 	pt "github.com/libp2p/go-libp2p-core/test"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 )
 
@@ -145,7 +145,7 @@ func (c ProtoCid) Size() int {
 
 // ProtoThreadID is a custom type used by gogo to serde raw thread IDs into the service.ID type, and back.
 type ProtoThreadID struct {
-	service.ID
+	thread.ID
 }
 
 var _ customGogoType = (*ProtoThreadID)(nil)
@@ -164,7 +164,7 @@ func (id ProtoThreadID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *ProtoThreadID) Unmarshal(data []byte) (err error) {
-	id.ID, err = service.Cast(data)
+	id.ID, err = thread.Cast(data)
 	return err
 }
 
@@ -326,7 +326,7 @@ func NewPopulatedProtoCid(r randyService) *ProtoCid {
 // NewPopulatedProtoThreadID generates a populated instance of the custom gogo type ProtoThreadID.
 // It is required by gogo-generated tests.
 func NewPopulatedProtoThreadID(r randyService) *ProtoThreadID {
-	id := service.NewIDV1(service.Raw, 16)
+	id := thread.NewIDV1(thread.Raw, 16)
 	return &ProtoThreadID{ID: id}
 }
 

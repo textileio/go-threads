@@ -14,6 +14,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto"
 	pb "github.com/textileio/go-threads/service/pb"
 	"google.golang.org/grpc/codes"
@@ -250,7 +251,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 }
 
 // subscribe to a thread for updates.
-func (s *server) subscribe(id core.ID) {
+func (s *server) subscribe(id thread.ID) {
 	sub, err := s.pubsub.Subscribe(id.String())
 	if err != nil {
 		log.Error(err)
@@ -290,7 +291,7 @@ func (s *server) subscribe(id core.ID) {
 }
 
 // checkFollowKey compares a key with the one stored under thread.
-func (s *server) checkFollowKey(id core.ID, pfk *pb.ProtoKey) error {
+func (s *server) checkFollowKey(id thread.ID, pfk *pb.ProtoKey) error {
 	if pfk == nil || pfk.Key == nil {
 		return status.Error(codes.Unauthenticated, "a follow-key is required to get logs")
 	}
@@ -351,7 +352,7 @@ func recordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (core.Record,
 }
 
 // logToProto returns a proto log from a thread log.
-func logToProto(l core.LogInfo) *pb.Log {
+func logToProto(l thread.LogInfo) *pb.Log {
 	pbaddrs := make([]pb.ProtoAddr, len(l.Addrs))
 	for j, a := range l.Addrs {
 		pbaddrs[j] = pb.ProtoAddr{Multiaddr: a}
@@ -369,7 +370,7 @@ func logToProto(l core.LogInfo) *pb.Log {
 }
 
 // logFromProto returns a thread log from a proto log.
-func logFromProto(l *pb.Log) core.LogInfo {
+func logFromProto(l *pb.Log) thread.LogInfo {
 	addrs := make([]ma.Multiaddr, len(l.Addrs))
 	for j, a := range l.Addrs {
 		addrs[j] = a.Multiaddr
@@ -378,7 +379,7 @@ func logFromProto(l *pb.Log) core.LogInfo {
 	for k, h := range l.Heads {
 		heads[k] = h.Cid
 	}
-	return core.LogInfo{
+	return thread.LogInfo{
 		ID:     l.ID.ID,
 		PubKey: l.PubKey.PubKey,
 		Addrs:  addrs,

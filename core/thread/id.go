@@ -1,4 +1,4 @@
-package service
+package thread
 
 import (
 	"crypto/rand"
@@ -282,7 +282,7 @@ func (s IDSlice) Len() int           { return len(s) }
 func (s IDSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s IDSlice) Less(i, j int) bool { return s[i].str < s[j].str }
 
-// Info holds a thread ID associated known logs.
+// Info holds thread logs and keys.
 type Info struct {
 	ID        ID
 	Logs      peer.IDSlice
@@ -290,7 +290,7 @@ type Info struct {
 	ReadKey   *sym.Key
 }
 
-// LogInfo holds known info about a log.
+// LogInfo holds log keys, addresses, and heads.
 type LogInfo struct {
 	ID      peer.ID
 	PubKey  ic.PubKey

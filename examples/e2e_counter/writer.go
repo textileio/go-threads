@@ -7,8 +7,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-threads/core/service"
 	core "github.com/textileio/go-threads/core/store"
+	"github.com/textileio/go-threads/core/thread"
 	s "github.com/textileio/go-threads/store"
 )
 
@@ -62,7 +62,7 @@ func runWriterPeer(repo string) {
 	}
 }
 
-func saveThreadMultiaddrForOtherPeer(store *s.Store, threadID service.ID) {
+func saveThreadMultiaddrForOtherPeer(store *s.Store, threadID thread.ID) {
 	host := store.Service().Host()
 	tinfo, err := store.Service().Store().ThreadInfo(threadID)
 	checkErr(err)

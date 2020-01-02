@@ -13,7 +13,7 @@ import (
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -23,6 +23,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/service/pb"
 	"github.com/textileio/go-threads/util"
 	logger "github.com/whyrusleeping/go-logging"
@@ -59,7 +60,7 @@ type service struct {
 	cancel context.CancelFunc
 
 	pullLock  sync.Mutex
-	pullLocks map[core.ID]chan struct{}
+	pullLocks map[thread.ID]chan struct{}
 }
 
 // Config is used to specify thread instance options.
@@ -98,14 +99,14 @@ func NewService(
 		bus:        broadcast.NewBroadcaster(0),
 		ctx:        ctx,
 		cancel:     cancel,
-		pullLocks:  make(map[core.ID]chan struct{}),
+		pullLocks:  make(map[thread.ID]chan struct{}),
 	}
 	t.server, err = newServer(t)
 	if err != nil {
 		return nil, err
 	}
 
-	listener, err := gostream.Listen(h, core.ThreadProtocol)
+	listener, err := gostream.Listen(h, thread.Protocol)
 	if err != nil {
 		return nil, err
 	}
@@ -207,17 +208,17 @@ func (t *service) AddThread(
 	ctx context.Context,
 	addr ma.Multiaddr,
 	opts ...core.AddOption,
-) (info core.Info, err error) {
+) (info thread.Info, err error) {
 	args := &core.AddOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 
-	idstr, err := addr.ValueForProtocol(core.ThreadCode)
+	idstr, err := addr.ValueForProtocol(thread.Code)
 	if err != nil {
 		return
 	}
-	id, err := core.Decode(idstr)
+	id, err := thread.Decode(idstr)
 	if err != nil {
 		return
 	}
@@ -233,7 +234,7 @@ func (t *service) AddThread(
 		return t.store.ThreadInfo(id)
 	}
 
-	if err = t.store.AddThread(core.Info{
+	if err = t.store.AddThread(thread.Info{
 		ID:        id,
 		FollowKey: args.FollowKey,
 		ReadKey:   args.ReadKey,
@@ -274,7 +275,7 @@ func (t *service) AddThread(
 	return t.store.ThreadInfo(id)
 }
 
-func (t *service) getThreadSemaphore(id core.ID) chan struct{} {
+func (t *service) getThreadSemaphore(id thread.ID) chan struct{} {
 	var ptl chan struct{}
 	var ok bool
 	t.pullLock.Lock()
@@ -290,7 +291,7 @@ func (t *service) getThreadSemaphore(id core.ID) chan struct{} {
 // Logs owned by this host are traversed locally.
 // Remotely addressed logs are pulled from the network.
 // Is thread-safe.
-func (t *service) PullThread(ctx context.Context, id core.ID) error {
+func (t *service) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
 	ptl := t.getThreadSemaphore(id)
 	select {
@@ -309,7 +310,7 @@ func (t *service) PullThread(ctx context.Context, id core.ID) error {
 
 // pullThread for new records. It's internal and *not* thread-safe,
 // it assumes we currently own the thread-lock.
-func (t *service) pullThread(ctx context.Context, id core.ID) error {
+func (t *service) pullThread(ctx context.Context, id thread.ID) error {
 	lgs, err := t.getLogs(id)
 	if err != nil {
 		return err
@@ -333,7 +334,7 @@ func (t *service) pullThread(ctx context.Context, id core.ID) error {
 	wg := sync.WaitGroup{}
 	for _, lg := range lgs {
 		wg.Add(1)
-		go func(lg core.LogInfo) {
+		go func(lg thread.LogInfo) {
 			defer wg.Done()
 			// Pull from addresses
 			recs, err := t.server.getRecords(
@@ -365,12 +366,12 @@ func (t *service) pullThread(ctx context.Context, id core.ID) error {
 }
 
 // Delete a thread (@todo).
-func (t *service) DeleteThread(ctx context.Context, id core.ID) error {
+func (t *service) DeleteThread(ctx context.Context, id thread.ID) error {
 	panic("implement me")
 }
 
 // AddFollower to a thread.
-func (t *service) AddFollower(ctx context.Context, id core.ID, pid peer.ID) error {
+func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
 	info, err := t.store.ThreadInfo(id)
 	if err != nil {
 		return err
@@ -439,7 +440,7 @@ func (t *service) AddFollower(ctx context.Context, id core.ID, pid peer.ID) erro
 }
 
 // AddRecord with body. See AddOption for more.
-func (t *service) AddRecord(ctx context.Context, id core.ID, body format.Node) (r core.ThreadRecord, err error) {
+func (t *service) AddRecord(ctx context.Context, id thread.ID, body format.Node) (r core.ThreadRecord, err error) {
 	// Get or create a log for the new node
 	lg, err := util.GetOrCreateOwnLog(t, id)
 	if err != nil {
@@ -474,7 +475,7 @@ func (t *service) AddRecord(ctx context.Context, id core.ID, body format.Node) (
 }
 
 // GetRecord returns the record at cid.
-func (t *service) GetRecord(ctx context.Context, id core.ID, rid cid.Cid) (core.Record, error) {
+func (t *service) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
 	fk, err := t.store.FollowKey(id)
 	if err != nil {
 		return nil, err
@@ -488,7 +489,7 @@ func (t *service) GetRecord(ctx context.Context, id core.ID, rid cid.Cid) (core.
 // record wraps a core.Record within a thread and log context.
 type record struct {
 	core.Record
-	threadID core.ID
+	threadID thread.ID
 	logID    peer.ID
 }
 
@@ -498,7 +499,7 @@ func (r *record) Value() core.Record {
 }
 
 // ThreadID returns the record's thread ID.
-func (r *record) ThreadID() core.ID {
+func (r *record) ThreadID() thread.ID {
 	return r.threadID
 }
 
@@ -529,7 +530,7 @@ func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
 	for _, opt := range opts {
 		opt(args)
 	}
-	filter := make(map[core.ID]struct{})
+	filter := make(map[thread.ID]struct{})
 	for _, id := range args.ThreadIDs {
 		if id.Defined() {
 			filter[id] = struct{}{}
@@ -560,7 +561,7 @@ func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
 }
 
 // PutRecord adds an existing record. This method is thread-safe
-func (t *service) PutRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
+func (t *service) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	tsph := t.getThreadSemaphore(id)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
@@ -569,7 +570,7 @@ func (t *service) PutRecord(ctx context.Context, id core.ID, lid peer.ID, rec co
 
 // putRecord adds an existing record. See PutOption for more.This method
 // *should be thread-guarded*
-func (t *service) putRecord(ctx context.Context, id core.ID, lid peer.ID, rec core.Record) error {
+func (t *service) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	var unknownRecords []core.Record
 	c := rec.Cid()
 	for c.Defined() {
@@ -644,15 +645,15 @@ func (t *service) putRecord(ctx context.Context, id core.ID, lid peer.ID, rec co
 }
 
 // getPrivKey returns the host's private key.
-func (t *service) getPrivKey() ic.PrivKey {
+func (t *service) getPrivKey() crypto.PrivKey {
 	return t.host.Peerstore().PrivKey(t.host.ID())
 }
 
 // createRecord creates a new record with the given body as a new event body.
 func (t *service) createRecord(
 	ctx context.Context,
-	id core.ID,
-	lg core.LogInfo,
+	id thread.ID,
+	lg thread.LogInfo,
 	body format.Node,
 ) (core.Record, error) {
 	fk, err := t.store.FollowKey(id)
@@ -692,8 +693,8 @@ func (t *service) createRecord(
 }
 
 // getLogs returns info about the logs in the given thread.
-func (t *service) getLogs(id core.ID) ([]core.LogInfo, error) {
-	lgs := make([]core.LogInfo, 0)
+func (t *service) getLogs(id thread.ID) ([]thread.LogInfo, error) {
+	lgs := make([]thread.LogInfo, 0)
 	ti, err := t.store.ThreadInfo(id)
 	if err != nil {
 		return nil, err
@@ -714,7 +715,7 @@ func (t *service) getLogs(id core.ID) ([]core.LogInfo, error) {
 // will be responsible for the remaining traversal.
 func (t *service) getLocalRecords(
 	ctx context.Context,
-	id core.ID,
+	id thread.ID,
 	lid peer.ID,
 	offset cid.Cid,
 	limit int,
@@ -775,7 +776,7 @@ func (t *service) startPulling() {
 			return
 		}
 		for _, id := range ts {
-			go func(id core.ID) {
+			go func(id thread.ID) {
 				if err := t.PullThread(t.ctx, id); err != nil {
 					log.Errorf("error pulling thread %s: %s", id.String(), err)
 				}
@@ -805,8 +806,8 @@ func (t *service) startPulling() {
 
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
-func (t *service) createExternalLogIfNotExist(tid core.ID, lid peer.ID, pubKey ic.PubKey,
-	privKey ic.PrivKey, addrs []ma.Multiaddr) error {
+func (t *service) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey,
+	privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
 	tsph := t.getThreadSemaphore(tid)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
@@ -815,7 +816,7 @@ func (t *service) createExternalLogIfNotExist(tid core.ID, lid peer.ID, pubKey i
 		return err
 	}
 	if len(currHeads) == 0 {
-		lginfo := core.LogInfo{
+		lginfo := thread.LogInfo{
 			ID:      lid,
 			PubKey:  pubKey,
 			PrivKey: privKey,
@@ -831,7 +832,7 @@ func (t *service) createExternalLogIfNotExist(tid core.ID, lid peer.ID, pubKey i
 
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
 // and will add them in the local peer store. It assumes  Is thread-safe.
-func (t *service) updateRecordsFromLog(tid core.ID, lid peer.ID) {
+func (t *service) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 	tsph := t.getThreadSemaphore(tid)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()

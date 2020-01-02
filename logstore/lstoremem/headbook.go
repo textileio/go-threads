@@ -6,16 +6,16 @@ import (
 	"github.com/ipfs/go-cid"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 type memoryHeadBook struct {
 	sync.RWMutex
 
-	heads map[service.ID]map[peer.ID]map[cid.Cid]struct{}
+	heads map[thread.ID]map[peer.ID]map[cid.Cid]struct{}
 }
 
-func (mhb *memoryHeadBook) getHeads(t service.ID, p peer.ID) (map[cid.Cid]struct{}, bool) {
+func (mhb *memoryHeadBook) getHeads(t thread.ID, p peer.ID) (map[cid.Cid]struct{}, bool) {
 	lmap, found := mhb.heads[t]
 	if lmap == nil {
 		return nil, found
@@ -28,15 +28,15 @@ var _ core.HeadBook = (*memoryHeadBook)(nil)
 
 func NewHeadBook() core.HeadBook {
 	return &memoryHeadBook{
-		heads: map[service.ID]map[peer.ID]map[cid.Cid]struct{}{},
+		heads: map[thread.ID]map[peer.ID]map[cid.Cid]struct{}{},
 	}
 }
 
-func (mhb *memoryHeadBook) AddHead(t service.ID, p peer.ID, head cid.Cid) error {
+func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
 	return mhb.AddHeads(t, p, []cid.Cid{head})
 }
 
-func (mhb *memoryHeadBook) AddHeads(t service.ID, p peer.ID, heads []cid.Cid) error {
+func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -59,11 +59,11 @@ func (mhb *memoryHeadBook) AddHeads(t service.ID, p peer.ID, heads []cid.Cid) er
 	return nil
 }
 
-func (mhb *memoryHeadBook) SetHead(t service.ID, p peer.ID, head cid.Cid) error {
+func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head cid.Cid) error {
 	return mhb.SetHeads(t, p, []cid.Cid{head})
 }
 
-func (mhb *memoryHeadBook) SetHeads(t service.ID, p peer.ID, heads []cid.Cid) error {
+func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 
@@ -86,7 +86,7 @@ func (mhb *memoryHeadBook) SetHeads(t service.ID, p peer.ID, heads []cid.Cid) er
 	return nil
 }
 
-func (mhb *memoryHeadBook) Heads(t service.ID, p peer.ID) ([]cid.Cid, error) {
+func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 	mhb.RLock()
 	defer mhb.RUnlock()
 
@@ -101,7 +101,7 @@ func (mhb *memoryHeadBook) Heads(t service.ID, p peer.ID) ([]cid.Cid, error) {
 	return heads, nil
 }
 
-func (mhb *memoryHeadBook) ClearHeads(t service.ID, p peer.ID) error {
+func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 

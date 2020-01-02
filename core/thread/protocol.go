@@ -1,4 +1,4 @@
-package service
+package thread
 
 import (
 	"fmt"
@@ -9,20 +9,20 @@ import (
 )
 
 const (
-	// Thread is the protocol slug.
-	Thread = "thread"
-	// ThreadCode is the protocol code.
-	ThreadCode = 406
-	// ThreadsVersion is the current protocol version.
-	ThreadVersion = "0.0.1"
-	// ThreadProtocol is the threads protocol tag.
-	ThreadProtocol protocol.ID = "/" + Thread + "/" + ThreadVersion
+	// Name is the protocol slug.
+	Name = "thread"
+	// Code is the protocol code.
+	Code = 406
+	// Version is the current protocol version.
+	Version = "0.0.1"
+	// Protocol is the threads protocol tag.
+	Protocol protocol.ID = "/" + Name + "/" + Version
 )
 
 var addrProtocol = ma.Protocol{
-	Name:       Thread,
-	Code:       ThreadCode,
-	VCode:      ma.CodeToVarint(ThreadCode),
+	Name:       Name,
+	Code:       Code,
+	VCode:      ma.CodeToVarint(Code),
 	Size:       ma.LengthPrefixedVarSize,
 	Transcoder: ma.NewTranscoderFromFunctions(threadStB, threadBtS, threadVal),
 }
