@@ -1,6 +1,6 @@
 {
   "name": "@textile/threads-client-grpc",
-  "version": "0.0.2",
+  "version": "0.1.2",
   "description": "gRPC client for interacting with remote Threads.",
   "repository": {
     "type": "git",
@@ -15,9 +15,9 @@
     "api_pb_service.d.ts"
   ],
   "dependencies": {
-    "@improbable-eng/grpc-web": "^0.11.0",
+    "@improbable-eng/grpc-web": "^0.12.0",
     "@types/google-protobuf": "^3.7.2",
-    "google-protobuf": "^3.10.0"
+    "google-protobuf": "^3.11.2"
   },
   "devDependencies": {
     "ts-protoc-gen": "^0.12.0"
