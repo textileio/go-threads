@@ -1,6 +1,6 @@
 PB = $(wildcard *.proto)
 GO = $(PB:.proto=.pb.go)
-PROTOC_GEN_TS_PATH = "./node_modules/.bin/protoc-gen-ts"
+PROTOC_GEN_TS_PATH = "./javascript/node_modules/.bin/protoc-gen-ts"
 
 all: $(GO)
 
