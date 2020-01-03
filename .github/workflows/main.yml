@@ -40,6 +40,9 @@ jobs:
     container:
       image:  google/dart:latest
     steps:
+      - name: Install build tools
+        run: |
+          apt-get update && apt-get install -y build-essential
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
@@ -67,12 +70,17 @@ jobs:
           cd api/pb/dart
           pub get
           pub global activate protoc_plugin
-#      - name: Setup tmate session
-#        uses: mxschmitt/action-tmate@v1
-      - name: Install build tools
-        run: |
-          apt-get update && apt-get install -y build-essential
-      - name: Protoc generate
+      - name: Protoc generate API
         run: |
           cd api/pb
           make clean && make
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      - name: Publish JS API
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          cd api/pb/javascript
+          sed -i.bak "s/<version>/${{ steps.get_version.outputs.VERSION }}/g" package.json
+          npm publish
