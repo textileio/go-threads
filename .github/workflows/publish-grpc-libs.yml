@@ -38,7 +38,10 @@ jobs:
           version: '3.11.2'
       - name: Install Go protoc plugin
         run: |
-          go get -u github.com/golang/protobuf/protoc-gen-go
+          go get github.com/golang/protobuf/protoc-gen-go
+          go get github.com/gogo/protobuf/proto
+          go get github.com/gogo/protobuf/protoc-gen-gogofaster
+          go get github.com/gogo/protobuf/gogoproto
       - name: Get JS dependencies
         run: |
           cd api/pb/javascript
@@ -54,13 +57,24 @@ jobs:
         run: |
           cd api/pb
           make clean && make
+      - name: Protoc generate Service
+        run: |
+          cd service/pb
+          make clean && make
       - name: Publish JS API
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
           cd api/pb/javascript
           json -I -f package.json -e 'this.version=("${{ steps.latesttag.outputs.tag }}").replace("v", "")'
-#          npm publish --access=public
+          npm publish --access=public
+      - name: Publish JS Service
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          cd service/pb/javascript
+          json -I -f package.json -e 'this.version=("${{ steps.latesttag.outputs.tag }}").replace("v", "")'
+          npm publish --access=public
       - name: Publish Dart API
         env:
           PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
