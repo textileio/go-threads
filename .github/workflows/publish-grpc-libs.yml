@@ -27,6 +27,10 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.13
+      - name: Setup env
+        run: |
+          echo "::set-env name=GOPATH::$(go env GOPATH)"
+          echo "::add-path::$(go env GOPATH)/bin"
       - name: Set up Node
         uses: actions/setup-node@v1
         with:
