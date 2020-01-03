@@ -71,7 +71,7 @@ jobs:
 #        uses: mxschmitt/action-tmate@v1
       - name: Install build tools
         run: |
-          apt-get install -y build-essential
+          apt-get update && apt-get install -y build-essential
       - name: Protoc generate
         run: |
           cd api/pb
