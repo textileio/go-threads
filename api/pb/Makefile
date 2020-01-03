@@ -9,6 +9,7 @@ all: $(GO)
 	mkdir -p ./dart/lib && \
 	protoc -I=. \
 	--plugin="protoc-gen-ts=${PROTOC_GEN_TS_PATH}" --js_out="import_style=commonjs,binary:javascript/." --ts_out="service=grpc-web:javascript/." \
+	--plugin="protoc-gen-dart=${PROTOC_GEN_DART_PATH}" --dart_out="grpc:dart/lib/." \
 	--go_out=\
 	plugins=grpc:\
 	. $<

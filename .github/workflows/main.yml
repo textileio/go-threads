@@ -37,6 +37,8 @@ jobs:
     name: Protoc Generate
 #    needs: test
     runs-on: ubuntu-latest
+    container:
+      image:  google/dart:latest
     steps:
       - name: Set up Go
         uses: actions/setup-go@v1
@@ -47,13 +49,12 @@ jobs:
         with:
           node-version: '12.x'
           registry-url: 'https://registry.npmjs.org'
-      - name: Install Protoc
+      - name: Install protoc
         uses: Arduino/actions/setup-protoc@master
         with:
           version: '3.11.2'
-      - name: Install Go Protoc Plugin
+      - name: Install Go protoc plugin
         run: |
-          echo $GOPATH
           go get -u github.com/golang/protobuf/protoc-gen-go
       - name: Check out code
         uses: actions/checkout@v1
@@ -61,7 +62,12 @@ jobs:
         run: |
           cd api/pb/javascript
           npm install
-      - name: Protoc Generate
+      - name: Get JS dependencies
+        run: |
+          cd api/pb/dart
+          pub get
+          pub global activate protoc_plugin
+      - name: Protoc generate
         run: |
           cd api/pb
           make clean && make
