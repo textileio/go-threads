@@ -166,7 +166,7 @@ func DecodeKey(k string) (*sym.Key, error) {
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
 func SetupDefaultLoggingConfig(repoPath string) {
 	os.Setenv("GOLOG_LOG_FMT", "color")
-	os.Setenv("GOLOG_FILE", filepath.Join(repoPath, "log", "textile.log"))
+	os.Setenv("GOLOG_FILE", filepath.Join(repoPath, "log", "threads.log"))
 	logging.SetupLogging()
 	logging.SetAllLoggers(logging.LevelError)
 }
