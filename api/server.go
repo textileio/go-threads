@@ -13,7 +13,6 @@ import (
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
-	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
 )
 
@@ -44,8 +43,8 @@ type Config struct {
 func NewServer(ctx context.Context, ts core.Service, conf Config) (*Server, error) {
 	var err error
 	if conf.Debug {
-		err = util.SetLogLevels(map[string]logger.Level{
-			"threadsapi": logger.DEBUG,
+		err = util.SetLogLevels(map[string]logging.LogLevel{
+			"threadsapi": logging.LevelDebug,
 		})
 		if err != nil {
 			return nil, err

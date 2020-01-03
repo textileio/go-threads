@@ -28,7 +28,7 @@ require (
 	github.com/ipfs/go-ipfs-files v0.0.4 // indirect
 	github.com/ipfs/go-ipld-cbor v0.0.3
 	github.com/ipfs/go-ipld-format v0.0.2
-	github.com/ipfs/go-log v0.0.1
+	github.com/ipfs/go-log v1.0.0
 	github.com/ipfs/go-merkledag v0.2.3
 	github.com/libp2p/go-libp2p v0.4.2
 	github.com/libp2p/go-libp2p-connmgr v0.1.1
@@ -53,6 +53,7 @@ require (
 	github.com/whyrusleeping/go-logging v0.0.1
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0
+	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
