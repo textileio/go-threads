@@ -9,8 +9,11 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -22,7 +25,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Log represents a thread log.
 type Log struct {
@@ -50,7 +53,7 @@ func (m *Log) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Log.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +98,7 @@ func (m *Log_Record) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Log_Record.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +169,7 @@ func (m *GetLogsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_GetLogsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +214,7 @@ func (m *GetLogsRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return xxx_messageInfo_GetLogsRequest_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +253,7 @@ func (m *GetLogsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_GetLogsReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -304,7 +307,7 @@ func (m *PushLogRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_PushLogRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -356,7 +359,7 @@ func (m *PushLogRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return xxx_messageInfo_PushLogRequest_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -393,7 +396,7 @@ func (m *PushLogReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_PushLogReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -438,7 +441,7 @@ func (m *GetRecordsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return xxx_messageInfo_GetRecordsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -495,7 +498,7 @@ func (m *GetRecordsRequest_LogEntry) XXX_Marshal(b []byte, deterministic bool) (
 		return xxx_messageInfo_GetRecordsRequest_LogEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -540,7 +543,7 @@ func (m *GetRecordsRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_GetRecordsRequest_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -579,7 +582,7 @@ func (m *GetRecordsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return xxx_messageInfo_GetRecordsReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -629,7 +632,7 @@ func (m *GetRecordsReply_LogEntry) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_GetRecordsReply_LogEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -688,7 +691,7 @@ func (m *PushRecordRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return xxx_messageInfo_PushRecordRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -745,7 +748,7 @@ func (m *PushRecordRequest_Header) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_PushRecordRequest_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -789,7 +792,7 @@ func (m *PushRecordReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return xxx_messageInfo_PushRecordReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -959,6 +962,23 @@ type ServiceServer interface {
 	PushRecord(context.Context, *PushRecordRequest) (*PushRecordReply, error)
 }
 
+// UnimplementedServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedServiceServer struct {
+}
+
+func (*UnimplementedServiceServer) GetLogs(ctx context.Context, req *GetLogsRequest) (*GetLogsReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLogs not implemented")
+}
+func (*UnimplementedServiceServer) PushLog(ctx context.Context, req *PushLogRequest) (*PushLogReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushLog not implemented")
+}
+func (*UnimplementedServiceServer) GetRecords(ctx context.Context, req *GetRecordsRequest) (*GetRecordsReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRecords not implemented")
+}
+func (*UnimplementedServiceServer) PushRecord(ctx context.Context, req *PushRecordRequest) (*PushRecordReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushRecord not implemented")
+}
+
 func RegisterServiceServer(s *grpc.Server, srv ServiceServer) {
 	s.RegisterService(&_Service_serviceDesc, srv)
 }
@@ -1063,7 +1083,7 @@ var _Service_serviceDesc = grpc.ServiceDesc{
 func (m *Log) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1071,61 +1091,74 @@ func (m *Log) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Log) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Log) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.ID.Size()))
-		n1, err := m.ID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.Heads) > 0 {
+		for iNdEx := len(m.Heads) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size := m.Heads[iNdEx].Size()
+				i -= size
+				if _, err := m.Heads[iNdEx].MarshalTo(dAtA[i:]); err != nil {
+					return 0, err
+				}
+				i = encodeVarintService(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
 		}
-		i += n1
-	}
-	if m.PubKey != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.PubKey.Size()))
-		n2, err := m.PubKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
 	}
 	if len(m.Addrs) > 0 {
-		for _, msg := range m.Addrs {
+		for iNdEx := len(m.Addrs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size := m.Addrs[iNdEx].Size()
+				i -= size
+				if _, err := m.Addrs[iNdEx].MarshalTo(dAtA[i:]); err != nil {
+					return 0, err
+				}
+				i = encodeVarintService(dAtA, i, uint64(size))
+			}
+			i--
 			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintService(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
 		}
 	}
-	if len(m.Heads) > 0 {
-		for _, msg := range m.Heads {
-			dAtA[i] = 0x22
-			i++
-			i = encodeVarintService(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
+	if m.PubKey != nil {
+		{
+			size := m.PubKey.Size()
+			i -= size
+			if _, err := m.PubKey.MarshalTo(dAtA[i:]); err != nil {
 				return 0, err
 			}
-			i += n
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.ID != nil {
+		{
+			size := m.ID.Size()
+			i -= size
+			if _, err := m.ID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Log_Record) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1133,41 +1166,50 @@ func (m *Log_Record) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Log_Record) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Log_Record) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.RecordNode) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(len(m.RecordNode)))
-		i += copy(dAtA[i:], m.RecordNode)
-	}
-	if len(m.EventNode) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(len(m.EventNode)))
-		i += copy(dAtA[i:], m.EventNode)
+	if len(m.BodyNode) > 0 {
+		i -= len(m.BodyNode)
+		copy(dAtA[i:], m.BodyNode)
+		i = encodeVarintService(dAtA, i, uint64(len(m.BodyNode)))
+		i--
+		dAtA[i] = 0x22
 	}
 	if len(m.HeaderNode) > 0 {
-		dAtA[i] = 0x1a
-		i++
+		i -= len(m.HeaderNode)
+		copy(dAtA[i:], m.HeaderNode)
 		i = encodeVarintService(dAtA, i, uint64(len(m.HeaderNode)))
-		i += copy(dAtA[i:], m.HeaderNode)
+		i--
+		dAtA[i] = 0x1a
 	}
-	if len(m.BodyNode) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintService(dAtA, i, uint64(len(m.BodyNode)))
-		i += copy(dAtA[i:], m.BodyNode)
+	if len(m.EventNode) > 0 {
+		i -= len(m.EventNode)
+		copy(dAtA[i:], m.EventNode)
+		i = encodeVarintService(dAtA, i, uint64(len(m.EventNode)))
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if len(m.RecordNode) > 0 {
+		i -= len(m.RecordNode)
+		copy(dAtA[i:], m.RecordNode)
+		i = encodeVarintService(dAtA, i, uint64(len(m.RecordNode)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetLogsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1175,47 +1217,58 @@ func (m *GetLogsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetLogsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetLogsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Header.Size()))
-		n3, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.FollowKey != nil {
+		{
+			size := m.FollowKey.Size()
+			i -= size
+			if _, err := m.FollowKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n3
+		i--
+		dAtA[i] = 0x1a
 	}
 	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.ThreadID.Size()))
-		n4, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
 	}
-	if m.FollowKey != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.FollowKey.Size()))
-		n5, err := m.FollowKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n5
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetLogsRequest_Header) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1223,27 +1276,34 @@ func (m *GetLogsRequest_Header) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetLogsRequest_Header) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetLogsRequest_Header) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.From != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.From.Size()))
-		n6, err := m.From.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.From.Size()
+			i -= size
+			if _, err := m.From.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n6
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetLogsReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1251,29 +1311,36 @@ func (m *GetLogsReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetLogsReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetLogsReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Logs) > 0 {
-		for _, msg := range m.Logs {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintService(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Logs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Logs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintService(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *PushLogRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1281,67 +1348,82 @@ func (m *PushLogRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushLogRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushLogRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Header.Size()))
-		n7, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.Log != nil {
+		{
+			size, err := m.Log.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n7
-	}
-	if m.ThreadID != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.ThreadID.Size()))
-		n8, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n8
-	}
-	if m.FollowKey != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.FollowKey.Size()))
-		n9, err := m.FollowKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n9
+		i--
+		dAtA[i] = 0x2a
 	}
 	if m.ReadKey != nil {
+		{
+			size := m.ReadKey.Size()
+			i -= size
+			if _, err := m.ReadKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x22
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.ReadKey.Size()))
-		n10, err := m.ReadKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n10
 	}
-	if m.Log != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Log.Size()))
-		n11, err := m.Log.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.FollowKey != nil {
+		{
+			size := m.FollowKey.Size()
+			i -= size
+			if _, err := m.FollowKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n11
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushLogRequest_Header) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1349,27 +1431,34 @@ func (m *PushLogRequest_Header) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushLogRequest_Header) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushLogRequest_Header) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.From != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.From.Size()))
-		n12, err := m.From.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.From.Size()
+			i -= size
+			if _, err := m.From.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n12
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *PushLogReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1377,17 +1466,22 @@ func (m *PushLogReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushLogReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushLogReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1395,59 +1489,72 @@ func (m *GetRecordsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Header.Size()))
-		n13, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.Logs) > 0 {
+		for iNdEx := len(m.Logs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Logs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintService(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
 		}
-		i += n13
-	}
-	if m.ThreadID != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.ThreadID.Size()))
-		n14, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n14
 	}
 	if m.FollowKey != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.FollowKey.Size()))
-		n15, err := m.FollowKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.FollowKey.Size()
+			i -= size
+			if _, err := m.FollowKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n15
+		i--
+		dAtA[i] = 0x1a
 	}
-	if len(m.Logs) > 0 {
-		for _, msg := range m.Logs {
-			dAtA[i] = 0x22
-			i++
-			i = encodeVarintService(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsRequest_LogEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1455,42 +1562,51 @@ func (m *GetRecordsRequest_LogEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsRequest_LogEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsRequest_LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.LogID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.LogID.Size()))
-		n16, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n16
+	if m.Limit != 0 {
+		i = encodeVarintService(dAtA, i, uint64(m.Limit))
+		i--
+		dAtA[i] = 0x18
 	}
 	if m.Offset != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Offset.Size()))
-		n17, err := m.Offset.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Offset.Size()
+			i -= size
+			if _, err := m.Offset.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n17
+		i--
+		dAtA[i] = 0x12
 	}
-	if m.Limit != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Limit))
+	if m.LogID != nil {
+		{
+			size := m.LogID.Size()
+			i -= size
+			if _, err := m.LogID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsRequest_Header) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1498,27 +1614,34 @@ func (m *GetRecordsRequest_Header) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsRequest_Header) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsRequest_Header) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.From != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.From.Size()))
-		n18, err := m.From.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.From.Size()
+			i -= size
+			if _, err := m.From.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n18
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1526,29 +1649,36 @@ func (m *GetRecordsReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Logs) > 0 {
-		for _, msg := range m.Logs {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintService(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Logs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Logs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintService(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsReply_LogEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1556,49 +1686,60 @@ func (m *GetRecordsReply_LogEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsReply_LogEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsReply_LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.LogID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.LogID.Size()))
-		n19, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n19
-	}
-	if len(m.Records) > 0 {
-		for _, msg := range m.Records {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintService(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.Log != nil {
+		{
+			size, err := m.Log.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-	}
-	if m.Log != nil {
+		i--
 		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Log.Size()))
-		n20, err := m.Log.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n20
 	}
-	return i, nil
+	if len(m.Records) > 0 {
+		for iNdEx := len(m.Records) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Records[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintService(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.LogID != nil {
+		{
+			size := m.LogID.Size()
+			i -= size
+			if _, err := m.LogID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushRecordRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1606,57 +1747,70 @@ func (m *PushRecordRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushRecordRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushRecordRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Header.Size()))
-		n21, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.Record != nil {
+		{
+			size, err := m.Record.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n21
-	}
-	if m.ThreadID != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.ThreadID.Size()))
-		n22, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n22
+		i--
+		dAtA[i] = 0x22
 	}
 	if m.LogID != nil {
+		{
+			size := m.LogID.Size()
+			i -= size
+			if _, err := m.LogID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.LogID.Size()))
-		n23, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n23
 	}
-	if m.Record != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Record.Size()))
-		n24, err := m.Record.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n24
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintService(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushRecordRequest_Header) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1664,43 +1818,53 @@ func (m *PushRecordRequest_Header) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushRecordRequest_Header) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushRecordRequest_Header) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.From != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.From.Size()))
-		n25, err := m.From.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.Key != nil {
+		{
+			size := m.Key.Size()
+			i -= size
+			if _, err := m.Key.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n25
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.Signature) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Signature)
+		copy(dAtA[i:], m.Signature)
 		i = encodeVarintService(dAtA, i, uint64(len(m.Signature)))
-		i += copy(dAtA[i:], m.Signature)
+		i--
+		dAtA[i] = 0x12
 	}
-	if m.Key != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintService(dAtA, i, uint64(m.Key.Size()))
-		n26, err := m.Key.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.From != nil {
+		{
+			size := m.From.Size()
+			i -= size
+			if _, err := m.From.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintService(dAtA, i, uint64(size))
 		}
-		i += n26
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *PushRecordReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1708,21 +1872,28 @@ func (m *PushRecordReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushRecordReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushRecordReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintService(dAtA []byte, offset int, v uint64) int {
+	offset -= sovService(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func NewPopulatedLog(r randyService, easy bool) *Log {
 	this := &Log{}
@@ -1774,7 +1945,7 @@ func NewPopulatedLog_Record(r randyService, easy bool) *Log_Record {
 
 func NewPopulatedGetLogsRequest(r randyService, easy bool) *GetLogsRequest {
 	this := &GetLogsRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedGetLogsRequest_Header(r, easy)
 	}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
@@ -1794,7 +1965,7 @@ func NewPopulatedGetLogsRequest_Header(r randyService, easy bool) *GetLogsReques
 
 func NewPopulatedGetLogsReply(r randyService, easy bool) *GetLogsReply {
 	this := &GetLogsReply{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v9 := r.Intn(5)
 		this.Logs = make([]*Log, v9)
 		for i := 0; i < v9; i++ {
@@ -1808,13 +1979,13 @@ func NewPopulatedGetLogsReply(r randyService, easy bool) *GetLogsReply {
 
 func NewPopulatedPushLogRequest(r randyService, easy bool) *PushLogRequest {
 	this := &PushLogRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedPushLogRequest_Header(r, easy)
 	}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.FollowKey = NewPopulatedProtoKey(r)
 	this.ReadKey = NewPopulatedProtoKey(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Log = NewPopulatedLog(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -1839,12 +2010,12 @@ func NewPopulatedPushLogReply(r randyService, easy bool) *PushLogReply {
 
 func NewPopulatedGetRecordsRequest(r randyService, easy bool) *GetRecordsRequest {
 	this := &GetRecordsRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedGetRecordsRequest_Header(r, easy)
 	}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.FollowKey = NewPopulatedProtoKey(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v10 := r.Intn(5)
 		this.Logs = make([]*GetRecordsRequest_LogEntry, v10)
 		for i := 0; i < v10; i++ {
@@ -1879,7 +2050,7 @@ func NewPopulatedGetRecordsRequest_Header(r randyService, easy bool) *GetRecords
 
 func NewPopulatedGetRecordsReply(r randyService, easy bool) *GetRecordsReply {
 	this := &GetRecordsReply{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v11 := r.Intn(5)
 		this.Logs = make([]*GetRecordsReply_LogEntry, v11)
 		for i := 0; i < v11; i++ {
@@ -1894,14 +2065,14 @@ func NewPopulatedGetRecordsReply(r randyService, easy bool) *GetRecordsReply {
 func NewPopulatedGetRecordsReply_LogEntry(r randyService, easy bool) *GetRecordsReply_LogEntry {
 	this := &GetRecordsReply_LogEntry{}
 	this.LogID = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v12 := r.Intn(5)
 		this.Records = make([]*Log_Record, v12)
 		for i := 0; i < v12; i++ {
 			this.Records[i] = NewPopulatedLog_Record(r, easy)
 		}
 	}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Log = NewPopulatedLog(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -1911,12 +2082,12 @@ func NewPopulatedGetRecordsReply_LogEntry(r randyService, easy bool) *GetRecords
 
 func NewPopulatedPushRecordRequest(r randyService, easy bool) *PushRecordRequest {
 	this := &PushRecordRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedPushRecordRequest_Header(r, easy)
 	}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.LogID = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Record = NewPopulatedLog_Record(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -2325,14 +2496,7 @@ func (m *PushRecordReply) Size() (n int) {
 }
 
 func sovService(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozService(x uint64) (n int) {
 	return sovService(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -4500,6 +4664,7 @@ func (m *PushRecordReply) Unmarshal(dAtA []byte) error {
 func skipService(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -4531,10 +4696,8 @@ func skipService(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -4555,55 +4718,30 @@ func skipService(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthService
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthService
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowService
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipService(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthService
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupService
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthService
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthService = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowService   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthService        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowService          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupService = fmt.Errorf("proto: unexpected end of group")
 )
