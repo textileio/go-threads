@@ -13,6 +13,8 @@ jobs:
     container:
       image:  google/dart:latest
     steps:
+      - name: Check out code
+        uses: actions/checkout@v1
       - name: Get latest tag
         id: latesttag
         uses: "WyriHaximus/github-action-get-previous-tag@master"
@@ -37,8 +39,6 @@ jobs:
       - name: Install Go protoc plugin
         run: |
           go get -u github.com/golang/protobuf/protoc-gen-go
-      - name: Check out code
-        uses: actions/checkout@v1
       - name: Get JS dependencies
         run: |
           cd api/pb/javascript
