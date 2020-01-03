@@ -2,9 +2,6 @@ name: Publish gRPC Libs
 on:
   release:
     types: [published]
-  pull_request:
-    branches:
-      - master
 jobs:
 
   publish_grpc_libs:
