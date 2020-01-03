@@ -67,6 +67,9 @@ jobs:
           cd api/pb/dart
           pub get
           pub global activate protoc_plugin
+      - name: Install make
+        run: |
+          sudo apt update && sudo apt install -y --no-install-recommends make
       - name: Protoc generate
         run: |
           cd api/pb
