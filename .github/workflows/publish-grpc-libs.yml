@@ -44,6 +44,7 @@ jobs:
           cd api/pb/javascript
           npm install
           npm install -g json
+          npm install -g yaml-cli
       - name: Get Dart dependencies
         run: |
           cd api/pb/dart
@@ -59,4 +60,15 @@ jobs:
         run: |
           cd api/pb/javascript
           json -I -f package.json -e 'this.version=("${{ steps.latesttag.outputs.tag }}").replace("v", "")'
-          npm publish --access=public
+#          npm publish --access=public
+      - name: Publish Dart API
+        env:
+          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
+        run: |
+          cd api/pb/dart
+          yaml json read ../javascript/package.json > package.yml
+          yaml set pubspec.yaml version $(yaml get package.yml version) > tmp.yml
+          mv tmp.yml pubspec.yaml
+          rm package.yml
+          echo "$PUB_CREDENTIALS" > ~/.pub-cache/credentials.json
+          pub publish -f
