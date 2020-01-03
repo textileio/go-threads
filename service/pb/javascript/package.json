@@ -1,7 +1,7 @@
 {
   "name": "@textile/threads-service-grpc",
-  "version": "0.0.2",
-  "description": "gRPC client for interacting with remote Threads.",
+  "version": "0.0.0",
+  "description": "gRPC client for interacting with remote Threads service.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/textileio/go-threads.git"
