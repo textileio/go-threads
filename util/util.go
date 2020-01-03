@@ -18,9 +18,7 @@ import (
 	"github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
-	logger "github.com/whyrusleeping/go-logging"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -167,17 +165,9 @@ func DecodeKey(k string) (*sym.Key, error) {
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
 func SetupDefaultLoggingConfig(repoPath string) {
-	lj := &lumberjack.Logger{
-		Filename:   filepath.Join(repoPath, "log"),
-		MaxSize:    10, // megabytes
-		MaxBackups: 3,
-		MaxAge:     30, // days
-	}
-	w := zapcore.AddSync(lj)
-	backendFile := logger.NewLogBackend(lj, "", 0)
 	os.Setenv("GOLOG_LOG_FMT", "color")
+	os.Setenv("GOLOG_FILE", filepath.Join(repoPath, "log", "textile.log"))
 	logging.SetupLogging()
-	logger.SetBackend(backendFile)
 	logging.SetAllLoggers(logging.LevelError)
 }
 

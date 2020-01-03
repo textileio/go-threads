@@ -50,15 +50,13 @@ require (
 	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
-	github.com/whyrusleeping/go-logging v0.0.1
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
+	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
 	google.golang.org/genproto v0.0.0-20191206224255-0243a4be9c8f // indirect
 	google.golang.org/grpc v1.25.1
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
