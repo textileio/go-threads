@@ -7,12 +7,17 @@ on:
       - master
 jobs:
 
-  protoc-gen:
-    name: Protoc Generate
+  publish_grpc_libs:
+    name: Publish gRPC Libs
     runs-on: ubuntu-latest
     container:
       image:  google/dart:latest
     steps:
+      - name: Get latest tag
+        id: latesttag
+        uses: "WyriHaximus/github-action-get-previous-tag@master"
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       - name: Install build tools
         run: |
           apt-get update && apt-get install -y build-essential
@@ -47,14 +52,11 @@ jobs:
         run: |
           cd api/pb
           make clean && make
-      - name: Get tag
-        id: get_tag
-        run: echo ::set-output name=SOURCE_TAG::${GITHUB_REF#refs/tags/}
       - name: Publish JS API
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
           cd api/pb/javascript
-          echo ${{ steps.get_tag.outputs.SOURCE_TAG }}
-          sed -i.bak "s/<version>/${{ steps.get_tag.outputs.SOURCE_TAG }}/g" package.json
+          echo ${{ steps.latesttag.outputs.tag }}
+          sed -i.bak "s/<version>/${{ steps.latesttag.outputs.tag }}/g" package.json
           npm publish
