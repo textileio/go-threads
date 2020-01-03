@@ -43,6 +43,7 @@ jobs:
         run: |
           cd api/pb/javascript
           npm install
+          npm install -g json
       - name: Get Dart dependencies
         run: |
           cd api/pb/dart
@@ -57,6 +58,5 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
           cd api/pb/javascript
-          echo ${{ steps.latesttag.outputs.tag }}
-          sed -i.bak "s/<version>/${{ steps.latesttag.outputs.tag }}/g" package.json
-          npm publish
+          json -I -f package.json -e 'this.version=("${{ steps.latesttag.outputs.tag }}").replace("v", "")'
+          npm publish --access=public
