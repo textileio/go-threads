@@ -18,8 +18,7 @@ import (
 	"github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
-	logger "github.com/whyrusleeping/go-logging"
-	"gopkg.in/natefinch/lumberjack.v2"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -166,29 +165,24 @@ func DecodeKey(k string) (*sym.Key, error) {
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
 func SetupDefaultLoggingConfig(repoPath string) {
-	lj := &lumberjack.Logger{
-		Filename:   filepath.Join(repoPath, "log"),
-		MaxSize:    10, // megabytes
-		MaxBackups: 3,
-		MaxAge:     30, // days
-	}
-	backendFile := logger.NewLogBackend(lj, "", 0)
-	logger.SetBackend(backendFile)
-	logger.SetFormatter(logger.MustStringFormatter(logging.LogFormats["color"]))
-	logging.SetAllLoggers(logger.ERROR)
+	os.Setenv("GOLOG_LOG_FMT", "color")
+	os.Setenv("GOLOG_FILE", filepath.Join(repoPath, "log", "threads.log"))
+	logging.SetupLogging()
+	logging.SetAllLoggers(logging.LevelError)
 }
 
 // SetLogLevels sets levels for the given systems.
-func SetLogLevels(systems map[string]logger.Level) error {
+func SetLogLevels(systems map[string]logging.LogLevel) error {
 	for sys, level := range systems {
+		l := zapcore.Level(level)
 		if sys == "*" {
 			for _, s := range logging.GetSubsystems() {
-				if err := logging.SetLogLevel(s, level.String()); err != nil {
+				if err := logging.SetLogLevel(s, l.CapitalString()); err != nil {
 					return err
 				}
 			}
 		}
-		if err := logging.SetLogLevel(sys, level.String()); err != nil {
+		if err := logging.SetLogLevel(sys, l.CapitalString()); err != nil {
 			return err
 		}
 	}

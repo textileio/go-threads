@@ -26,7 +26,6 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/service/pb"
 	"github.com/textileio/go-threads/util"
-	logger "github.com/whyrusleeping/go-logging"
 	"google.golang.org/grpc"
 )
 
@@ -80,9 +79,9 @@ func NewService(
 ) (core.Service, error) {
 	var err error
 	if conf.Debug {
-		err = util.SetLogLevels(map[string]logger.Level{
-			"threadservice": logger.DEBUG,
-			"logstore":      logger.DEBUG,
+		err = util.SetLogLevels(map[string]logging.LogLevel{
+			"threadservice": logging.LevelDebug,
+			"logstore":      logging.LevelDebug,
 		})
 		if err != nil {
 			return nil, err

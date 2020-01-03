@@ -21,7 +21,6 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
-	logger "github.com/whyrusleeping/go-logging"
 )
 
 const (
@@ -95,7 +94,7 @@ func newStore(ts service.Service, config *Config) (*Store, error) {
 	}
 	if !managedDatastore(config.Datastore) {
 		if config.Debug {
-			if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
+			if err := util.SetLogLevels(map[string]logging.LogLevel{"store": logging.LevelDebug}); err != nil {
 				return nil, err
 			}
 		}

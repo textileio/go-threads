@@ -7,9 +7,9 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
+	logging "github.com/ipfs/go-log"
 	"github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/util"
-	logger "github.com/whyrusleeping/go-logging"
 )
 
 var (
@@ -42,7 +42,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		config.Datastore = datastore
 	}
 	if config.Debug {
-		if err := util.SetLogLevels(map[string]logger.Level{"store": logger.DEBUG}); err != nil {
+		if err := util.SetLogLevels(map[string]logging.LogLevel{"store": logging.LevelDebug}); err != nil {
 			return nil, err
 		}
 	}
