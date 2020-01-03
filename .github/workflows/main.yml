@@ -67,11 +67,11 @@ jobs:
           cd api/pb/dart
           pub get
           pub global activate protoc_plugin
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v1
-      - name: Install make
+#      - name: Setup tmate session
+#        uses: mxschmitt/action-tmate@v1
+      - name: Install build tools
         run: |
-          apt update && apt install -y --no-install-recommends make
+          apt-get install -y build-essential
       - name: Protoc generate
         run: |
           cd api/pb
