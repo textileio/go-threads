@@ -51,6 +51,10 @@ jobs:
         uses: Arduino/actions/setup-protoc@master
         with:
           version: '3.11.2'
+      - name: Install Go Protoc Plugin
+        run: |
+          echo $GOPATH
+          go get -u github.com/golang/protobuf/protoc-gen-go
       - name: Check out code
         uses: actions/checkout@v1
       - name: Get JS dependencies
