@@ -1,4 +1,4 @@
-name: Threads
+name: Builds
 on:
   push:
     branches:
@@ -12,19 +12,52 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Get dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          go get -v -t -d ./...
+      - name: Test
+        run: go test ./...
 
-    - name: Set up Go
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.13
-      id: go
-
-    - name: Check out code
-      uses: actions/checkout@v1
-
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-
-    - name: Test
-      run: go test ./...
+  protoc-gen:
+    name: Protoc Generate
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install Protoc
+        uses: Arduino/actions/setup-protoc@master
+        with:
+          version: '3.11.2'
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Get JS dependencies
+        run: |
+          cd api/pb/javascript
+          npm install
+      - name: Protoc Generate
+        run: |
+          cd api/pb
+          make clean && make
