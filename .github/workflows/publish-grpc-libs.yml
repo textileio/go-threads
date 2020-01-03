@@ -40,16 +40,17 @@ jobs:
         uses: Arduino/actions/setup-protoc@master
         with:
           version: '3.11.2'
-      - name: Install Go protoc plugin
+      - name: Install Go protoc plugins
         run: |
+          export GO111MODULE=off
           go get github.com/golang/protobuf/protoc-gen-go
           go get github.com/gogo/protobuf/proto
           go get github.com/gogo/protobuf/protoc-gen-gogofaster
           go get github.com/gogo/protobuf/gogoproto
       - name: Get JS dependencies
         run: |
-          cd api/pb/javascript
-          npm install
+          cd api/pb/javascript && npm install
+          cd ../../../service/pb/javascript && npm install
           npm install -g json
           npm install -g yaml-cli
       - name: Get Dart dependencies
