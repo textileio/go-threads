@@ -62,14 +62,16 @@ jobs:
         run: |
           cd api/pb/javascript
           npm install
-      - name: Get JS dependencies
+      - name: Get Dart dependencies
         run: |
           cd api/pb/dart
           pub get
           pub global activate protoc_plugin
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v1
       - name: Install make
         run: |
-          sudo apt update && sudo apt install -y --no-install-recommends make
+          apt update && apt install -y --no-install-recommends make
       - name: Protoc generate
         run: |
           cd api/pb
