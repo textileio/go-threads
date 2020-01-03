@@ -1,0 +1,29 @@
+{
+  "name": "@textile/threads-service-grpc",
+  "version": "0.0.2",
+  "description": "gRPC client for interacting with remote Threads.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/textileio/go-threads.git"
+  },
+  "author": "Textile",
+  "license": "MIT",
+  "files": [
+    "lstore_pb_service.js",
+    "lstore_pb_service.d.ts",
+    "lstore_pb.d.ts",
+    "lstore_pb.js",
+    "service_pb_service.d.ts",
+    "service_pb_service.js",
+    "service_pb.d.ts",
+    "service_pb.js"
+  ],
+  "dependencies": {
+    "@improbable-eng/grpc-web": "^0.11.0",
+    "@types/google-protobuf": "^3.7.2",
+    "google-protobuf": "^3.10.0"
+  },
+  "devDependencies": {
+    "ts-protoc-gen": "^0.12.0"
+  }
+}
