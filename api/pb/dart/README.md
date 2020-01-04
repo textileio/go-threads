@@ -1,3 +1,1 @@
-A support library used by [Dart Threads Client](https://github.com/textileio/dart-threads-client/).
-
-Available here: [threads_client](https://pub.dev/packages/threads_client).
+This is a support library used by the [Dart Threads Client](https://github.com/textileio/dart-threads-client/), available on pub.dev [here](https://pub.dev/packages/threads_client).
