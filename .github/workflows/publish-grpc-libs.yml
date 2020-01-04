@@ -62,7 +62,7 @@ jobs:
       - name: Protoc generate Service
         run: |
           cd service/pb
-          make clean && make
+          make clean && make && make gogo
       - name: Publish JS API
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}

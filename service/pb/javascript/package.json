@@ -12,7 +12,9 @@
     "service_pb.js",
     "service_pb_service.js",
     "service_pb.d.ts",
-    "service_pb_service.d.ts"
+    "service_pb_service.d.ts",
+    "github.com/gogo/protobuf/gogoproto/gogo_pb.js",
+    "github.com/gogo/protobuf/gogoproto/gogo_pb.d.ts"
   ],
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.12.0",
