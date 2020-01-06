@@ -81,6 +81,7 @@ jobs:
         env:
           PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
         run: |
+          sed -e "s/api\/pb\/dart\/lib//g" -i.replace .gitignore
           cd api/pb/dart
           yaml json read ../javascript/package.json > package.yml
           yaml set pubspec.yaml version $(yaml get package.yml version) > tmp.yml
