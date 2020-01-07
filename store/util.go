@@ -8,6 +8,7 @@ import (
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-datastore"
+	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -24,6 +25,7 @@ import (
 
 const (
 	defaultIpfsLitePath = "ipfslite"
+	defaultLogstorePath = "logstore"
 )
 
 // DefaultService is a boostrapable default Service with
@@ -61,15 +63,15 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	if err := os.MkdirAll(ipfsLitePath, os.ModePerm); err != nil {
 		return nil, err
 	}
-	ds, err := ipfslite.BadgerDatastore(ipfsLitePath)
+	litestore, err := ipfslite.BadgerDatastore(ipfsLitePath)
 	if err != nil {
 		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	pstore, err := pstoreds.NewPeerstore(ctx, ds, pstoreds.DefaultOpts())
+	pstore, err := pstoreds.NewPeerstore(ctx, litestore, pstoreds.DefaultOpts())
 	if err != nil {
-		ds.Close()
+		litestore.Close()
 		cancel()
 		return nil, err
 	}
@@ -84,22 +86,32 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	)
 	if err != nil {
 		cancel()
-		ds.Close()
+		litestore.Close()
 		return nil, err
 	}
-
-	lite, err := ipfslite.New(ctx, ds, h, d, nil)
+	lite, err := ipfslite.New(ctx, litestore, h, d, nil)
 	if err != nil {
 		cancel()
-		ds.Close()
+		litestore.Close()
 		return nil, err
 	}
 
 	// Build a logstore
-	tstore, err := lstoreds.NewLogstore(ctx, ds, lstoreds.DefaultOpts())
+	logstorePath := filepath.Join(repoPath, defaultLogstorePath)
+	if err := os.MkdirAll(logstorePath, os.ModePerm); err != nil {
+		return nil, err
+	}
+	logstore, err := badger.NewDatastore(logstorePath, &badger.DefaultOptions)
 	if err != nil {
 		cancel()
-		ds.Close()
+		litestore.Close()
+		return nil, err
+	}
+	tstore, err := lstoreds.NewLogstore(ctx, logstore, lstoreds.DefaultOpts())
+	if err != nil {
+		cancel()
+		logstore.Close()
+		litestore.Close()
 		return nil, err
 	}
 
@@ -110,18 +122,20 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	})
 	if err != nil {
 		cancel()
-		ds.Close()
+		logstore.Close()
+		litestore.Close()
 		return nil, err
 	}
 
 	return &servBoostrapper{
-		cancel:   cancel,
-		Service:  api,
-		litepeer: lite,
-		pstore:   pstore,
-		ds:       ds,
-		host:     h,
-		dht:      d,
+		cancel:    cancel,
+		Service:   api,
+		litepeer:  lite,
+		pstore:    pstore,
+		logstore:  logstore,
+		litestore: litestore,
+		host:      h,
+		dht:       d,
 	}, nil
 }
 
@@ -157,11 +171,12 @@ func WithServiceDebug(enabled bool) ServiceOption {
 type servBoostrapper struct {
 	cancel context.CancelFunc
 	coreservice.Service
-	litepeer *ipfslite.Peer
-	pstore   peerstore.Peerstore
-	ds       datastore.Datastore
-	host     host.Host
-	dht      *dht.IpfsDHT
+	litepeer  *ipfslite.Peer
+	pstore    peerstore.Peerstore
+	logstore  datastore.Datastore
+	litestore datastore.Datastore
+	host      host.Host
+	dht       *dht.IpfsDHT
 }
 
 var _ ServiceBoostrapper = (*servBoostrapper)(nil)
@@ -188,6 +203,9 @@ func (tsb *servBoostrapper) Close() error {
 	if err := tsb.pstore.Close(); err != nil {
 		return err
 	}
-	return tsb.ds.Close()
+	if err := tsb.litestore.Close(); err != nil {
+		return err
+	}
+	return tsb.logstore.Close()
 	// Logstore closed by service
 }
