@@ -111,6 +111,7 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	tstore, err := lstoreds.NewLogstore(ctx, logstore, lstoreds.DefaultOpts())
 	if err != nil {
 		cancel()
+		logstore.Close()
 		litestore.Close()
 		return nil, err
 	}
