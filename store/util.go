@@ -8,6 +8,7 @@ import (
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-datastore"
+	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	host "github.com/libp2p/go-libp2p-core/host"
@@ -24,6 +25,7 @@ import (
 
 const (
 	defaultIpfsLitePath = "ipfslite"
+	defaultLogstorePath = "logstore"
 )
 
 // DefaultService is a boostrapable default Service with
@@ -87,7 +89,6 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 		ds.Close()
 		return nil, err
 	}
-
 	lite, err := ipfslite.New(ctx, ds, h, d, nil)
 	if err != nil {
 		cancel()
@@ -96,7 +97,22 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	}
 
 	// Build a logstore
-	tstore, err := lstoreds.NewLogstore(ctx, ds, lstoreds.DefaultOpts())
+	logstorePath := filepath.Join(repoPath, defaultLogstorePath)
+	if err := os.MkdirAll(logstorePath, os.ModePerm); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(logstorePath, os.ModePerm); err != nil {
+		return nil, err
+	}
+	logDatastore, err := badger.NewDatastore(logstorePath, &badger.DefaultOptions)
+
+	if err != nil {
+		cancel()
+		ds.Close()
+		return nil, err
+	}
+	tstore, err := lstoreds.NewLogstore(ctx, logDatastore, lstoreds.DefaultOpts())
 	if err != nil {
 		cancel()
 		ds.Close()
