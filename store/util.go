@@ -102,7 +102,6 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 		return nil, err
 	}
 	logstore, err := badger.NewDatastore(logstorePath, &badger.DefaultOptions)
-
 	if err != nil {
 		cancel()
 		litestore.Close()
