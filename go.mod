@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/golang-lru v0.5.3
-	github.com/hsanjuan/ipfs-lite v0.1.7
+	github.com/hsanjuan/ipfs-lite v0.1.8
 	github.com/improbable-eng/grpc-web v0.12.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.2
