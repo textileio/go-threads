@@ -115,7 +115,15 @@ func NewService(
 	}()
 
 	// Start a web RPC proxy
-	webrpc := grpcweb.WrapServer(t.rpc)
+	webrpc := grpcweb.WrapServer(
+		t.rpc,
+		grpcweb.WithOriginFunc(func(origin string) bool {
+			return true
+		}),
+		grpcweb.WithWebsockets(true),
+		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
+			return true
+		}))
 	proxyAddr, err := util.TCPAddrFromMultiAddr(conf.ProxyAddr)
 	if err != nil {
 		return nil, err
@@ -124,7 +132,9 @@ func NewService(
 		Addr: proxyAddr,
 	}
 	t.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if webrpc.IsGrpcWebRequest(r) {
+		if webrpc.IsGrpcWebRequest(r) ||
+			webrpc.IsAcceptableGrpcCorsRequest(r) ||
+			webrpc.IsGrpcWebSocketRequest(r) {
 			webrpc.ServeHTTP(w, r)
 		}
 	})
