@@ -590,9 +590,14 @@ func (t *service) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		if exist {
 			break
 		}
-		r, err := t.GetRecord(ctx, id, c)
-		if err != nil {
-			return err
+		var r core.Record
+		if c.String() != rec.Cid().String() {
+			r, err = t.GetRecord(ctx, id, c)
+			if err != nil {
+				return err
+			}
+		} else {
+			r = rec
 		}
 		unknownRecords = append(unknownRecords, r)
 		c = r.PrevID()
