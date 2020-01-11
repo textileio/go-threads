@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -10,9 +11,11 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/api"
 	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
+	"google.golang.org/grpc"
 )
 
 const modelName = "Person"
@@ -47,8 +50,8 @@ const schema = `{
 var (
 	shutdown        func()
 	client          *Client
-	clientAddr      = "/ip4/127.0.0.1/tcp/9090"
-	clientProxyAddr = "/ip4/127.0.0.1/tcp/0"
+	clientAddr      string
+	clientProxyAddr string
 )
 
 type Person struct {
@@ -469,6 +472,15 @@ func makeServer() (*api.Server, func()) {
 		panic(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
+
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		panic(err)
+	}
+
+	clientAddr = fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port)
+	clientProxyAddr = "/ip4/127.0.0.1/tcp/0"
+
 	apiAddr, err := ma.NewMultiaddr(clientAddr)
 	if err != nil {
 		panic(err)
@@ -500,7 +512,11 @@ func makeClient() *Client {
 	if err != nil {
 		panic(err)
 	}
-	client, err := NewClient(addr)
+	target, err := util.TCPAddrFromMultiAddr(addr)
+	if err != nil {
+		panic(err)
+	}
+	client, err := NewClient(target, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}

@@ -40,7 +40,7 @@ type Config struct {
 
 // NewServer starts and returns a new server with the given threadservice.
 // The threadservice is *not* managed by the server.
-func NewServer(ctx context.Context, ts core.Service, conf Config) (*Server, error) {
+func NewServer(ctx context.Context, ts core.Service, conf Config, opts ...grpc.ServerOption) (*Server, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -62,7 +62,7 @@ func NewServer(ctx context.Context, ts core.Service, conf Config) (*Server, erro
 
 	ctx, cancel := context.WithCancel(ctx)
 	s := &Server{
-		rpc:     grpc.NewServer(),
+		rpc:     grpc.NewServer(opts...),
 		service: &service{manager: manager},
 		ctx:     ctx,
 		cancel:  cancel,
