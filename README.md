@@ -15,11 +15,27 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 
 ## Table of Contents
 
+-   [What's New](#whats-new)
 -   [Install](#install)
 -   [Usage](#usage)
 -   [Contributing](#contributing)
 -   [Changelog](#changelog)
 -   [License](#license)
+
+## What's new
+
+> This table provides a brief overview of the features and new benefits built into threads. Status indicates where/when the feature will be implemented (green means it is complete). 
+
+| Feature | Status | Description |
+| ---------|---------|--------- |
+| **Database** |
+| [`Single-writer Logs`](https://docsend.com/view/gu3ywqi) | _complete_ | Threads use a single writer per log, and logs are ‘combined’ under a given Thread. SWLs make it is easier to add and remove writers and simplify conflict resolution (think of things like Git and Secure Scuttlebutt). One primary benefit of SWLs is that it means you don’t have to bake your conflict resolution strategy into the protocol. Projects that require eventual consistency can use CRDTs, whereas projects that require explicit ordering can use operational transform strategies. |
+| [`Multi-layer encryption`](https://docsend.com/view/gu3ywqi) | _complete_ | Threads use a multi-layered encryption approach, where content, read, and replication capabilities are granted by separately generated keys managed with each log in a Thread. Threads are capable of configurations such as public feeds (single writer), collaborative documents (multiple writers), or mixed documents (multiple writers, multiple readers). Don’t need encryption? No problem, turn it off. |
+| **Networking** |
+| [`Multiaddress logs`](https://docsend.com/view/gu3ywqi) | _complete_ | Every log in a Thread has a unique multiaddress. Per-log multiaddress allow developers to build logs into new protocols, build the log protocol into new implementations, and integrate with future services. |
+| [`Push and pull`](https://docsend.com/view/gu3ywqi) | _testing_ | Threads peers take advantage of both push (think Pubsub and messaging apps) and pull (think HTTP and call-and-response style protocols) to exchange messages. Thanks to tools like libp2p, each collaborating peer can connect and exchange data with their peers using the mechanisms most suited to their current context (be it mobile, desktop, server, or wrist watch).. |
+| [`Scalable, verifiable follow`](https://docsend.com/view/gu3ywqi) | _development_ | Each thread also contains a pubsub based channel that can be used to serve log updates to pools of followers (and readers). The pubsub channel is particularly useful in cases where there will be many followers that aren't capable of updating a Thread but are interested in reading the updates from the owners. |
+| [`Access control`](https://docsend.com/view/gu3ywqi) | _design_ | Decentralized access control is hard, pretty much by definition. The Threads protocol approaches access control from an agent-centric perspective, which means collaborating peers are in charge of enforcing their access control. But what about when you want to change who can access what in a given Thread? You fork it (think Git/Github)! Think simple mechanism means that access control lists for a given Thread are immutable and easier to enforce, but can change over time as the requirements of a Thread change. |
 
 ## Install
 
@@ -29,7 +45,7 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 
 Go to https://godoc.org/github.com/textileio/go-threads.
 
-## Libraries
+### Libraries
 
 > The following includes information about libraries built using go-threads.
 
