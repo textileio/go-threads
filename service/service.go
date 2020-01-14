@@ -76,6 +76,7 @@ func NewService(
 	ds format.DAGService,
 	ls lstore.Logstore,
 	conf Config,
+	opts ...grpc.ServerOption,
 ) (core.Service, error) {
 	var err error
 	if conf.Debug {
@@ -94,7 +95,7 @@ func NewService(
 		host:       h,
 		bstore:     bstore,
 		store:      ls,
-		rpc:        grpc.NewServer(),
+		rpc:        grpc.NewServer(opts...),
 		bus:        broadcast.NewBroadcaster(0),
 		ctx:        ctx,
 		cancel:     cancel,

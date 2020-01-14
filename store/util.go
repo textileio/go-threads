@@ -21,6 +21,7 @@ import (
 	"github.com/textileio/go-threads/logstore/lstoreds"
 	"github.com/textileio/go-threads/service"
 	util "github.com/textileio/go-threads/util"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -110,7 +111,9 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	tstore, err := lstoreds.NewLogstore(ctx, logstore, lstoreds.DefaultOpts())
 	if err != nil {
 		cancel()
-		logstore.Close()
+		if err := logstore.Close(); err != nil {
+			return nil, err
+		}
 		litestore.Close()
 		return nil, err
 	}
@@ -119,10 +122,12 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	api, err := service.NewService(ctx, h, lite.BlockStore(), lite, tstore, service.Config{
 		Debug:     config.Debug,
 		ProxyAddr: config.HostProxyAddr,
-	})
+	}, config.GRPCOptions...)
 	if err != nil {
 		cancel()
-		logstore.Close()
+		if err := logstore.Close(); err != nil {
+			return nil, err
+		}
 		litestore.Close()
 		return nil, err
 	}
@@ -143,6 +148,7 @@ type ServiceConfig struct {
 	HostAddr      ma.Multiaddr
 	HostProxyAddr ma.Multiaddr
 	Debug         bool
+	GRPCOptions   []grpc.ServerOption
 }
 
 type ServiceOption func(c *ServiceConfig) error
@@ -164,6 +170,13 @@ func WithServiceHostProxyAddr(addr ma.Multiaddr) ServiceOption {
 func WithServiceDebug(enabled bool) ServiceOption {
 	return func(c *ServiceConfig) error {
 		c.Debug = enabled
+		return nil
+	}
+}
+
+func WithServiceGRPCOptions(opts ...grpc.ServerOption) ServiceOption {
+	return func(c *ServiceConfig) error {
+		c.GRPCOptions = opts
 		return nil
 	}
 }
