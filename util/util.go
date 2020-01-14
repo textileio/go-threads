@@ -254,3 +254,11 @@ func TCPAddrFromMultiAddr(maddr ma.Multiaddr) (addr string, err error) {
 	}
 	return fmt.Sprintf("%s:%s", ip4, tcp), nil
 }
+
+func MustParseAddr(str string) ma.Multiaddr {
+	addr, err := ma.NewMultiaddr(str)
+	if err != nil {
+		panic(err)
+	}
+	return addr
+}
