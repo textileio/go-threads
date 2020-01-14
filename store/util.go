@@ -52,13 +52,6 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 		}
 		config.HostAddr = addr
 	}
-	if config.HostProxyAddr == nil {
-		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-		if err != nil {
-			return nil, err
-		}
-		config.HostProxyAddr = addr
-	}
 
 	ipfsLitePath := filepath.Join(repoPath, defaultIpfsLitePath)
 	if err := os.MkdirAll(ipfsLitePath, os.ModePerm); err != nil {
@@ -120,8 +113,7 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 
 	// Build a service
 	api, err := service.NewService(ctx, h, lite.BlockStore(), lite, tstore, service.Config{
-		Debug:     config.Debug,
-		ProxyAddr: config.HostProxyAddr,
+		Debug: config.Debug,
 	}, config.GRPCOptions...)
 	if err != nil {
 		cancel()
@@ -145,10 +137,9 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 }
 
 type ServiceConfig struct {
-	HostAddr      ma.Multiaddr
-	HostProxyAddr ma.Multiaddr
-	Debug         bool
-	GRPCOptions   []grpc.ServerOption
+	HostAddr    ma.Multiaddr
+	Debug       bool
+	GRPCOptions []grpc.ServerOption
 }
 
 type ServiceOption func(c *ServiceConfig) error
@@ -156,13 +147,6 @@ type ServiceOption func(c *ServiceConfig) error
 func WithServiceHostAddr(addr ma.Multiaddr) ServiceOption {
 	return func(c *ServiceConfig) error {
 		c.HostAddr = addr
-		return nil
-	}
-}
-
-func WithServiceHostProxyAddr(addr ma.Multiaddr) ServiceOption {
-	return func(c *ServiceConfig) error {
-		c.HostProxyAddr = addr
 		return nil
 	}
 }

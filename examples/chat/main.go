@@ -29,6 +29,7 @@ import (
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
+	serviceapi "github.com/textileio/go-threads/service/api"
 	store "github.com/textileio/go-threads/store"
 	util "github.com/textileio/go-threads/util"
 )
@@ -72,7 +73,8 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
-	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5006", "Threads gRPC proxy bind address")
+	serviceApiAddrStr := flag.String("serviceApiAddr", "/ip4/0.0.0.0/tcp/5006", "Threads service API bind address")
+	serviceApiProxyAddrStr := flag.String("serviceApiProxyAddr", "/ip4/0.0.0.0/tcp/5007", "Threads service API gRPC proxy bind address")
 	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
 	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/7006", "API gRPC proxy bind address")
 	debug := flag.Bool("debug", false, "Enable debug logging")
@@ -82,7 +84,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	hostProxyAddr, err := ma.NewMultiaddr(*hostProxyAddrStr)
+	serviceApiAddr, err := ma.NewMultiaddr(*serviceApiAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	serviceApiProxyAddr, err := ma.NewMultiaddr(*serviceApiProxyAddrStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,7 +120,6 @@ func main() {
 	ts, err = store.DefaultService(
 		*repo,
 		store.WithServiceHostAddr(hostAddr),
-		store.WithServiceHostProxyAddr(hostProxyAddr),
 		store.WithServiceDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
@@ -132,6 +137,16 @@ func main() {
 		log.Fatal(err)
 	}
 	defer server.Close()
+
+	serviceServer, err := serviceapi.NewServer(context.Background(), ts, serviceapi.Config{
+		Addr:      serviceApiAddr,
+		ProxyAddr: serviceApiProxyAddr,
+		Debug:     *debug,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer serviceServer.Close()
 
 	// Build a MDNS service
 	ctx = context.Background()

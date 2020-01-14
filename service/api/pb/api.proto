@@ -8,7 +8,9 @@ option objc_class_prefix = "THRDSS";
 
 message GetHostIDRequest {}
 
-message GetHostIDReply {}
+message GetHostIDReply {
+    string ID = 1;
+}
 
 message AddThreadRequest {}
 

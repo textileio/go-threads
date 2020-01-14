@@ -244,7 +244,6 @@ func makeService(t *testing.T) core.Service {
 		t.Fatal(err)
 	}
 	addr := util.MustParseAddr("/ip4/127.0.0.1/tcp/0")
-	proxyAddr := util.MustParseAddr("/ip4/127.0.0.1/tcp/0")
 
 	host, err := libp2p.New(
 		context.Background(),
@@ -262,7 +261,9 @@ func makeService(t *testing.T) core.Service {
 		bsrv.Blockstore(),
 		dag.NewDAGService(bsrv),
 		tstore.NewLogstore(),
-		Config{ProxyAddr: proxyAddr, Debug: true})
+		Config{
+			Debug: true,
+		})
 	if err != nil {
 		t.Fatal(err)
 	}

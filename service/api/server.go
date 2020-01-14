@@ -9,18 +9,18 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	pb "github.com/textileio/go-threads/api/pb"
 	core "github.com/textileio/go-threads/core/service"
-	"github.com/textileio/go-threads/store"
+	pb "github.com/textileio/go-threads/service/api/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
 
 var (
-	log = logging.Logger("threadsapi")
+	log = logging.Logger("threadserviceapi")
 )
 
-// Server provides a gRPC API to a store manager.
+// Server provides a gRPC API to a thread service.
+// The threadservice is *not* managed by the server.
 type Server struct {
 	rpc     *grpc.Server
 	proxy   *http.Server
@@ -32,38 +32,27 @@ type Server struct {
 
 // Config specifies server settings.
 type Config struct {
-	RepoPath  string
 	Addr      ma.Multiaddr
 	ProxyAddr ma.Multiaddr
 	Debug     bool
 }
 
-// NewServer starts and returns a new server with the given threadservice.
-// The threadservice is *not* managed by the server.
+// NewServer starts and returns a new server.
 func NewServer(ctx context.Context, ts core.Service, conf Config, opts ...grpc.ServerOption) (*Server, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
-			"threadsapi": logging.LevelDebug,
+			"threadserviceapi": logging.LevelDebug,
 		})
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	manager, err := store.NewManager(
-		ts,
-		store.WithJsonMode(true),
-		store.WithRepoPath(conf.RepoPath),
-		store.WithDebug(true))
-	if err != nil {
-		return nil, err
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	s := &Server{
 		rpc:     grpc.NewServer(opts...),
-		service: &service{manager: manager},
+		service: &service{s: ts},
 		ctx:     ctx,
 		cancel:  cancel,
 	}
@@ -135,6 +124,5 @@ func (s *Server) Close() {
 	}
 
 	s.rpc.GracefulStop()
-	_ = s.service.manager.Close()
 	s.cancel()
 }

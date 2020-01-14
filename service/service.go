@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 	"time"
 
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -51,7 +49,6 @@ type service struct {
 	store lstore.Logstore
 
 	rpc    *grpc.Server
-	proxy  *http.Server
 	server *server
 	bus    *broadcast.Broadcaster
 
@@ -64,8 +61,7 @@ type service struct {
 
 // Config is used to specify thread instance options.
 type Config struct {
-	ProxyAddr ma.Multiaddr
-	Debug     bool
+	Debug bool
 }
 
 // NewService creates an instance of service from the given host and thread store.
@@ -115,49 +111,6 @@ func NewService(
 		t.rpc.Serve(listener)
 	}()
 
-	// Start a web RPC proxy
-	webrpc := grpcweb.WrapServer(
-		t.rpc,
-		grpcweb.WithOriginFunc(func(origin string) bool {
-			return true
-		}),
-		grpcweb.WithWebsockets(true),
-		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
-			return true
-		}))
-	proxyAddr, err := util.TCPAddrFromMultiAddr(conf.ProxyAddr)
-	if err != nil {
-		return nil, err
-	}
-	t.proxy = &http.Server{
-		Addr: proxyAddr,
-	}
-	t.proxy.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if webrpc.IsGrpcWebRequest(r) ||
-			webrpc.IsAcceptableGrpcCorsRequest(r) ||
-			webrpc.IsGrpcWebSocketRequest(r) {
-			webrpc.ServeHTTP(w, r)
-		}
-	})
-
-	errc := make(chan error)
-	go func() {
-		errc <- t.proxy.ListenAndServe()
-		close(errc)
-	}()
-	go func() {
-		for err := range errc {
-			if err != nil {
-				if err == http.ErrServerClosed {
-					break
-				} else {
-					log.Errorf("proxy error: %s", err)
-				}
-			}
-		}
-		log.Info("proxy was shutdown")
-	}()
-
 	go t.startPulling()
 
 	return t, nil
@@ -165,12 +118,6 @@ func NewService(
 
 // Close the service instance.
 func (t *service) Close() (err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	if err := t.proxy.Shutdown(ctx); err != nil {
-		log.Errorf("error shutting down proxy: %s", err)
-	}
-
 	t.rpc.GracefulStop()
 
 	var errs []error
