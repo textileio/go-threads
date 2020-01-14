@@ -389,12 +389,6 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 		return fmt.Errorf("thread not found")
 	}
 
-	for _, l := range info.Logs {
-		if err = t.server.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
-			return err
-		}
-	}
-
 	// Update local addresses
 	pro := ma.ProtocolWithCode(ma.P_P2P).Name
 	addr, err := ma.NewMultiaddr("/" + pro + "/" + pid.String())
@@ -407,6 +401,13 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	}
 	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return err
+	}
+
+	// Send all logs to the new follower
+	for _, l := range info.Logs {
+		if err = t.server.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
+			return err
+		}
 	}
 
 	// Send the updated log to peers
@@ -590,9 +591,14 @@ func (t *service) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		if exist {
 			break
 		}
-		r, err := t.GetRecord(ctx, id, c)
-		if err != nil {
-			return err
+		var r core.Record
+		if c.String() != rec.Cid().String() {
+			r, err = t.GetRecord(ctx, id, c)
+			if err != nil {
+				return err
+			}
+		} else {
+			r = rec
 		}
 		unknownRecords = append(unknownRecords, r)
 		c = r.PrevID()
