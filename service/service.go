@@ -564,7 +564,7 @@ func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
 					listener.ch <- r
 				}
 			} else {
-				log.Warning("listener received a non-record value")
+				log.Warn("listener received a non-record value")
 			}
 		}
 		close(listener.ch)
@@ -758,7 +758,7 @@ func (t *service) getLocalRecords(
 	}
 
 	if len(lg.Heads) == 0 {
-		log.Warning("pull found empty log")
+		log.Warn("pull found empty log")
 		return []core.Record{}, nil
 	}
 
