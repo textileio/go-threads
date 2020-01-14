@@ -312,7 +312,7 @@ func (t *service) PullThread(ctx context.Context, id thread.ID) error {
 		}
 		<-ptl
 	default:
-		log.Warningf("pull thread %s ignored since already being pulled", id)
+		log.Warnf("pull thread %s ignored since already being pulled", id)
 	}
 	return nil
 }
@@ -389,15 +389,8 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 		return fmt.Errorf("thread not found")
 	}
 
-	for _, l := range info.Logs {
-		if err = t.server.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
-			return err
-		}
-	}
-
 	// Update local addresses
-	pro := ma.ProtocolWithCode(ma.P_P2P).Name
-	addr, err := ma.NewMultiaddr("/" + pro + "/" + pid.String())
+	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + pid.String())
 	if err != nil {
 		return err
 	}
@@ -407,6 +400,16 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	}
 	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return err
+	}
+
+	// Send all logs to the new follower
+	for _, l := range info.Logs {
+		if err = t.server.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
+			if err := t.store.SetAddrs(id, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
+				log.Errorf("error rolling back log address change: %s", err)
+			}
+			return err
+		}
 	}
 
 	// Send the updated log to peers
@@ -561,7 +564,7 @@ func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
 					listener.ch <- r
 				}
 			} else {
-				log.Warning("listener received a non-record value")
+				log.Warn("listener received a non-record value")
 			}
 		}
 		close(listener.ch)
@@ -590,9 +593,14 @@ func (t *service) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		if exist {
 			break
 		}
-		r, err := t.GetRecord(ctx, id, c)
-		if err != nil {
-			return err
+		var r core.Record
+		if c.String() != rec.Cid().String() {
+			r, err = t.GetRecord(ctx, id, c)
+			if err != nil {
+				return err
+			}
+		} else {
+			r = rec
 		}
 		unknownRecords = append(unknownRecords, r)
 		c = r.PrevID()
@@ -750,7 +758,7 @@ func (t *service) getLocalRecords(
 	}
 
 	if len(lg.Heads) == 0 {
-		log.Warning("pull found empty log")
+		log.Warn("pull found empty log")
 		return []core.Record{}, nil
 	}
 
