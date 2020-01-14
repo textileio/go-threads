@@ -51,7 +51,7 @@ func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) err
 
 	for _, h := range heads {
 		if !h.Defined() {
-			log.Warningf("was passed nil head for %s", p)
+			log.Warnf("was passed nil head for %s", p)
 			continue
 		}
 		hmap[h] = struct{}{}
@@ -78,7 +78,7 @@ func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) err
 
 	for _, h := range heads {
 		if !h.Defined() {
-			log.Warningf("was passed nil head for %s", p)
+			log.Warnf("was passed nil head for %s", p)
 			continue
 		}
 		hmap[h] = struct{}{}

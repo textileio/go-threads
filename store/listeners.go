@@ -96,7 +96,7 @@ func (scn *stateChangedNotifee) notify(actions []Action) {
 				select {
 				case l.c <- a:
 				default:
-					log.Warningf("dropped action %v for reducer with filters %v", a, l.filters)
+					log.Warnf("dropped action %v for reducer with filters %v", a, l.filters)
 				}
 			}
 		}

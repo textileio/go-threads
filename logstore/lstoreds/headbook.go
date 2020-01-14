@@ -60,7 +60,7 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	}
 	for i := range heads {
 		if !heads[i].Defined() {
-			log.Warningf("ignoring head %s is is undefined for %s", heads[i], key)
+			log.Warnf("ignoring head %s is is undefined for %s", heads[i], key)
 			continue
 		}
 		if _, ok := set[heads[i]]; !ok {
@@ -87,7 +87,7 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	hr := pb.HeadBookRecord{}
 	for i := range heads {
 		if !heads[i].Defined() {
-			log.Warningf("ignoring head %s is undefined for %s", heads[i], key)
+			log.Warnf("ignoring head %s is undefined for %s", heads[i], key)
 			continue
 		}
 		entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.ProtoCid{Cid: heads[i]}}

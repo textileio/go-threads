@@ -312,7 +312,7 @@ func (t *service) PullThread(ctx context.Context, id thread.ID) error {
 		}
 		<-ptl
 	default:
-		log.Warningf("pull thread %s ignored since already being pulled", id)
+		log.Warnf("pull thread %s ignored since already being pulled", id)
 	}
 	return nil
 }
@@ -390,8 +390,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	}
 
 	// Update local addresses
-	pro := ma.ProtocolWithCode(ma.P_P2P).Name
-	addr, err := ma.NewMultiaddr("/" + pro + "/" + pid.String())
+	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + pid.String())
 	if err != nil {
 		return err
 	}
@@ -406,6 +405,9 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	// Send all logs to the new follower
 	for _, l := range info.Logs {
 		if err = t.server.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
+			if err := t.store.SetAddrs(id, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
+				log.Errorf("error rolling back log address change: %s", err)
+			}
 			return err
 		}
 	}

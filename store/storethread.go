@@ -166,7 +166,7 @@ func (a *singleThreadAdapter) getBlockWithRetry(ctx context.Context, rec service
 		if err == nil {
 			return n, nil
 		}
-		log.Warningf("error when fetching block %s in retry %d", rec.Cid(), i)
+		log.Warnf("error when fetching block %s in retry %d", rec.Cid(), i)
 		time.Sleep(backoffTime)
 		backoffTime *= 2
 	}

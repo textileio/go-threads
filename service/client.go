@@ -56,7 +56,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 	client := pb.NewServiceClient(conn)
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
-		log.Warningf("get logs from %s failed: %s", pid.String(), err)
+		log.Warnf("get logs from %s failed: %s", pid.String(), err)
 		return nil, err
 	}
 
@@ -102,7 +102,7 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid pee
 	client := pb.NewServiceClient(conn)
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
-		log.Warningf("push log to %s failed: %s", pid.String(), err)
+		log.Warnf("push log to %s failed: %s", pid.String(), err)
 	}
 	return err
 }
@@ -225,7 +225,7 @@ func (s *server) getRecords(
 			client := pb.NewServiceClient(conn)
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
-				log.Warningf("get records from %s failed: %s", p, err)
+				log.Warnf("get records from %s failed: %s", p, err)
 				return
 			}
 			for _, l := range reply.Logs {
@@ -358,12 +358,12 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 						Log:      logToProto(l),
 					}
 					if _, err = client.PushLog(cctx, lreq); err != nil {
-						log.Warningf("push log to %s failed: %s", p, err)
+						log.Warnf("push log to %s failed: %s", p, err)
 						return
 					}
 					return
 				}
-				log.Warningf("push record to %s failed: %s", p, err)
+				log.Warnf("push record to %s failed: %s", p, err)
 				return
 			}
 		}(addr)

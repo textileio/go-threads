@@ -82,12 +82,12 @@ func (gc *dsAddrBookGc) purgeStore() {
 
 	batch, err := newCyclicBatch(gc.ab.ds, defaultOpsPerCyclicBatch)
 	if err != nil {
-		log.Warningf("failed while creating batch to purge GC entries: %v", err)
+		log.Warnf("failed while creating batch to purge GC entries: %v", err)
 	}
 
 	results, err := gc.ab.ds.Query(purgeStoreQuery)
 	if err != nil {
-		log.Warningf("failed while opening iterator: %v", err)
+		log.Warnf("failed while opening iterator: %v", err)
 		return
 	}
 	defer results.Close()
@@ -97,7 +97,7 @@ func (gc *dsAddrBookGc) purgeStore() {
 	for result := range results.Next() {
 		record.Reset()
 		if err = record.Unmarshal(result.Value); err != nil {
-			log.Warningf("key %v has an unmarshable record", result.Key)
+			log.Warnf("key %v has an unmarshable record", result.Key)
 			continue
 		}
 
@@ -107,12 +107,12 @@ func (gc *dsAddrBookGc) purgeStore() {
 
 		id := genCacheKey(record.ThreadID.ID, record.PeerID.ID)
 		if err := record.flush(batch); err != nil {
-			log.Warningf("failed to flush entry modified by GC for peer: &v, err: %v", id, err)
+			log.Warnf("failed to flush entry modified by GC for peer: &v, err: %v", id, err)
 		}
 		gc.ab.cache.Remove(id)
 	}
 
 	if err = batch.Commit(); err != nil {
-		log.Warningf("failed to commit GC purge batch: %v", err)
+		log.Warnf("failed to commit GC purge batch: %v", err)
 	}
 }

@@ -284,7 +284,7 @@ func (s *server) subscribe(id thread.ID) {
 
 		_, err = s.PushRecord(s.threads.ctx, req)
 		if err != nil {
-			log.Warningf("pubsub: %s", err)
+			log.Warnf("pubsub: %s", err)
 			continue
 		}
 	}
