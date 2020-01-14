@@ -1,0 +1,50 @@
+syntax = "proto3";
+package api.pb;
+
+option java_multiple_files = true;
+option java_package = "io.textile.threads_service_grpc";
+option java_outer_classname = "ThreadsService";
+option objc_class_prefix = "THRDSS";
+
+message GetHostIDRequest {}
+
+message GetHostIDReply {}
+
+message AddThreadRequest {}
+
+message AddThreadReply {}
+
+message PullThreadRequest {}
+
+message PullThreadReply {}
+
+message DeleteThreadRequest {}
+
+message DeleteThreadReply {}
+
+message AddFollowerRequest {}
+
+message AddFollowerReply {}
+
+message AddRecordRequest {}
+
+message AddRecordReply {}
+
+message GetRecordRequest {}
+
+message GetRecordReply {}
+
+message SubscribeRequest {}
+
+message SubscribeReply {}
+
+service API {
+    rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
+    rpc AddThread(AddThreadRequest) returns (AddThreadReply) {}
+    rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
+    rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
+    rpc AddFollower(AddFollowerRequest) returns (AddFollowerReply) {}
+    rpc AddRecord(AddRecordRequest) returns (AddRecordReply) {}
+    rpc GetRecord(GetRecordRequest) returns (GetRecordReply) {}
+    rpc Subscribe(SubscribeRequest) returns (stream SubscribeReply) {}
+}
