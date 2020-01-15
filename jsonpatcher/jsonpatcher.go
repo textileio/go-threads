@@ -16,13 +16,21 @@ import (
 	core "github.com/textileio/go-threads/core/store"
 )
 
+type operationType int
+
+const (
+	create operationType = iota
+	save
+	delete
+)
+
 var (
 	log                 = logging.Logger("jsonpatcher")
 	errUnknownOperation = errors.New("unknown operation type")
 )
 
 type operation struct {
-	Type      core.ActionType
+	Type      operationType
 	EntityID  core.EntityID
 	JSONPatch []byte
 }
@@ -86,13 +94,13 @@ func (jp *jsonPatcher) Reduce(e core.Event, oldState []byte) (*core.CodecResult,
 		return nil, fmt.Errorf("event unrecognized for jsonpatcher eventcodec")
 	}
 	switch je.Patch.Type {
-	case core.Create:
+	case create:
 		action := core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
 		return &core.CodecResult{
 			Action: action,
 			State:  je.Patch.JSONPatch,
 		}, nil
-	case core.Save:
+	case save:
 		patchedValue, err := jsonpatch.MergePatch(oldState, je.Patch.JSONPatch)
 		if err != nil {
 			return nil, fmt.Errorf("error when reducing save event: %v", err)
@@ -102,7 +110,7 @@ func (jp *jsonPatcher) Reduce(e core.Event, oldState []byte) (*core.CodecResult,
 			Action: action,
 			State:  patchedValue,
 		}, nil
-	case core.Delete:
+	case delete:
 		action := core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
 		return &core.CodecResult{
 			Action: action,
@@ -146,7 +154,7 @@ func createEvent(id core.EntityID, v interface{}, jsonMode bool) (*operation, er
 		}
 	}
 	return &operation{
-		Type:      core.Create,
+		Type:      create,
 		EntityID:  id,
 		JSONPatch: opBytes,
 	}, nil
@@ -175,7 +183,7 @@ func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bo
 		return nil, err
 	}
 	return &operation{
-		Type:      core.Save,
+		Type:      save,
 		EntityID:  id,
 		JSONPatch: jsonPatch,
 	}, nil
@@ -183,7 +191,7 @@ func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bo
 
 func deleteEvent(id core.EntityID) (*operation, error) {
 	return &operation{
-		Type:      core.Delete,
+		Type:      delete,
 		EntityID:  id,
 		JSONPatch: nil,
 	}, nil
@@ -210,10 +218,6 @@ func (je patchEvent) EntityID() core.EntityID {
 
 func (je patchEvent) Model() string {
 	return je.ModelName
-}
-
-func (je patchEvent) Type() core.ActionType {
-	return je.Patch.Type
 }
 
 var _ core.Event = (*patchEvent)(nil)

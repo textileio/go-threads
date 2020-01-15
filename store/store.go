@@ -275,50 +275,40 @@ func (s *Store) Reduce(events []core.Event) error {
 		key := baseKey.ChildString(e.Model()).ChildString(e.EntityID().String())
 		var actionType ActionType
 		var ca *core.CodecResult
-		switch e.Type() {
+		var oldState []byte
+		oldState, err := txn.Get(key)
+		notFound := errors.Is(err, ds.ErrNotFound)
+		if err != nil && !notFound {
+			return err
+		}
+		ca, err = s.eventcodec.Reduce(e, oldState)
+		switch ca.Action.Type {
 		case core.Create:
-			actionType = ActionCreate
-			exist, err := txn.Has(key)
-			if err != nil {
-				return err
-			}
-			if exist {
+			if !notFound {
 				return errCantCreateExistingInstance
 			}
-			ca, err = s.eventcodec.Reduce(e, nil)
-			if err != nil {
-				return err
-			}
+			actionType = ActionCreate
 			if err := txn.Put(key, ca.State); err != nil {
 				return fmt.Errorf("error when reducing create event: %v", err)
 			}
 			log.Debug("\tcreate operation applied")
 		case core.Save:
-			actionType = ActionSave
-			value, err := txn.Get(key)
-			if errors.Is(err, ds.ErrNotFound) {
+			if notFound {
 				return errSavingNonExistentInstance
 			}
-			if err != nil {
-				return err
-			}
-			ca, err = s.eventcodec.Reduce(e, value)
+			actionType = ActionSave
 			if err = txn.Put(key, ca.State); err != nil {
 				return err
 			}
 			log.Debug("\tsave operation applied")
 		case core.Delete:
 			actionType = ActionDelete
-			ca, err = s.eventcodec.Reduce(e, nil)
-			if err != nil {
-				return err
-			}
 			if err := txn.Delete(key); err != nil {
 				return err
 			}
 			log.Debug("\tdelete operation applied")
 		default:
-			panic("eventcodec action not recognized")
+			panic("action not recognized")
 		}
 		actions[i] = Action{Model: ca.Action.Model, Type: actionType, ID: ca.Action.EntityID}
 	}

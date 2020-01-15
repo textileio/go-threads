@@ -33,7 +33,6 @@ type Event interface {
 	Time() []byte
 	EntityID() EntityID
 	Model() string
-	Type() ActionType
 }
 
 // ActionType is the type used by actions done in a txn
