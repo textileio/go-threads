@@ -9,7 +9,6 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	ds "github.com/ipfs/go-datastore"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -17,23 +16,13 @@ import (
 	core "github.com/textileio/go-threads/core/store"
 )
 
-type operationType int
-
-const (
-	create operationType = iota
-	save
-	delete
-)
-
 var (
-	log                           = logging.Logger("jsonpatcher")
-	errSavingNonExistentInstance  = errors.New("can't save nonexistent instance")
-	errCantCreateExistingInstance = errors.New("cant't create already existent instance")
-	errUnknownOperation           = errors.New("unknown operation type")
+	log                 = logging.Logger("jsonpatcher")
+	errUnknownOperation = errors.New("unknown operation type")
 )
 
 type operation struct {
-	Type      operationType
+	Type      core.ActionType
 	EntityID  core.EntityID
 	JSONPatch []byte
 }
@@ -91,66 +80,37 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 	return events, n, nil
 }
 
-func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]core.ReduceAction, error) {
-	txn, err := datastore.NewTransaction(false)
-	if err != nil {
-		return nil, err
+func (jp *jsonPatcher) Reduce(e core.Event, oldState []byte) (*core.CodecResult, error) {
+	je, ok := e.(patchEvent)
+	if !ok {
+		return nil, fmt.Errorf("event unrecognized for jsonpatcher eventcodec")
 	}
-	defer txn.Discard()
-
-	actions := make([]core.ReduceAction, len(events))
-	for i, e := range events {
-		je, ok := e.(patchEvent)
-		if !ok {
-			return nil, fmt.Errorf("event unrecognized for jsonpatcher eventcodec")
+	switch je.Patch.Type {
+	case core.Create:
+		action := core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
+		return &core.CodecResult{
+			Action: action,
+			State:  je.Patch.JSONPatch,
+		}, nil
+	case core.Save:
+		patchedValue, err := jsonpatch.MergePatch(oldState, je.Patch.JSONPatch)
+		if err != nil {
+			return nil, fmt.Errorf("error when reducing save event: %v", err)
 		}
-		key := baseKey.ChildString(e.Model()).ChildString(e.EntityID().String())
-		switch je.Patch.Type {
-		case create:
-			exist, err := txn.Has(key)
-			if err != nil {
-				return nil, err
-			}
-			if exist {
-				return nil, errCantCreateExistingInstance
-			}
-			if err := txn.Put(key, je.Patch.JSONPatch); err != nil {
-				return nil, fmt.Errorf("error when reducing create event: %v", err)
-			}
-			actions[i] = core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
-			log.Debug("\tcreate operation applied")
-		case save:
-			value, err := txn.Get(key)
-			if errors.Is(err, ds.ErrNotFound) {
-				return nil, errSavingNonExistentInstance
-			}
-			if err != nil {
-				return nil, err
-			}
-			patchedValue, err := jsonpatch.MergePatch(value, je.Patch.JSONPatch)
-			if err != nil {
-				return nil, fmt.Errorf("error when reducing save event: %v", err)
-			}
-			if err = txn.Put(key, patchedValue); err != nil {
-				return nil, err
-			}
-			actions[i] = core.ReduceAction{Type: core.Save, Model: e.Model(), EntityID: e.EntityID()}
-			log.Debug("\tsave operation applied")
-		case delete:
-			if err := txn.Delete(key); err != nil {
-				return nil, err
-			}
-			actions[i] = core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
-			log.Debug("\tdelete operation applied")
-		default:
-			return nil, errUnknownOperation
-		}
+		action := core.ReduceAction{Type: core.Save, Model: e.Model(), EntityID: e.EntityID()}
+		return &core.CodecResult{
+			Action: action,
+			State:  patchedValue,
+		}, nil
+	case core.Delete:
+		action := core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
+		return &core.CodecResult{
+			Action: action,
+			State:  nil,
+		}, nil
+	default:
+		return nil, errUnknownOperation
 	}
-	if err := txn.Commit(); err != nil {
-		return nil, err
-	}
-
-	return actions, nil
 }
 
 type recordEvents struct {
@@ -186,7 +146,7 @@ func createEvent(id core.EntityID, v interface{}, jsonMode bool) (*operation, er
 		}
 	}
 	return &operation{
-		Type:      create,
+		Type:      core.Create,
 		EntityID:  id,
 		JSONPatch: opBytes,
 	}, nil
@@ -215,7 +175,7 @@ func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bo
 		return nil, err
 	}
 	return &operation{
-		Type:      save,
+		Type:      core.Save,
 		EntityID:  id,
 		JSONPatch: jsonPatch,
 	}, nil
@@ -223,7 +183,7 @@ func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bo
 
 func deleteEvent(id core.EntityID) (*operation, error) {
 	return &operation{
-		Type:      delete,
+		Type:      core.Delete,
 		EntityID:  id,
 		JSONPatch: nil,
 	}, nil
@@ -250,6 +210,10 @@ func (je patchEvent) EntityID() core.EntityID {
 
 func (je patchEvent) Model() string {
 	return je.ModelName
+}
+
+func (je patchEvent) Type() core.ActionType {
+	return je.Patch.Type
 }
 
 var _ core.Event = (*patchEvent)(nil)

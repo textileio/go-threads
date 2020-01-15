@@ -157,5 +157,9 @@ func (n *nullEvent) Node() (format.Node, error) {
 	return nil, nil
 }
 
+func (n *nullEvent) Type() core.ActionType {
+	return core.Delete
+}
+
 // Sanity check
 var _ core.Event = (*nullEvent)(nil)

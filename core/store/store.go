@@ -2,7 +2,6 @@ package store
 
 import (
 	"github.com/google/uuid"
-	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 )
 
@@ -34,6 +33,7 @@ type Event interface {
 	Time() []byte
 	EntityID() EntityID
 	Model() string
+	Type() ActionType
 }
 
 // ActionType is the type used by actions done in a txn
@@ -71,11 +71,16 @@ type ReduceAction struct {
 	EntityID EntityID
 }
 
+type CodecResult struct {
+	Action ReduceAction
+	State  []byte
+}
+
 // EventCodec transforms actions generated in models to
 // events dispatched to thread logs, and viceversa.
 type EventCodec interface {
 	// Reduce applies generated events into state
-	Reduce(events []Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]ReduceAction, error)
+	Reduce(events Event, oldState []byte) (*CodecResult, error)
 	// Create corresponding events to be dispatched
 	Create(ops []Action) ([]Event, format.Node, error)
 	// EventsFromBytes deserializes a format.Node bytes payload into

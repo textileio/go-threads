@@ -40,6 +40,9 @@ var (
 	dsStorePrefix   = ds.NewKey("/store")
 	dsStoreThreadID = dsStorePrefix.ChildString("threadid")
 	dsStoreSchemas  = dsStorePrefix.ChildString("schema")
+
+	errSavingNonExistentInstance = errors.New("can't save nonexistent instance")
+	errUnknownOperation          = errors.New("unknown operation type")
 )
 
 // Store is the aggregate-root of events and state. External/remote events
@@ -230,7 +233,7 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	return m, nil
 }
 
-// Register a new model in the store with a JSON schema.
+// RegisterSchema registers a new model in the store with a JSON schema.
 func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -261,24 +264,66 @@ func (s *Store) GetModel(name string) *Model {
 
 // Reduce processes txn events into the models.
 func (s *Store) Reduce(events []core.Event) error {
-	codecActions, err := s.eventcodec.Reduce(events, s.datastore, baseKey)
+	txn, err := s.datastore.NewTransaction(false)
 	if err != nil {
 		return err
 	}
-	actions := make([]Action, len(codecActions))
-	for i, ca := range codecActions {
+	defer txn.Discard()
+
+	actions := make([]Action, len(events))
+	for i, e := range events {
+		key := baseKey.ChildString(e.Model()).ChildString(e.EntityID().String())
 		var actionType ActionType
-		switch codecActions[i].Type {
+		var ca *core.CodecResult
+		switch e.Type() {
 		case core.Create:
 			actionType = ActionCreate
+			exist, err := txn.Has(key)
+			if err != nil {
+				return err
+			}
+			if exist {
+				return errCantCreateExistingInstance
+			}
+			ca, err = s.eventcodec.Reduce(e, nil)
+			if err != nil {
+				return err
+			}
+			if err := txn.Put(key, ca.State); err != nil {
+				return fmt.Errorf("error when reducing create event: %v", err)
+			}
+			log.Debug("\tcreate operation applied")
 		case core.Save:
 			actionType = ActionSave
+			value, err := txn.Get(key)
+			if errors.Is(err, ds.ErrNotFound) {
+				return errSavingNonExistentInstance
+			}
+			if err != nil {
+				return err
+			}
+			ca, err = s.eventcodec.Reduce(e, value)
+			if err = txn.Put(key, ca.State); err != nil {
+				return err
+			}
+			log.Debug("\tsave operation applied")
 		case core.Delete:
 			actionType = ActionDelete
+			ca, err = s.eventcodec.Reduce(e, nil)
+			if err != nil {
+				return err
+			}
+			if err := txn.Delete(key); err != nil {
+				return err
+			}
+			log.Debug("\tdelete operation applied")
 		default:
 			panic("eventcodec action not recognized")
 		}
-		actions[i] = Action{Model: ca.Model, Type: actionType, ID: ca.EntityID}
+		actions[i] = Action{Model: ca.Action.Model, Type: actionType, ID: ca.Action.EntityID}
+	}
+	if err := txn.Commit(); err != nil {
+		return err
 	}
 	s.notifyStateChanged(actions)
 
