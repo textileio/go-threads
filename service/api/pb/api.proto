@@ -9,7 +9,7 @@ option objc_class_prefix = "THRDSS";
 message GetHostIDRequest {}
 
 message GetHostIDReply {
-    string ID = 1;
+    string peerID = 1;
 }
 
 message AddThreadRequest {
@@ -18,33 +18,53 @@ message AddThreadRequest {
     bytes followKey = 3;
 }
 
-message AddThreadReply {}
+message AddThreadReply {
+    string threadID = 1;
+    repeated string logIDs = 2;
+}
 
 message PullThreadRequest {
-    string ID = 1;
+    string threadID = 1;
 }
 
 message PullThreadReply {}
 
-message DeleteThreadRequest {}
+message DeleteThreadRequest {
+    string threadID = 1;
+}
 
 message DeleteThreadReply {}
 
-message AddFollowerRequest {}
+message AddFollowerRequest {
+    string threadID = 1;
+    string peerID = 2;
+}
 
 message AddFollowerReply {}
 
-message AddRecordRequest {}
+message AddRecordRequest {
+    string threadID = 1;
+    bytes body = 2;
+}
 
-message AddRecordReply {}
+message NewRecordReply {
+    string threadID = 1;
+    string logID = 2;
+    string recordID = 3;
+}
 
-message GetRecordRequest {}
+message GetRecordRequest {
+    string threadID = 1;
+    string recordID = 2;
+}
 
-message GetRecordReply {}
+message GetRecordReply {
+    bytes record = 1;
+}
 
-message SubscribeRequest {}
-
-message SubscribeReply {}
+message SubscribeRequest {
+    repeated string threadIDs = 1;
+}
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
@@ -52,7 +72,7 @@ service API {
     rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
     rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
     rpc AddFollower(AddFollowerRequest) returns (AddFollowerReply) {}
-    rpc AddRecord(AddRecordRequest) returns (AddRecordReply) {}
+    rpc AddRecord(AddRecordRequest) returns (NewRecordReply) {}
     rpc GetRecord(GetRecordRequest) returns (GetRecordReply) {}
-    rpc Subscribe(SubscribeRequest) returns (stream SubscribeReply) {}
+    rpc Subscribe(SubscribeRequest) returns (stream NewRecordReply) {}
 }
