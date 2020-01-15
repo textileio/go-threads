@@ -47,7 +47,7 @@ require (
 	github.com/multiformats/go-multihash v0.0.10
 	github.com/multiformats/go-varint v0.0.2 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
-	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2 // indirect
+	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
