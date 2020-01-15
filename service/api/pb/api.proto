@@ -12,11 +12,17 @@ message GetHostIDReply {
     string ID = 1;
 }
 
-message AddThreadRequest {}
+message AddThreadRequest {
+    string addr = 1;
+    bytes readKey = 2;
+    bytes followKey = 3;
+}
 
 message AddThreadReply {}
 
-message PullThreadRequest {}
+message PullThreadRequest {
+    string ID = 1;
+}
 
 message PullThreadReply {}
 

@@ -3,6 +3,11 @@ package api
 import (
 	"context"
 
+	"github.com/textileio/go-threads/core/thread"
+
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-threads/crypto/symmetric"
+
 	core "github.com/textileio/go-threads/core/service"
 	pb "github.com/textileio/go-threads/service/api/pb"
 )
@@ -21,30 +26,63 @@ func (s *service) GetHostID(ctx context.Context, req *pb.GetHostIDRequest) (*pb.
 	}, nil
 }
 
-func (s *service) AddThread(context.Context, *pb.AddThreadRequest) (*pb.AddThreadReply, error) {
+func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.AddThreadReply, error) {
+	log.Debugf("received add thread request")
+
+	addr, err := ma.NewMultiaddr(req.Addr)
+	if err != nil {
+		return nil, err
+	}
+	var opts []core.AddOption
+	if req.ReadKey != nil {
+		rk, err := symmetric.NewKey(req.ReadKey)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, core.ReadKey(rk))
+	}
+	if req.FollowKey != nil {
+		fk, err := symmetric.NewKey(req.FollowKey)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, core.FollowKey(fk))
+	}
+	if _, err = s.s.AddThread(ctx, addr, opts...); err != nil {
+		return nil, err
+	}
+	return &pb.AddThreadReply{}, nil
+}
+
+func (s *service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
+	log.Debugf("received pull thread request")
+
+	id, err := thread.Decode(req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err = s.s.PullThread(ctx, id); err != nil {
+		return nil, err
+	}
+	return &pb.PullThreadReply{}, nil
+}
+
+func (s *service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest) (*pb.DeleteThreadReply, error) {
 	panic("implement me")
 }
 
-func (s *service) PullThread(context.Context, *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
+func (s *service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (*pb.AddFollowerReply, error) {
 	panic("implement me")
 }
 
-func (s *service) DeleteThread(context.Context, *pb.DeleteThreadRequest) (*pb.DeleteThreadReply, error) {
+func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
 	panic("implement me")
 }
 
-func (s *service) AddFollower(context.Context, *pb.AddFollowerRequest) (*pb.AddFollowerReply, error) {
+func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
 	panic("implement me")
 }
 
-func (s *service) AddRecord(context.Context, *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
-	panic("implement me")
-}
-
-func (s *service) GetRecord(context.Context, *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
-	panic("implement me")
-}
-
-func (s *service) Subscribe(*pb.SubscribeRequest, pb.API_SubscribeServer) error {
+func (s *service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeServer) error {
 	panic("implement me")
 }
