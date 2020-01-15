@@ -16,6 +16,8 @@ import (
 	core "github.com/textileio/go-threads/core/store"
 )
 
+// operationType is the type of the operation.
+// It is intentionally unique from core.ActionType to provide greater flexibility.
 type operationType int
 
 const (

@@ -43,15 +43,21 @@ func (s *Store) notifyTxnEvents(node format.Node) error {
 	return s.localEventsBus.send(node)
 }
 
+// ActionType is the type of the action.
+// It is intentionally unique from core.ActionType to provide greater flexibility.
 type ActionType int
+
+// ListenActionType is the type for a listener.
 type ListenActionType int
 
+// The set of ActionTypes
 const (
 	ActionCreate ActionType = iota + 1
 	ActionSave
 	ActionDelete
 )
 
+// The set of ListenActionTypes
 const (
 	ListenAll ListenActionType = iota
 	ListenCreate
@@ -59,18 +65,21 @@ const (
 	ListenDelete
 )
 
+// Action is an operation that can be observed
 type Action struct {
 	Model string
 	Type  ActionType
 	ID    core.EntityID
 }
 
+// ListenOption is a configuration option for observing Actions
 type ListenOption struct {
 	Type  ListenActionType
 	Model string
 	ID    core.EntityID
 }
 
+// Listener is an interface describing an object with an Action channel
 type Listener interface {
 	Channel() <-chan Action
 	Close()
