@@ -82,7 +82,7 @@ func TestAddPull(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 30)
 		if rcount != 2 {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
