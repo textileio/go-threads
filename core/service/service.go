@@ -34,6 +34,9 @@ type API interface {
 	// GetHostID returns the host's peer ID.
 	GetHostID(ctx context.Context) (peer.ID, error)
 
+	// CreateThread with id.
+	CreateThread(ctx context.Context, id thread.ID) (thread.Info, error)
+
 	// AddThread from a multiaddress.
 	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...AddOption) (thread.Info, error)
 

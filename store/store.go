@@ -165,7 +165,7 @@ func (s *Store) Start() error {
 	}
 	if !found {
 		id = thread.NewIDV1(thread.Raw, 32)
-		if _, err := util.CreateThread(s.service, id); err != nil {
+		if _, err := s.service.CreateThread(context.Background(), id); err != nil {
 			return err
 		}
 		if err := s.datastore.Put(dsStoreThreadID, id.Bytes()); err != nil {

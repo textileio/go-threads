@@ -22,6 +22,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/service/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -165,6 +166,21 @@ func (t *service) Store() lstore.Logstore {
 // GetHostID returns the host's peer ID.
 func (t *service) GetHostID(context.Context) (peer.ID, error) {
 	return t.host.ID(), nil
+}
+
+// CreateThread with id.
+func (t *service) CreateThread(_ context.Context, id thread.ID) (info thread.Info, err error) {
+	info.ID = id
+	info.FollowKey, err = sym.CreateKey()
+	if err != nil {
+		return
+	}
+	info.ReadKey, err = sym.CreateKey()
+	if err != nil {
+		return
+	}
+	err = t.store.AddThread(info)
+	return info, err
 }
 
 // AddThread from a multiaddress.

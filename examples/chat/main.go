@@ -446,7 +446,7 @@ func addCmd(args []string) (out string, err error) {
 		}
 		id = info.ID
 	} else {
-		th, err := util.CreateThread(ts, thread.NewIDV1(thread.Raw, 32))
+		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			return "", err
 		}

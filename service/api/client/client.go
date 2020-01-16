@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 
+	"github.com/textileio/go-threads/crypto/symmetric"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
@@ -54,6 +56,29 @@ func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 		return "", err
 	}
 	return peer.Decode(resp.PeerID)
+}
+
+// CreateThread with id.
+func (c *Client) CreateThread(ctx context.Context, id thread.ID) (info thread.Info, err error) {
+	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
+		ThreadID: id.String(),
+	})
+	if err != nil {
+		return
+	}
+	rk, err := symmetric.NewKey(resp.ReadKey)
+	if err != nil {
+		return
+	}
+	fk, err := symmetric.NewKey(resp.FollowKey)
+	if err != nil {
+		return
+	}
+	return thread.Info{
+		ID:        id,
+		FollowKey: fk,
+		ReadKey:   rk,
+	}, nil
 }
 
 func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.AddOption) (info thread.Info, err error) {

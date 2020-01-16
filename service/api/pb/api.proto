@@ -19,6 +19,15 @@ message GetHostIDReply {
     string peerID = 1;
 }
 
+message CreateThreadRequest {
+    string threadID = 1;
+}
+
+message CreateThreadReply {
+    bytes readKey = 1;
+    bytes followKey = 2;
+}
+
 message AddThreadRequest {
     string addr = 1;
     bytes readKey = 2;
@@ -75,6 +84,7 @@ message SubscribeRequest {
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
+    rpc CreateThread(CreateThreadRequest) returns (CreateThreadReply) {}
     rpc AddThread(AddThreadRequest) returns (AddThreadReply) {}
     rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
     rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}

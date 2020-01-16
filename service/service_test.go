@@ -44,7 +44,7 @@ func TestAddPull(t *testing.T) {
 			}
 		}()
 
-		th, err := util.CreateThread(s, thread.NewIDV1(thread.Raw, 32))
+		th, err := s.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestAddPull(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Second)
 		if rcount != 2 {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
@@ -120,7 +120,7 @@ func TestAddPeer(t *testing.T) {
 
 	t.Run("test add thread peer", func(t *testing.T) {
 		ctx := context.Background()
-		th, err := util.CreateThread(s1, thread.NewIDV1(thread.Raw, 32))
+		th, err := s1.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +182,7 @@ func TestAddFollower(t *testing.T) {
 
 	t.Run("test add thread follower", func(t *testing.T) {
 		ctx := context.Background()
-		th, err := util.CreateThread(s1, thread.NewIDV1(thread.Raw, 32))
+		th, err := s1.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			t.Fatal(err)
 		}

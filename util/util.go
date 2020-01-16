@@ -29,21 +29,6 @@ var (
 	}
 )
 
-// CreateThread creates a new set of keys.
-func CreateThread(s service.Service, id thread.ID) (info thread.Info, err error) {
-	info.ID = id
-	info.FollowKey, err = sym.CreateKey()
-	if err != nil {
-		return
-	}
-	info.ReadKey, err = sym.CreateKey()
-	if err != nil {
-		return
-	}
-	err = s.Store().AddThread(info)
-	return
-}
-
 // CreateLog creates a new log with the given peer as host.
 func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
 	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)

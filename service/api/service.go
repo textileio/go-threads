@@ -28,6 +28,23 @@ func (s *service) GetHostID(context.Context, *pb.GetHostIDRequest) (*pb.GetHostI
 	}, nil
 }
 
+func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.CreateThreadReply, error) {
+	log.Debugf("received create thread request")
+
+	threadID, err := thread.Decode(req.ThreadID)
+	if err != nil {
+		return nil, err
+	}
+	info, err := s.s.CreateThread(ctx, threadID)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CreateThreadReply{
+		ReadKey:   info.ReadKey.Bytes(),
+		FollowKey: info.FollowKey.Bytes(),
+	}, nil
+}
+
 func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.AddThreadReply, error) {
 	log.Debugf("received add thread request")
 
