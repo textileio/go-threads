@@ -119,7 +119,7 @@ func TestClient_AddFollower(t *testing.T) {
 	t.Parallel()
 	_, client1, done1 := setup(t)
 	defer done1()
-	_, client2, done2 := setup(t)
+	hostAddr2, client2, done2 := setup(t)
 	defer done2()
 
 	info := createThread(t, client1)
@@ -129,8 +129,13 @@ func TestClient_AddFollower(t *testing.T) {
 	}
 
 	t.Run("test add follower", func(t *testing.T) {
-		if err := client1.AddFollower(context.Background(), info.ID, hostID2); err != nil {
+		addr := peerAddr(t, hostAddr2, hostID2)
+		pid, err := client1.AddFollower(context.Background(), info.ID, addr)
+		if err != nil {
 			t.Fatalf("failed to add follower: %v", err)
+		}
+		if pid.String() == "" {
+			log.Fatal("got bad ID from add follower")
 		}
 	})
 }
@@ -196,7 +201,7 @@ func TestClient_Subscribe(t *testing.T) {
 	t.Parallel()
 	_, client1, done1 := setup(t)
 	defer done1()
-	_, client2, done2 := setup(t)
+	hostAddr2, client2, done2 := setup(t)
 	defer done2()
 
 	info := createThread(t, client1)
@@ -204,7 +209,8 @@ func TestClient_Subscribe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := client1.AddFollower(context.Background(), info.ID, hostID2); err != nil {
+	addr := peerAddr(t, hostAddr2, hostID2)
+	if _, err := client1.AddFollower(context.Background(), info.ID, addr); err != nil {
 		t.Fatal(err)
 	}
 
@@ -342,4 +348,12 @@ func threadAddr(t *testing.T, hostAddr ma.Multiaddr, hostID peer.ID, info thread
 		t.Fatal(err)
 	}
 	return hostAddr.Encapsulate(pa.Encapsulate(ta))
+}
+
+func peerAddr(t *testing.T, hostAddr ma.Multiaddr, hostID peer.ID) ma.Multiaddr {
+	pa, err := ma.NewMultiaddr("/p2p/" + hostID.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hostAddr.Encapsulate(pa)
 }

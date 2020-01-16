@@ -120,14 +120,17 @@ func (s *service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (
 	if err != nil {
 		return nil, err
 	}
-	peerID, err := peer.IDFromBytes(req.PeerID)
+	addr, err := ma.NewMultiaddrBytes(req.Addr)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.s.AddFollower(ctx, threadID, peerID); err != nil {
+	pid, err := s.s.AddFollower(ctx, threadID, addr)
+	if err != nil {
 		return nil, err
 	}
-	return &pb.AddFollowerReply{}, nil
+	return &pb.AddFollowerReply{
+		PeerID: marshalPeerID(pid),
+	}, nil
 }
 
 func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.NewRecordReply, error) {

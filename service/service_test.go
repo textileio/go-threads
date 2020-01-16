@@ -194,7 +194,11 @@ func TestAddFollower(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err = s1.AddFollower(ctx, th.ID, s2.Host().ID()); err != nil {
+		addr, err := ma.NewMultiaddr("/p2p/" + s2.Host().ID().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s1.AddFollower(ctx, th.ID, addr); err != nil {
 			t.Fatal(err)
 		}
 

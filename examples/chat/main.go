@@ -570,12 +570,12 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 		return
 	}
 
-	pid, err := util.AddPeerFromAddress(addrStr, ts.Host().Peerstore())
+	addr, err := ma.NewMultiaddr(addrStr)
 	if err != nil {
 		return
 	}
-
-	if err = ts.AddFollower(ctx, id, pid); err != nil {
+	pid, err := ts.AddFollower(ctx, id, addr)
+	if err != nil {
 		return
 	}
 	return "Added follower " + pid.String(), nil

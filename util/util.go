@@ -10,7 +10,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
@@ -25,37 +24,6 @@ var (
 		"/ip4/34.87.103.105/tcp/4001/ipfs/12D3KooWA5z2C3z1PNKi36Bw1MxZhBD8nv7UbB7YQP6WcSWYNwRQ", // as-southeast
 	}
 )
-
-// AddPeerFromAddress parses the given address and adds the dialable component
-// to the peerstore.
-// If a dht is provided and the address does not contain a dialable component,
-// it will be queried for peer info.
-func AddPeerFromAddress(addrStr string, pstore peerstore.Peerstore) (pid peer.ID, err error) {
-	addr, err := ma.NewMultiaddr(addrStr)
-	if err != nil {
-		return
-	}
-	p2p, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		return
-	}
-	pid, err = peer.Decode(p2p)
-	if err != nil {
-		return
-	}
-	dialable, err := GetDialable(addr)
-	if err == nil {
-		pstore.AddAddr(pid, dialable, peerstore.PermanentAddrTTL)
-	}
-
-	return pid, nil
-}
-
-// GetDialable returns the portion of an address suitable for storage in a peerstore.
-func GetDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
-	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
-	return ma.NewMultiaddr(parts[0])
-}
 
 // CanDial returns whether or not the address is dialable.
 func CanDial(addr ma.Multiaddr, s *swarm.Swarm) bool {

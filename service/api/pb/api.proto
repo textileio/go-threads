@@ -55,10 +55,12 @@ message DeleteThreadReply {}
 
 message AddFollowerRequest {
     bytes threadID = 1;
-    bytes peerID = 2;
+    bytes addr = 2;
 }
 
-message AddFollowerReply {}
+message AddFollowerReply {
+    bytes peerID = 1;
+}
 
 message AddRecordRequest {
     bytes threadID = 1;

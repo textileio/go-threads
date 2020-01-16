@@ -110,13 +110,15 @@ func (c *Client) DeleteThread(ctx context.Context, id thread.ID) error {
 	return err
 }
 
-func (c *Client) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
-	pidb, _ := pid.Marshal()
-	_, err := c.c.AddFollower(ctx, &pb.AddFollowerRequest{
+func (c *Client) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error) {
+	resp, err := c.c.AddFollower(ctx, &pb.AddFollowerRequest{
 		ThreadID: id.Bytes(),
-		PeerID:   pidb,
+		Addr:     paddr.Bytes(),
 	})
-	return err
+	if err != nil {
+		return "", err
+	}
+	return peer.IDFromBytes(resp.PeerID)
 }
 
 func (c *Client) AddRecord(ctx context.Context, id thread.ID, body format.Node) (core.ThreadRecord, error) {

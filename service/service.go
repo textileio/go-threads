@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -366,30 +367,46 @@ func (t *service) DeleteThread(context.Context, thread.ID) error {
 }
 
 // AddFollower to a thread.
-func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
+func (t *service) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
 	info, err := t.store.ThreadInfo(id)
 	if err != nil {
-		return err
+		return
 	}
 	if info.FollowKey == nil {
-		return fmt.Errorf("thread not found")
+		return pid, fmt.Errorf("thread not found")
+	}
+
+	// Extract peer portion
+	p2p, err := paddr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return
+	}
+	pid, err = peer.Decode(p2p)
+	if err != nil {
+		return
 	}
 
 	// Update local addresses
-	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + pid.String())
+	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + p2p)
 	if err != nil {
-		return err
+		return
 	}
 	ownlg, err := t.getOwnLog(id)
 	if err != nil {
-		return err
+		return
 	}
 	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
-		return err
+		return
 	}
 	info, err = t.store.ThreadInfo(id) // Update info
 	if err != nil {
-		return err
+		return
+	}
+
+	// Update peerstore address
+	dialable, err := getDialable(paddr)
+	if err == nil {
+		t.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
 	}
 
 	// Send all logs to the new follower
@@ -398,7 +415,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 			if err := t.store.SetAddrs(id, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
 				log.Errorf("error rolling back log address change: %s", err)
 			}
-			return err
+			return
 		}
 	}
 
@@ -434,7 +451,12 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	}
 
 	wg.Wait()
-	return nil
+	return pid, nil
+}
+
+func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
+	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
+	return ma.NewMultiaddr(parts[0])
 }
 
 // AddRecord with body. See AddOption for more.

@@ -46,7 +46,7 @@ type API interface {
 	DeleteThread(ctx context.Context, id thread.ID) error
 
 	// AddFollower to a thread.
-	AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error
+	AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error)
 
 	// AddRecord with body.
 	AddRecord(ctx context.Context, id thread.ID, body format.Node) (ThreadRecord, error)
