@@ -21,9 +21,10 @@ var (
 
 // Query allows to build queries to fetch data from a model.
 type Query struct {
-	ands []*Criterion
-	ors  []*Query
-	sort struct {
+	index string // Is this query being perfomed using an index?
+	ands  []*Criterion
+	ors   []*Query
+	sort  struct {
 		fieldPath string
 		desc      bool
 	}

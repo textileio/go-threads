@@ -318,7 +318,7 @@ type mockEventCodec struct {
 
 var _ core.EventCodec = (*mockEventCodec)(nil)
 
-func (dec *mockEventCodec) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]core.ReduceAction, error) {
+func (dec *mockEventCodec) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key, indexFunc func(model string, key ds.Key, data []byte, txn ds.Txn) error) ([]core.ReduceAction, error) {
 	dec.called = true
 	return nil, nil
 }

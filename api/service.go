@@ -43,7 +43,7 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 	if err != nil {
 		return nil, err
 	}
-	if _, err = st.RegisterSchema(req.Name, req.Schema); err != nil {
+	if _, err = st.RegisterSchema(req.Name, req.Schema, []string{}); err != nil {
 		return nil, err
 	}
 

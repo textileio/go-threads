@@ -64,7 +64,7 @@ func main() {
 	s, clean := createJsonModeMemStore()
 	defer clean()
 
-	model, err := s.RegisterSchema("Book", jsonSchema)
+	model, err := s.RegisterSchema("Book", jsonSchema, []string{})
 	checkErr(err)
 
 	// Bootstrap the model with some books: two from Author1 and one from Author2

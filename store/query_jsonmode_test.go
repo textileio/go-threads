@@ -324,7 +324,7 @@ func TestQueryJsonMode(t *testing.T) {
 
 func createModelWithJSONData(t *testing.T) (*Model, func()) {
 	s, clean := createTestStore(t, WithJsonMode(true))
-	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema)
+	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema, []string{})
 	checkErr(t, err)
 	for i := range jsonSampleData {
 		if err = m.Create(&jsonSampleData[i]); err != nil {

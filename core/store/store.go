@@ -75,7 +75,12 @@ type ReduceAction struct {
 // events dispatched to thread logs, and viceversa.
 type EventCodec interface {
 	// Reduce applies generated events into state
-	Reduce(events []Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]ReduceAction, error)
+	Reduce(
+		events []Event,
+		datastore ds.TxnDatastore,
+		baseKey ds.Key,
+		indexFunc func(model string, key ds.Key, data []byte, txn ds.Txn) error,
+	) ([]ReduceAction, error)
 	// Create corresponding events to be dispatched
 	Create(ops []Action) ([]Event, format.Node, error)
 	// EventsFromBytes deserializes a format.Node bytes payload into

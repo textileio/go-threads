@@ -21,6 +21,7 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -135,7 +136,7 @@ func (s *Store) reregisterSchemas() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-		if _, err = s.RegisterSchema(name, string(res.Value)); err != nil {
+		if _, err = s.RegisterSchema(name, string(res.Value), []string{}); err != nil {
 			return err
 		}
 	}
@@ -230,8 +231,8 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	return m, nil
 }
 
-// Register a new model in the store with a JSON schema.
-func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
+// RegisterSchema a new model in the store with a JSON schema.
+func (s *Store) RegisterSchema(name string, schema string, indexes []string) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -250,6 +251,15 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 			return nil, err
 		}
 	}
+
+	for _, path := range indexes {
+		if res := gjson.Get(schema, "properties."+path); res.Exists() {
+			m.AddIndex(path, false)
+		}
+	}
+	// Create unique constraint on ID value
+	m.AddIndex("ID", true)
+
 	s.modelNames[name] = m
 	return m, nil
 }
@@ -261,7 +271,23 @@ func (s *Store) GetModel(name string) *Model {
 
 // Reduce processes txn events into the models.
 func (s *Store) Reduce(events []core.Event) error {
-	codecActions, err := s.eventcodec.Reduce(events, s.datastore, baseKey)
+	codecActions, err := s.eventcodec.Reduce(
+		events,
+		s.datastore,
+		baseKey,
+		func(model string, key ds.Key, data []byte, txn ds.Txn) error {
+			indexer := s.GetModel(model)
+			if err := indexDelete(indexer, txn, key, data); err != nil {
+				return err
+			}
+			if data != nil {
+				if err := indexAdd(indexer, txn, key, data); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		return err
 	}
