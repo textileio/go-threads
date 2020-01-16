@@ -318,15 +318,15 @@ type mockEventCodec struct {
 
 var _ core.EventCodec = (*mockEventCodec)(nil)
 
-func (dec *mockEventCodec) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]core.ReduceAction, error) {
+func (dec *mockEventCodec) Reduce([]core.Event, ds.TxnDatastore, ds.Key) ([]core.ReduceAction, error) {
 	dec.called = true
 	return nil, nil
 }
-func (dec *mockEventCodec) Create(ops []core.Action) ([]core.Event, format.Node, error) {
+func (dec *mockEventCodec) Create([]core.Action) ([]core.Event, format.Node, error) {
 	dec.called = true
 	return nil, nil, nil
 }
-func (dec *mockEventCodec) EventsFromBytes(data []byte) ([]core.Event, error) {
+func (dec *mockEventCodec) EventsFromBytes([]byte) ([]core.Event, error) {
 	dec.called = true
 	return nil, nil
 }

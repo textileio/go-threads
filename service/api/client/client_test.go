@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
-	core "github.com/textileio/go-threads/core/service"
-
+	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	mh "github.com/multiformats/go-multihash"
 	"github.com/phayes/freeport"
+	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/service/api"
 	"github.com/textileio/go-threads/store"
@@ -44,7 +45,7 @@ func TestClient_CreateThread(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
-		if info.ID.String() != id.String() {
+		if !info.ID.Equals(id) {
 			t.Fatal("got bad ID from create thread")
 		}
 		if info.ReadKey == nil {
@@ -79,83 +80,171 @@ func TestClient_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to add thread: %v", err)
 		}
-		if info2.ID.String() != info1.ID.String() {
+		if !info2.ID.Equals(info1.ID) {
 			t.Fatal("got bad ID from add thread")
 		}
 	})
 }
 
-//func TestClient_PullThread(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	t.Run("test pull thread", func(t *testing.T) {
-//		if _, err := client.GetHostID(context.Background()); err != nil {
-//			t.Fatalf("failed to get host ID: %v", err)
-//		}
-//	})
-//}
-//
-//func TestClient_DeleteThread(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	t.Run("test delete thread", func(t *testing.T) {
-//		if _, err := client.GetHostID(context.Background()); err != nil {
-//			t.Fatalf("failed to get host ID: %v", err)
-//		}
-//	})
-//}
-//
-//func TestClient_AddFollower(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	t.Run("test add follower", func(t *testing.T) {
-//		if _, err := client.GetHostID(context.Background()); err != nil {
-//			t.Fatalf("failed to get host ID: %v", err)
-//		}
-//	})
-//}
-//
-//func TestClient_AddRecord(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	t.Run("test add record", func(t *testing.T) {
-//		if _, err := client.GetHostID(context.Background()); err != nil {
-//			t.Fatalf("failed to get host ID: %v", err)
-//		}
-//	})
-//}
-//
-//func TestClient_GetRecord(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	t.Run("test get record", func(t *testing.T) {
-//		if _, err := client.GetHostID(context.Background()); err != nil {
-//			t.Fatalf("failed to get host ID: %v", err)
-//		}
-//	})
-//}
-//
-//func TestClient_Subscribe(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	t.Run("test subscribe", func(t *testing.T) {
-//		if _, err := client.GetHostID(context.Background()); err != nil {
-//			t.Fatalf("failed to get host ID: %v", err)
-//		}
-//	})
-//}
+func TestClient_PullThread(t *testing.T) {
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	info := createThread(t, client)
+
+	t.Run("test pull thread", func(t *testing.T) {
+		if err := client.PullThread(context.Background(), info.ID); err != nil {
+			t.Fatalf("failed to pull thread: %v", err)
+		}
+	})
+}
+
+func TestClient_DeleteThread(t *testing.T) {
+	t.Skip() // @todo: Thread deletes
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	info := createThread(t, client)
+
+	t.Run("test delete thread", func(t *testing.T) {
+		if err := client.DeleteThread(context.Background(), info.ID); err != nil {
+			t.Fatalf("failed to delete thread: %v", err)
+		}
+	})
+}
+
+func TestClient_AddFollower(t *testing.T) {
+	t.Parallel()
+	_, client1, done1 := setup(t)
+	defer done1()
+	_, client2, done2 := setup(t)
+	defer done2()
+
+	info := createThread(t, client1)
+	hostID2, err := client2.GetHostID(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("test add follower", func(t *testing.T) {
+		if err := client1.AddFollower(context.Background(), info.ID, hostID2); err != nil {
+			t.Fatalf("failed to add follower: %v", err)
+		}
+	})
+}
+
+func TestClient_AddRecord(t *testing.T) {
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	info := createThread(t, client)
+	body, err := cbornode.WrapObject(map[string]interface{}{
+		"foo": "bar",
+		"baz": []byte("howdy"),
+	}, mh.SHA2_256, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("test add record", func(t *testing.T) {
+		rec, err := client.AddRecord(context.Background(), info.ID, body)
+		if err != nil {
+			t.Fatalf("failed to add record: %v", err)
+		}
+		if !rec.ThreadID().Equals(info.ID) {
+			t.Fatal("got bad thread ID from add record")
+		}
+		if rec.LogID().String() == "" {
+			t.Fatal("got bad log ID from add record")
+		}
+	})
+}
+
+func TestClient_GetRecord(t *testing.T) {
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	info := createThread(t, client)
+	body, err := cbornode.WrapObject(map[string]interface{}{
+		"foo": "bar",
+		"baz": []byte("howdy"),
+	}, mh.SHA2_256, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, err := client.AddRecord(context.Background(), info.ID, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("test get record", func(t *testing.T) {
+		rec2, err := client.GetRecord(context.Background(), info.ID, rec.Value().Cid())
+		if err != nil {
+			t.Fatalf("failed to get record: %v", err)
+		}
+		if !rec2.Cid().Equals(rec.Value().Cid()) {
+			t.Fatal("got bad record from get record")
+		}
+	})
+}
+
+func TestClient_Subscribe(t *testing.T) {
+	t.Parallel()
+	_, client1, done1 := setup(t)
+	defer done1()
+	_, client2, done2 := setup(t)
+	defer done2()
+
+	info := createThread(t, client1)
+	hostID2, err := client2.GetHostID(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client1.AddFollower(context.Background(), info.ID, hostID2); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("test subscribe", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		sub, err := client2.Subscribe(ctx, core.ThreadID(info.ID))
+		if err != nil {
+			t.Fatalf("failed to subscribe to thread: %v", err)
+		}
+
+		var rcount int
+		go func() {
+			for rec := range sub {
+				rcount++
+				t.Logf("got record %s", rec.Value().Cid())
+			}
+		}()
+
+		body, err := cbornode.WrapObject(map[string]interface{}{"foo": "bar1"}, mh.SHA2_256, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = client1.AddRecord(context.Background(), info.ID, body); err != nil {
+			t.Fatal(err)
+		}
+		body2, err := cbornode.WrapObject(map[string]interface{}{"foo": "bar2"}, mh.SHA2_256, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = client1.AddRecord(context.Background(), info.ID, body2); err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(time.Second)
+		if rcount != 2 {
+			t.Fatalf("expected 2 records got %d", rcount)
+		}
+	})
+}
 
 func TestClient_Close(t *testing.T) {
 	t.Parallel()

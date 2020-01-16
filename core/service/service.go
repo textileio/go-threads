@@ -40,6 +40,9 @@ type API interface {
 	// AddThread from a multiaddress.
 	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...AddOption) (thread.Info, error)
 
+	// GetThread with id.
+	GetThread(ctx context.Context, id thread.ID) (thread.Info, error)
+
 	// PullThread for new records.
 	PullThread(ctx context.Context, id thread.ID) error
 

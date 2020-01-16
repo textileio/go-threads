@@ -1,7 +1,6 @@
 package util
 
 import (
-	"crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -15,8 +14,6 @@ import (
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-threads/core/service"
-	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"go.uber.org/zap/zapcore"
 )
@@ -28,77 +25,6 @@ var (
 		"/ip4/34.87.103.105/tcp/4001/ipfs/12D3KooWA5z2C3z1PNKi36Bw1MxZhBD8nv7UbB7YQP6WcSWYNwRQ", // as-southeast
 	}
 )
-
-// CreateLog creates a new log with the given peer as host.
-func CreateLog(host peer.ID) (info thread.LogInfo, err error) {
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return
-	}
-	id, err := peer.IDFromPublicKey(pk)
-	if err != nil {
-		return
-	}
-	pro := ma.ProtocolWithCode(ma.P_P2P).Name
-	addr, err := ma.NewMultiaddr("/" + pro + "/" + host.String())
-	if err != nil {
-		return
-	}
-	return thread.LogInfo{
-		ID:      id,
-		PubKey:  pk,
-		PrivKey: sk,
-		Addrs:   []ma.Multiaddr{addr},
-	}, nil
-}
-
-// GetLog returns the log with the given thread and log id.
-func GetLog(s service.Service, id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = s.Store().LogInfo(id, lid)
-	if err != nil {
-		return
-	}
-	if info.PubKey != nil {
-		return
-	}
-	return info, fmt.Errorf("log %s doesn't exist for thread %s", lid, id)
-}
-
-// GetOwnLoad returns the log owned by the host under the given thread.
-func GetOwnLog(s service.Service, id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := s.Store().LogsWithKeys(id)
-	if err != nil {
-		return
-	}
-	for _, lid := range logs {
-		sk, err := s.Store().PrivKey(id, lid)
-		if err != nil {
-			return info, err
-		}
-		if sk != nil {
-			return s.Store().LogInfo(id, lid)
-		}
-	}
-	return info, nil
-}
-
-// GetOrCreateOwnLoad returns the log owned by the host under the given thread.
-// If no log exists, a new one is created under the given thread.
-func GetOrCreateOwnLog(s service.Service, id thread.ID) (info thread.LogInfo, err error) {
-	info, err = GetOwnLog(s, id)
-	if err != nil {
-		return info, err
-	}
-	if info.PubKey != nil {
-		return
-	}
-	info, err = CreateLog(s.Host().ID())
-	if err != nil {
-		return
-	}
-	err = s.Store().AddLog(id, info)
-	return info, err
-}
 
 // AddPeerFromAddress parses the given address and adds the dialable component
 // to the peerstore.

@@ -2,8 +2,7 @@ package client
 
 import (
 	"context"
-
-	"github.com/textileio/go-threads/crypto/symmetric"
+	"io"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
@@ -15,6 +14,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/service"
 	pb "github.com/textileio/go-threads/service/api/pb"
 	"google.golang.org/grpc"
@@ -55,30 +55,17 @@ func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 	if err != nil {
 		return "", err
 	}
-	return peer.Decode(resp.PeerID)
+	return peer.IDFromBytes(resp.PeerID)
 }
 
-// CreateThread with id.
 func (c *Client) CreateThread(ctx context.Context, id thread.ID) (info thread.Info, err error) {
 	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
-		ThreadID: id.String(),
+		ThreadID: id.Bytes(),
 	})
 	if err != nil {
 		return
 	}
-	rk, err := symmetric.NewKey(resp.ReadKey)
-	if err != nil {
-		return
-	}
-	fk, err := symmetric.NewKey(resp.FollowKey)
-	if err != nil {
-		return
-	}
-	return thread.Info{
-		ID:        id,
-		FollowKey: fk,
-		ReadKey:   rk,
-	}, nil
+	return threadInfoFromPbThread(resp)
 }
 
 func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.AddOption) (info thread.Info, err error) {
@@ -86,59 +73,53 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 	for _, opt := range opts {
 		opt(args)
 	}
-
 	resp, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
-		Addr:      addr.String(),
+		Addr:      addr.Bytes(),
 		ReadKey:   args.ReadKey.Bytes(),
 		FollowKey: args.FollowKey.Bytes(),
 	})
 	if err != nil {
 		return
 	}
-	threadID, err := thread.Decode(resp.ThreadID)
+	return threadInfoFromPbThread(resp)
+}
+
+func (c *Client) GetThread(ctx context.Context, id thread.ID) (info thread.Info, err error) {
+	resp, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
+		ThreadID: id.Bytes(),
+	})
 	if err != nil {
 		return
 	}
-	logIDs := make([]peer.ID, len(resp.LogIDs))
-	for i, lid := range resp.LogIDs {
-		logIDs[i], err = peer.Decode(lid)
-		if err != nil {
-			return
-		}
-	}
-	return thread.Info{
-		ID:        threadID,
-		Logs:      logIDs,
-		FollowKey: args.FollowKey,
-		ReadKey:   args.ReadKey,
-	}, nil
+	return threadInfoFromPbThread(resp)
 }
 
 func (c *Client) PullThread(ctx context.Context, id thread.ID) error {
 	_, err := c.c.PullThread(ctx, &pb.PullThreadRequest{
-		ThreadID: id.String(),
+		ThreadID: id.Bytes(),
 	})
 	return err
 }
 
 func (c *Client) DeleteThread(ctx context.Context, id thread.ID) error {
 	_, err := c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
-		ThreadID: id.String(),
+		ThreadID: id.Bytes(),
 	})
 	return err
 }
 
 func (c *Client) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) error {
+	pidb, _ := pid.Marshal()
 	_, err := c.c.AddFollower(ctx, &pb.AddFollowerRequest{
-		ThreadID: id.String(),
-		PeerID:   pid.String(),
+		ThreadID: id.Bytes(),
+		PeerID:   pidb,
 	})
 	return err
 }
 
 func (c *Client) AddRecord(ctx context.Context, id thread.ID, body format.Node) (core.ThreadRecord, error) {
 	resp, err := c.c.AddRecord(ctx, &pb.AddRecordRequest{
-		ThreadID: id.String(),
+		ThreadID: id.Bytes(),
 		Body:     body.RawData(),
 	})
 	if err != nil {
@@ -149,8 +130,8 @@ func (c *Client) AddRecord(ctx context.Context, id thread.ID, body format.Node) 
 
 func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
 	resp, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
-		ThreadID: id.String(),
-		RecordID: rid.String(),
+		ThreadID: id.Bytes(),
+		RecordID: rid.Bytes(),
 	})
 	if err != nil {
 		return nil, err
@@ -163,9 +144,9 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	for _, opt := range opts {
 		opt(args)
 	}
-	threadIDs := make([]string, len(args.ThreadIDs))
+	threadIDs := make([][]byte, len(args.ThreadIDs))
 	for i, id := range args.ThreadIDs {
-		threadIDs[i] = id.String()
+		threadIDs[i] = id.Bytes()
 	}
 	stream, err := c.c.Subscribe(ctx, &pb.SubscribeRequest{
 		ThreadIDs: threadIDs,
@@ -173,16 +154,18 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	if err != nil {
 		return nil, err
 	}
-
 	channel := make(chan core.ThreadRecord)
 	go func() {
 		defer close(channel)
 		for {
 			resp, err := stream.Recv()
+			if err == io.EOF {
+				return
+			}
 			if err != nil {
 				stat := status.Convert(err)
-				if stat == nil || (stat.Code() != codes.Canceled) {
-					log.Fatal(err)
+				if stat.Code() != codes.Canceled {
+					log.Fatalf("error in subscription stream: %v", err)
 				}
 				return
 			}
@@ -196,28 +179,59 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	return channel, nil
 }
 
+func threadInfoFromPbThread(reply *pb.ThreadReply) (info thread.Info, err error) {
+	threadID, err := thread.Cast(reply.ThreadID)
+	if err != nil {
+		return
+	}
+	logIDs := make([]peer.ID, len(reply.LogIDs))
+	for i, lid := range reply.LogIDs {
+		logIDs[i], err = peer.IDFromBytes(lid)
+		if err != nil {
+			return
+		}
+	}
+	rk, err := symmetric.NewKey(reply.ReadKey)
+	if err != nil {
+		return
+	}
+	fk, err := symmetric.NewKey(reply.FollowKey)
+	if err != nil {
+		return
+	}
+	return thread.Info{
+		ID:        threadID,
+		Logs:      logIDs,
+		FollowKey: fk,
+		ReadKey:   rk,
+	}, nil
+}
+
 func recordFromPbRecord(rec *pb.Record) (core.Record, error) {
 	rnode, err := cbornode.Decode(rec.Node, mh.SHA2_256, -1)
 	if err != nil {
 		return nil, err
 	}
-	block, err := cid.Decode(rec.Block)
+	block, err := cid.Cast(rec.BlockID)
 	if err != nil {
 		return nil, err
 	}
-	prev, err := cid.Decode(rec.Prev)
-	if err != nil {
-		return nil, err
+	var prev cid.Cid
+	if rec.PrevID != nil {
+		prev, err = cid.Cast(rec.PrevID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return cbor.NewRecord(rnode, block, rec.Sig, prev), nil
 }
 
 func threadRecordFromPbNewRecord(reply *pb.NewRecordReply) (core.ThreadRecord, error) {
-	threadID, err := thread.Decode(reply.ThreadID)
+	threadID, err := thread.Cast(reply.ThreadID)
 	if err != nil {
 		return nil, err
 	}
-	logID, err := peer.Decode(reply.LogID)
+	logID, err := peer.IDFromBytes(reply.LogID)
 	if err != nil {
 		return nil, err
 	}

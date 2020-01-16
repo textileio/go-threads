@@ -6,72 +6,73 @@ option java_package = "io.textile.threads_service_grpc";
 option java_outer_classname = "ThreadsService";
 option objc_class_prefix = "THRDSS";
 
-message Record {
-    bytes node = 1;
-    string block = 2;
-    bytes sig = 3;
-    string prev = 4;
-}
-
 message GetHostIDRequest {}
 
 message GetHostIDReply {
-    string peerID = 1;
+    bytes peerID = 1;
 }
 
 message CreateThreadRequest {
-    string threadID = 1;
+    bytes threadID = 1;
 }
 
-message CreateThreadReply {
-    bytes readKey = 1;
-    bytes followKey = 2;
+message ThreadReply {
+    bytes threadID = 1;
+    repeated bytes logIDs = 2;
+    bytes readKey = 3;
+    bytes followKey = 4;
 }
 
 message AddThreadRequest {
-    string addr = 1;
+    bytes addr = 1;
     bytes readKey = 2;
     bytes followKey = 3;
 }
 
-message AddThreadReply {
-    string threadID = 1;
-    repeated string logIDs = 2;
+message GetThreadRequest {
+    bytes threadID = 1;
 }
 
 message PullThreadRequest {
-    string threadID = 1;
+    bytes threadID = 1;
 }
 
 message PullThreadReply {}
 
 message DeleteThreadRequest {
-    string threadID = 1;
+    bytes threadID = 1;
 }
 
 message DeleteThreadReply {}
 
 message AddFollowerRequest {
-    string threadID = 1;
-    string peerID = 2;
+    bytes threadID = 1;
+    bytes peerID = 2;
 }
 
 message AddFollowerReply {}
 
 message AddRecordRequest {
-    string threadID = 1;
+    bytes threadID = 1;
     bytes body = 2;
 }
 
+message Record {
+    bytes node = 1;
+    bytes blockID = 2;
+    bytes sig = 3;
+    bytes prevID = 4;
+}
+
 message NewRecordReply {
-    string threadID = 1;
-    string logID = 2;
+    bytes threadID = 1;
+    bytes logID = 2;
     Record record = 3;
 }
 
 message GetRecordRequest {
-    string threadID = 1;
-    string recordID = 2;
+    bytes threadID = 1;
+    bytes recordID = 2;
 }
 
 message GetRecordReply {
@@ -79,13 +80,14 @@ message GetRecordReply {
 }
 
 message SubscribeRequest {
-    repeated string threadIDs = 1;
+    repeated bytes threadIDs = 1;
 }
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
-    rpc CreateThread(CreateThreadRequest) returns (CreateThreadReply) {}
-    rpc AddThread(AddThreadRequest) returns (AddThreadReply) {}
+    rpc CreateThread(CreateThreadRequest) returns (ThreadReply) {}
+    rpc AddThread(AddThreadRequest) returns (ThreadReply) {}
+    rpc GetThread(GetThreadRequest) returns (ThreadReply) {}
     rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
     rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
     rpc AddFollower(AddFollowerRequest) returns (AddFollowerReply) {}

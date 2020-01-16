@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"sync"
@@ -179,8 +180,17 @@ func (t *service) CreateThread(_ context.Context, id thread.ID) (info thread.Inf
 	if err != nil {
 		return
 	}
-	err = t.store.AddThread(info)
-	return info, err
+	if err = t.store.AddThread(info); err != nil {
+		return
+	}
+	linfo, err := createLog(t.host.ID())
+	if err != nil {
+		return
+	}
+	if err = t.store.AddLog(id, linfo); err != nil {
+		return
+	}
+	return t.store.ThreadInfo(id)
 }
 
 // AddThread from a multiaddress.
@@ -252,6 +262,11 @@ func (t *service) AddThread(
 		}
 	}()
 
+	return t.store.ThreadInfo(id)
+}
+
+// GetThread with id.
+func (t *service) GetThread(_ context.Context, id thread.ID) (thread.Info, error) {
 	return t.store.ThreadInfo(id)
 }
 
@@ -365,7 +380,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	if err != nil {
 		return err
 	}
-	ownlg, err := util.GetOwnLog(t, id)
+	ownlg, err := t.getOwnLog(id)
 	if err != nil {
 		return err
 	}
@@ -425,7 +440,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 // AddRecord with body. See AddOption for more.
 func (t *service) AddRecord(ctx context.Context, id thread.ID, body format.Node) (r core.ThreadRecord, err error) {
 	// Get or create a log for the new node
-	lg, err := util.GetOrCreateOwnLog(t, id)
+	lg, err := t.getOrCreateOwnLog(id)
 	if err != nil {
 		return
 	}
@@ -510,6 +525,7 @@ func (t *service) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan
 			select {
 			case <-ctx.Done():
 				listener.Discard()
+				close(channel)
 				return
 			case i, ok := <-listener.Channel():
 				if !ok {
@@ -569,7 +585,7 @@ func (t *service) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		return nil
 	}
 	// Get or create a log for the new rec
-	lg, err := util.GetLog(t, id, lid)
+	lg, err := t.getLog(id, lid)
 	if err != nil {
 		return err
 	}
@@ -663,23 +679,6 @@ func (t *service) createRecord(
 	return rec, nil
 }
 
-// getLogs returns info about the logs in the given thread.
-func (t *service) getLogs(id thread.ID) ([]thread.LogInfo, error) {
-	lgs := make([]thread.LogInfo, 0)
-	ti, err := t.store.ThreadInfo(id)
-	if err != nil {
-		return nil, err
-	}
-	for _, lid := range ti.Logs {
-		lg, err := t.store.LogInfo(id, lid)
-		if err != nil {
-			return nil, err
-		}
-		lgs = append(lgs, lg)
-	}
-	return lgs, nil
-}
-
 // getLocalRecords returns local records from the given thread that are ahead of
 // offset but not farther than limit.
 // It is possible to reach limit before offset, meaning that the caller
@@ -712,7 +711,6 @@ func (t *service) getLocalRecords(
 	}
 
 	if len(lg.Heads) == 0 {
-		log.Warn("pull found empty log")
 		return []core.Record{}, nil
 	}
 
@@ -775,6 +773,71 @@ func (t *service) startPulling() {
 	}
 }
 
+// getLog returns the log with the given thread and log id.
+func (t *service) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+	info, err = t.store.LogInfo(id, lid)
+	if err != nil {
+		return
+	}
+	if info.PubKey != nil {
+		return
+	}
+	return info, fmt.Errorf("log %s doesn't exist for thread %s", lid, id)
+}
+
+// getLogs returns info about the logs in the given thread.
+func (t *service) getLogs(id thread.ID) ([]thread.LogInfo, error) {
+	lgs := make([]thread.LogInfo, 0)
+	ti, err := t.store.ThreadInfo(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, lid := range ti.Logs {
+		lg, err := t.store.LogInfo(id, lid)
+		if err != nil {
+			return nil, err
+		}
+		lgs = append(lgs, lg)
+	}
+	return lgs, nil
+}
+
+// getOwnLoad returns the log owned by the host under the given thread.
+func (t *service) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	logs, err := t.store.LogsWithKeys(id)
+	if err != nil {
+		return
+	}
+	for _, lid := range logs {
+		sk, err := t.store.PrivKey(id, lid)
+		if err != nil {
+			return info, err
+		}
+		if sk != nil {
+			return t.store.LogInfo(id, lid)
+		}
+	}
+	return info, nil
+}
+
+// getOrCreateOwnLoad returns the log owned by the host under the given thread.
+// If no log exists, a new one is created under the given thread.
+func (t *service) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	info, err = t.getOwnLog(id)
+	if err != nil {
+		return info, err
+	}
+	if info.PubKey != nil {
+		return
+	}
+	info, err = createLog(t.host.ID())
+	if err != nil {
+		return
+	}
+	err = t.store.AddLog(id, info)
+	return info, err
+}
+
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
 func (t *service) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey,
@@ -826,4 +889,27 @@ func (t *service) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 			}
 		}
 	}
+}
+
+// createLog creates a new log with the given peer as host.
+func createLog(host peer.ID) (info thread.LogInfo, err error) {
+	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		return
+	}
+	id, err := peer.IDFromPublicKey(pk)
+	if err != nil {
+		return
+	}
+	pro := ma.ProtocolWithCode(ma.P_P2P).Name
+	addr, err := ma.NewMultiaddr("/" + pro + "/" + host.String())
+	if err != nil {
+		return
+	}
+	return thread.LogInfo{
+		ID:      id,
+		PubKey:  pk,
+		PrivKey: sk,
+		Addrs:   []ma.Multiaddr{addr},
+	}, nil
 }

@@ -10,7 +10,6 @@ import (
 	threadcbor "github.com/textileio/go-threads/cbor"
 	service "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/util"
 )
 
 const (
@@ -66,11 +65,13 @@ func (a *singleThreadAdapter) Start() {
 		return
 	}
 	a.started = true
-	li, err := util.GetOrCreateOwnLog(a.api, a.threadID)
+	li, err := a.api.GetThread(context.Background(), a.threadID)
 	if err != nil {
 		log.Fatalf("error when getting/creating own log for thread %s: %v", a.threadID, err)
 	}
-	a.ownLogID = li.ID
+	if li.Logs.Len() > 0 {
+		a.ownLogID = li.Logs[0]
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
