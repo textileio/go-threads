@@ -31,8 +31,8 @@ type eventHeader struct {
 	Key  []byte `refmt:",omitempty"`
 }
 
-// NewEvent create a new event by wrapping the body node.
-func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (service.Event, error) {
+// CreateEvent create a new event by wrapping the body node.
+func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (service.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err

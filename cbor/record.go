@@ -25,8 +25,20 @@ type record struct {
 	Prev  cid.Cid `refmt:",omitempty"`
 }
 
-// NewRecord returns a new record from the given block and log private key.
-func NewRecord(
+// NewRecord wraps the node and block info as a Record.
+func NewRecord(node format.Node, block cid.Cid, sig []byte, prev cid.Cid) service.Record {
+	return &Record{
+		Node: node,
+		obj: &record{
+			Block: block,
+			Sig:   sig,
+			Prev:  prev,
+		},
+	}
+}
+
+// CreateRecord returns a new record from the given block and log private key.
+func CreateRecord(
 	ctx context.Context,
 	dag format.DAGService,
 	block format.Node,

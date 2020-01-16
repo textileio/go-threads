@@ -6,6 +6,13 @@ option java_package = "io.textile.threads_service_grpc";
 option java_outer_classname = "ThreadsService";
 option objc_class_prefix = "THRDSS";
 
+message Record {
+    bytes node = 1;
+    string block = 2;
+    bytes sig = 3;
+    string prev = 4;
+}
+
 message GetHostIDRequest {}
 
 message GetHostIDReply {
@@ -50,7 +57,7 @@ message AddRecordRequest {
 message NewRecordReply {
     string threadID = 1;
     string logID = 2;
-    string recordID = 3;
+    Record record = 3;
 }
 
 message GetRecordRequest {
@@ -59,7 +66,7 @@ message GetRecordRequest {
 }
 
 message GetRecordReply {
-    bytes record = 1;
+    Record record = 1;
 }
 
 message SubscribeRequest {

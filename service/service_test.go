@@ -30,16 +30,20 @@ func TestAddPull(t *testing.T) {
 	defer s.Close()
 
 	t.Run("test add and pull record", func(t *testing.T) {
-		sub := s.Subscribe()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		sub, err := s.Subscribe(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
 		var rcount int
 		go func() {
-			for r := range sub.Channel() {
+			for r := range sub {
 				rcount++
 				t.Logf("got record %s", r.Value().Cid())
 			}
 		}()
 
-		ctx := context.Background()
 		th, err := util.CreateThread(s, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			t.Fatal(err)

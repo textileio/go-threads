@@ -161,9 +161,12 @@ func main() {
 	fmt.Println(grey("Welcome to Threads!"))
 	fmt.Println(grey("Your peer ID is ") + green(ts.Host().ID().String()))
 
-	sub := ts.Subscribe()
+	sub, err := ts.Subscribe(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 	go func() {
-		for rec := range sub.Channel() {
+		for rec := range sub {
 			name, err := threadName(rec.ThreadID().String())
 			if err != nil {
 				logError(err)

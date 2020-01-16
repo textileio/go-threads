@@ -125,7 +125,7 @@ func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	return &pb.NewRecordReply{
 		ThreadID: rec.ThreadID().String(),
 		LogID:    rec.LogID().String(),
-		RecordID: rec.Value().Cid().String(),
+		Record:   pbRecordFromRecord(rec.Value()),
 	}, nil
 }
 
@@ -145,7 +145,7 @@ func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 		return nil, err
 	}
 	return &pb.GetRecordReply{
-		Record: rec.RawData(),
+		Record: pbRecordFromRecord(rec),
 	}, nil
 }
 
@@ -160,24 +160,28 @@ func (s *service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 		}
 		opts[i] = core.ThreadID(threadID)
 	}
-	sub := s.s.Subscribe(opts...)
-	defer sub.Discard()
 
-	for {
-		select {
-		case <-server.Context().Done():
-			return nil
-		case rec, ok := <-sub.Channel():
-			if !ok {
-				return nil
-			}
-			if err := server.Send(&pb.NewRecordReply{
-				ThreadID: rec.ThreadID().String(),
-				LogID:    rec.LogID().String(),
-				RecordID: rec.Value().Cid().String(),
-			}); err != nil {
-				return err
-			}
+	sub, err := s.s.Subscribe(server.Context(), opts...)
+	if err != nil {
+		return err
+	}
+	for rec := range sub {
+		if err := server.Send(&pb.NewRecordReply{
+			ThreadID: rec.ThreadID().String(),
+			LogID:    rec.LogID().String(),
+			Record:   pbRecordFromRecord(rec.Value()),
+		}); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func pbRecordFromRecord(rec core.Record) *pb.Record {
+	return &pb.Record{
+		Node:  rec.RawData(),
+		Block: rec.BlockID().String(),
+		Sig:   rec.Sig(),
+		Prev:  rec.PrevID().String(),
 	}
 }

@@ -38,6 +38,9 @@ var (
 
 	// PullInterval is the interval between automatic log pulls.
 	PullInterval = time.Second * 10
+
+	// notifyTimeout is the duration to wait for a subscriber to read a new record.
+	notifyTimeout = time.Second * 5
 )
 
 // service is an implementation of core.Service.
@@ -76,11 +79,10 @@ func NewService(
 ) (core.Service, error) {
 	var err error
 	if conf.Debug {
-		err = util.SetLogLevels(map[string]logging.LogLevel{
+		if err = util.SetLogLevels(map[string]logging.LogLevel{
 			"threadservice": logging.LevelDebug,
 			"logstore":      logging.LevelDebug,
-		})
-		if err != nil {
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -158,6 +160,11 @@ func (t *service) Host() host.Host {
 // Store returns the threadstore.
 func (t *service) Store() lstore.Logstore {
 	return t.store
+}
+
+// GetHostID returns the host's peer ID.
+func (t *service) GetHostID(context.Context) (peer.ID, error) {
+	return t.host.ID(), nil
 }
 
 // AddThread from a multiaddress.
@@ -323,7 +330,7 @@ func (t *service) pullThread(ctx context.Context, id thread.ID) error {
 }
 
 // Delete a thread (@todo).
-func (t *service) DeleteThread(ctx context.Context, id thread.ID) error {
+func (t *service) DeleteThread(context.Context, thread.ID) error {
 	panic("implement me")
 }
 
@@ -416,18 +423,13 @@ func (t *service) AddRecord(ctx context.Context, id thread.ID, body format.Node)
 	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
 
 	// Notify local listeners
-	r = &record{
-		Record:   rec,
-		threadID: id,
-		logID:    lg.ID,
-	}
-	if err = t.bus.SendWithTimeout(r, time.Second*3); err != nil {
+	r = NewRecord(rec, id, lg.ID)
+	if err = t.bus.SendWithTimeout(r, notifyTimeout); err != nil {
 		return
 	}
 
 	// Push out the new record
-	err = t.server.pushRecord(ctx, id, lg.ID, rec)
-	if err != nil {
+	if err = t.server.pushRecord(ctx, id, lg.ID, rec); err != nil {
 		return
 	}
 
@@ -446,46 +448,35 @@ func (t *service) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (cor
 	return cbor.GetRecord(ctx, t, rid, fk)
 }
 
-// record wraps a core.Record within a thread and log context.
-type record struct {
+// Record wraps a core.Record within a thread and log context.
+type Record struct {
 	core.Record
 	threadID thread.ID
 	logID    peer.ID
 }
 
+// NewRecord returns a record with the given values.
+func NewRecord(r core.Record, id thread.ID, lid peer.ID) core.ThreadRecord {
+	return &Record{Record: r, threadID: id, logID: lid}
+}
+
 // Value returns the underlying record.
-func (r *record) Value() core.Record {
+func (r *Record) Value() core.Record {
 	return r
 }
 
 // ThreadID returns the record's thread ID.
-func (r *record) ThreadID() thread.ID {
+func (r *Record) ThreadID() thread.ID {
 	return r.threadID
 }
 
 // LogID returns the record's log ID.
-func (r *record) LogID() peer.ID {
+func (r *Record) LogID() peer.ID {
 	return r.logID
 }
 
-// subscription receives thread record updates.
-type subscription struct {
-	l  *broadcast.Listener
-	ch chan core.ThreadRecord
-}
-
-// Discard closes the subscription, disabling the reception of further records.
-func (l *subscription) Discard() {
-	l.l.Discard()
-}
-
-// Channel returns the channel that receives records.
-func (l *subscription) Channel() <-chan core.ThreadRecord {
-	return l.ch
-}
-
 // Subscribe returns a read-only channel of records.
-func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
+func (t *service) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan core.ThreadRecord, error) {
 	args := &core.SubOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -496,28 +487,33 @@ func (t *service) Subscribe(opts ...core.SubOption) core.Subscription {
 			filter[id] = struct{}{}
 		}
 	}
-	listener := &subscription{
-		l:  t.bus.Listen(),
-		ch: make(chan core.ThreadRecord),
-	}
+	channel := make(chan core.ThreadRecord)
 	go func() {
-		for i := range listener.l.Channel() {
-			r, ok := i.(*record)
-			if ok {
-				if len(filter) > 0 {
-					if _, ok := filter[r.threadID]; ok {
-						listener.ch <- r
+		listener := t.bus.Listen()
+		for {
+			select {
+			case <-ctx.Done():
+				listener.Discard()
+				return
+			case i, ok := <-listener.Channel():
+				if !ok {
+					return
+				}
+				if rec, ok := i.(*Record); ok {
+					if len(filter) > 0 {
+						if _, ok := filter[rec.threadID]; ok {
+							channel <- rec
+						}
+					} else {
+						channel <- rec
 					}
 				} else {
-					listener.ch <- r
+					log.Warn("listener received a non-record value")
 				}
-			} else {
-				log.Warn("listener received a non-record value")
 			}
 		}
-		close(listener.ch)
 	}()
-	return listener
+	return channel, nil
 }
 
 // PutRecord adds an existing record. This method is thread-safe
@@ -585,20 +581,14 @@ func (t *service) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		if err != nil {
 			return err
 		}
-		err = t.AddMany(ctx, []format.Node{r, event, header, body})
-		if err != nil {
+		if err = t.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
 			return err
 		}
 
 		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid().String(), id, lg.ID)
 
 		// Notify local listeners
-		err = t.bus.SendWithTimeout(&record{
-			Record:   r,
-			threadID: id,
-			logID:    lg.ID,
-		}, time.Second*5)
-		if err != nil {
+		if err = t.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
 			return err
 		}
 		// Update head
@@ -635,7 +625,7 @@ func (t *service) createRecord(
 	if rk == nil {
 		return nil, fmt.Errorf("a read-key is required to create records")
 	}
-	event, err := cbor.NewEvent(ctx, t, body, rk)
+	event, err := cbor.CreateEvent(ctx, t, body, rk)
 	if err != nil {
 		return nil, err
 	}
@@ -644,7 +634,7 @@ func (t *service) createRecord(
 	if len(lg.Heads) != 0 {
 		prev = lg.Heads[0]
 	}
-	rec, err := cbor.NewRecord(ctx, t, event, prev, lg.PrivKey, fk)
+	rec, err := cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, fk)
 	if err != nil {
 		return nil, err
 	}

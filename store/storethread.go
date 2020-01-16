@@ -82,15 +82,19 @@ func (a *singleThreadAdapter) Start() {
 
 func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 	defer a.goRoutines.Done()
-	sub := a.api.Subscribe(service.ThreadID(a.threadID))
-	defer sub.Discard()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sub, err := a.api.Subscribe(ctx, service.ThreadID(a.threadID))
+	if err != nil {
+		log.Fatalf("error getting thread subscription: %v", err)
+	}
 	wg.Done()
 	for {
 		select {
 		case <-a.closeChan:
 			log.Debug("closing thread-to-store flow on thread %s", a.threadID)
 			return
-		case rec, ok := <-sub.Channel():
+		case rec, ok := <-sub:
 			if !ok {
 				log.Errorf("notification channel closed, not listening to external changes anymore")
 				return

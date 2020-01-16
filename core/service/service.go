@@ -15,7 +15,7 @@ import (
 
 // Service is the network interface for thread orchestration.
 type Service interface {
-	io.Closer
+	API
 
 	// Host provides a network identity.
 	Host() host.Host
@@ -25,6 +25,14 @@ type Service interface {
 
 	// Store persists thread details.
 	Store() lstore.Logstore
+}
+
+// API is the network interface for thread orchestration.
+type API interface {
+	io.Closer
+
+	// GetHostID returns the host's peer ID.
+	GetHostID(ctx context.Context) (peer.ID, error)
 
 	// AddThread from a multiaddress.
 	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...AddOption) (thread.Info, error)
@@ -45,14 +53,5 @@ type Service interface {
 	GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (Record, error)
 
 	// Subscribe returns a read-only channel of records.
-	Subscribe(opts ...SubOption) Subscription
-}
-
-// Subscription receives thread record updates.
-type Subscription interface {
-	// Discard closes the subscription, disabling the reception of further records.
-	Discard()
-
-	// Channel returns the channel that receives records.
-	Channel() <-chan ThreadRecord
+	Subscribe(ctx context.Context, opts ...SubOption) (<-chan ThreadRecord, error)
 }
