@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -28,7 +30,7 @@ func (s *service) GetHostID(context.Context, *pb.GetHostIDRequest) (*pb.GetHostI
 	}, nil
 }
 
-func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadReply, error) {
+func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received create thread request")
 
 	threadID, err := thread.Cast(req.ThreadID)
@@ -39,10 +41,10 @@ func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 	if err != nil {
 		return nil, err
 	}
-	return pbThreadFromInfo(info), nil
+	return pbThreadFromInfo(info)
 }
 
-func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadReply, error) {
+func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received add thread request")
 
 	addr, err := ma.NewMultiaddrBytes(req.Addr)
@@ -68,10 +70,10 @@ func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	return pbThreadFromInfo(info), nil
+	return pbThreadFromInfo(info)
 }
 
-func (s *service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadReply, error) {
+func (s *service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received get thread request")
 
 	threadID, err := thread.Cast(req.ThreadID)
@@ -82,7 +84,7 @@ func (s *service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	return pbThreadFromInfo(info), nil
+	return pbThreadFromInfo(info)
 }
 
 func (s *service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
@@ -203,17 +205,46 @@ func marshalPeerID(id peer.ID) []byte {
 	return b
 }
 
-func pbThreadFromInfo(info thread.Info) *pb.ThreadReply {
-	logIDs := make([][]byte, len(info.Logs))
-	for i, lid := range info.Logs {
-		logIDs[i] = marshalPeerID(lid)
+func pbThreadFromInfo(info thread.Info) (*pb.ThreadInfoReply, error) {
+	logs := make([]*pb.LogInfo, len(info.Logs))
+	for i, lg := range info.Logs {
+		pk, err := crypto.MarshalPublicKey(lg.PubKey)
+		if err != nil {
+			return nil, err
+		}
+		var sk []byte
+		if lg.PrivKey != nil {
+			sk, err = crypto.MarshalPrivateKey(lg.PrivKey)
+			if err != nil {
+				return nil, err
+			}
+		}
+		addrs := make([][]byte, len(lg.Addrs))
+		for j, addr := range lg.Addrs {
+			addrs[j] = addr.Bytes()
+		}
+		heads := make([][]byte, len(lg.Heads))
+		for k, head := range lg.Heads {
+			heads[k] = head.Bytes()
+		}
+		logs[i] = &pb.LogInfo{
+			ID:      marshalPeerID(lg.ID),
+			PubKey:  pk,
+			PrivKey: sk,
+			Addrs:   addrs,
+			Heads:   heads,
+		}
 	}
-	return &pb.ThreadReply{
-		ThreadID:  info.ID.Bytes(),
-		LogIDs:    logIDs,
-		ReadKey:   info.ReadKey.Bytes(),
+	var rk []byte
+	if info.ReadKey != nil {
+		rk = info.ReadKey.Bytes()
+	}
+	return &pb.ThreadInfoReply{
+		ID:        info.ID.Bytes(),
+		Logs:      logs,
+		ReadKey:   rk,
 		FollowKey: info.FollowKey.Bytes(),
-	}
+	}, nil
 }
 
 func pbRecordFromRecord(rec core.Record) *pb.Record {

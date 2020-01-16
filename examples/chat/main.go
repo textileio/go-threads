@@ -172,12 +172,12 @@ func main() {
 				logError(err)
 				continue
 			}
-			key, err := ts.Store().ReadKey(rec.ThreadID())
+			info, err := ts.GetThread(context.Background(), rec.ThreadID())
 			if err != nil {
 				logError(err)
 				continue
 			}
-			if key == nil {
+			if info.ReadKey == nil {
 				continue // just following, we don't have the read key
 			}
 			event, err := cbor.EventFromRecord(ctx, ts, rec.Value())
@@ -185,7 +185,7 @@ func main() {
 				logError(err)
 				continue
 			}
-			node, err := event.GetBody(ctx, ts, key)
+			node, err := event.GetBody(ctx, ts, info.ReadKey)
 			if err != nil {
 				continue // Not for us
 			}
@@ -194,7 +194,7 @@ func main() {
 			if err != nil {
 				continue // Not one of our messages
 			}
-			header, err := event.GetHeader(ctx, ts, key)
+			header, err := event.GetHeader(ctx, ts, info.ReadKey)
 			if err != nil {
 				logError(err)
 				continue
@@ -496,10 +496,15 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 }
 
 func threadAddressCmd(id thread.ID) (out string, err error) {
-	lg, err := util.GetOwnLog(ts, id)
+	info, err := ts.GetThread(context.Background(), id)
 	if err != nil {
 		return
 	}
+	lg := info.GetOwnLog()
+	if lg == nil {
+		lg = &thread.LogInfo{}
+	}
+
 	ta, err := ma.NewMultiaddr("/" + thread.Name + "/" + id.String())
 	if err != nil {
 		return
@@ -543,7 +548,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 }
 
 func threadKeysCmd(id thread.ID) (out string, err error) {
-	info, err := ts.Store().ThreadInfo(id)
+	info, err := ts.GetThread(context.Background(), id)
 	if err != nil {
 		return
 	}

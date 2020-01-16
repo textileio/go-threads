@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -64,7 +65,7 @@ func runWriterPeer(repo string) {
 
 func saveThreadMultiaddrForOtherPeer(store *s.Store, threadID thread.ID) {
 	host := store.Service().Host()
-	tinfo, err := store.Service().Store().ThreadInfo(threadID)
+	tinfo, err := store.Service().GetThread(context.Background(), threadID)
 	checkErr(err)
 
 	// Create listen addr

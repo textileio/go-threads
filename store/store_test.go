@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -37,10 +38,9 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, m1.Save(dummyInstance))
 
 	// Boilerplate to generate peer1 thread-addr and get follow/read keys
-	peer1ThreadStore := s1.Service().Store()
 	threadID, _, err := s1.ThreadID()
 	checkErr(t, err)
-	threadInfo, err := peer1ThreadStore.ThreadInfo(threadID)
+	threadInfo, err := s1.Service().GetThread(context.Background(), threadID)
 	checkErr(t, err)
 	peer1Addr := s1.Service().Host().Addrs()[0]
 	peer1ID, err := multiaddr.NewComponent("p2p", s1.Service().Host().ID().String())

@@ -16,9 +16,17 @@ message CreateThreadRequest {
     bytes threadID = 1;
 }
 
-message ThreadReply {
-    bytes threadID = 1;
-    repeated bytes logIDs = 2;
+message LogInfo {
+    bytes ID = 1;
+    bytes pubKey = 2;
+	bytes privKey = 3;
+	repeated bytes addrs = 4;
+	repeated bytes heads = 5;
+}
+
+message ThreadInfoReply {
+    bytes ID = 1;
+    repeated LogInfo logs = 2;
     bytes readKey = 3;
     bytes followKey = 4;
 }
@@ -85,9 +93,9 @@ message SubscribeRequest {
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
-    rpc CreateThread(CreateThreadRequest) returns (ThreadReply) {}
-    rpc AddThread(AddThreadRequest) returns (ThreadReply) {}
-    rpc GetThread(GetThreadRequest) returns (ThreadReply) {}
+    rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
+    rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
+    rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}
     rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
     rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
     rpc AddFollower(AddFollowerRequest) returns (AddFollowerReply) {}

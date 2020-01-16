@@ -9,7 +9,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 )
 
@@ -17,14 +16,11 @@ import (
 type Service interface {
 	API
 
-	// Host provides a network identity.
-	Host() host.Host
-
 	// DAGService provides a DAG API to the network.
 	format.DAGService
 
-	// Store persists thread details.
-	Store() lstore.Logstore
+	// Host provides a network identity.
+	Host() host.Host
 }
 
 // API is the network interface for thread orchestration.

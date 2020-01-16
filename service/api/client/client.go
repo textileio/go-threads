@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
@@ -179,29 +181,64 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	return channel, nil
 }
 
-func threadInfoFromPbThread(reply *pb.ThreadReply) (info thread.Info, err error) {
-	threadID, err := thread.Cast(reply.ThreadID)
+func threadInfoFromPbThread(reply *pb.ThreadInfoReply) (info thread.Info, err error) {
+	threadID, err := thread.Cast(reply.ID)
 	if err != nil {
 		return
 	}
-	logIDs := make([]peer.ID, len(reply.LogIDs))
-	for i, lid := range reply.LogIDs {
-		logIDs[i], err = peer.IDFromBytes(lid)
+	var rk *symmetric.Key
+	if reply.ReadKey != nil {
+		rk, err = symmetric.NewKey(reply.ReadKey)
 		if err != nil {
 			return
 		}
-	}
-	rk, err := symmetric.NewKey(reply.ReadKey)
-	if err != nil {
-		return
 	}
 	fk, err := symmetric.NewKey(reply.FollowKey)
 	if err != nil {
 		return
 	}
+	logs := make([]thread.LogInfo, len(reply.Logs))
+	for i, lg := range reply.Logs {
+		id, err := peer.IDFromBytes(lg.ID)
+		if err != nil {
+			return info, err
+		}
+		pk, err := crypto.UnmarshalPublicKey(lg.PubKey)
+		if err != nil {
+			return info, err
+		}
+		var sk crypto.PrivKey
+		if lg.PrivKey != nil {
+			sk, err = crypto.UnmarshalPrivateKey(lg.PrivKey)
+			if err != nil {
+				return info, err
+			}
+		}
+		addrs := make([]ma.Multiaddr, len(lg.Addrs))
+		for j, addr := range lg.Addrs {
+			addrs[j], err = ma.NewMultiaddrBytes(addr)
+			if err != nil {
+				return info, err
+			}
+		}
+		heads := make([]cid.Cid, len(lg.Heads))
+		for k, head := range lg.Heads {
+			heads[k], err = cid.Cast(head)
+			if err != nil {
+				return info, err
+			}
+		}
+		logs[i] = thread.LogInfo{
+			ID:      id,
+			PubKey:  pk,
+			PrivKey: sk,
+			Addrs:   addrs,
+			Heads:   heads,
+		}
+	}
 	return thread.Info{
 		ID:        threadID,
-		Logs:      logIDs,
+		Logs:      logs,
 		FollowKey: fk,
 		ReadKey:   rk,
 	}, nil

@@ -61,7 +61,7 @@ func (s *service) Start(_ context.Context, req *pb.StartRequest) (*pb.StartReply
 	return &pb.StartReply{}, nil
 }
 
-func (s *service) GetStoreLink(_ context.Context, req *pb.GetStoreLinkRequest) (*pb.GetStoreLinkReply, error) {
+func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest) (*pb.GetStoreLinkReply, error) {
 	var err error
 	var st *store.Store
 	if st, err = s.getStore(req.GetStoreID()); err != nil {
@@ -71,7 +71,7 @@ func (s *service) GetStoreLink(_ context.Context, req *pb.GetStoreLinkRequest) (
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := st.Service().Store().ThreadInfo(tid)
+	tinfo, err := st.Service().GetThread(ctx, tid)
 	if err != nil {
 		return nil, err
 	}

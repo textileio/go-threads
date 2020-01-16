@@ -78,8 +78,7 @@ func TestAddPull(t *testing.T) {
 		}
 
 		// Pull from the origin
-		err = s.PullThread(ctx, th.ID)
-		if err != nil {
+		if err = s.PullThread(ctx, th.ID); err != nil {
 			t.Fatal(err)
 		}
 		time.Sleep(time.Second)
@@ -131,8 +130,7 @@ func TestAddPeer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = s1.AddRecord(ctx, th.ID, body)
-		if err != nil {
+		if _, err = s1.AddRecord(ctx, th.ID, body); err != nil {
 			t.Fatal(err)
 		}
 
@@ -145,8 +143,8 @@ func TestAddPeer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if info.Logs.Len() != 1 {
-			t.Fatalf("expected 1 log got %d", info.Logs.Len())
+		if len(info.Logs) != 1 {
+			t.Fatalf("expected 1 log got %d", len(info.Logs))
 		}
 
 		body2, err := cbornode.WrapObject(map[string]interface{}{
@@ -155,17 +153,16 @@ func TestAddPeer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = s2.AddRecord(ctx, th.ID, body2)
-		if err != nil {
+		if _, err = s2.AddRecord(ctx, th.ID, body2); err != nil {
 			t.Fatal(err)
 		}
 
-		info2, err := s1.Store().ThreadInfo(th.ID)
+		info2, err := s1.GetThread(context.Background(), th.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if info2.Logs.Len() != 2 {
-			t.Fatalf("expected 2 logs got %d", info2.Logs.Len())
+		if len(info2.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info2.Logs))
 		}
 	})
 }
@@ -193,39 +190,34 @@ func TestAddFollower(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		r, err := s1.AddRecord(ctx, th.ID, body)
-		if err != nil {
+		if _, err := s1.AddRecord(ctx, th.ID, body); err != nil {
 			t.Fatal(err)
 		}
 
-		t.Logf("adding follower %s", s2.Host().ID().String())
-		err = s1.AddFollower(ctx, th.ID, s2.Host().ID())
-		if err != nil {
+		if err = s1.AddFollower(ctx, th.ID, s2.Host().ID()); err != nil {
 			t.Fatal(err)
 		}
 
-		info, err := s2.Store().ThreadInfo(th.ID)
+		info1, err := s1.GetThread(context.Background(), th.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if info.Logs.Len() != 1 {
-			t.Fatalf("expected 1 log got %d", info.Logs.Len())
+		if len(info1.Logs) != 1 {
+			t.Fatalf("expected 1 log got %d", len(info1.Logs))
+		}
+		if len(info1.Logs[0].Addrs) != 2 {
+			t.Fatalf("expected 2 addresses got %d", len(info1.Logs[0].Addrs))
 		}
 
-		addrs, err := s1.Store().Addrs(th.ID, r.LogID())
+		info2, err := s2.GetThread(context.Background(), th.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(addrs) != 2 {
-			t.Fatalf("expected 2 addresses got %d", len(addrs))
+		if len(info2.Logs) != 1 {
+			t.Fatalf("expected 1 log got %d", len(info2.Logs))
 		}
-
-		addrs2, err := s2.Store().Addrs(th.ID, r.LogID())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(addrs2) != 2 {
-			t.Fatalf("expected 2 addresses got %d", len(addrs2))
+		if len(info2.Logs[0].Addrs) != 2 {
+			t.Fatalf("expected 2 addresses got %d", len(info2.Logs[0].Addrs))
 		}
 	})
 }

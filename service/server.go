@@ -70,17 +70,17 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		return pblgs, err
 	}
 
-	lgs, err := s.threads.getLogs(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	pblgs.Logs = make([]*pb.Log, len(lgs))
-	for i, l := range lgs {
+	pblgs.Logs = make([]*pb.Log, len(info.Logs))
+	for i, l := range info.Logs {
 		pblgs.Logs[i] = logToProto(l)
 	}
 
-	log.Debugf("sending %d logs to %s", len(lgs), req.Header.From.ID.String())
+	log.Debugf("sending %d logs to %s", len(info.Logs), req.Header.From.ID.String())
 
 	return pblgs, nil
 }
@@ -149,28 +149,24 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	if err != nil {
 		return nil, err
 	}
-	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, info.Logs.Len())
+	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, len(info.Logs))
 
-	for i, lid := range info.Logs {
+	for i, lg := range info.Logs {
 		var offset cid.Cid
 		var limit int
 		var pblg *pb.Log
-		if opts, ok := reqd[lid]; ok {
+		if opts, ok := reqd[lg.ID]; ok {
 			offset = opts.Offset.Cid
 			limit = int(opts.Limit)
 		} else {
 			offset = cid.Undef
 			limit = MaxPullLimit
-			lg, err := s.threads.store.LogInfo(req.ThreadID.ID, lid)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
 			pblg = logToProto(lg)
 		}
 		recs, err := s.threads.getLocalRecords(
 			ctx,
 			req.ThreadID.ID,
-			lid,
+			lg.ID,
 			offset,
 			limit)
 		if err != nil {
@@ -178,7 +174,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 
 		entry := &pb.GetRecordsReply_LogEntry{
-			LogID:   &pb.ProtoPeerID{ID: lid},
+			LogID:   &pb.ProtoPeerID{ID: lg.ID},
 			Records: make([]*pb.Log_Record, len(recs)),
 			Log:     pblg,
 		}
@@ -190,7 +186,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 		pbrecs.Logs[i] = entry
 
-		log.Debugf("sending %d records in log %s to %s", len(recs), lid.String(), req.Header.From.ID.String())
+		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID.String(), req.Header.From.ID.String())
 	}
 
 	return pbrecs, nil

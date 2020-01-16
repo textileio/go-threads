@@ -306,14 +306,14 @@ func (t *service) PullThread(ctx context.Context, id thread.ID) error {
 // pullThread for new records. It's internal and *not* thread-safe,
 // it assumes we currently own the thread-lock.
 func (t *service) pullThread(ctx context.Context, id thread.ID) error {
-	lgs, err := t.getLogs(id)
+	info, err := t.store.ThreadInfo(id)
 	if err != nil {
 		return err
 	}
 
 	// Gather offsets for each log
 	offsets := make(map[peer.ID]cid.Cid)
-	for _, lg := range lgs {
+	for _, lg := range info.Logs {
 		offsets[lg.ID] = cid.Undef
 		if len(lg.Heads) > 0 {
 			has, err := t.bstore.Has(lg.Heads[0])
@@ -327,7 +327,7 @@ func (t *service) pullThread(ctx context.Context, id thread.ID) error {
 	}
 	var fetchedRcs []map[peer.ID][]core.Record
 	wg := sync.WaitGroup{}
-	for _, lg := range lgs {
+	for _, lg := range info.Logs {
 		wg.Add(1)
 		go func(lg thread.LogInfo) {
 			defer wg.Done()
@@ -387,6 +387,10 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return err
 	}
+	info, err = t.store.ThreadInfo(id) // Update info
+	if err != nil {
+		return err
+	}
 
 	// Send all logs to the new follower
 	for _, l := range info.Logs {
@@ -401,11 +405,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 	// Send the updated log to peers
 	var addrs []ma.Multiaddr
 	for _, l := range info.Logs {
-		laddrs, err := t.store.Addrs(id, l)
-		if err != nil {
-			return err
-		}
-		addrs = append(addrs, laddrs...)
+		addrs = append(addrs, l.Addrs...)
 	}
 
 	wg := sync.WaitGroup{}
@@ -427,7 +427,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, pid peer.ID) er
 				return
 			}
 
-			if err = t.server.pushLog(ctx, id, ownlg.ID, pid, nil, nil); err != nil {
+			if err = t.server.pushLog(ctx, id, ownlg, pid, nil, nil); err != nil {
 				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
 			}
 		}(addr)
@@ -783,23 +783,6 @@ func (t *service) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err er
 		return
 	}
 	return info, fmt.Errorf("log %s doesn't exist for thread %s", lid, id)
-}
-
-// getLogs returns info about the logs in the given thread.
-func (t *service) getLogs(id thread.ID) ([]thread.LogInfo, error) {
-	lgs := make([]thread.LogInfo, 0)
-	ti, err := t.store.ThreadInfo(id)
-	if err != nil {
-		return nil, err
-	}
-	for _, lid := range ti.Logs {
-		lg, err := t.store.LogInfo(id, lid)
-		if err != nil {
-			return nil, err
-		}
-		lgs = append(lgs, lg)
-	}
-	return lgs, nil
 }
 
 // getOwnLoad returns the log owned by the host under the given thread.

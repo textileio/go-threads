@@ -69,8 +69,8 @@ func (a *singleThreadAdapter) Start() {
 	if err != nil {
 		log.Fatalf("error when getting/creating own log for thread %s: %v", a.threadID, err)
 	}
-	if li.Logs.Len() > 0 {
-		a.ownLogID = li.Logs[0]
+	if ownLog := li.GetOwnLog(); ownLog != nil {
+		a.ownLogID = ownLog.ID
 	}
 
 	var wg sync.WaitGroup
@@ -115,14 +115,14 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 					log.Fatalf("error when decoding block to event: %v", err)
 				}
 			}
-			readKey, err := a.api.Store().ReadKey(a.threadID)
+			info, err := a.api.GetThread(ctx, a.threadID)
 			if err != nil {
-				log.Fatalf("error when getting read key for thread %s: %v", a.threadID, err)
+				log.Fatalf("error when getting info for thread %s: %v", a.threadID, err)
 			}
-			if readKey == nil {
+			if info.ReadKey == nil {
 				log.Fatalf("read key not found for thread %s/%s", a.threadID, rec.LogID())
 			}
-			node, err := event.GetBody(ctx, a.api, readKey)
+			node, err := event.GetBody(ctx, a.api, info.ReadKey)
 			if err != nil {
 				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadID, rec.LogID(), err)
 			}
