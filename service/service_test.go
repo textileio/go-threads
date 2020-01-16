@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	bserv "github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
@@ -24,25 +23,14 @@ import (
 	"github.com/textileio/go-threads/util"
 )
 
-func TestAddPull(t *testing.T) {
+func TestService_AddRecord(t *testing.T) {
 	t.Parallel()
 	s := makeService(t)
 	defer s.Close()
 
-	t.Run("test add and pull record", func(t *testing.T) {
+	t.Run("test add record", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sub, err := s.Subscribe(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var rcount int
-		go func() {
-			for r := range sub {
-				rcount++
-				t.Logf("got record %s", r.Value().Cid())
-			}
-		}()
 
 		th, err := s.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
@@ -77,15 +65,6 @@ func TestAddPull(t *testing.T) {
 			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID().String(), r2.LogID().String())
 		}
 
-		// Pull from the origin
-		if err = s.PullThread(ctx, th.ID); err != nil {
-			t.Fatal(err)
-		}
-		time.Sleep(time.Second)
-		if rcount != 2 {
-			t.Fatalf("expected 2 records got %d", rcount)
-		}
-
 		r1b, err := s.GetRecord(ctx, th.ID, r1.Value().Cid())
 		if err != nil {
 			t.Fatal(err)
@@ -107,7 +86,7 @@ func TestAddPull(t *testing.T) {
 	})
 }
 
-func TestAddPeer(t *testing.T) {
+func TestService_AddThread(t *testing.T) {
 	t.Parallel()
 	s1 := makeService(t)
 	defer s1.Close()
@@ -117,7 +96,7 @@ func TestAddPeer(t *testing.T) {
 	s1.Host().Peerstore().AddAddrs(s2.Host().ID(), s2.Host().Addrs(), peerstore.PermanentAddrTTL)
 	s2.Host().Peerstore().AddAddrs(s1.Host().ID(), s1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
-	t.Run("test add thread peer", func(t *testing.T) {
+	t.Run("test add thread", func(t *testing.T) {
 		ctx := context.Background()
 		th, err := s1.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
@@ -167,7 +146,7 @@ func TestAddPeer(t *testing.T) {
 	})
 }
 
-func TestAddFollower(t *testing.T) {
+func TestService_AddFollower(t *testing.T) {
 	t.Parallel()
 	s1 := makeService(t)
 	defer s1.Close()
@@ -177,7 +156,7 @@ func TestAddFollower(t *testing.T) {
 	s1.Host().Peerstore().AddAddrs(s2.Host().ID(), s2.Host().Addrs(), peerstore.PermanentAddrTTL)
 	s2.Host().Peerstore().AddAddrs(s1.Host().ID(), s1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
-	t.Run("test add thread follower", func(t *testing.T) {
+	t.Run("test add follower", func(t *testing.T) {
 		ctx := context.Background()
 		th, err := s1.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
