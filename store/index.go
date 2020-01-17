@@ -7,9 +7,13 @@ package store
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"sort"
+	"strings"
 
 	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
+	"github.com/tidwall/gjson"
 )
 
 // size of iterator keys stored in memory before more are fetched
@@ -77,7 +81,7 @@ func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key
 		return err
 	}
 
-	indexKey := indexPrefix.Child(baseKey).ChildString(path).Child(valueKey)
+	indexKey := indexPrefix.Child(baseKey).ChildString(path).Instance(valueKey.String())
 
 	data, err := tx.Get(indexKey)
 	if err != nil && err != ds.ErrNotFound {
@@ -155,213 +159,129 @@ func (v *keyList) in(key ds.Key) bool {
 	return (i < len(*v) && bytes.Equal((*v)[i], b))
 }
 
-// func indexExists(it query.Results, typeName, indexName string) bool {
-// 	iPrefix := indexKeyPrefix(typeName, indexName)
-// 	tPrefix := typePrefix(typeName)
-// 	// test if any data exists for type
-// 	it.Seek(tPrefix)
-// 	if !it.ValidForPrefix(tPrefix) {
-// 		// store is empty for this data type so the index could possibly exist
-// 		// we don't want to fail on a "bad index" because they could simply be running a query against
-// 		// an empty dataset
-// 		return true
-// 	}
+type iterator struct {
+	nextKeys func() ([]ds.Key, error)
+	txn      ds.Txn
 
-// 	// test if an index exists
-// 	it.Seek(iPrefix)
-// 	if it.ValidForPrefix(iPrefix) {
-// 		return true
-// 	}
+	err      error
+	keyCache []ds.Key
+	iter     query.Results
+	lastSeek []byte
+}
 
-// 	return false
-// }
+func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
+	i := &iterator{
+		txn: txn,
+	}
+	var err error
 
-// type iterator struct {
-// 	keyCache []ds.Key
-// 	nextKeys func(query.Results) ([]ds.Key, error)
-// 	iter     query.Results
-// 	bookmark *iterBookmark
-// 	lastSeek []byte
-// 	tx       ds.Txn
-// 	err      error
-// }
+	// Key field or index not specified, pass thru to base 'iterator'
+	if q.Index == "" {
+		dsq := query.Query{
+			Prefix:   baseKey.String(),
+			KeysOnly: true,
+		}
+		i.iter, err = txn.Query(dsq)
+		if err != nil {
+			i.err = fmt.Errorf("error when building internal query: %v", err)
+			return i
+		}
+		i.nextKeys = func() ([]ds.Key, error) {
+			var nKeys []ds.Key
 
-// // iterBookmark stores a seek location in a specific iterator
-// // so that a single RW iterator can be shared within a single transaction
-// type iterBookmark struct {
-// 	iter    query.Results
-// 	seekKey []byte
-// }
+			for len(nKeys) < iteratorKeyMinCacheSize {
+				result, ok := i.iter.NextSync()
+				if !ok {
+					return nKeys, result.Error
+				}
+				nKeys = append(nKeys, ds.NewKey(result.Key))
+			}
+			return nKeys, nil
+		}
+		return i
+	}
 
-// func newIterator(tx ds.Txn, typeName string, q *Query, bookmark *iterBookmark) *iterator {
-// 	i := &iterator{
-// 		tx: tx,
-// 	}
+	// indexed field, get keys from index
+	indexKey := indexPrefix.Child(baseKey).ChildString(q.Index)
+	dsq := query.Query{
+		Prefix:   indexKey.String(),
+		KeysOnly: true,
+	}
+	i.iter, err = txn.Query(dsq)
+	i.nextKeys = func() ([]ds.Key, error) {
+		var nKeys []ds.Key
 
-// 	if bookmark != nil {
-// 		i.iter = bookmark.iter
-// 	} else {
-// 		i.iter = tx.Query()
-// 	}
+		for len(nKeys) < iteratorKeyMinCacheSize {
+			result, ok := i.iter.NextSync()
+			if !ok {
+				return nKeys, result.Error
+			}
+			// result.Key contains the indexed value, extra here first
+			key := ds.NewKey(result.Key)
+			path := strings.Split(key.Type(), ".")
+			val := key.Name()
+			dict := make(map[string]interface{})
+			for i, part := range path {
+				if i == len(path)-1 {
+					dict[part] = gjson.Parse(val).Value
+				} else {
+					dict[part] = make(map[string]map[string]interface{})
+				}
+			}
+			ok, err := q.matchJSON(dict)
+			if err != nil {
+				return nil, fmt.Errorf("error when matching entry with query: %v", err)
+			}
 
-// 	var prefix []byte
+			nKeys = append(nKeys, ds.NewKey(result.Key))
+		}
+		return nKeys, nil
+	}
 
-// 	if q.index != "" {
-// 		q.badIndex = !indexExists(i.iter, typeName, q.index)
-// 	}
+	return i
+}
 
-// 	criteria := query.fieldCriteria[q.index]
-// 	if hasMatchFunc(criteria) {
-// 		// can't use indexes on matchFuncs as the entire record isn't available for testing in the passed
-// 		// in function
-// 		criteria = nil
-// 	}
+// NextSync returns the next key value that matches the iterators criteria
+// If there is an error, ok is false and result.Error() will return the error
+func (i *iterator) NextSync() (result query.Result, ok bool) {
+	if len(i.keyCache) == 0 {
+		newKeys, err := i.nextKeys()
+		if err != nil {
+			return query.Result{
+				Entry: query.Entry{},
+				Error: err,
+			}, false
+		}
 
-// 	// Key field or index not specified - test key against criteria (if it exists) or return everything
-// 	if q.index == "" || len(criteria) == 0 {
-// 		prefix = typePrefix(typeName)
-// 		i.iter.Seek(prefix)
-// 		i.nextKeys = func(iter query.Results) ([]ds.Key, error) {
-// 			var nKeys [][]byte
+		if len(newKeys) == 0 {
+			return query.Result{
+				Entry: query.Entry{},
+				Error: nil,
+			}, false
+		}
 
-// 			for len(nKeys) < iteratorKeyMinCacheSize {
-// 				if !iter.ValidForPrefix(prefix) {
-// 					return nKeys, nil
-// 				}
+		i.keyCache = append(i.keyCache, newKeys...)
+	}
 
-// 				item := iter.Item()
-// 				key := item.KeyCopy(nil)
-// 				var ok bool
-// 				if len(criteria) == 0 {
-// 					// nothing to check return key for value testing
-// 					ok = true
-// 				} else {
+	key := i.keyCache[0]
+	i.keyCache = i.keyCache[1:]
 
-// 					val := reflect.New(q.dataType)
+	value, err := i.txn.Get(key)
+	if err != nil {
+		return query.Result{
+			Entry: query.Entry{},
+			Error: err,
+		}, false
+	}
+	return query.Result{
+		Entry: query.Entry{
+			Key:   key.String(),
+			Value: value,
+		},
+		Error: nil,
+	}, true
+}
 
-// 					err := item.Value(func(v []byte) error {
-// 						return decode(v, val.Interface())
-// 					})
-// 					if err != nil {
-// 						return nil, err
-// 					}
-
-// 					ok, err = matchesAllCriteria(criteria, key, true, typeName, val.Interface())
-// 					if err != nil {
-// 						return nil, err
-// 					}
-// 				}
-
-// 				if ok {
-// 					nKeys = append(nKeys, key)
-
-// 				}
-// 				i.lastSeek = key
-// 				iter.Next()
-// 			}
-// 			return nKeys, nil
-// 		}
-
-// 		return i
-// 	}
-
-// 	// indexed field, get keys from index
-// 	prefix = indexKeyPrefix(typeName, q.index)
-// 	i.iter.Seek(prefix)
-// 	i.nextKeys = func(iter query.Results) ([][]byte, error) {
-// 		var nKeys [][]byte
-
-// 		for len(nKeys) < iteratorKeyMinCacheSize {
-// 			if !iter.ValidForPrefix(prefix) {
-// 				return nKeys, nil
-// 			}
-// 			item, has := iter.NextSync()
-// 			if !has {
-// 				return nKeys, nil
-// 			}
-// 			key := item.KeyCopy(nil)
-// 			// no currentRow on indexes as it refers to multiple rows
-// 			// remove index prefix for matching
-// 			ok, err := matchesAllCriteria(criteria, key[len(prefix):], true, "", nil)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-
-// 			if ok {
-// 				item.Value(func(v []byte) error {
-// 					// append the slice of keys stored in the index
-// 					var keys = make(keyList, 0)
-// 					err := decode(v, &keys)
-// 					if err != nil {
-// 						return err
-// 					}
-
-// 					nKeys = append(nKeys, [][]byte(keys)...)
-// 					return nil
-// 				})
-// 			}
-
-// 			i.lastSeek = key
-// 			iter.Next()
-
-// 		}
-// 		return nKeys, nil
-
-// 	}
-
-// 	return i
-// }
-
-// func (i *iterator) createBookmark() *iterBookmark {
-// 	return &iterBookmark{
-// 		iter:    i.iter,
-// 		seekKey: i.lastSeek,
-// 	}
-// }
-
-// // Next returns the next key value that matches the iterators criteria
-// // If no more kv's are available the return nil, if there is an error, they return nil
-// // and iterator.Error() will return the error
-// func (i *iterator) Next() (key ds.Key, value []byte) {
-// 	if i.err != nil {
-// 		return nil, nil
-// 	}
-
-// 	if len(i.keyCache) == 0 {
-// 		newKeys, err := i.nextKeys(i.iter)
-// 		if err != nil {
-// 			i.err = err
-// 			return nil, nil
-// 		}
-
-// 		if len(newKeys) == 0 {
-// 			return nil, nil
-// 		}
-
-// 		i.keyCache = append(i.keyCache, newKeys...)
-// 	}
-
-// 	key = i.keyCache[0]
-// 	i.keyCache = i.keyCache[1:]
-
-// 	value, err := i.tx.Get(key)
-// 	if err != nil {
-// 		i.err = err
-// 		return nil, nil
-// 	}
-// 	return
-// }
-
-// // Error returns the last error, iterator.Next() will not continue if there is an error present
-// func (i *iterator) Error() error {
-// 	return i.err
-// }
-
-// func (i *iterator) Close() {
-// 	if i.bookmark != nil {
-// 		// @todo: We need to seek to the bookmark key?
-// 		// i.iter.Seek(i.bookmark.seekKey)
-// 		return
-// 	}
-// 	i.iter.Close()
-// }
+func (i *iterator) Close() {
+	i.iter.Close()
+}

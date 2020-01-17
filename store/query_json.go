@@ -6,15 +6,14 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-
-	dsquery "github.com/ipfs/go-datastore/query"
 )
 
 // JSONQuery is a json-seriable query representation
 type JSONQuery struct {
-	Ands []*JSONCriterion
-	Ors  []*JSONQuery
-	Sort JSONSort
+	Ands  []*JSONCriterion
+	Ors   []*JSONQuery
+	Sort  JSONSort
+	Index string
 }
 
 // JSONCriterion represents a restriction on a field
@@ -90,6 +89,12 @@ func (q *JSONQuery) JSONAnd(field string) *JSONCriterion {
 		FieldPath: field,
 		query:     q,
 	}
+}
+
+// UseIndex specifies the index to use when running this query
+func (q *JSONQuery) UseIndex(path string) *JSONQuery {
+	q.Index = path
+	return q
 }
 
 // JSONOr concatenates a new condition that is sufficient
@@ -188,17 +193,15 @@ func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JS
 
 // FindJSON queries for entities by JSONQuery
 func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
-	dsq := dsquery.Query{
-		Prefix: baseKey.ChildString(t.model.name).String(),
-	}
-	dsr, err := t.model.store.datastore.Query(dsq)
+	txn, err := t.model.store.datastore.NewTransaction(true)
 	if err != nil {
-		return nil, fmt.Errorf("error when internal query: %v", err)
+		return nil, fmt.Errorf("error building internal query: %v", err)
 	}
+	iter := newIterator(txn, t.model.BaseKey(), q)
 
 	var values []marshaledValue
 	for {
-		res, ok := dsr.NextSync()
+		res, ok := iter.NextSync()
 		if !ok {
 			break
 		}
@@ -206,7 +209,7 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 		if err := json.Unmarshal(res.Value, &val); err != nil {
 			return nil, fmt.Errorf("error when unmarshaling query result: %v", err)
 		}
-		ok, err = q.matchJSON(val)
+		ok, err := q.matchJSON(val)
 		if err != nil {
 			return nil, fmt.Errorf("error when matching entry with query: %v", err)
 		}

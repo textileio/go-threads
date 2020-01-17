@@ -257,8 +257,6 @@ func (s *Store) RegisterSchema(name string, schema string, indexes []string) (*M
 			m.AddIndex(path, false)
 		}
 	}
-	// Create unique constraint on ID value
-	m.AddIndex("ID", true)
 
 	s.modelNames[name] = m
 	return m, nil
