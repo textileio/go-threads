@@ -86,6 +86,24 @@ func TestClient_AddThread(t *testing.T) {
 	})
 }
 
+func TestClient_GetThread(t *testing.T) {
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	info := createThread(t, client)
+
+	t.Run("test get thread", func(t *testing.T) {
+		info2, err := client.GetThread(context.Background(), info.ID)
+		if err != nil {
+			t.Fatalf("failed to get thread: %v", err)
+		}
+		if !info2.ID.Equals(info.ID) {
+			t.Fatal("got bad ID from get thread")
+		}
+	})
+}
+
 func TestClient_PullThread(t *testing.T) {
 	t.Parallel()
 	_, client, done := setup(t)
