@@ -74,7 +74,7 @@ func TestStartFromAddress(t *testing.T) {
 		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
 		checkErr(t, err)
 
-		// TODO: figure out how to test this
+		// @todo: figure out how to test this
 		// client.StartFromAddress(storeId, <multiaddress>, <read key>, <follow key>)
 	})
 }

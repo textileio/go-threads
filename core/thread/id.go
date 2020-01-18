@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
@@ -297,8 +297,8 @@ func (i Info) GetOwnLog() *LogInfo {
 // LogInfo holds log keys, addresses, and heads.
 type LogInfo struct {
 	ID      peer.ID
-	PubKey  ic.PubKey
-	PrivKey ic.PrivKey
+	PubKey  crypto.PubKey
+	PrivKey crypto.PrivKey
 	Addrs   []ma.Multiaddr
 	Heads   []cid.Cid
 }

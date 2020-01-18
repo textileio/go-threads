@@ -283,7 +283,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 	sk := s.threads.getPrivKey()
 	if sk == nil {
-		return fmt.Errorf("key for host not found")
+		return fmt.Errorf("private key for host not found")
 	}
 	sig, err := sk.Sign(payload)
 	if err != nil {

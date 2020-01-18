@@ -19,23 +19,19 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/crypto/symmetric"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/util"
 )
 
-func TestService_AddRecord(t *testing.T) {
+func TestService_CreateRecord(t *testing.T) {
 	t.Parallel()
 	s := makeService(t)
 	defer s.Close()
 
-	t.Run("test add record", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		th, err := s.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
-		if err != nil {
-			t.Fatal(err)
-		}
+	t.Run("test create record", func(t *testing.T) {
+		ctx := context.Background()
+		info := createThread(t, ctx, s)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"foo": "bar",
@@ -45,7 +41,7 @@ func TestService_AddRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		r1, err := s.AddRecord(ctx, th.ID, body)
+		r1, err := s.CreateRecord(ctx, info.ID, body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +49,7 @@ func TestService_AddRecord(t *testing.T) {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := s.AddRecord(ctx, th.ID, body)
+		r2, err := s.CreateRecord(ctx, info.ID, body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +61,7 @@ func TestService_AddRecord(t *testing.T) {
 			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID().String(), r2.LogID().String())
 		}
 
-		r1b, err := s.GetRecord(ctx, th.ID, r1.Value().Cid())
+		r1b, err := s.GetRecord(ctx, info.ID, r1.Value().Cid())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -75,7 +71,7 @@ func TestService_AddRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		back, err := event.GetBody(ctx, s, th.ReadKey)
+		back, err := event.GetBody(ctx, s, info.ReadKey)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,10 +94,7 @@ func TestService_AddThread(t *testing.T) {
 
 	t.Run("test add thread", func(t *testing.T) {
 		ctx := context.Background()
-		th, err := s1.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
-		if err != nil {
-			t.Fatal(err)
-		}
+		info := createThread(t, ctx, s1)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
@@ -109,21 +102,21 @@ func TestService_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s1.AddRecord(ctx, th.ID, body); err != nil {
+		if _, err = s1.CreateRecord(ctx, info.ID, body); err != nil {
 			t.Fatal(err)
 		}
 
-		addr, err := ma.NewMultiaddr("/p2p/" + s1.Host().ID().String() + "/thread/" + th.ID.String())
+		addr, err := ma.NewMultiaddr("/p2p/" + s1.Host().ID().String() + "/thread/" + info.ID.String())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		info, err := s2.AddThread(ctx, addr, core.FollowKey(th.FollowKey), core.ReadKey(th.ReadKey))
+		info2, err := s2.AddThread(ctx, addr, core.FollowKey(info.FollowKey), core.ReadKey(info.ReadKey))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(info.Logs) != 1 {
-			t.Fatalf("expected 1 log got %d", len(info.Logs))
+		if len(info2.Logs) != 1 {
+			t.Fatalf("expected 1 log got %d", len(info2.Logs))
 		}
 
 		body2, err := cbornode.WrapObject(map[string]interface{}{
@@ -132,16 +125,16 @@ func TestService_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s2.AddRecord(ctx, th.ID, body2); err != nil {
+		if _, err = s2.CreateRecord(ctx, info2.ID, body2); err != nil {
 			t.Fatal(err)
 		}
 
-		info2, err := s1.GetThread(context.Background(), th.ID)
+		info3, err := s1.GetThread(context.Background(), info.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(info2.Logs) != 2 {
-			t.Fatalf("expected 2 logs got %d", len(info2.Logs))
+		if len(info3.Logs) != 2 {
+			t.Fatalf("expected 2 logs got %d", len(info3.Logs))
 		}
 	})
 }
@@ -158,10 +151,7 @@ func TestService_AddFollower(t *testing.T) {
 
 	t.Run("test add follower", func(t *testing.T) {
 		ctx := context.Background()
-		th, err := s1.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
-		if err != nil {
-			t.Fatal(err)
-		}
+		info := createThread(t, ctx, s1)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
@@ -169,7 +159,7 @@ func TestService_AddFollower(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s1.AddRecord(ctx, th.ID, body); err != nil {
+		if _, err := s1.CreateRecord(ctx, info.ID, body); err != nil {
 			t.Fatal(err)
 		}
 
@@ -177,22 +167,11 @@ func TestService_AddFollower(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s1.AddFollower(ctx, th.ID, addr); err != nil {
+		if _, err = s1.AddFollower(ctx, info.ID, addr); err != nil {
 			t.Fatal(err)
 		}
 
-		info1, err := s1.GetThread(context.Background(), th.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(info1.Logs) != 1 {
-			t.Fatalf("expected 1 log got %d", len(info1.Logs))
-		}
-		if len(info1.Logs[0].Addrs) != 2 {
-			t.Fatalf("expected 2 addresses got %d", len(info1.Logs[0].Addrs))
-		}
-
-		info2, err := s2.GetThread(context.Background(), th.ID)
+		info2, err := s1.GetThread(context.Background(), info.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -201,6 +180,17 @@ func TestService_AddFollower(t *testing.T) {
 		}
 		if len(info2.Logs[0].Addrs) != 2 {
 			t.Fatalf("expected 2 addresses got %d", len(info2.Logs[0].Addrs))
+		}
+
+		info3, err := s2.GetThread(context.Background(), info.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(info3.Logs) != 1 {
+			t.Fatalf("expected 1 log got %d", len(info2.Logs))
+		}
+		if len(info3.Logs[0].Addrs) != 2 {
+			t.Fatalf("expected 2 addresses got %d", len(info3.Logs[0].Addrs))
 		}
 	})
 }
@@ -247,4 +237,21 @@ func makeService(t *testing.T) core.Service {
 		t.Fatal(err)
 	}
 	return ts
+}
+
+func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
+	id := thread.NewIDV1(thread.Raw, 32)
+	fk, err := symmetric.CreateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rk, err := symmetric.CreateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := api.CreateThread(ctx, id, core.FollowKey(fk), core.ReadKey(rk))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info
 }

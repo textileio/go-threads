@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
@@ -9,10 +10,14 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/service/api/pb"
+	"github.com/textileio/go-threads/service/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // service is a gRPC service for a thread service.
@@ -21,7 +26,7 @@ type service struct {
 }
 
 // NewStore adds a new store into the manager.
-func (s *service) GetHostID(context.Context, *pb.GetHostIDRequest) (*pb.GetHostIDReply, error) {
+func (s *service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetHostIDReply, error) {
 	log.Debugf("received get host ID request")
 
 	return &pb.GetHostIDReply{
@@ -36,11 +41,15 @@ func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.s.CreateThread(ctx, threadID)
+	opts, err := getKeyOptions(req.Keys)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	info, err := s.s.CreateThread(ctx, threadID, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return pbThreadFromInfo(info)
+	return threadInfoToProto(info)
 }
 
 func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadInfoReply, error) {
@@ -50,26 +59,15 @@ func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	var opts []core.AddOption
-	if req.ReadKey != nil {
-		rk, err := symmetric.NewKey(req.ReadKey)
-		if err != nil {
-			return nil, err
-		}
-		opts = append(opts, core.ReadKey(rk))
-	}
-	if req.FollowKey != nil {
-		fk, err := symmetric.NewKey(req.FollowKey)
-		if err != nil {
-			return nil, err
-		}
-		opts = append(opts, core.FollowKey(fk))
+	opts, err := getKeyOptions(req.Keys)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	info, err := s.s.AddThread(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return pbThreadFromInfo(info)
+	return threadInfoToProto(info)
 }
 
 func (s *service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadInfoReply, error) {
@@ -83,7 +81,7 @@ func (s *service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	return pbThreadFromInfo(info)
+	return threadInfoToProto(info)
 }
 
 func (s *service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
@@ -132,8 +130,8 @@ func (s *service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (
 	}, nil
 }
 
-func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.NewRecordReply, error) {
-	log.Debugf("received add record request")
+func (s *service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest) (*pb.NewRecordReply, error) {
+	log.Debugf("received create record request")
 
 	threadID, err := thread.Cast(req.ThreadID)
 	if err != nil {
@@ -143,15 +141,44 @@ func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	rec, err := s.s.AddRecord(ctx, threadID, body)
+	rec, err := s.s.CreateRecord(ctx, threadID, body)
+	if err != nil {
+		return nil, err
+	}
+	prec, err := cbor.RecordToProto(ctx, s.s, rec.Value())
 	if err != nil {
 		return nil, err
 	}
 	return &pb.NewRecordReply{
 		ThreadID: rec.ThreadID().Bytes(),
 		LogID:    marshalPeerID(rec.LogID()),
-		Record:   pbRecordFromRecord(rec.Value()),
+		Record:   util.RecFromServiceRec(prec),
 	}, nil
+}
+
+func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
+	log.Debugf("received add record request")
+
+	threadID, err := thread.Cast(req.ThreadID)
+	if err != nil {
+		return nil, err
+	}
+	info, err := s.s.GetThread(ctx, threadID)
+	if err != nil {
+		return nil, err
+	}
+	logID, err := peer.IDFromBytes(req.LogID)
+	if err != nil {
+		return nil, err
+	}
+	rec, err := cbor.RecordFromProto(util.RecToServiceRec(req.Record), info.FollowKey)
+	if err != nil {
+		return nil, err
+	}
+	if err = s.s.AddRecord(ctx, threadID, logID, rec); err != nil {
+		return nil, err
+	}
+	return &pb.AddRecordReply{}, nil
 }
 
 func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
@@ -169,8 +196,12 @@ func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
+	prec, err := cbor.RecordToProto(ctx, s.s, rec)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.GetRecordReply{
-		Record: pbRecordFromRecord(rec),
+		Record: util.RecFromServiceRec(prec),
 	}, nil
 }
 
@@ -191,10 +222,14 @@ func (s *service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 		return err
 	}
 	for rec := range sub {
+		prec, err := cbor.RecordToProto(server.Context(), s.s, rec.Value())
+		if err != nil {
+			return err
+		}
 		if err := server.Send(&pb.NewRecordReply{
 			ThreadID: rec.ThreadID().Bytes(),
 			LogID:    marshalPeerID(rec.LogID()),
-			Record:   pbRecordFromRecord(rec.Value()),
+			Record:   util.RecFromServiceRec(prec),
 		}); err != nil {
 			return err
 		}
@@ -207,7 +242,39 @@ func marshalPeerID(id peer.ID) []byte {
 	return b
 }
 
-func pbThreadFromInfo(info thread.Info) (*pb.ThreadInfoReply, error) {
+func getKeyOptions(keys *pb.ThreadKeys) (opts []core.KeyOption, err error) {
+	if keys == nil {
+		return
+	}
+	if keys.FollowKey != nil {
+		fk, err := symmetric.NewKey(keys.FollowKey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid follow-key: %v", err)
+		}
+		opts = append(opts, core.FollowKey(fk))
+	}
+	if keys.ReadKey != nil {
+		rk, err := symmetric.NewKey(keys.ReadKey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid read-key: %v", err)
+		}
+		opts = append(opts, core.ReadKey(rk))
+	}
+	var lk crypto.Key
+	if keys.LogKey != nil {
+		lk, err = crypto.UnmarshalPrivateKey(keys.LogKey)
+		if err != nil {
+			lk, err = crypto.UnmarshalPublicKey(keys.LogKey)
+			if err != nil {
+				return nil, fmt.Errorf("invalid log-key")
+			}
+		}
+		opts = append(opts, core.LogKey(lk))
+	}
+	return opts, nil
+}
+
+func threadInfoToProto(info thread.Info) (*pb.ThreadInfoReply, error) {
 	logs := make([]*pb.LogInfo, len(info.Logs))
 	for i, lg := range info.Logs {
 		pk, err := crypto.MarshalPublicKey(lg.PubKey)
@@ -247,13 +314,4 @@ func pbThreadFromInfo(info thread.Info) (*pb.ThreadInfoReply, error) {
 		ReadKey:   rk,
 		FollowKey: info.FollowKey.Bytes(),
 	}, nil
-}
-
-func pbRecordFromRecord(rec core.Record) *pb.Record {
-	return &pb.Record{
-		Node:    rec.RawData(),
-		BlockID: rec.BlockID().Bytes(),
-		Sig:     rec.Sig(),
-		PrevID:  rec.PrevID().Bytes(),
-	}
 }

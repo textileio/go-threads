@@ -446,7 +446,15 @@ func addCmd(args []string) (out string, err error) {
 		}
 		id = info.ID
 	} else {
-		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
+		fk, err := sym.CreateKey()
+		if err != nil {
+			return "", err
+		}
+		rk, err := sym.CreateKey()
+		if err != nil {
+			return "", err
+		}
+		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(fk), core.ReadKey(rk))
 		if err != nil {
 			return "", err
 		}
@@ -593,8 +601,7 @@ func sendMessage(id thread.ID, txt string) error {
 	go func() {
 		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
 		defer cancel()
-		_, err = ts.AddRecord(mctx, id, body)
-		if err != nil {
+		if _, err = ts.CreateRecord(mctx, id, body); err != nil {
 			log.Errorf("error writing message: %s", err)
 		}
 	}()

@@ -13,9 +13,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto"
 	pb "github.com/textileio/go-threads/service/pb"
 	"google.golang.org/grpc/codes"
 )
@@ -222,7 +220,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	rec, err := recordFromProto(req.Record, key)
+	rec, err := cbor.RecordFromProto(req.Record, key)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -340,11 +338,6 @@ func verifyRequestSignature(rec *pb.Log_Record, pk ic.PubKey, sig []byte) error 
 		return fmt.Errorf("bad signature")
 	}
 	return nil
-}
-
-// recordFromProto returns a thread record from a proto record.
-func recordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (core.Record, error) {
-	return cbor.RecordFromProto(rec, key)
 }
 
 // logToProto returns a proto log from a thread log.

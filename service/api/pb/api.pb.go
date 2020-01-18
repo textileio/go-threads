@@ -94,18 +94,74 @@ func (m *GetHostIDReply) GetPeerID() []byte {
 	return nil
 }
 
-type CreateThreadRequest struct {
-	ThreadID             []byte   `protobuf:"bytes,1,opt,name=threadID,proto3" json:"threadID,omitempty"`
+type ThreadKeys struct {
+	ReadKey              []byte   `protobuf:"bytes,1,opt,name=readKey,proto3" json:"readKey,omitempty"`
+	FollowKey            []byte   `protobuf:"bytes,2,opt,name=followKey,proto3" json:"followKey,omitempty"`
+	LogKey               []byte   `protobuf:"bytes,3,opt,name=logKey,proto3" json:"logKey,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ThreadKeys) Reset()         { *m = ThreadKeys{} }
+func (m *ThreadKeys) String() string { return proto.CompactTextString(m) }
+func (*ThreadKeys) ProtoMessage()    {}
+func (*ThreadKeys) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{2}
+}
+
+func (m *ThreadKeys) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ThreadKeys.Unmarshal(m, b)
+}
+func (m *ThreadKeys) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ThreadKeys.Marshal(b, m, deterministic)
+}
+func (m *ThreadKeys) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ThreadKeys.Merge(m, src)
+}
+func (m *ThreadKeys) XXX_Size() int {
+	return xxx_messageInfo_ThreadKeys.Size(m)
+}
+func (m *ThreadKeys) XXX_DiscardUnknown() {
+	xxx_messageInfo_ThreadKeys.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ThreadKeys proto.InternalMessageInfo
+
+func (m *ThreadKeys) GetReadKey() []byte {
+	if m != nil {
+		return m.ReadKey
+	}
+	return nil
+}
+
+func (m *ThreadKeys) GetFollowKey() []byte {
+	if m != nil {
+		return m.FollowKey
+	}
+	return nil
+}
+
+func (m *ThreadKeys) GetLogKey() []byte {
+	if m != nil {
+		return m.LogKey
+	}
+	return nil
+}
+
+type CreateThreadRequest struct {
+	ThreadID             []byte      `protobuf:"bytes,1,opt,name=threadID,proto3" json:"threadID,omitempty"`
+	Keys                 *ThreadKeys `protobuf:"bytes,2,opt,name=keys,proto3" json:"keys,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *CreateThreadRequest) Reset()         { *m = CreateThreadRequest{} }
 func (m *CreateThreadRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateThreadRequest) ProtoMessage()    {}
 func (*CreateThreadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{2}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{3}
 }
 
 func (m *CreateThreadRequest) XXX_Unmarshal(b []byte) error {
@@ -133,6 +189,13 @@ func (m *CreateThreadRequest) GetThreadID() []byte {
 	return nil
 }
 
+func (m *CreateThreadRequest) GetKeys() *ThreadKeys {
+	if m != nil {
+		return m.Keys
+	}
+	return nil
+}
+
 type LogInfo struct {
 	ID                   []byte   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	PubKey               []byte   `protobuf:"bytes,2,opt,name=pubKey,proto3" json:"pubKey,omitempty"`
@@ -148,7 +211,7 @@ func (m *LogInfo) Reset()         { *m = LogInfo{} }
 func (m *LogInfo) String() string { return proto.CompactTextString(m) }
 func (*LogInfo) ProtoMessage()    {}
 func (*LogInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{3}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{4}
 }
 
 func (m *LogInfo) XXX_Unmarshal(b []byte) error {
@@ -218,7 +281,7 @@ func (m *ThreadInfoReply) Reset()         { *m = ThreadInfoReply{} }
 func (m *ThreadInfoReply) String() string { return proto.CompactTextString(m) }
 func (*ThreadInfoReply) ProtoMessage()    {}
 func (*ThreadInfoReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{4}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{5}
 }
 
 func (m *ThreadInfoReply) XXX_Unmarshal(b []byte) error {
@@ -268,19 +331,18 @@ func (m *ThreadInfoReply) GetFollowKey() []byte {
 }
 
 type AddThreadRequest struct {
-	Addr                 []byte   `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
-	ReadKey              []byte   `protobuf:"bytes,2,opt,name=readKey,proto3" json:"readKey,omitempty"`
-	FollowKey            []byte   `protobuf:"bytes,3,opt,name=followKey,proto3" json:"followKey,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Addr                 []byte      `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
+	Keys                 *ThreadKeys `protobuf:"bytes,2,opt,name=keys,proto3" json:"keys,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *AddThreadRequest) Reset()         { *m = AddThreadRequest{} }
 func (m *AddThreadRequest) String() string { return proto.CompactTextString(m) }
 func (*AddThreadRequest) ProtoMessage()    {}
 func (*AddThreadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{5}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{6}
 }
 
 func (m *AddThreadRequest) XXX_Unmarshal(b []byte) error {
@@ -308,16 +370,9 @@ func (m *AddThreadRequest) GetAddr() []byte {
 	return nil
 }
 
-func (m *AddThreadRequest) GetReadKey() []byte {
+func (m *AddThreadRequest) GetKeys() *ThreadKeys {
 	if m != nil {
-		return m.ReadKey
-	}
-	return nil
-}
-
-func (m *AddThreadRequest) GetFollowKey() []byte {
-	if m != nil {
-		return m.FollowKey
+		return m.Keys
 	}
 	return nil
 }
@@ -333,7 +388,7 @@ func (m *GetThreadRequest) Reset()         { *m = GetThreadRequest{} }
 func (m *GetThreadRequest) String() string { return proto.CompactTextString(m) }
 func (*GetThreadRequest) ProtoMessage()    {}
 func (*GetThreadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{6}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{7}
 }
 
 func (m *GetThreadRequest) XXX_Unmarshal(b []byte) error {
@@ -372,7 +427,7 @@ func (m *PullThreadRequest) Reset()         { *m = PullThreadRequest{} }
 func (m *PullThreadRequest) String() string { return proto.CompactTextString(m) }
 func (*PullThreadRequest) ProtoMessage()    {}
 func (*PullThreadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{7}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
 }
 
 func (m *PullThreadRequest) XXX_Unmarshal(b []byte) error {
@@ -410,7 +465,7 @@ func (m *PullThreadReply) Reset()         { *m = PullThreadReply{} }
 func (m *PullThreadReply) String() string { return proto.CompactTextString(m) }
 func (*PullThreadReply) ProtoMessage()    {}
 func (*PullThreadReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
 }
 
 func (m *PullThreadReply) XXX_Unmarshal(b []byte) error {
@@ -442,7 +497,7 @@ func (m *DeleteThreadRequest) Reset()         { *m = DeleteThreadRequest{} }
 func (m *DeleteThreadRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteThreadRequest) ProtoMessage()    {}
 func (*DeleteThreadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{10}
 }
 
 func (m *DeleteThreadRequest) XXX_Unmarshal(b []byte) error {
@@ -480,7 +535,7 @@ func (m *DeleteThreadReply) Reset()         { *m = DeleteThreadReply{} }
 func (m *DeleteThreadReply) String() string { return proto.CompactTextString(m) }
 func (*DeleteThreadReply) ProtoMessage()    {}
 func (*DeleteThreadReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{10}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{11}
 }
 
 func (m *DeleteThreadReply) XXX_Unmarshal(b []byte) error {
@@ -513,7 +568,7 @@ func (m *AddFollowerRequest) Reset()         { *m = AddFollowerRequest{} }
 func (m *AddFollowerRequest) String() string { return proto.CompactTextString(m) }
 func (*AddFollowerRequest) ProtoMessage()    {}
 func (*AddFollowerRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{11}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{12}
 }
 
 func (m *AddFollowerRequest) XXX_Unmarshal(b []byte) error {
@@ -559,7 +614,7 @@ func (m *AddFollowerReply) Reset()         { *m = AddFollowerReply{} }
 func (m *AddFollowerReply) String() string { return proto.CompactTextString(m) }
 func (*AddFollowerReply) ProtoMessage()    {}
 func (*AddFollowerReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{12}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{13}
 }
 
 func (m *AddFollowerReply) XXX_Unmarshal(b []byte) error {
@@ -587,7 +642,7 @@ func (m *AddFollowerReply) GetPeerID() []byte {
 	return nil
 }
 
-type AddRecordRequest struct {
+type CreateRecordRequest struct {
 	ThreadID             []byte   `protobuf:"bytes,1,opt,name=threadID,proto3" json:"threadID,omitempty"`
 	Body                 []byte   `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -595,39 +650,39 @@ type AddRecordRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *AddRecordRequest) Reset()         { *m = AddRecordRequest{} }
-func (m *AddRecordRequest) String() string { return proto.CompactTextString(m) }
-func (*AddRecordRequest) ProtoMessage()    {}
-func (*AddRecordRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{13}
+func (m *CreateRecordRequest) Reset()         { *m = CreateRecordRequest{} }
+func (m *CreateRecordRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateRecordRequest) ProtoMessage()    {}
+func (*CreateRecordRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{14}
 }
 
-func (m *AddRecordRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_AddRecordRequest.Unmarshal(m, b)
+func (m *CreateRecordRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateRecordRequest.Unmarshal(m, b)
 }
-func (m *AddRecordRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_AddRecordRequest.Marshal(b, m, deterministic)
+func (m *CreateRecordRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateRecordRequest.Marshal(b, m, deterministic)
 }
-func (m *AddRecordRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AddRecordRequest.Merge(m, src)
+func (m *CreateRecordRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateRecordRequest.Merge(m, src)
 }
-func (m *AddRecordRequest) XXX_Size() int {
-	return xxx_messageInfo_AddRecordRequest.Size(m)
+func (m *CreateRecordRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateRecordRequest.Size(m)
 }
-func (m *AddRecordRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_AddRecordRequest.DiscardUnknown(m)
+func (m *CreateRecordRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateRecordRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_AddRecordRequest proto.InternalMessageInfo
+var xxx_messageInfo_CreateRecordRequest proto.InternalMessageInfo
 
-func (m *AddRecordRequest) GetThreadID() []byte {
+func (m *CreateRecordRequest) GetThreadID() []byte {
 	if m != nil {
 		return m.ThreadID
 	}
 	return nil
 }
 
-func (m *AddRecordRequest) GetBody() []byte {
+func (m *CreateRecordRequest) GetBody() []byte {
 	if m != nil {
 		return m.Body
 	}
@@ -635,10 +690,10 @@ func (m *AddRecordRequest) GetBody() []byte {
 }
 
 type Record struct {
-	Node                 []byte   `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
-	BlockID              []byte   `protobuf:"bytes,2,opt,name=blockID,proto3" json:"blockID,omitempty"`
-	Sig                  []byte   `protobuf:"bytes,3,opt,name=sig,proto3" json:"sig,omitempty"`
-	PrevID               []byte   `protobuf:"bytes,4,opt,name=prevID,proto3" json:"prevID,omitempty"`
+	RecordNode           []byte   `protobuf:"bytes,1,opt,name=recordNode,proto3" json:"recordNode,omitempty"`
+	EventNode            []byte   `protobuf:"bytes,2,opt,name=eventNode,proto3" json:"eventNode,omitempty"`
+	HeaderNode           []byte   `protobuf:"bytes,3,opt,name=headerNode,proto3" json:"headerNode,omitempty"`
+	BodyNode             []byte   `protobuf:"bytes,4,opt,name=bodyNode,proto3" json:"bodyNode,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -648,7 +703,7 @@ func (m *Record) Reset()         { *m = Record{} }
 func (m *Record) String() string { return proto.CompactTextString(m) }
 func (*Record) ProtoMessage()    {}
 func (*Record) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{14}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{15}
 }
 
 func (m *Record) XXX_Unmarshal(b []byte) error {
@@ -669,30 +724,30 @@ func (m *Record) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Record proto.InternalMessageInfo
 
-func (m *Record) GetNode() []byte {
+func (m *Record) GetRecordNode() []byte {
 	if m != nil {
-		return m.Node
+		return m.RecordNode
 	}
 	return nil
 }
 
-func (m *Record) GetBlockID() []byte {
+func (m *Record) GetEventNode() []byte {
 	if m != nil {
-		return m.BlockID
+		return m.EventNode
 	}
 	return nil
 }
 
-func (m *Record) GetSig() []byte {
+func (m *Record) GetHeaderNode() []byte {
 	if m != nil {
-		return m.Sig
+		return m.HeaderNode
 	}
 	return nil
 }
 
-func (m *Record) GetPrevID() []byte {
+func (m *Record) GetBodyNode() []byte {
 	if m != nil {
-		return m.PrevID
+		return m.BodyNode
 	}
 	return nil
 }
@@ -710,7 +765,7 @@ func (m *NewRecordReply) Reset()         { *m = NewRecordReply{} }
 func (m *NewRecordReply) String() string { return proto.CompactTextString(m) }
 func (*NewRecordReply) ProtoMessage()    {}
 func (*NewRecordReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{15}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{16}
 }
 
 func (m *NewRecordReply) XXX_Unmarshal(b []byte) error {
@@ -752,6 +807,92 @@ func (m *NewRecordReply) GetRecord() *Record {
 	return nil
 }
 
+type AddRecordRequest struct {
+	ThreadID             []byte   `protobuf:"bytes,1,opt,name=threadID,proto3" json:"threadID,omitempty"`
+	LogID                []byte   `protobuf:"bytes,2,opt,name=logID,proto3" json:"logID,omitempty"`
+	Record               *Record  `protobuf:"bytes,3,opt,name=record,proto3" json:"record,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AddRecordRequest) Reset()         { *m = AddRecordRequest{} }
+func (m *AddRecordRequest) String() string { return proto.CompactTextString(m) }
+func (*AddRecordRequest) ProtoMessage()    {}
+func (*AddRecordRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{17}
+}
+
+func (m *AddRecordRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AddRecordRequest.Unmarshal(m, b)
+}
+func (m *AddRecordRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AddRecordRequest.Marshal(b, m, deterministic)
+}
+func (m *AddRecordRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddRecordRequest.Merge(m, src)
+}
+func (m *AddRecordRequest) XXX_Size() int {
+	return xxx_messageInfo_AddRecordRequest.Size(m)
+}
+func (m *AddRecordRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AddRecordRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AddRecordRequest proto.InternalMessageInfo
+
+func (m *AddRecordRequest) GetThreadID() []byte {
+	if m != nil {
+		return m.ThreadID
+	}
+	return nil
+}
+
+func (m *AddRecordRequest) GetLogID() []byte {
+	if m != nil {
+		return m.LogID
+	}
+	return nil
+}
+
+func (m *AddRecordRequest) GetRecord() *Record {
+	if m != nil {
+		return m.Record
+	}
+	return nil
+}
+
+type AddRecordReply struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AddRecordReply) Reset()         { *m = AddRecordReply{} }
+func (m *AddRecordReply) String() string { return proto.CompactTextString(m) }
+func (*AddRecordReply) ProtoMessage()    {}
+func (*AddRecordReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{18}
+}
+
+func (m *AddRecordReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AddRecordReply.Unmarshal(m, b)
+}
+func (m *AddRecordReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AddRecordReply.Marshal(b, m, deterministic)
+}
+func (m *AddRecordReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddRecordReply.Merge(m, src)
+}
+func (m *AddRecordReply) XXX_Size() int {
+	return xxx_messageInfo_AddRecordReply.Size(m)
+}
+func (m *AddRecordReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_AddRecordReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AddRecordReply proto.InternalMessageInfo
+
 type GetRecordRequest struct {
 	ThreadID             []byte   `protobuf:"bytes,1,opt,name=threadID,proto3" json:"threadID,omitempty"`
 	RecordID             []byte   `protobuf:"bytes,2,opt,name=recordID,proto3" json:"recordID,omitempty"`
@@ -764,7 +905,7 @@ func (m *GetRecordRequest) Reset()         { *m = GetRecordRequest{} }
 func (m *GetRecordRequest) String() string { return proto.CompactTextString(m) }
 func (*GetRecordRequest) ProtoMessage()    {}
 func (*GetRecordRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{16}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{19}
 }
 
 func (m *GetRecordRequest) XXX_Unmarshal(b []byte) error {
@@ -810,7 +951,7 @@ func (m *GetRecordReply) Reset()         { *m = GetRecordReply{} }
 func (m *GetRecordReply) String() string { return proto.CompactTextString(m) }
 func (*GetRecordReply) ProtoMessage()    {}
 func (*GetRecordReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{17}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{20}
 }
 
 func (m *GetRecordReply) XXX_Unmarshal(b []byte) error {
@@ -849,7 +990,7 @@ func (m *SubscribeRequest) Reset()         { *m = SubscribeRequest{} }
 func (m *SubscribeRequest) String() string { return proto.CompactTextString(m) }
 func (*SubscribeRequest) ProtoMessage()    {}
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{18}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{21}
 }
 
 func (m *SubscribeRequest) XXX_Unmarshal(b []byte) error {
@@ -880,6 +1021,7 @@ func (m *SubscribeRequest) GetThreadIDs() [][]byte {
 func init() {
 	proto.RegisterType((*GetHostIDRequest)(nil), "api.pb.GetHostIDRequest")
 	proto.RegisterType((*GetHostIDReply)(nil), "api.pb.GetHostIDReply")
+	proto.RegisterType((*ThreadKeys)(nil), "api.pb.ThreadKeys")
 	proto.RegisterType((*CreateThreadRequest)(nil), "api.pb.CreateThreadRequest")
 	proto.RegisterType((*LogInfo)(nil), "api.pb.LogInfo")
 	proto.RegisterType((*ThreadInfoReply)(nil), "api.pb.ThreadInfoReply")
@@ -891,9 +1033,11 @@ func init() {
 	proto.RegisterType((*DeleteThreadReply)(nil), "api.pb.DeleteThreadReply")
 	proto.RegisterType((*AddFollowerRequest)(nil), "api.pb.AddFollowerRequest")
 	proto.RegisterType((*AddFollowerReply)(nil), "api.pb.AddFollowerReply")
-	proto.RegisterType((*AddRecordRequest)(nil), "api.pb.AddRecordRequest")
+	proto.RegisterType((*CreateRecordRequest)(nil), "api.pb.CreateRecordRequest")
 	proto.RegisterType((*Record)(nil), "api.pb.Record")
 	proto.RegisterType((*NewRecordReply)(nil), "api.pb.NewRecordReply")
+	proto.RegisterType((*AddRecordRequest)(nil), "api.pb.AddRecordRequest")
+	proto.RegisterType((*AddRecordReply)(nil), "api.pb.AddRecordReply")
 	proto.RegisterType((*GetRecordRequest)(nil), "api.pb.GetRecordRequest")
 	proto.RegisterType((*GetRecordReply)(nil), "api.pb.GetRecordReply")
 	proto.RegisterType((*SubscribeRequest)(nil), "api.pb.SubscribeRequest")
@@ -902,51 +1046,55 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 689 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x55, 0x4b, 0x6f, 0xd3, 0x40,
-	0x10, 0x4e, 0x9c, 0x47, 0x9b, 0x69, 0x94, 0xa6, 0xdb, 0xaa, 0xb8, 0xa6, 0x12, 0xd5, 0x22, 0xa1,
-	0x88, 0x43, 0x28, 0xe5, 0xc2, 0x01, 0xa9, 0x24, 0x98, 0x52, 0x03, 0x42, 0x55, 0xd2, 0x33, 0x25,
-	0x8e, 0xb7, 0xa9, 0xc1, 0xea, 0x9a, 0xb5, 0xd3, 0xd2, 0x0b, 0x3f, 0x86, 0x33, 0x3f, 0x12, 0xed,
-	0xd3, 0x0f, 0xd2, 0x10, 0x6e, 0x3b, 0x33, 0xbb, 0xdf, 0x7c, 0x9e, 0x99, 0x6f, 0x0c, 0xad, 0x49,
-	0x1c, 0xf6, 0x63, 0x46, 0x53, 0x8a, 0x9a, 0xe2, 0xe8, 0x63, 0x04, 0xdd, 0x77, 0x24, 0x3d, 0xa5,
-	0x49, 0xea, 0xb9, 0x23, 0xf2, 0x7d, 0x4e, 0x92, 0x14, 0xf7, 0xa0, 0x93, 0xf3, 0xc5, 0xd1, 0x1d,
-	0xda, 0x85, 0x66, 0x4c, 0x08, 0xf3, 0x5c, 0xbb, 0x7a, 0x50, 0xed, 0xb5, 0x47, 0xca, 0xc2, 0xcf,
-	0x61, 0xfb, 0x0d, 0x23, 0x93, 0x94, 0x9c, 0x5f, 0x31, 0x32, 0x09, 0x14, 0x00, 0x72, 0x60, 0x3d,
-	0x15, 0x0e, 0xf3, 0xc0, 0xd8, 0xf8, 0x16, 0xd6, 0x3e, 0xd2, 0x99, 0x77, 0x7d, 0x49, 0x51, 0x07,
-	0x2c, 0x73, 0xc1, 0xf2, 0x5c, 0x91, 0x65, 0xee, 0x7f, 0x20, 0x77, 0xb6, 0xa5, 0xb2, 0x08, 0x0b,
-	0xd9, 0xb0, 0x16, 0xb3, 0xf0, 0x86, 0x07, 0x6a, 0x22, 0xa0, 0x4d, 0xb4, 0x03, 0x8d, 0x49, 0x10,
-	0xb0, 0xc4, 0xae, 0x1f, 0xd4, 0x7a, 0xed, 0x91, 0x34, 0xb8, 0xf7, 0x8a, 0x4c, 0x82, 0xc4, 0x6e,
-	0x48, 0xaf, 0x30, 0xf0, 0x4f, 0xd8, 0x94, 0x2c, 0x79, 0x6e, 0xf9, 0x59, 0x65, 0x02, 0x8f, 0xa1,
-	0x1e, 0xd1, 0x59, 0x62, 0x5b, 0x07, 0xb5, 0xde, 0xc6, 0xd1, 0x66, 0x5f, 0xd6, 0xa8, 0xaf, 0xf8,
-	0x8e, 0x44, 0x90, 0xb3, 0xe1, 0x28, 0x39, 0x36, 0xca, 0x44, 0xfb, 0xd0, 0xba, 0xa4, 0x51, 0x44,
-	0x6f, 0x79, 0xac, 0x2e, 0x62, 0x99, 0x03, 0x7f, 0x86, 0xee, 0x20, 0x08, 0x8a, 0x85, 0x42, 0x50,
-	0xe7, 0x94, 0x15, 0x05, 0x71, 0xce, 0xe3, 0x5b, 0x4b, 0xf0, 0x6b, 0x65, 0xfc, 0xbe, 0xe8, 0xe4,
-	0xea, 0x8d, 0x78, 0x06, 0x5b, 0x67, 0xf3, 0x28, 0x5a, 0xfd, 0xc1, 0x16, 0x6c, 0xe6, 0x1f, 0xc4,
-	0xd1, 0x1d, 0xef, 0xbf, 0x4b, 0x22, 0xf2, 0x3f, 0xfd, 0xdf, 0x86, 0xad, 0xe2, 0x13, 0x8e, 0xe3,
-	0x02, 0x1a, 0x04, 0xc1, 0x89, 0xf8, 0x16, 0xc2, 0x56, 0x80, 0x31, 0x95, 0xb3, 0xb2, 0xca, 0xe1,
-	0xa7, 0xa2, 0xc2, 0x19, 0xca, 0xb2, 0xc9, 0x1d, 0x8a, 0xbb, 0x23, 0x32, 0xa5, 0x2c, 0x58, 0x31,
-	0x9f, 0x4f, 0x03, 0xdd, 0x12, 0x71, 0xc6, 0x5f, 0xa0, 0x29, 0x01, 0x78, 0xf4, 0x9a, 0x06, 0x44,
-	0xf7, 0x91, 0x9f, 0x79, 0x1f, 0xfd, 0x88, 0x4e, 0xbf, 0x79, 0xae, 0xee, 0xa3, 0x32, 0x51, 0x17,
-	0x6a, 0x49, 0x38, 0x53, 0x1d, 0xe4, 0x47, 0xc1, 0x92, 0x91, 0x1b, 0xcf, 0x55, 0x63, 0xa3, 0x2c,
-	0xfc, 0x15, 0x3a, 0x9f, 0xc8, 0xad, 0x66, 0xc9, 0xbf, 0x67, 0x19, 0xc7, 0x1d, 0x68, 0x44, 0x74,
-	0x66, 0xf2, 0x49, 0x03, 0x3d, 0x81, 0x26, 0x13, 0x00, 0x22, 0xe1, 0xc6, 0x51, 0x47, 0x8f, 0xb5,
-	0x82, 0x55, 0x51, 0xfc, 0x5e, 0xcc, 0xcf, 0xea, 0x15, 0x71, 0x60, 0x5d, 0xbe, 0x34, 0x09, 0x8d,
-	0x8d, 0x5f, 0x8a, 0x0d, 0x92, 0xe7, 0x9d, 0xb1, 0xa8, 0x2e, 0x65, 0x71, 0x08, 0xdd, 0xf1, 0xdc,
-	0x4f, 0xa6, 0x2c, 0xf4, 0x89, 0x66, 0xb1, 0x0f, 0x2d, 0x9d, 0x35, 0xb1, 0xab, 0x42, 0xd3, 0x99,
-	0xe3, 0xe8, 0x77, 0x03, 0x6a, 0x83, 0x33, 0x0f, 0x1d, 0x43, 0xcb, 0x6c, 0x2d, 0x64, 0x6b, 0xf8,
-	0xf2, 0x72, 0x73, 0x76, 0x17, 0x44, 0xf8, 0x08, 0x56, 0xd0, 0x09, 0xb4, 0xf3, 0xcb, 0x0c, 0x3d,
-	0xd4, 0x37, 0x17, 0xac, 0x38, 0xe7, 0x81, 0x0e, 0x96, 0x76, 0x0a, 0xae, 0xa0, 0xd7, 0xd0, 0x32,
-	0x42, 0xcf, 0x88, 0x94, 0xb5, 0xff, 0x0f, 0x04, 0x23, 0xe5, 0xc2, 0xa7, 0xac, 0x8c, 0x30, 0x04,
-	0xc8, 0xb4, 0x8a, 0xf6, 0xf4, 0xc5, 0xbf, 0x04, 0x9f, 0x61, 0x94, 0xa5, 0x5d, 0x41, 0xa7, 0xd0,
-	0xce, 0x2b, 0x35, 0xab, 0xc7, 0x02, 0xc9, 0x3b, 0x7b, 0x8b, 0x83, 0x12, 0xe9, 0x2d, 0x6c, 0xe4,
-	0x84, 0x89, 0x9c, 0x5c, 0x4d, 0x4a, 0x9a, 0x77, 0xec, 0x85, 0x31, 0x09, 0x73, 0x2c, 0x0a, 0xab,
-	0x24, 0x97, 0xbf, 0x58, 0x18, 0xda, 0xac, 0xc3, 0x45, 0xe9, 0x48, 0x00, 0x33, 0x96, 0x85, 0xba,
-	0xde, 0x03, 0x50, 0x9c, 0x61, 0x5c, 0x41, 0x03, 0x68, 0x99, 0xe9, 0xcc, 0x00, 0xca, 0x03, 0x7b,
-	0x3f, 0x83, 0xc3, 0xea, 0xf0, 0x15, 0x3c, 0x0a, 0x69, 0x3f, 0x25, 0x3f, 0xd2, 0x30, 0x22, 0x7d,
-	0x39, 0xc6, 0xc9, 0x45, 0x42, 0xd8, 0x4d, 0x38, 0x25, 0x17, 0x33, 0x16, 0x4f, 0x87, 0x1d, 0x59,
-	0xbd, 0x64, 0x2c, 0x9d, 0x67, 0xd5, 0x5f, 0x56, 0xf3, 0xfc, 0x74, 0xe4, 0x8e, 0xc7, 0x7e, 0x53,
-	0xfc, 0xbd, 0x5f, 0xfc, 0x09, 0x00, 0x00, 0xff, 0xff, 0x7e, 0x84, 0x83, 0x7e, 0xca, 0x07, 0x00,
-	0x00,
+	// 760 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x56, 0x4f, 0x6f, 0xd3, 0x4e,
+	0x10, 0xcd, 0xff, 0x36, 0x93, 0x28, 0x4d, 0xb7, 0x55, 0x7f, 0xae, 0x7f, 0x15, 0x54, 0x8b, 0x54,
+	0x45, 0x1c, 0x42, 0x09, 0x17, 0x0e, 0x48, 0x90, 0xe2, 0x96, 0x06, 0x50, 0x55, 0x39, 0xbd, 0x20,
+	0x21, 0x55, 0x49, 0xbc, 0x4d, 0x03, 0x56, 0xd7, 0xd8, 0x4e, 0x4b, 0x2e, 0x1c, 0xf8, 0x28, 0x7c,
+	0x45, 0xbe, 0x00, 0xda, 0xff, 0xb6, 0x49, 0x83, 0x11, 0x37, 0xcf, 0x4c, 0xf6, 0xcd, 0x9b, 0xd9,
+	0xb7, 0x4f, 0x81, 0xfa, 0x28, 0x98, 0x75, 0x83, 0x90, 0xc6, 0x14, 0xd5, 0xf8, 0xe7, 0x18, 0x23,
+	0x68, 0xbf, 0x21, 0xf1, 0x29, 0x8d, 0xe2, 0x81, 0xe3, 0x92, 0x2f, 0x73, 0x12, 0xc5, 0xb8, 0x03,
+	0xad, 0x44, 0x2e, 0xf0, 0x17, 0x68, 0x07, 0x6a, 0x01, 0x21, 0xe1, 0xc0, 0xb1, 0x8a, 0xfb, 0xc5,
+	0x4e, 0xd3, 0x95, 0x11, 0xfe, 0x08, 0x70, 0x71, 0x1d, 0x92, 0x91, 0xf7, 0x8e, 0x2c, 0x22, 0x64,
+	0xc1, 0x9a, 0xfc, 0x96, 0x3f, 0x53, 0x21, 0xda, 0x83, 0xfa, 0x15, 0xf5, 0x7d, 0x7a, 0xc7, 0x6a,
+	0x25, 0x5e, 0x33, 0x09, 0x86, 0xee, 0xd3, 0x29, 0x2b, 0x95, 0x05, 0xba, 0x88, 0xf0, 0x07, 0xd8,
+	0x7a, 0x1d, 0x92, 0x51, 0x4c, 0x44, 0x0f, 0x49, 0x0f, 0xd9, 0xb0, 0x1e, 0xf3, 0x84, 0xa6, 0xa3,
+	0x63, 0x74, 0x00, 0x95, 0xcf, 0x64, 0x11, 0xf1, 0x1e, 0x8d, 0x1e, 0xea, 0x8a, 0x29, 0xbb, 0x86,
+	0xa4, 0xcb, 0xeb, 0xf8, 0x0e, 0xd6, 0xde, 0xd3, 0xe9, 0xe0, 0xe6, 0x8a, 0xa2, 0x16, 0x94, 0x34,
+	0x50, 0x69, 0xe0, 0xf0, 0x59, 0xe7, 0x63, 0x43, 0x54, 0x46, 0x6c, 0xba, 0x20, 0x9c, 0xdd, 0x1a,
+	0x9a, 0x2a, 0x44, 0xdb, 0x50, 0x1d, 0x79, 0x5e, 0x18, 0x59, 0x95, 0xfd, 0x72, 0xa7, 0xe9, 0x8a,
+	0x80, 0x65, 0xaf, 0xc9, 0xc8, 0x8b, 0xac, 0xaa, 0xc8, 0xf2, 0x00, 0x7f, 0x83, 0x0d, 0x41, 0x86,
+	0xf5, 0x16, 0xcb, 0xcd, 0x12, 0x78, 0x04, 0x15, 0x9f, 0x4e, 0xd9, 0x0c, 0xe5, 0x4e, 0xa3, 0xb7,
+	0xa1, 0x66, 0x90, 0x7c, 0x5d, 0x5e, 0x4c, 0xee, 0xba, 0xbc, 0x62, 0xd7, 0x95, 0xcc, 0xae, 0xf1,
+	0x19, 0xb4, 0xfb, 0x9e, 0x97, 0x5e, 0x28, 0x82, 0x0a, 0xa3, 0x2c, 0x29, 0xf0, 0xef, 0xdc, 0x8b,
+	0xec, 0x72, 0xfd, 0xe4, 0xbe, 0x20, 0xfc, 0x04, 0x36, 0xcf, 0xe7, 0xbe, 0x9f, 0xff, 0xc0, 0x26,
+	0x6c, 0x24, 0x0f, 0x04, 0xfe, 0x02, 0x3f, 0x85, 0x2d, 0x87, 0xf8, 0xe4, 0x2f, 0x74, 0x81, 0xb7,
+	0x60, 0x33, 0x7d, 0x84, 0xe1, 0x38, 0x80, 0xfa, 0x9e, 0x77, 0xc2, 0x77, 0x43, 0xc2, 0x3c, 0xf2,
+	0x52, 0x9b, 0x2a, 0x99, 0x4d, 0xe1, 0xc7, 0x7c, 0xa3, 0x06, 0x65, 0xd5, 0x7b, 0x39, 0x56, 0x8a,
+	0x76, 0xc9, 0x84, 0x86, 0x5e, 0xce, 0x96, 0x63, 0xea, 0x29, 0x31, 0xf2, 0x6f, 0xfc, 0xbd, 0x08,
+	0x35, 0x81, 0x80, 0x1e, 0x00, 0x84, 0xfc, 0xeb, 0x8c, 0x7a, 0x44, 0x1e, 0x4e, 0x64, 0x98, 0x1a,
+	0xc8, 0x2d, 0xb9, 0x89, 0x79, 0x59, 0xbe, 0x3c, 0x9d, 0x60, 0xa7, 0x99, 0x2c, 0x49, 0xc8, 0xcb,
+	0x42, 0x48, 0x89, 0x0c, 0x23, 0xc6, 0x1a, 0xf2, 0xaa, 0x90, 0x92, 0x8e, 0xf1, 0x27, 0x68, 0x9d,
+	0x91, 0x3b, 0x35, 0x08, 0x9b, 0x7a, 0xd5, 0x18, 0xdb, 0x50, 0xf5, 0xe9, 0x74, 0xe0, 0x48, 0x0e,
+	0x22, 0x40, 0x07, 0x50, 0x13, 0x5c, 0x79, 0xef, 0x46, 0xaf, 0xa5, 0x74, 0x26, 0x61, 0x65, 0x15,
+	0xfb, 0x7c, 0xc7, 0xf9, 0x97, 0xf6, 0x6f, 0xdd, 0xda, 0xd0, 0x4a, 0x74, 0x63, 0x4a, 0x79, 0xcb,
+	0x55, 0x9e, 0xbf, 0xbf, 0x0d, 0xeb, 0x02, 0x4b, 0x53, 0xd0, 0x31, 0x7e, 0xce, 0xdd, 0x35, 0xb9,
+	0x37, 0xc3, 0xab, 0xb8, 0x92, 0xd7, 0x21, 0xb4, 0x87, 0xf3, 0x71, 0x34, 0x09, 0x67, 0x63, 0xa2,
+	0x58, 0xec, 0x41, 0x5d, 0x75, 0x8d, 0xac, 0x22, 0x77, 0x1a, 0x93, 0xe8, 0xfd, 0xac, 0x42, 0xb9,
+	0x7f, 0x3e, 0x40, 0x2f, 0xa1, 0xae, 0x1d, 0x1d, 0x59, 0x0a, 0x3e, 0x6b, 0xfc, 0xf6, 0xce, 0x92,
+	0x0a, 0x1b, 0xbf, 0x80, 0x4e, 0xa0, 0x99, 0xb4, 0x62, 0xf4, 0xbf, 0xfa, 0xe5, 0x12, 0x83, 0xb6,
+	0xff, 0x4b, 0xbb, 0x85, 0x76, 0x3a, 0x5c, 0x40, 0xaf, 0xa0, 0xae, 0xed, 0xc7, 0x10, 0xc9, 0x3a,
+	0xd2, 0x1f, 0x10, 0xb4, 0xe1, 0xa4, 0x46, 0xc9, 0x8d, 0x70, 0x04, 0x60, 0x1c, 0x05, 0xed, 0xaa,
+	0x1f, 0xfe, 0x66, 0x4b, 0x06, 0x23, 0x6b, 0x40, 0x05, 0x74, 0x0a, 0xcd, 0xa4, 0x9f, 0x98, 0x7d,
+	0x2c, 0x31, 0x26, 0x7b, 0x77, 0x79, 0x51, 0x20, 0x1d, 0x43, 0x23, 0x61, 0x1f, 0xc8, 0x4e, 0xec,
+	0x24, 0xe3, 0x4c, 0xb6, 0xb5, 0xb4, 0xa6, 0x60, 0x9a, 0x49, 0x67, 0xc9, 0x5e, 0x50, 0x4a, 0xba,
+	0xe6, 0x9e, 0xd3, 0x0f, 0x18, 0x17, 0x98, 0x50, 0xb4, 0xf4, 0x53, 0xf7, 0x73, 0x0f, 0x40, 0xe6,
+	0x9d, 0x14, 0xa4, 0xd2, 0xb2, 0x00, 0xd9, 0xc7, 0x93, 0x52, 0x5a, 0x1a, 0xa0, 0x0f, 0x75, 0x2d,
+	0x72, 0x03, 0x90, 0xd5, 0xfd, 0xfd, 0x23, 0x1c, 0x16, 0x8f, 0x5e, 0xc0, 0xc3, 0x19, 0xed, 0xc6,
+	0xe4, 0x6b, 0x3c, 0xf3, 0x49, 0x57, 0xbc, 0x86, 0xe8, 0x32, 0x22, 0xe1, 0xed, 0x6c, 0x42, 0x2e,
+	0xa7, 0x61, 0x30, 0x39, 0x6a, 0x89, 0x4b, 0x88, 0x86, 0x22, 0x79, 0x5e, 0xfc, 0x51, 0xaa, 0x5d,
+	0x9c, 0xba, 0xce, 0x70, 0x38, 0xae, 0xf1, 0x3f, 0x48, 0xcf, 0x7e, 0x05, 0x00, 0x00, 0xff, 0xff,
+	0x9d, 0x95, 0x81, 0xe0, 0x2d, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -968,7 +1116,8 @@ type APIClient interface {
 	PullThread(ctx context.Context, in *PullThreadRequest, opts ...grpc.CallOption) (*PullThreadReply, error)
 	DeleteThread(ctx context.Context, in *DeleteThreadRequest, opts ...grpc.CallOption) (*DeleteThreadReply, error)
 	AddFollower(ctx context.Context, in *AddFollowerRequest, opts ...grpc.CallOption) (*AddFollowerReply, error)
-	AddRecord(ctx context.Context, in *AddRecordRequest, opts ...grpc.CallOption) (*NewRecordReply, error)
+	CreateRecord(ctx context.Context, in *CreateRecordRequest, opts ...grpc.CallOption) (*NewRecordReply, error)
+	AddRecord(ctx context.Context, in *AddRecordRequest, opts ...grpc.CallOption) (*AddRecordReply, error)
 	GetRecord(ctx context.Context, in *GetRecordRequest, opts ...grpc.CallOption) (*GetRecordReply, error)
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (API_SubscribeClient, error)
 }
@@ -1044,8 +1193,17 @@ func (c *aPIClient) AddFollower(ctx context.Context, in *AddFollowerRequest, opt
 	return out, nil
 }
 
-func (c *aPIClient) AddRecord(ctx context.Context, in *AddRecordRequest, opts ...grpc.CallOption) (*NewRecordReply, error) {
+func (c *aPIClient) CreateRecord(ctx context.Context, in *CreateRecordRequest, opts ...grpc.CallOption) (*NewRecordReply, error) {
 	out := new(NewRecordReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/CreateRecord", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) AddRecord(ctx context.Context, in *AddRecordRequest, opts ...grpc.CallOption) (*AddRecordReply, error) {
+	out := new(AddRecordReply)
 	err := c.cc.Invoke(ctx, "/api.pb.API/AddRecord", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -1103,7 +1261,8 @@ type APIServer interface {
 	PullThread(context.Context, *PullThreadRequest) (*PullThreadReply, error)
 	DeleteThread(context.Context, *DeleteThreadRequest) (*DeleteThreadReply, error)
 	AddFollower(context.Context, *AddFollowerRequest) (*AddFollowerReply, error)
-	AddRecord(context.Context, *AddRecordRequest) (*NewRecordReply, error)
+	CreateRecord(context.Context, *CreateRecordRequest) (*NewRecordReply, error)
+	AddRecord(context.Context, *AddRecordRequest) (*AddRecordReply, error)
 	GetRecord(context.Context, *GetRecordRequest) (*GetRecordReply, error)
 	Subscribe(*SubscribeRequest, API_SubscribeServer) error
 }
@@ -1133,7 +1292,10 @@ func (*UnimplementedAPIServer) DeleteThread(ctx context.Context, req *DeleteThre
 func (*UnimplementedAPIServer) AddFollower(ctx context.Context, req *AddFollowerRequest) (*AddFollowerReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddFollower not implemented")
 }
-func (*UnimplementedAPIServer) AddRecord(ctx context.Context, req *AddRecordRequest) (*NewRecordReply, error) {
+func (*UnimplementedAPIServer) CreateRecord(ctx context.Context, req *CreateRecordRequest) (*NewRecordReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateRecord not implemented")
+}
+func (*UnimplementedAPIServer) AddRecord(ctx context.Context, req *AddRecordRequest) (*AddRecordReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddRecord not implemented")
 }
 func (*UnimplementedAPIServer) GetRecord(ctx context.Context, req *GetRecordRequest) (*GetRecordReply, error) {
@@ -1273,6 +1435,24 @@ func _API_AddFollower_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _API_CreateRecord_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateRecordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).CreateRecord(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/CreateRecord",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).CreateRecord(ctx, req.(*CreateRecordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _API_AddRecord_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddRecordRequest)
 	if err := dec(in); err != nil {
@@ -1361,6 +1541,10 @@ var _API_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddFollower",
 			Handler:    _API_AddFollower_Handler,
+		},
+		{
+			MethodName: "CreateRecord",
+			Handler:    _API_CreateRecord_Handler,
 		},
 		{
 			MethodName: "AddRecord",

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -9,13 +10,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/phayes/freeport"
+	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/service/api"
 	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
@@ -41,7 +46,15 @@ func TestClient_CreateThread(t *testing.T) {
 
 	t.Run("test create thread", func(t *testing.T) {
 		id := thread.NewIDV1(thread.Raw, 32)
-		info, err := client.CreateThread(context.Background(), id)
+		fk, err := symmetric.CreateKey()
+		if err != nil {
+			t.Fatal(err)
+		}
+		rk, err := symmetric.CreateKey()
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := client.CreateThread(context.Background(), id, core.FollowKey(fk), core.ReadKey(rk))
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
@@ -158,7 +171,7 @@ func TestClient_AddFollower(t *testing.T) {
 	})
 }
 
-func TestClient_AddRecord(t *testing.T) {
+func TestClient_CreateRecord(t *testing.T) {
 	t.Parallel()
 	_, client, done := setup(t)
 	defer done()
@@ -172,16 +185,67 @@ func TestClient_AddRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("test add record", func(t *testing.T) {
-		rec, err := client.AddRecord(context.Background(), info.ID, body)
+	t.Run("test create record", func(t *testing.T) {
+		rec, err := client.CreateRecord(context.Background(), info.ID, body)
 		if err != nil {
-			t.Fatalf("failed to add record: %v", err)
+			t.Fatalf("failed to create record: %v", err)
 		}
 		if !rec.ThreadID().Equals(info.ID) {
-			t.Fatal("got bad thread ID from add record")
+			t.Fatal("got bad thread ID from create record")
 		}
 		if rec.LogID().String() == "" {
-			t.Fatal("got bad log ID from add record")
+			t.Fatal("got bad log ID from create record")
+		}
+	})
+}
+
+func TestClient_AddRecord(t *testing.T) {
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	// Create a thread, keeping read key and log private key on the client
+	id := thread.NewIDV1(thread.Raw, 32)
+	fk, err := symmetric.CreateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sk, pk, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := client.CreateThread(context.Background(), id, core.FollowKey(fk), core.LogKey(pk))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := cbornode.WrapObject(map[string]interface{}{
+		"foo": "bar",
+		"baz": []byte("howdy"),
+	}, mh.SHA2_256, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("test add record", func(t *testing.T) {
+		rk, err := symmetric.CreateKey()
+		if err != nil {
+			t.Fatal(err)
+		}
+		event, err := cbor.CreateEvent(context.Background(), nil, body, rk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec, err := cbor.CreateRecord(context.Background(), nil, event, cid.Undef, sk, fk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		logID, err := peer.IDFromPublicKey(pk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := client.AddRecord(context.Background(), info.ID, logID, rec); err != nil {
+			t.Fatalf("failed to add record: %v", err)
 		}
 	})
 }
@@ -199,7 +263,7 @@ func TestClient_GetRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, err := client.AddRecord(context.Background(), info.ID, body)
+	rec, err := client.CreateRecord(context.Background(), info.ID, body)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,14 +316,14 @@ func TestClient_Subscribe(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = client1.AddRecord(context.Background(), info.ID, body); err != nil {
+		if _, err = client1.CreateRecord(context.Background(), info.ID, body); err != nil {
 			t.Fatal(err)
 		}
 		body2, err := cbornode.WrapObject(map[string]interface{}{"foo": "bar2"}, mh.SHA2_256, -1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = client1.AddRecord(context.Background(), info.ID, body2); err != nil {
+		if _, err = client1.CreateRecord(context.Background(), info.ID, body2); err != nil {
 			t.Fatal(err)
 		}
 
@@ -349,7 +413,15 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 
 func createThread(t *testing.T, client *Client) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := client.CreateThread(context.Background(), id)
+	fk, err := symmetric.CreateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rk, err := symmetric.CreateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := client.CreateThread(context.Background(), id, core.FollowKey(fk), core.ReadKey(rk))
 	if err != nil {
 		t.Fatal(err)
 	}

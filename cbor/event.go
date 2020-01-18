@@ -32,7 +32,12 @@ type eventHeader struct {
 }
 
 // CreateEvent create a new event by wrapping the body node.
-func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (service.Event, error) {
+func CreateEvent(
+	ctx context.Context,
+	dag format.DAGService,
+	body format.Node,
+	rkey crypto.EncryptionKey,
+) (service.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err
@@ -132,7 +137,11 @@ func (e *Event) HeaderID() cid.Cid {
 }
 
 // GetHeader returns the header node.
-func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (service.EventHeader, error) {
+func (e *Event) GetHeader(
+	ctx context.Context,
+	dag format.DAGService,
+	key crypto.DecryptionKey,
+) (service.EventHeader, error) {
 	if e.header == nil {
 		coded, err := dag.Get(ctx, e.obj.Header)
 		if err != nil {

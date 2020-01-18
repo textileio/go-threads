@@ -27,14 +27,14 @@ type Service interface {
 type API interface {
 	io.Closer
 
-	// GetHostID returns the host's peer ID.
+	// GetHostID returns the host's peer id.
 	GetHostID(ctx context.Context) (peer.ID, error)
 
 	// CreateThread with id.
-	CreateThread(ctx context.Context, id thread.ID) (thread.Info, error)
+	CreateThread(ctx context.Context, id thread.ID, opts ...KeyOption) (thread.Info, error)
 
 	// AddThread from a multiaddress.
-	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...AddOption) (thread.Info, error)
+	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...KeyOption) (thread.Info, error)
 
 	// GetThread with id.
 	GetThread(ctx context.Context, id thread.ID) (thread.Info, error)
@@ -48,8 +48,11 @@ type API interface {
 	// AddFollower to a thread.
 	AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error)
 
-	// AddRecord with body.
-	AddRecord(ctx context.Context, id thread.ID, body format.Node) (ThreadRecord, error)
+	// CreateRecord with body.
+	CreateRecord(ctx context.Context, id thread.ID, body format.Node) (ThreadRecord, error)
+
+	// AddRecord to the given log.
+	AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec Record) error
 
 	// GetRecord returns the record at cid.
 	GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (Record, error)

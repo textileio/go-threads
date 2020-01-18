@@ -165,26 +165,33 @@ func (t *service) Store() lstore.Logstore {
 	return t.store
 }
 
-// GetHostID returns the host's peer ID.
+// GetHostID returns the host's peer id.
 func (t *service) GetHostID(context.Context) (peer.ID, error) {
 	return t.host.ID(), nil
 }
 
 // CreateThread with id.
-func (t *service) CreateThread(_ context.Context, id thread.ID) (info thread.Info, err error) {
-	info.ID = id
-	info.FollowKey, err = sym.CreateKey()
-	if err != nil {
-		return
+func (t *service) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOption) (info thread.Info, err error) {
+	args := &core.KeyOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
-	info.ReadKey, err = sym.CreateKey()
-	if err != nil {
-		return
+
+	info = thread.Info{
+		ID:        id,
+		FollowKey: args.FollowKey,
+		ReadKey:   args.ReadKey,
+	}
+	if info.FollowKey == nil {
+		info.FollowKey, err = sym.CreateKey()
+		if err != nil {
+			return
+		}
 	}
 	if err = t.store.AddThread(info); err != nil {
 		return
 	}
-	linfo, err := createLog(t.host.ID())
+	linfo, err := createLog(t.host.ID(), args.LogKey)
 	if err != nil {
 		return
 	}
@@ -198,9 +205,9 @@ func (t *service) CreateThread(_ context.Context, id thread.ID) (info thread.Inf
 func (t *service) AddThread(
 	ctx context.Context,
 	addr ma.Multiaddr,
-	opts ...core.AddOption,
+	opts ...core.KeyOption,
 ) (info thread.Info, err error) {
-	args := &core.AddOptions{}
+	args := &core.KeyOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -459,8 +466,8 @@ func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return ma.NewMultiaddr(parts[0])
 }
 
-// AddRecord with body. See AddOption for more.
-func (t *service) AddRecord(ctx context.Context, id thread.ID, body format.Node) (r core.ThreadRecord, err error) {
+// CreateRecord with body.
+func (t *service) CreateRecord(ctx context.Context, id thread.ID, body format.Node) (r core.ThreadRecord, err error) {
 	// Get or create a log for the new node
 	lg, err := t.getOrCreateOwnLog(id)
 	if err != nil {
@@ -471,6 +478,11 @@ func (t *service) AddRecord(ctx context.Context, id thread.ID, body format.Node)
 	rec, err := t.createRecord(ctx, id, lg, body)
 	if err != nil {
 		return
+	}
+
+	// Update head
+	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
+		return nil, err
 	}
 
 	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
@@ -487,6 +499,32 @@ func (t *service) AddRecord(ctx context.Context, id thread.ID, body format.Node)
 	}
 
 	return r, nil
+}
+
+// AddRecord with record.
+func (t *service) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
+	logpk, err := t.store.PubKey(id, lid)
+	if err != nil {
+		return err
+	}
+	if logpk == nil {
+		return fmt.Errorf("log not found")
+	}
+
+	knownRecord, err := t.bstore.Has(rec.Cid())
+	if err != nil {
+		return err
+	}
+	if knownRecord {
+		return nil
+	}
+
+	// Verify node
+	if err = rec.Verify(logpk); err != nil {
+		return err
+	}
+
+	return t.PutRecord(ctx, id, lid, rec)
 }
 
 // GetRecord returns the record at cid.
@@ -665,6 +703,9 @@ func (t *service) createRecord(
 	lg thread.LogInfo,
 	body format.Node,
 ) (core.Record, error) {
+	if lg.PrivKey == nil {
+		return nil, fmt.Errorf("a private-key is required to create records")
+	}
 	fk, err := t.store.FollowKey(id)
 	if err != nil {
 		return nil, err
@@ -688,17 +729,7 @@ func (t *service) createRecord(
 	if len(lg.Heads) != 0 {
 		prev = lg.Heads[0]
 	}
-	rec, err := cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, fk)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update head
-	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
-		return nil, err
-	}
-
-	return rec, nil
+	return cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, fk)
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of
@@ -835,7 +866,7 @@ func (t *service) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err erro
 	if info.PubKey != nil {
 		return
 	}
-	info, err = createLog(t.host.ID())
+	info, err = createLog(t.host.ID(), nil)
 	if err != nil {
 		return
 	}
@@ -880,13 +911,13 @@ func (t *service) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		t.ctx,
 		tid,
 		lid,
-		map[peer.ID]cid.Cid{lid: cid.Undef}, // (jsign): shouldn't this be current head?
+		map[peer.ID]cid.Cid{lid: cid.Undef},
 		MaxPullLimit)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	for lid, rs := range recs { // ToDo: verify if they're ordered since this will optimize
+	for lid, rs := range recs { // @todo: verify if they're ordered since this will optimize
 		for _, r := range rs {
 			if err = t.putRecord(t.ctx, tid, lid, r); err != nil {
 				log.Error(err)
@@ -897,24 +928,26 @@ func (t *service) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 }
 
 // createLog creates a new log with the given peer as host.
-func createLog(host peer.ID) (info thread.LogInfo, err error) {
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+func createLog(host peer.ID, key crypto.Key) (info thread.LogInfo, err error) {
+	var ok bool
+	if key == nil {
+		info.PrivKey, info.PubKey, err = crypto.GenerateEd25519Key(rand.Reader)
+		if err != nil {
+			return
+		}
+	} else if info.PrivKey, ok = key.(crypto.PrivKey); ok {
+		info.PubKey = info.PrivKey.GetPublic()
+	} else if info.PubKey, ok = key.(crypto.PubKey); !ok {
+		return info, fmt.Errorf("invalid log-key")
+	}
+	info.ID, err = peer.IDFromPublicKey(info.PubKey)
 	if err != nil {
 		return
 	}
-	id, err := peer.IDFromPublicKey(pk)
+	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + host.String())
 	if err != nil {
 		return
 	}
-	pro := ma.ProtocolWithCode(ma.P_P2P).Name
-	addr, err := ma.NewMultiaddr("/" + pro + "/" + host.String())
-	if err != nil {
-		return
-	}
-	return thread.LogInfo{
-		ID:      id,
-		PubKey:  pk,
-		PrivKey: sk,
-		Addrs:   []ma.Multiaddr{addr},
-	}, nil
+	info.Addrs = []ma.Multiaddr{addr}
+	return info, nil
 }

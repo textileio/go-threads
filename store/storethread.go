@@ -107,7 +107,7 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 			event, err := threadcbor.EventFromRecord(ctx, a.api, rec.Value())
 			if err != nil {
 				block, err := a.getBlockWithRetry(ctx, rec.Value(), 3, time.Millisecond*500)
-				if err != nil { // ToDo: Buffer them and retry...
+				if err != nil { // @todo: Buffer them and retry...
 					log.Fatalf("error when getting block from record: %v", err)
 				}
 				event, err = threadcbor.EventFromNode(block)
@@ -156,7 +156,7 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := a.api.AddRecord(ctx, a.threadID, node); err != nil {
+			if _, err := a.api.CreateRecord(ctx, a.threadID, node); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()

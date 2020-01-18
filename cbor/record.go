@@ -25,18 +25,6 @@ type record struct {
 	Prev  cid.Cid `refmt:",omitempty"`
 }
 
-// NewRecord wraps the node and block info as a Record.
-func NewRecord(node format.Node, block cid.Cid, sig []byte, prev cid.Cid) service.Record {
-	return &Record{
-		Node: node,
-		obj: &record{
-			Block: block,
-			Sig:   sig,
-			Prev:  prev,
-		},
-	}
-}
-
 // CreateRecord returns a new record from the given block and log private key.
 func CreateRecord(
 	ctx context.Context,
@@ -165,14 +153,12 @@ func RecordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (service.Reco
 		return nil, err
 	}
 	robj := new(record)
-	err = cbornode.DecodeInto(decoded.RawData(), robj)
-	if err != nil {
+	if err = cbornode.DecodeInto(decoded.RawData(), robj); err != nil {
 		return nil, err
 	}
 
 	eobj := new(event)
-	err = cbornode.DecodeInto(enode.RawData(), eobj)
-	if err != nil {
+	if err = cbornode.DecodeInto(enode.RawData(), eobj); err != nil {
 		return nil, err
 	}
 	event := &Event{
