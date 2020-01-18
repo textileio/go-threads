@@ -244,8 +244,19 @@ func TestClient_AddRecord(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := client.AddRecord(context.Background(), info.ID, logID, rec); err != nil {
+		if err = client.AddRecord(context.Background(), info.ID, logID, rec); err != nil {
 			t.Fatalf("failed to add record: %v", err)
+		}
+
+		rec2, err := client.GetRecord(context.Background(), info.ID, rec.Cid())
+		if err != nil {
+			t.Fatalf("failed to get record back: %v", err)
+		}
+		if !rec2.Cid().Equals(rec.Cid()) {
+			t.Fatal("got back bad record ID")
+		}
+		if !rec2.BlockID().Equals(rec.BlockID()) {
+			t.Fatal("got back bad block ID")
 		}
 	})
 }

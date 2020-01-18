@@ -71,9 +71,10 @@ func CreateEvent(
 		return nil, err
 	}
 
-	err = dag.AddMany(ctx, []format.Node{node, codedHeader, codedBody})
-	if err != nil {
-		return nil, err
+	if dag != nil {
+		if err = dag.AddMany(ctx, []format.Node{node, codedHeader, codedBody}); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Event{
@@ -83,6 +84,7 @@ func CreateEvent(
 			Node: codedHeader,
 			obj:  eventHeader,
 		},
+		body: codedBody,
 	}, nil
 }
 
@@ -98,8 +100,7 @@ func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (service.E
 // EventFromNode decodes the given node into an event.
 func EventFromNode(node format.Node) (*Event, error) {
 	obj := new(event)
-	err := cbornode.DecodeInto(node.RawData(), obj)
-	if err != nil {
+	if err := cbornode.DecodeInto(node.RawData(), obj); err != nil {
 		return nil, err
 	}
 	return &Event{
@@ -162,8 +163,7 @@ func (e *Event) GetHeader(
 		if err != nil {
 			return nil, err
 		}
-		err = cbornode.DecodeInto(node.RawData(), header)
-		if err != nil {
+		if err = cbornode.DecodeInto(node.RawData(), header); err != nil {
 			return nil, err
 		}
 		e.header.obj = header

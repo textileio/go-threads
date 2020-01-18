@@ -56,9 +56,10 @@ func CreateRecord(
 		return nil, err
 	}
 
-	err = dag.Add(ctx, coded)
-	if err != nil {
-		return nil, err
+	if dag != nil {
+		if err = dag.Add(ctx, coded); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Record{
@@ -84,8 +85,7 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (service.Record
 	if err != nil {
 		return nil, err
 	}
-	err = cbornode.DecodeInto(node.RawData(), obj)
-	if err != nil {
+	if err = cbornode.DecodeInto(node.RawData(), obj); err != nil {
 		return nil, err
 	}
 	return &Record{
