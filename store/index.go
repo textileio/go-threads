@@ -6,14 +6,15 @@ package store
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 // size of iterator keys stored in memory before more are fetched
@@ -25,8 +26,8 @@ const (
 var (
 	indexPrefix     = ds.NewKey("_index")
 	ErrUniqueExists = errors.New("Unique constraint violation")
-	// ErrNotIndexed indicates that the given value is not indexable
 	ErrNotIndexable = errors.New("Value not indexable")
+	ErrNoIndexFound = errors.New("No index found")
 )
 
 // Indexer is the interface to implement to support Model property indexes
@@ -81,7 +82,7 @@ func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key
 		return err
 	}
 
-	indexKey := indexPrefix.Child(baseKey).ChildString(path).Instance(valueKey.String())
+	indexKey := indexPrefix.Child(baseKey).ChildString(path).Instance(valueKey.String()[1:])
 
 	data, err := tx.Get(indexKey)
 	if err != nil && err != ds.ErrNotFound {
@@ -94,6 +95,9 @@ func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key
 		if index.Unique && !delete {
 			return ErrUniqueExists
 		}
+	}
+
+	if data != nil {
 		err = DefaultDecode(data, &indexValue)
 		if err != nil {
 			return err
@@ -204,41 +208,66 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	// indexed field, get keys from index
 	indexKey := indexPrefix.Child(baseKey).ChildString(q.Index)
 	dsq := query.Query{
-		Prefix:   indexKey.String(),
-		KeysOnly: true,
+		Prefix: indexKey.String(),
 	}
 	i.iter, err = txn.Query(dsq)
+	first := true
 	i.nextKeys = func() ([]ds.Key, error) {
 		var nKeys []ds.Key
 
 		for len(nKeys) < iteratorKeyMinCacheSize {
 			result, ok := i.iter.NextSync()
 			if !ok {
+				if first {
+					return nil, ErrNoIndexFound
+				}
 				return nKeys, result.Error
 			}
+			first = false
 			// result.Key contains the indexed value, extra here first
 			key := ds.NewKey(result.Key)
-			path := strings.Split(key.Type(), ".")
-			val := key.Name()
-			dict := make(map[string]interface{})
-			for i, part := range path {
-				if i == len(path)-1 {
-					dict[part] = gjson.Parse(val).Value
-				} else {
-					dict[part] = make(map[string]map[string]interface{})
-				}
+			base := key.Type()
+			name := key.Name()
+			val := gjson.Parse(name).Value()
+			// For some reason, strings are sometimes returned as null?
+			if val == nil {
+				val = name
 			}
-			ok, err := q.matchJSON(dict)
+			doc, err := sjson.Set("", base, val)
+			if err != nil {
+				return nil, err
+			}
+			value := make(map[string]interface{})
+			if err := json.Unmarshal([]byte(doc), &value); err != nil {
+				return nil, fmt.Errorf("error when unmarshaling query result: %v", err)
+			}
+			ok, err = q.matchJSON(value)
 			if err != nil {
 				return nil, fmt.Errorf("error when matching entry with query: %v", err)
 			}
-
-			nKeys = append(nKeys, ds.NewKey(result.Key))
+			if ok {
+				indexValue := make(keyList, 0)
+				if err := DefaultDecode(result.Value, &indexValue); err != nil {
+					return nil, err
+				}
+				for _, v := range indexValue {
+					nKeys = append(nKeys, ds.NewKey(string(v)))
+				}
+			}
 		}
 		return nKeys, nil
 	}
 
 	return i
+}
+
+func createNested(path []string, dict map[string]interface{}, value interface{}) {
+	if len(path) > 1 {
+		newDict := make(map[string]interface{})
+		dict[path[0]] = newDict
+		createNested(path[1:], newDict, value)
+	}
+	dict[path[0]] = value
 }
 
 // NextSync returns the next key value that matches the iterators criteria

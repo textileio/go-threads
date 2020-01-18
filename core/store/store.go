@@ -79,7 +79,7 @@ type EventCodec interface {
 		events []Event,
 		datastore ds.TxnDatastore,
 		baseKey ds.Key,
-		indexFunc func(model string, key ds.Key, data []byte, txn ds.Txn) error,
+		indexFunc func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
 	) ([]ReduceAction, error)
 	// Create corresponding events to be dispatched
 	Create(ops []Action) ([]Event, format.Node, error)

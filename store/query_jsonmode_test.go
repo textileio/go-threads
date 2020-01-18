@@ -285,6 +285,22 @@ var (
 			query:   JSONWhere("Meta.Rating").Gt(&ratingMid).JSONOrderByDesc("Meta.TotalReads"),
 			ordered: true,
 		},
+		// Indexing
+		{
+			name:   "EqTitle1OrTitle3UseIndex",
+			resIdx: []int{0, 2},
+			query:  JSONWhere("Title").Eq(&title0).JSONOr(JSONWhere("Title").Eq(&title3)).UseIndex("Title"),
+		},
+		{
+			name:   "GeByTotalReadsMinUseIndex",
+			resIdx: []int{0, 1, 2, 3},
+			query:  JSONWhere("Meta.TotalReads").Ge(&totreadMin).UseIndex("Meta.TotalReads"),
+		},
+		{
+			name:   "InvalidIndex",
+			resIdx: []int{},
+			query:  JSONWhere("Meta.TotalReads").Ge(&totreadMin).UseIndex("Not.Valid.Path"),
+		},
 	}
 )
 
@@ -324,7 +340,7 @@ func TestQueryJsonMode(t *testing.T) {
 
 func createModelWithJSONData(t *testing.T) (*Model, func()) {
 	s, clean := createTestStore(t, WithJsonMode(true))
-	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema, []string{})
+	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema, []string{"Meta.TotalReads", "Title"})
 	checkErr(t, err)
 	for i := range jsonSampleData {
 		if err = m.Create(&jsonSampleData[i]); err != nil {

@@ -21,7 +21,6 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
-	"github.com/tidwall/gjson"
 )
 
 const (
@@ -252,10 +251,11 @@ func (s *Store) RegisterSchema(name string, schema string, indexes []string) (*M
 		}
 	}
 
+	m.schemaLoader.JsonReference()
+
 	for _, path := range indexes {
-		if res := gjson.Get(schema, "properties."+path); res.Exists() {
-			m.AddIndex(path, false)
-		}
+		// @todo: Should we check to make sure this field _can_ exist in the given schema?
+		m.AddIndex(path, false)
 	}
 
 	s.modelNames[name] = m
@@ -273,13 +273,13 @@ func (s *Store) Reduce(events []core.Event) error {
 		events,
 		s.datastore,
 		baseKey,
-		func(model string, key ds.Key, data []byte, txn ds.Txn) error {
+		func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
 			indexer := s.GetModel(model)
-			if err := indexDelete(indexer, txn, key, data); err != nil {
+			if err := indexDelete(indexer, txn, key, oldData); err != nil {
 				return err
 			}
-			if data != nil {
-				if err := indexAdd(indexer, txn, key, data); err != nil {
+			if newData != nil {
+				if err := indexAdd(indexer, txn, key, newData); err != nil {
 					return err
 				}
 			}
