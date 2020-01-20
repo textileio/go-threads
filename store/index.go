@@ -42,6 +42,12 @@ type Index struct {
 	Unique    bool
 }
 
+// IndexConfig stores the configuration for a given Index.
+type IndexConfig struct {
+	Path   string
+	Unique bool
+}
+
 // adds an item to the index
 func indexAdd(indexer Indexer, tx ds.Txn, key ds.Key, data []byte) error {
 	indexes := indexer.Indexes()
@@ -180,6 +186,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	var err error
 
 	// Key field or index not specified, pass thru to base 'iterator'
+	// @todo: Could probably just be a pass-thru to the Query.Results, rather than this slower iterator
 	if q.Index == "" {
 		dsq := query.Query{
 			Prefix:   baseKey.String(),

@@ -16,6 +16,11 @@ message RegisterSchemaRequest {
     string storeID = 1;
     string name = 2;
     string schema = 3;
+    message IndexConfig {
+        string path = 1;
+        bool unique = 2;
+    }
+    repeated IndexConfig indexes = 4;
 }
 
 message RegisterSchemaReply {}

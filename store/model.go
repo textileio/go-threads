@@ -81,7 +81,7 @@ func (m *Model) Indexes() map[string]Index {
 // See https://github.com/tidwall/gjson for documentation on the supported path structure.
 // @note: This does NOT currently build the index. If items have been added prior to adding
 // a new index, they will NOT be indexed a posteriori.
-func (m *Model) AddIndex(path string, unique bool) {
+func (m *Model) AddIndex(path string, unique bool) error {
 	m.indexes[path] = Index{
 		IndexFunc: func(field string, value []byte) (ds.Key, error) {
 			result := gjson.GetBytes(value, field)
@@ -92,6 +92,7 @@ func (m *Model) AddIndex(path string, unique bool) {
 		},
 		Unique: unique,
 	}
+	return nil
 }
 
 // ReadTxn creates an explicit readonly transaction. Any operation

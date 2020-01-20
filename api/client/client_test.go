@@ -79,7 +79,7 @@ func TestNewStore(t *testing.T) {
 func TestRegisterSchema(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestRegisterSchema(t *testing.T) {
 func TestStart(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	if err != nil {
@@ -99,7 +99,7 @@ func TestStart(t *testing.T) {
 func TestStartFromAddress(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 
 	// TODO: figure out how to test this
@@ -109,7 +109,7 @@ func TestStartFromAddress(t *testing.T) {
 func TestModelCreate(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -136,7 +136,7 @@ func TestGetStoreLink(t *testing.T) {
 func TestModelSave(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -156,7 +156,7 @@ func TestModelSave(t *testing.T) {
 func TestModelDelete(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -175,7 +175,7 @@ func TestModelDelete(t *testing.T) {
 func TestModelHas(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -197,7 +197,7 @@ func TestModelHas(t *testing.T) {
 func TestModelFind(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -225,7 +225,7 @@ func TestModelFind(t *testing.T) {
 func TestModelFindByID(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -248,7 +248,7 @@ func TestModelFindByID(t *testing.T) {
 func TestReadTransaction(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -307,7 +307,7 @@ func TestReadTransaction(t *testing.T) {
 func TestWriteTransaction(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)
@@ -387,7 +387,7 @@ func TestWriteTransaction(t *testing.T) {
 func TestListen(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
-	err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, nil)
 	checkErr(t, err)
 	err = client.Start(context.Background(), storeID)
 	checkErr(t, err)

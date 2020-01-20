@@ -67,6 +67,21 @@ type Store struct {
 	stateChangedNotifee *stateChangedNotifee
 }
 
+func defaultIndexFunc(s *Store) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+	return func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+		indexer := s.GetModel(model)
+		if err := indexDelete(indexer, txn, key, oldData); err != nil {
+			return err
+		}
+		if newData != nil {
+			if err := indexAdd(indexer, txn, key, newData); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
 func NewStore(ts service.Service, opts ...Option) (*Store, error) {
@@ -135,9 +150,25 @@ func (s *Store) reregisterSchemas() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-		if _, err = s.RegisterSchema(name, string(res.Value), []string{}); err != nil {
+		m, err := s.RegisterSchema(name, string(res.Value), nil)
+		if err != nil {
 			return err
 		}
+		indexes, err := s.datastore.Query(query.Query{
+			Prefix:   indexPrefix.Child(m.BaseKey()).String(),
+			KeysOnly: true,
+		})
+		if err != nil {
+			return err
+		}
+		defer indexes.Close()
+		for index := range indexes.Next() {
+			path := ds.RawKey(index.Key).Name()
+			if err := m.AddIndex(path, false); err != nil { // @todo: Enable unique constraint
+				return err
+			}
+		}
+		indexes.Close()
 	}
 	return nil
 }
@@ -231,7 +262,7 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 }
 
 // RegisterSchema a new model in the store with a JSON schema.
-func (s *Store) RegisterSchema(name string, schema string, indexes []string) (*Model, error) {
+func (s *Store) RegisterSchema(name string, schema string, indexes []*IndexConfig) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -253,9 +284,9 @@ func (s *Store) RegisterSchema(name string, schema string, indexes []string) (*M
 
 	m.schemaLoader.JsonReference()
 
-	for _, path := range indexes {
-		// @todo: Should we check to make sure this field _can_ exist in the given schema?
-		m.AddIndex(path, false)
+	for _, config := range indexes {
+		// @todo: Should check to make sure this is a valid field path for this schema
+		m.AddIndex(config.Path, config.Unique)
 	}
 
 	s.modelNames[name] = m
@@ -273,18 +304,7 @@ func (s *Store) Reduce(events []core.Event) error {
 		events,
 		s.datastore,
 		baseKey,
-		func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-			indexer := s.GetModel(model)
-			if err := indexDelete(indexer, txn, key, oldData); err != nil {
-				return err
-			}
-			if newData != nil {
-				if err := indexAdd(indexer, txn, key, newData); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
+		defaultIndexFunc(s),
 	)
 	if err != nil {
 		return err
