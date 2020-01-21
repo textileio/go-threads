@@ -1,7 +1,6 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
@@ -201,29 +200,24 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 	iter := newIterator(txn, t.model.BaseKey(), q)
 	defer iter.Close()
 
-	var values []marshaledValue
+	var values []MarshaledResult
 	for {
 		res, ok := iter.NextSync()
 		if !ok {
 			break
 		}
-		// @fixme: This is the second time we unmarshal here, fix that!
-		val := make(map[string]interface{})
-		if err := json.Unmarshal(res.Value, &val); err != nil {
-			return nil, fmt.Errorf("error when unmarshaling query result: %v", err)
-		}
-		values = append(values, marshaledValue{value: val, rawJSON: res.Value})
+		values = append(values, res)
 	}
 
 	if q.Sort.FieldPath != "" {
 		var wrongField, cantCompare bool
 		sort.Slice(values, func(i, j int) bool {
-			fieldI, err := traverseFieldPathMap(values[i].value, q.Sort.FieldPath)
+			fieldI, err := traverseFieldPathMap(values[i].MarshaledValue, q.Sort.FieldPath)
 			if err != nil {
 				wrongField = true
 				return false
 			}
-			fieldJ, err := traverseFieldPathMap(values[j].value, q.Sort.FieldPath)
+			fieldJ, err := traverseFieldPathMap(values[j].MarshaledValue, q.Sort.FieldPath)
 			if err != nil {
 				wrongField = true
 				return false
@@ -248,7 +242,7 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 
 	res := make([]string, len(values))
 	for i := range values {
-		res[i] = string(values[i].rawJSON)
+		res[i] = string(values[i].Value)
 	}
 
 	return res, nil

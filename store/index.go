@@ -169,19 +169,9 @@ func (v *keyList) in(key ds.Key) bool {
 	return (i < len(*v) && bytes.Equal((*v)[i], b))
 }
 
-// FilterQuery provides a Query Filter function for querying JSON data
-type FilterQuery struct {
-	query *JSONQuery
-}
-
-// Filter is the primary Filter function
-func (f FilterQuery) Filter(e query.Entry) bool {
-	val := make(map[string]interface{})
-	if err := json.Unmarshal(e.Value, &val); err != nil {
-		return false
-	}
-	ok, err := f.query.matchJSON(val)
-	return ok && err == nil
+type MarshaledResult struct {
+	query.Result
+	MarshaledValue map[string]interface{}
 }
 
 type iterator struct {
@@ -202,11 +192,6 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	if q.Index == "" {
 		dsq := query.Query{
 			Prefix: baseKey.String(),
-			Filters: []query.Filter{
-				FilterQuery{
-					query: q,
-				},
-			},
 		}
 		i.iter, i.err = txn.Query(dsq)
 		i.nextKeys = func() ([]ds.Key, error) {
@@ -272,23 +257,45 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 
 // NextSync returns the next key value that matches the iterators criteria
 // If there is an error, ok is false and result.Error() will return the error
-func (i *iterator) NextSync() (result query.Result, ok bool) {
+func (i *iterator) NextSync() (MarshaledResult, bool) {
 	if i.query.Index == "" {
-		return i.iter.NextSync()
+		value := MarshaledResult{}
+		var ok bool
+		for res := range i.iter.Next() {
+			val := make(map[string]interface{})
+			if value.Error = json.Unmarshal(res.Value, &val); value.Error != nil {
+				break
+			}
+			ok, value.Error = i.query.matchJSON(val)
+			if value.Error != nil {
+				break
+			}
+			if ok {
+				return MarshaledResult{
+					Result:         res,
+					MarshaledValue: val,
+				}, true
+			}
+		}
+		return value, ok
 	}
 	if len(i.keyCache) == 0 {
 		newKeys, err := i.nextKeys()
 		if err != nil {
-			return query.Result{
-				Entry: query.Entry{},
-				Error: err,
+			return MarshaledResult{
+				Result: query.Result{
+					Entry: query.Entry{},
+					Error: err,
+				},
 			}, false
 		}
 
 		if len(newKeys) == 0 {
-			return query.Result{
-				Entry: query.Entry{},
-				Error: nil,
+			return MarshaledResult{
+				Result: query.Result{
+					Entry: query.Entry{},
+					Error: nil,
+				},
 			}, false
 		}
 
@@ -300,18 +307,20 @@ func (i *iterator) NextSync() (result query.Result, ok bool) {
 
 	value, err := i.txn.Get(key)
 	if err != nil {
-		return query.Result{
-			Entry: query.Entry{},
-			Error: err,
-		}, false
+		return MarshaledResult{
+			Result: query.Result{
+				Entry: query.Entry{},
+				Error: err,
+			}}, false
 	}
-	return query.Result{
-		Entry: query.Entry{
-			Key:   key.String(),
-			Value: value,
-		},
-		Error: nil,
-	}, true
+	return MarshaledResult{
+		Result: query.Result{
+			Entry: query.Entry{
+				Key:   key.String(),
+				Value: value,
+			},
+			Error: nil,
+		}}, true
 }
 
 func (i *iterator) Close() {

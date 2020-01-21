@@ -79,6 +79,7 @@ func (m *Model) Indexes() map[string]Index {
 // AddIndex creates a new index based on the given path string.
 // Set unique to true if you want a unique constraint on the given path.
 // See https://github.com/tidwall/gjson for documentation on the supported path structure.
+// Adding an index will override any overlapping index values if they already exist.
 // @note: This does NOT currently build the index. If items have been added prior to adding
 // a new index, they will NOT be indexed a posteriori.
 func (m *Model) AddIndex(path string, unique bool) error {
