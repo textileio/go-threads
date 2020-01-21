@@ -44,8 +44,8 @@ type Index struct {
 
 // IndexConfig stores the configuration for a given Index.
 type IndexConfig struct {
-	Path   string
-	Unique bool
+	Path   string `json:"path"`
+	Unique bool   `json:"unique,omitempty"`
 }
 
 // adds an item to the index
