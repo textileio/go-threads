@@ -43,7 +43,14 @@ func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaReques
 	if err != nil {
 		return nil, err
 	}
-	if _, err = st.RegisterSchema(req.Name, req.Schema); err != nil {
+	indexes := make([]*store.IndexConfig, len(req.Indexes))
+	for i, index := range req.Indexes {
+		indexes[i] = &store.IndexConfig{
+			Path:   index.Path,
+			Unique: index.Unique,
+		}
+	}
+	if _, err = st.RegisterSchema(req.Name, req.Schema, indexes...); err != nil {
 		return nil, err
 	}
 

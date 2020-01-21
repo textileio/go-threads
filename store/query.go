@@ -61,7 +61,7 @@ func (q *Query) And(field string) *Criterion {
 }
 
 // Or concatenates a new condition that is sufficient
-// for an instance to satisfy, independant of the current Query.
+// for an instance to satisfy, independent of the current Query.
 // Has left-associativity as: (a And b) Or c
 func (q *Query) Or(orQuery *Query) *Query {
 	q.ors = append(q.ors, orQuery)

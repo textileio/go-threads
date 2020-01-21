@@ -10,6 +10,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/store"
+	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -38,6 +39,7 @@ type Model struct {
 	schemaLoader gojsonschema.JSONLoader
 	valueType    reflect.Type
 	store        *Store
+	indexes      map[string]Index
 }
 
 func newModel(name string, defaultInstance interface{}, s *Store) *Model {
@@ -48,6 +50,7 @@ func newModel(name string, defaultInstance interface{}, s *Store) *Model {
 		schemaLoader: schemaLoader,
 		valueType:    reflect.TypeOf(defaultInstance),
 		store:        s,
+		indexes:      make(map[string]Index),
 	}
 	return m
 }
@@ -59,8 +62,38 @@ func newModelFromSchema(name string, schema string, s *Store) *Model {
 		schemaLoader: schemaLoader,
 		valueType:    nil,
 		store:        s,
+		indexes:      make(map[string]Index),
 	}
 	return m
+}
+
+func (m *Model) BaseKey() ds.Key {
+	return baseKey.ChildString(m.name)
+}
+
+// Indexes is a map of model properties to Indexes
+func (m *Model) Indexes() map[string]Index {
+	return m.indexes
+}
+
+// AddIndex creates a new index based on the given path string.
+// Set unique to true if you want a unique constraint on the given path.
+// See https://github.com/tidwall/gjson for documentation on the supported path structure.
+// Adding an index will override any overlapping index values if they already exist.
+// @note: This does NOT currently build the index. If items have been added prior to adding
+// a new index, they will NOT be indexed a posteriori.
+func (m *Model) AddIndex(path string, unique bool) error {
+	m.indexes[path] = Index{
+		IndexFunc: func(field string, value []byte) (ds.Key, error) {
+			result := gjson.GetBytes(value, field)
+			if !result.Exists() {
+				return ds.Key{}, ErrNotIndexable
+			}
+			return ds.NewKey(result.String()), nil
+		},
+		Unique: unique,
+	}
+	return nil
 }
 
 // ReadTxn creates an explicit readonly transaction. Any operation
@@ -148,6 +181,9 @@ func (m *Model) validInstance(v interface{}) (bool, error) {
 	return r.Valid(), nil
 }
 
+// Sanity check
+var _ Indexer = (*Model)(nil)
+
 // Txn represents a read/write transaction in the Store. It allows for
 // serializable isolation level within the store.
 type Txn struct {
@@ -160,6 +196,8 @@ type Txn struct {
 }
 
 // Create creates new instances in the model
+// If the ID value on the instance is nil or otherwise a null value (e.g., "" in jsonMode),
+// the ID is updated in-place to reflect the automatically-genereted UUID.
 func (t *Txn) Create(new ...interface{}) error {
 	for i := range new {
 		if t.readonly {

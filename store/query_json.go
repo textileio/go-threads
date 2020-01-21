@@ -1,20 +1,18 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
 	"strings"
-
-	dsquery "github.com/ipfs/go-datastore/query"
 )
 
 // JSONQuery is a json-seriable query representation
 type JSONQuery struct {
-	Ands []*JSONCriterion
-	Ors  []*JSONQuery
-	Sort JSONSort
+	Ands  []*JSONCriterion
+	Ors   []*JSONQuery
+	Sort  JSONSort
+	Index string
 }
 
 // JSONCriterion represents a restriction on a field
@@ -90,6 +88,12 @@ func (q *JSONQuery) JSONAnd(field string) *JSONCriterion {
 		FieldPath: field,
 		query:     q,
 	}
+}
+
+// UseIndex specifies the index to use when running this query
+func (q *JSONQuery) UseIndex(path string) *JSONQuery {
+	q.Index = path
+	return q
 }
 
 // JSONOr concatenates a new condition that is sufficient
@@ -188,42 +192,32 @@ func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JS
 
 // FindJSON queries for entities by JSONQuery
 func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
-	dsq := dsquery.Query{
-		Prefix: baseKey.ChildString(t.model.name).String(),
-	}
-	dsr, err := t.model.store.datastore.Query(dsq)
+	txn, err := t.model.store.datastore.NewTransaction(true)
 	if err != nil {
-		return nil, fmt.Errorf("error when internal query: %v", err)
+		return nil, fmt.Errorf("error building internal query: %v", err)
 	}
+	defer txn.Discard()
+	iter := newIterator(txn, t.model.BaseKey(), q)
+	defer iter.Close()
 
-	var values []marshaledValue
+	var values []MarshaledResult
 	for {
-		res, ok := dsr.NextSync()
+		res, ok := iter.NextSync()
 		if !ok {
 			break
 		}
-		val := make(map[string]interface{})
-		if err := json.Unmarshal(res.Value, &val); err != nil {
-			return nil, fmt.Errorf("error when unmarshaling query result: %v", err)
-		}
-		ok, err = q.matchJSON(val)
-		if err != nil {
-			return nil, fmt.Errorf("error when matching entry with query: %v", err)
-		}
-		if ok {
-			values = append(values, marshaledValue{value: val, rawJSON: res.Value})
-		}
+		values = append(values, res)
 	}
 
 	if q.Sort.FieldPath != "" {
 		var wrongField, cantCompare bool
 		sort.Slice(values, func(i, j int) bool {
-			fieldI, err := traverseFieldPathMap(values[i].value, q.Sort.FieldPath)
+			fieldI, err := traverseFieldPathMap(values[i].MarshaledValue, q.Sort.FieldPath)
 			if err != nil {
 				wrongField = true
 				return false
 			}
-			fieldJ, err := traverseFieldPathMap(values[j].value, q.Sort.FieldPath)
+			fieldJ, err := traverseFieldPathMap(values[j].MarshaledValue, q.Sort.FieldPath)
 			if err != nil {
 				wrongField = true
 				return false
@@ -248,7 +242,7 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 
 	res := make([]string, len(values))
 	for i := range values {
-		res[i] = string(values[i].rawJSON)
+		res[i] = string(values[i].Value)
 	}
 
 	return res, nil

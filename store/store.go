@@ -3,6 +3,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -40,6 +41,7 @@ var (
 	dsStorePrefix   = ds.NewKey("/store")
 	dsStoreThreadID = dsStorePrefix.ChildString("threadid")
 	dsStoreSchemas  = dsStorePrefix.ChildString("schema")
+	dsStoreIndexes  = dsStorePrefix.ChildString("index")
 )
 
 // Store is the aggregate-root of events and state. External/remote events
@@ -65,6 +67,21 @@ type Store struct {
 
 	localEventsBus      *localEventsBus
 	stateChangedNotifee *stateChangedNotifee
+}
+
+func defaultIndexFunc(s *Store) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+	return func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+		indexer := s.GetModel(model)
+		if err := indexDelete(indexer, txn, key, oldData); err != nil {
+			return err
+		}
+		if newData != nil {
+			if err := indexAdd(indexer, txn, key, newData); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
@@ -135,7 +152,12 @@ func (s *Store) reregisterSchemas() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-		if _, err = s.RegisterSchema(name, string(res.Value)); err != nil {
+		index, err := s.datastore.Get(dsStoreIndexes.ChildString(name))
+		var indexes []*IndexConfig
+		if err == nil && index != nil {
+			json.Unmarshal(index, &indexes)
+		}
+		if _, err := s.RegisterSchema(name, string(res.Value), indexes...); err != nil {
 			return err
 		}
 	}
@@ -242,8 +264,8 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	return m, nil
 }
 
-// Register a new model in the store with a JSON schema.
-func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
+// RegisterSchema a new model in the store with a JSON schema.
+func (s *Store) RegisterSchema(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -262,6 +284,27 @@ func (s *Store) RegisterSchema(name string, schema string) (*Model, error) {
 			return nil, err
 		}
 	}
+
+	for _, config := range indexes {
+		// @todo: Should check to make sure this is a valid field path for this schema
+		m.AddIndex(config.Path, config.Unique)
+	}
+
+	indexBytes, err := json.Marshal(indexes)
+	if err != nil {
+		return nil, err
+	}
+	indexKey := dsStoreIndexes.ChildString(name)
+	exists, err = s.datastore.Has(indexKey)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		if err := s.datastore.Put(indexKey, indexBytes); err != nil {
+			return nil, err
+		}
+	}
+
 	s.modelNames[name] = m
 	return m, nil
 }
@@ -273,7 +316,12 @@ func (s *Store) GetModel(name string) *Model {
 
 // Reduce processes txn events into the models.
 func (s *Store) Reduce(events []core.Event) error {
-	codecActions, err := s.eventcodec.Reduce(events, s.datastore, baseKey)
+	codecActions, err := s.eventcodec.Reduce(
+		events,
+		s.datastore,
+		baseKey,
+		defaultIndexFunc(s),
+	)
 	if err != nil {
 		return err
 	}

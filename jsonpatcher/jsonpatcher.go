@@ -91,7 +91,12 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 	return events, n, nil
 }
 
-func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key) ([]core.ReduceAction, error) {
+func (jp *jsonPatcher) Reduce(
+	events []core.Event,
+	datastore ds.TxnDatastore,
+	baseKey ds.Key,
+	indexFunc func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
+) ([]core.ReduceAction, error) {
 	txn, err := datastore.NewTransaction(false)
 	if err != nil {
 		return nil, err
@@ -117,6 +122,9 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 			if err := txn.Put(key, je.Patch.JSONPatch); err != nil {
 				return nil, fmt.Errorf("error when reducing create event: %v", err)
 			}
+			if err := indexFunc(e.Model(), key, nil, je.Patch.JSONPatch, txn); err != nil {
+				return nil, fmt.Errorf("error when indexing created data: %v", err)
+			}
 			actions[i] = core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
 			log.Debug("\tcreate operation applied")
 		case save:
@@ -134,11 +142,21 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 			if err = txn.Put(key, patchedValue); err != nil {
 				return nil, err
 			}
+			if err := indexFunc(e.Model(), key, value, patchedValue, txn); err != nil {
+				return nil, fmt.Errorf("error when indexing created data: %v", err)
+			}
 			actions[i] = core.ReduceAction{Type: core.Save, Model: e.Model(), EntityID: e.EntityID()}
 			log.Debug("\tsave operation applied")
 		case delete:
+			value, err := txn.Get(key)
+			if err != nil {
+				return nil, err
+			}
 			if err := txn.Delete(key); err != nil {
 				return nil, err
+			}
+			if err := indexFunc(e.Model(), key, value, nil, txn); err != nil {
+				return nil, fmt.Errorf("error when removing index: %v", err)
 			}
 			actions[i] = core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
 			log.Debug("\tdelete operation applied")
