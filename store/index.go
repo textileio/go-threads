@@ -189,8 +189,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	// @todo: Could probably just be a pass-thru to the Query.Results, rather than this slower iterator
 	if q.Index == "" {
 		dsq := query.Query{
-			Prefix:   baseKey.String(),
-			KeysOnly: true,
+			Prefix: baseKey.String(),
 		}
 		i.iter, err = txn.Query(dsq)
 		if err != nil {
@@ -205,7 +204,17 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 				if !ok {
 					return nKeys, result.Error
 				}
-				nKeys = append(nKeys, ds.NewKey(result.Key))
+				val := make(map[string]interface{})
+				if err := json.Unmarshal(result.Value, &val); err != nil {
+					return nKeys, fmt.Errorf("error when unmarshaling query result: %v", err)
+				}
+				ok, err := q.matchJSON(val)
+				if err != nil {
+					return nKeys, fmt.Errorf("error when matching entry with query: %v", err)
+				}
+				if ok {
+					nKeys = append(nKeys, ds.RawKey(result.Key))
+				}
 			}
 			return nKeys, nil
 		}
@@ -232,7 +241,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 			}
 			first = false
 			// result.Key contains the indexed value, extra here first
-			key := ds.NewKey(result.Key)
+			key := ds.RawKey(result.Key)
 			base := key.Type()
 			name := key.Name()
 			val := gjson.Parse(name).Value()
@@ -258,7 +267,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 					return nil, err
 				}
 				for _, v := range indexValue {
-					nKeys = append(nKeys, ds.NewKey(string(v)))
+					nKeys = append(nKeys, ds.RawKey(string(v)))
 				}
 			}
 		}

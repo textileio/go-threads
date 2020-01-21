@@ -195,6 +195,8 @@ type Txn struct {
 }
 
 // Create creates new instances in the model
+// If the ID value on the instance is nil or otherwise a null value (e.g., "" in jsonMode),
+// the ID is updated in-place to reflect the automatically-genereted UUID.
 func (t *Txn) Create(new ...interface{}) error {
 	for i := range new {
 		if t.readonly {

@@ -197,7 +197,9 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error building internal query: %v", err)
 	}
+	defer txn.Discard()
 	iter := newIterator(txn, t.model.BaseKey(), q)
+	defer iter.Close()
 
 	var values []marshaledValue
 	for {
@@ -205,17 +207,12 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 		if !ok {
 			break
 		}
+		// @fixme: This is the second time we unmarshal here, fix that!
 		val := make(map[string]interface{})
 		if err := json.Unmarshal(res.Value, &val); err != nil {
 			return nil, fmt.Errorf("error when unmarshaling query result: %v", err)
 		}
-		ok, err := q.matchJSON(val)
-		if err != nil {
-			return nil, fmt.Errorf("error when matching entry with query: %v", err)
-		}
-		if ok {
-			values = append(values, marshaledValue{value: val, rawJSON: res.Value})
-		}
+		values = append(values, marshaledValue{value: val, rawJSON: res.Value})
 	}
 
 	if q.Sort.FieldPath != "" {

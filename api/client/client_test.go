@@ -222,6 +222,45 @@ func TestModelFind(t *testing.T) {
 	}
 }
 
+func TestModelFindWithIndex(t *testing.T) {
+	storeID, err := client.NewStore(context.Background())
+	checkErr(t, err)
+	err = client.RegisterSchema(context.Background(), storeID, modelName, schema, []*store.IndexConfig{
+		&store.IndexConfig{
+			Path:   "lastName",
+			Unique: true,
+		},
+	})
+	checkErr(t, err)
+	err = client.Start(context.Background(), storeID)
+	checkErr(t, err)
+
+	person := createPerson()
+
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
+	checkErr(t, err)
+
+	q := store.JSONWhere("lastName").Eq(person.LastName).UseIndex("lastName")
+
+	rawResults, err := client.ModelFind(context.Background(), storeID, modelName, q, []*Person{})
+	if err != nil {
+		t.Fatalf("failed to find: %v", err)
+	}
+	results := rawResults.([]*Person)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, but got %v", len(results))
+	}
+	if !reflect.DeepEqual(results[0], person) {
+		t.Fatal("model found by query does't equal the original")
+	}
+
+	person.ID = ""
+	err = client.ModelCreate(context.Background(), storeID, modelName, person)
+	if err == nil {
+		t.Fatal("expected non-unique value to throw error")
+	}
+}
+
 func TestModelFindByID(t *testing.T) {
 	storeID, err := client.NewStore(context.Background())
 	checkErr(t, err)
