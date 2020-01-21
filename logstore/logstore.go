@@ -110,9 +110,13 @@ func (ts *logstore) ThreadInfo(id thread.ID) (info thread.Info, err error) {
 		set[l] = struct{}{}
 	}
 
-	ids := make(peer.IDSlice, 0, len(set))
+	logs := make([]thread.LogInfo, 0, len(set))
 	for l := range set {
-		ids = append(ids, l)
+		i, err := ts.LogInfo(id, l)
+		if err != nil {
+			return info, err
+		}
+		logs = append(logs, i)
 	}
 
 	fk, err := ts.FollowKey(id)
@@ -126,7 +130,7 @@ func (ts *logstore) ThreadInfo(id thread.ID) (info thread.Info, err error) {
 
 	return thread.Info{
 		ID:        id,
-		Logs:      ids,
+		Logs:      logs,
 		FollowKey: fk,
 		ReadKey:   rk,
 	}, nil

@@ -51,12 +51,14 @@ COPY --from=0 /lib/x86_64-linux-gnu/libdl.so.2 /lib/libdl.so.2
 
 # hostAddr; should be exposed to the public
 EXPOSE 4006
-# hostProxyAddr; should be exposed to the public
+# serviceApiAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
 EXPOSE 5006
-# apiAddr; should be exposed to the public
+# serviceApiProxyAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
+EXPOSE 5007
+# apiAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
 EXPOSE 6006
-# apiProxyAddr; should be exposed to the public
-EXPOSE 7006
+# apiProxyAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
+EXPOSE 6007
 
 # Create the repo directory and switch to a non-privileged user.
 ENV THREADS_PATH /data/threads
@@ -73,4 +75,4 @@ VOLUME $THREADS_PATH
 
 ENTRYPOINT ["/sbin/tini", "--", "threadsd"]
 
-CMD ["--repo=/data/threads", "--apiAddr=/ip4/0.0.0.0/tcp/6006", "--apiProxyAddr=/ip4/0.0.0.0/tcp/7006"]
+CMD ["--repo=/data/threads", "--serviceApiAddr=/ip4/0.0.0.0/tcp/5006", "--serviceApiProxyAddr=/ip4/0.0.0.0/tcp/5007", "--apiAddr=/ip4/0.0.0.0/tcp/6006", "--apiProxyAddr=/ip4/0.0.0.0/tcp/6007"]

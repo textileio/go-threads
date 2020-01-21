@@ -31,8 +31,13 @@ type eventHeader struct {
 	Key  []byte `refmt:",omitempty"`
 }
 
-// NewEvent create a new event by wrapping the body node.
-func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (service.Event, error) {
+// CreateEvent create a new event by wrapping the body node.
+func CreateEvent(
+	ctx context.Context,
+	dag format.DAGService,
+	body format.Node,
+	rkey crypto.EncryptionKey,
+) (service.Event, error) {
 	key, err := symmetric.CreateKey()
 	if err != nil {
 		return nil, err
@@ -66,9 +71,10 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey
 		return nil, err
 	}
 
-	err = dag.AddMany(ctx, []format.Node{node, codedHeader, codedBody})
-	if err != nil {
-		return nil, err
+	if dag != nil {
+		if err = dag.AddMany(ctx, []format.Node{node, codedHeader, codedBody}); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Event{
@@ -78,6 +84,7 @@ func NewEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey
 			Node: codedHeader,
 			obj:  eventHeader,
 		},
+		body: codedBody,
 	}, nil
 }
 
@@ -93,8 +100,7 @@ func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (service.E
 // EventFromNode decodes the given node into an event.
 func EventFromNode(node format.Node) (*Event, error) {
 	obj := new(event)
-	err := cbornode.DecodeInto(node.RawData(), obj)
-	if err != nil {
+	if err := cbornode.DecodeInto(node.RawData(), obj); err != nil {
 		return nil, err
 	}
 	return &Event{
@@ -132,7 +138,11 @@ func (e *Event) HeaderID() cid.Cid {
 }
 
 // GetHeader returns the header node.
-func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (service.EventHeader, error) {
+func (e *Event) GetHeader(
+	ctx context.Context,
+	dag format.DAGService,
+	key crypto.DecryptionKey,
+) (service.EventHeader, error) {
 	if e.header == nil {
 		coded, err := dag.Get(ctx, e.obj.Header)
 		if err != nil {
@@ -153,8 +163,7 @@ func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto
 		if err != nil {
 			return nil, err
 		}
-		err = cbornode.DecodeInto(node.RawData(), header)
-		if err != nil {
+		if err = cbornode.DecodeInto(node.RawData(), header); err != nil {
 			return nil, err
 		}
 		e.header.obj = header

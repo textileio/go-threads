@@ -13,9 +13,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto"
 	pb "github.com/textileio/go-threads/service/pb"
 	"google.golang.org/grpc/codes"
 )
@@ -58,7 +56,7 @@ func newServer(t *service) (*server, error) {
 
 // GetLogs receives a get logs request.
 // @todo: Verification
-func (s *server) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
+func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
@@ -70,17 +68,17 @@ func (s *server) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLo
 		return pblgs, err
 	}
 
-	lgs, err := s.threads.getLogs(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	pblgs.Logs = make([]*pb.Log, len(lgs))
-	for i, l := range lgs {
+	pblgs.Logs = make([]*pb.Log, len(info.Logs))
+	for i, l := range info.Logs {
 		pblgs.Logs[i] = logToProto(l)
 	}
 
-	log.Debugf("sending %d logs to %s", len(lgs), req.Header.From.ID.String())
+	log.Debugf("sending %d logs to %s", len(info.Logs), req.Header.From.ID.String())
 
 	return pblgs, nil
 }
@@ -88,7 +86,7 @@ func (s *server) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLo
 // PushLog receives a push log request.
 // @todo: Verification
 // @todo: Don't overwrite info from non-owners
-func (s *server) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
+func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
@@ -149,28 +147,24 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	if err != nil {
 		return nil, err
 	}
-	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, info.Logs.Len())
+	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, len(info.Logs))
 
-	for i, lid := range info.Logs {
+	for i, lg := range info.Logs {
 		var offset cid.Cid
 		var limit int
 		var pblg *pb.Log
-		if opts, ok := reqd[lid]; ok {
+		if opts, ok := reqd[lg.ID]; ok {
 			offset = opts.Offset.Cid
 			limit = int(opts.Limit)
 		} else {
 			offset = cid.Undef
 			limit = MaxPullLimit
-			lg, err := s.threads.store.LogInfo(req.ThreadID.ID, lid)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
 			pblg = logToProto(lg)
 		}
 		recs, err := s.threads.getLocalRecords(
 			ctx,
 			req.ThreadID.ID,
-			lid,
+			lg.ID,
 			offset,
 			limit)
 		if err != nil {
@@ -178,7 +172,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 
 		entry := &pb.GetRecordsReply_LogEntry{
-			LogID:   &pb.ProtoPeerID{ID: lid},
+			LogID:   &pb.ProtoPeerID{ID: lg.ID},
 			Records: make([]*pb.Log_Record, len(recs)),
 			Log:     pblg,
 		}
@@ -190,7 +184,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 		pbrecs.Logs[i] = entry
 
-		log.Debugf("sending %d records in log %s to %s", len(recs), lid.String(), req.Header.From.ID.String())
+		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID.String(), req.Header.From.ID.String())
 	}
 
 	return pbrecs, nil
@@ -226,7 +220,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	rec, err := recordFromProto(req.Record, key)
+	rec, err := cbor.RecordFromProto(req.Record, key)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -344,11 +338,6 @@ func verifyRequestSignature(rec *pb.Log_Record, pk ic.PubKey, sig []byte) error 
 		return fmt.Errorf("bad signature")
 	}
 	return nil
-}
-
-// recordFromProto returns a thread record from a proto record.
-func recordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (core.Record, error) {
-	return cbor.RecordFromProto(rec, key)
 }
 
 // logToProto returns a proto log from a thread log.

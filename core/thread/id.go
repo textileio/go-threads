@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ipfs/go-cid"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
@@ -38,12 +38,6 @@ const (
 	Raw              = 0x55
 	AccessControlled = 0x70 // Supports access control lists
 )
-
-// Variants maps the name of a variant to its variant.
-var Variants = map[string]uint64{
-	"raw":     Raw,
-	"textile": AccessControlled,
-}
 
 // VariantToStr maps the numeric variant to its name.
 var VariantToStr = map[uint64]string{
@@ -285,16 +279,26 @@ func (s IDSlice) Less(i, j int) bool { return s[i].str < s[j].str }
 // Info holds thread logs and keys.
 type Info struct {
 	ID        ID
-	Logs      peer.IDSlice
+	Logs      []LogInfo
 	FollowKey *sym.Key
 	ReadKey   *sym.Key
+}
+
+// GetOwnLog returns the first log found with a private key.
+func (i Info) GetOwnLog() *LogInfo {
+	for _, lg := range i.Logs {
+		if lg.PrivKey != nil {
+			return &lg
+		}
+	}
+	return nil
 }
 
 // LogInfo holds log keys, addresses, and heads.
 type LogInfo struct {
 	ID      peer.ID
-	PubKey  ic.PubKey
-	PrivKey ic.PrivKey
+	PubKey  crypto.PubKey
+	PrivKey crypto.PrivKey
 	Addrs   []ma.Multiaddr
 	Heads   []cid.Cid
 }

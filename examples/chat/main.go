@@ -29,6 +29,7 @@ import (
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
+	serviceapi "github.com/textileio/go-threads/service/api"
 	store "github.com/textileio/go-threads/store"
 	util "github.com/textileio/go-threads/util"
 )
@@ -72,9 +73,10 @@ func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
 func main() {
 	repo := flag.String("repo", ".threads", "repo location")
 	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
-	hostProxyAddrStr := flag.String("hostProxyAddr", "/ip4/0.0.0.0/tcp/5006", "Threads gRPC proxy bind address")
+	serviceApiAddrStr := flag.String("serviceApiAddr", "/ip4/127.0.0.1/tcp/5006", "Threads service API bind address")
+	serviceApiProxyAddrStr := flag.String("serviceApiProxyAddr", "/ip4/127.0.0.1/tcp/5007", "Threads service API gRPC proxy bind address")
 	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
-	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/7006", "API gRPC proxy bind address")
+	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "API gRPC proxy bind address")
 	debug := flag.Bool("debug", false, "Enable debug logging")
 	flag.Parse()
 
@@ -82,7 +84,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	hostProxyAddr, err := ma.NewMultiaddr(*hostProxyAddrStr)
+	serviceApiAddr, err := ma.NewMultiaddr(*serviceApiAddrStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	serviceApiProxyAddr, err := ma.NewMultiaddr(*serviceApiProxyAddrStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,7 +120,6 @@ func main() {
 	ts, err = store.DefaultService(
 		*repo,
 		store.WithServiceHostAddr(hostAddr),
-		store.WithServiceHostProxyAddr(hostProxyAddr),
 		store.WithServiceDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
@@ -133,6 +138,16 @@ func main() {
 	}
 	defer server.Close()
 
+	serviceServer, err := serviceapi.NewServer(context.Background(), ts, serviceapi.Config{
+		Addr:      serviceApiAddr,
+		ProxyAddr: serviceApiProxyAddr,
+		Debug:     *debug,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer serviceServer.Close()
+
 	// Build a MDNS service
 	ctx = context.Background()
 	mdns, err := discovery.NewMdnsService(ctx, ts.Host(), time.Second, "")
@@ -146,20 +161,23 @@ func main() {
 	fmt.Println(grey("Welcome to Threads!"))
 	fmt.Println(grey("Your peer ID is ") + green(ts.Host().ID().String()))
 
-	sub := ts.Subscribe()
+	sub, err := ts.Subscribe(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 	go func() {
-		for rec := range sub.Channel() {
+		for rec := range sub {
 			name, err := threadName(rec.ThreadID().String())
 			if err != nil {
 				logError(err)
 				continue
 			}
-			key, err := ts.Store().ReadKey(rec.ThreadID())
+			info, err := ts.GetThread(context.Background(), rec.ThreadID())
 			if err != nil {
 				logError(err)
 				continue
 			}
-			if key == nil {
+			if info.ReadKey == nil {
 				continue // just following, we don't have the read key
 			}
 			event, err := cbor.EventFromRecord(ctx, ts, rec.Value())
@@ -167,7 +185,7 @@ func main() {
 				logError(err)
 				continue
 			}
-			node, err := event.GetBody(ctx, ts, key)
+			node, err := event.GetBody(ctx, ts, info.ReadKey)
 			if err != nil {
 				continue // Not for us
 			}
@@ -176,7 +194,7 @@ func main() {
 			if err != nil {
 				continue // Not one of our messages
 			}
-			header, err := event.GetHeader(ctx, ts, key)
+			header, err := event.GetHeader(ctx, ts, info.ReadKey)
 			if err != nil {
 				logError(err)
 				continue
@@ -428,7 +446,15 @@ func addCmd(args []string) (out string, err error) {
 		}
 		id = info.ID
 	} else {
-		th, err := util.CreateThread(ts, thread.NewIDV1(thread.Raw, 32))
+		fk, err := sym.CreateKey()
+		if err != nil {
+			return "", err
+		}
+		rk, err := sym.CreateKey()
+		if err != nil {
+			return "", err
+		}
+		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(fk), core.ReadKey(rk))
 		if err != nil {
 			return "", err
 		}
@@ -478,10 +504,15 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 }
 
 func threadAddressCmd(id thread.ID) (out string, err error) {
-	lg, err := util.GetOwnLog(ts, id)
+	info, err := ts.GetThread(context.Background(), id)
 	if err != nil {
 		return
 	}
+	lg := info.GetOwnLog()
+	if lg == nil {
+		lg = &thread.LogInfo{}
+	}
+
 	ta, err := ma.NewMultiaddr("/" + thread.Name + "/" + id.String())
 	if err != nil {
 		return
@@ -525,7 +556,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 }
 
 func threadKeysCmd(id thread.ID) (out string, err error) {
-	info, err := ts.Store().ThreadInfo(id)
+	info, err := ts.GetThread(context.Background(), id)
 	if err != nil {
 		return
 	}
@@ -547,12 +578,12 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 		return
 	}
 
-	pid, err := util.AddPeerFromAddress(addrStr, ts.Host().Peerstore())
+	addr, err := ma.NewMultiaddr(addrStr)
 	if err != nil {
 		return
 	}
-
-	if err = ts.AddFollower(ctx, id, pid); err != nil {
+	pid, err := ts.AddFollower(ctx, id, addr)
+	if err != nil {
 		return
 	}
 	return "Added follower " + pid.String(), nil
@@ -570,8 +601,7 @@ func sendMessage(id thread.ID, txt string) error {
 	go func() {
 		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
 		defer cancel()
-		_, err = ts.AddRecord(mctx, id, body)
-		if err != nil {
+		if _, err = ts.CreateRecord(mctx, id, body); err != nil {
 			log.Errorf("error writing message: %s", err)
 		}
 	}()

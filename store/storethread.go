@@ -10,7 +10,6 @@ import (
 	threadcbor "github.com/textileio/go-threads/cbor"
 	service "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/util"
 )
 
 const (
@@ -66,11 +65,13 @@ func (a *singleThreadAdapter) Start() {
 		return
 	}
 	a.started = true
-	li, err := util.GetOrCreateOwnLog(a.api, a.threadID)
+	li, err := a.api.GetThread(context.Background(), a.threadID)
 	if err != nil {
 		log.Fatalf("error when getting/creating own log for thread %s: %v", a.threadID, err)
 	}
-	a.ownLogID = li.ID
+	if ownLog := li.GetOwnLog(); ownLog != nil {
+		a.ownLogID = ownLog.ID
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -82,15 +83,19 @@ func (a *singleThreadAdapter) Start() {
 
 func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 	defer a.goRoutines.Done()
-	sub := a.api.Subscribe(service.ThreadID(a.threadID))
-	defer sub.Discard()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sub, err := a.api.Subscribe(ctx, service.ThreadID(a.threadID))
+	if err != nil {
+		log.Fatalf("error getting thread subscription: %v", err)
+	}
 	wg.Done()
 	for {
 		select {
 		case <-a.closeChan:
 			log.Debug("closing thread-to-store flow on thread %s", a.threadID)
 			return
-		case rec, ok := <-sub.Channel():
+		case rec, ok := <-sub:
 			if !ok {
 				log.Errorf("notification channel closed, not listening to external changes anymore")
 				return
@@ -102,7 +107,7 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 			event, err := threadcbor.EventFromRecord(ctx, a.api, rec.Value())
 			if err != nil {
 				block, err := a.getBlockWithRetry(ctx, rec.Value(), 3, time.Millisecond*500)
-				if err != nil { // ToDo: Buffer them and retry...
+				if err != nil { // @todo: Buffer them and retry...
 					log.Fatalf("error when getting block from record: %v", err)
 				}
 				event, err = threadcbor.EventFromNode(block)
@@ -110,14 +115,14 @@ func (a *singleThreadAdapter) threadToStore(wg *sync.WaitGroup) {
 					log.Fatalf("error when decoding block to event: %v", err)
 				}
 			}
-			readKey, err := a.api.Store().ReadKey(a.threadID)
+			info, err := a.api.GetThread(ctx, a.threadID)
 			if err != nil {
-				log.Fatalf("error when getting read key for thread %s: %v", a.threadID, err)
+				log.Fatalf("error when getting info for thread %s: %v", a.threadID, err)
 			}
-			if readKey == nil {
+			if info.ReadKey == nil {
 				log.Fatalf("read key not found for thread %s/%s", a.threadID, rec.LogID())
 			}
-			node, err := event.GetBody(ctx, a.api, readKey)
+			node, err := event.GetBody(ctx, a.api, info.ReadKey)
 			if err != nil {
 				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadID, rec.LogID(), err)
 			}
@@ -151,7 +156,7 @@ func (a *singleThreadAdapter) storeToThread(wg *sync.WaitGroup) {
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := a.api.AddRecord(ctx, a.threadID, node); err != nil {
+			if _, err := a.api.CreateRecord(ctx, a.threadID, node); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()
