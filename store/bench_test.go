@@ -74,7 +74,7 @@ func createBenchStore(b *testing.B, opts ...Option) (*Store, func()) {
 func BenchmarkNoIndexCreate(b *testing.B) {
 	store, clean := createBenchStore(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema, nil)
+	model, err := store.RegisterSchema("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -91,12 +91,12 @@ func BenchmarkNoIndexCreate(b *testing.B) {
 func BenchmarkIndexCreate(b *testing.B) {
 	store, clean := createBenchStore(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema, []*IndexConfig{
+	model, err := store.RegisterSchema("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Name",
 			Unique: false,
 		},
-	})
+	)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -113,7 +113,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 func BenchmarkNoIndexSave(b *testing.B) {
 	store, clean := createBenchStore(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema, nil)
+	model, err := store.RegisterSchema("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
@@ -137,12 +137,12 @@ func BenchmarkNoIndexSave(b *testing.B) {
 func BenchmarkIndexSave(b *testing.B) {
 	store, clean := createBenchStore(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema, []*IndexConfig{
+	model, err := store.RegisterSchema("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Age",
 			Unique: false,
 		},
-	})
+	)
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
@@ -166,7 +166,7 @@ func BenchmarkIndexSave(b *testing.B) {
 func BenchmarkNoIndexFind(b *testing.B) {
 	store, clean := createBenchStore(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema, nil)
+	model, err := store.RegisterSchema("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {
@@ -199,12 +199,12 @@ func BenchmarkNoIndexFind(b *testing.B) {
 func BenchmarkIndexFind(b *testing.B) {
 	store, clean := createBenchStore(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema, []*IndexConfig{
+	model, err := store.RegisterSchema("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Name",
 			Unique: false,
 		},
-	})
+	)
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {

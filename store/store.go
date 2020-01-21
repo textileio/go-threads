@@ -150,7 +150,7 @@ func (s *Store) reregisterSchemas() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-		m, err := s.RegisterSchema(name, string(res.Value), nil)
+		m, err := s.RegisterSchema(name, string(res.Value))
 		if err != nil {
 			return err
 		}
@@ -274,7 +274,7 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 }
 
 // RegisterSchema a new model in the store with a JSON schema.
-func (s *Store) RegisterSchema(name string, schema string, indexes []*IndexConfig) (*Model, error) {
+func (s *Store) RegisterSchema(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

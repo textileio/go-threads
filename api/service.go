@@ -50,7 +50,7 @@ func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaReques
 			Unique: index.Unique,
 		}
 	}
-	if _, err = st.RegisterSchema(req.Name, req.Schema, indexes); err != nil {
+	if _, err = st.RegisterSchema(req.Name, req.Schema, indexes...); err != nil {
 		return nil, err
 	}
 

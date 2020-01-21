@@ -77,7 +77,7 @@ func TestManager_GetStore(t *testing.T) {
 	}
 
 	// Register a schema, start, and create an instance
-	model, err := store.RegisterSchema("Person", jsonSchema, nil)
+	model, err := store.RegisterSchema("Person", jsonSchema)
 	checkErr(t, err)
 	err = store.Start()
 	checkErr(t, err)

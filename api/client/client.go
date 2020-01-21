@@ -96,7 +96,7 @@ func (c *Client) NewStore(ctx context.Context) (string, error) {
 }
 
 // RegisterSchema registers a new model shecma
-func (c *Client) RegisterSchema(ctx context.Context, storeID, name, schema string, indexes []*store.IndexConfig) error {
+func (c *Client) RegisterSchema(ctx context.Context, storeID, name, schema string, indexes ...*store.IndexConfig) error {
 	idx := make([]*pb.RegisterSchemaRequest_IndexConfig, len(indexes))
 	for i, index := range indexes {
 		idx[i] = &pb.RegisterSchemaRequest_IndexConfig{
