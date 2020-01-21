@@ -4,8 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/textileio/go-threads/service/util"
-
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -19,6 +17,7 @@ import (
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/service"
 	pb "github.com/textileio/go-threads/service/api/pb"
+	"github.com/textileio/go-threads/service/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -65,21 +64,13 @@ func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.Ke
 	for _, opt := range opts {
 		opt(args)
 	}
+	keys, err := getThreadKeys(args)
+	if err != nil {
+		return
+	}
 	req := &pb.CreateThreadRequest{
 		ThreadID: id.Bytes(),
-		Keys:     &pb.ThreadKeys{},
-	}
-	if args.FollowKey != nil {
-		req.Keys.FollowKey = args.FollowKey.Bytes()
-	}
-	if args.ReadKey != nil {
-		req.Keys.ReadKey = args.ReadKey.Bytes()
-	}
-	if args.LogKey != nil {
-		req.Keys.LogKey, err = args.LogKey.Bytes()
-		if err != nil {
-			return
-		}
+		Keys:     keys,
 	}
 	resp, err := c.c.CreateThread(ctx, req)
 	if err != nil {
@@ -93,21 +84,13 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 	for _, opt := range opts {
 		opt(args)
 	}
+	keys, err := getThreadKeys(args)
+	if err != nil {
+		return
+	}
 	req := &pb.AddThreadRequest{
 		Addr: addr.Bytes(),
-		Keys: &pb.ThreadKeys{},
-	}
-	if args.FollowKey != nil {
-		req.Keys.FollowKey = args.FollowKey.Bytes()
-	}
-	if args.ReadKey != nil {
-		req.Keys.ReadKey = args.ReadKey.Bytes()
-	}
-	if args.LogKey != nil {
-		req.Keys.LogKey, err = args.LogKey.Bytes()
-		if err != nil {
-			return
-		}
+		Keys: keys,
 	}
 	resp, err := c.c.AddThread(ctx, req)
 	if err != nil {
@@ -222,32 +205,57 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 			if err != nil {
 				stat := status.Convert(err)
 				if stat.Code() != codes.Canceled {
-					log.Fatalf("error in subscription stream: %v", err)
+					log.Errorf("error in subscription stream: %v", err)
 				}
 				return
 			}
 			threadID, err := thread.Cast(resp.ThreadID)
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("error casting thread ID: %v", err)
+				continue
 			}
 			var fk *symmetric.Key
 			var ok bool
 			if fk, ok = threads[threadID]; !ok {
 				info, err := c.GetThread(ctx, threadID)
 				if err != nil {
-					log.Fatal(err)
+					log.Errorf("error getting thread: %v", err)
+					continue
+				}
+				if info.FollowKey == nil {
+					log.Error("follow-key not found")
+					continue
 				}
 				fk = info.FollowKey
 				threads[threadID] = fk
 			}
 			rec, err := threadRecordFromProto(resp, fk)
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("error unpacking record: %v", err)
+				continue
 			}
 			channel <- rec
 		}
 	}()
 	return channel, nil
+}
+
+func getThreadKeys(args *core.KeyOptions) (*pb.ThreadKeys, error) {
+	keys := &pb.ThreadKeys{}
+	if args.FollowKey != nil {
+		keys.FollowKey = args.FollowKey.Bytes()
+	}
+	if args.ReadKey != nil {
+		keys.ReadKey = args.ReadKey.Bytes()
+	}
+	if args.LogKey != nil {
+		var err error
+		keys.LogKey, err = args.LogKey.Bytes()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return keys, nil
 }
 
 func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error) {

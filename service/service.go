@@ -580,12 +580,12 @@ func (t *service) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan
 	}
 	channel := make(chan core.ThreadRecord)
 	go func() {
+		defer close(channel)
 		listener := t.bus.Listen()
+		defer listener.Discard()
 		for {
 			select {
 			case <-ctx.Done():
-				listener.Discard()
-				close(channel)
 				return
 			case i, ok := <-listener.Channel():
 				if !ok {
