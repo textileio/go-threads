@@ -169,54 +169,48 @@ func (v *keyList) in(key ds.Key) bool {
 	return (i < len(*v) && bytes.Equal((*v)[i], b))
 }
 
+// FilterQuery provides a Query Filter function for querying JSON data
+type FilterQuery struct {
+	query *JSONQuery
+}
+
+// Filter is the primary Filter function
+func (f FilterQuery) Filter(e query.Entry) bool {
+	val := make(map[string]interface{})
+	if err := json.Unmarshal(e.Value, &val); err != nil {
+		return false
+	}
+	ok, err := f.query.matchJSON(val)
+	return ok && err == nil
+}
+
 type iterator struct {
 	nextKeys func() ([]ds.Key, error)
 	txn      ds.Txn
-
+	query    *JSONQuery
 	err      error
 	keyCache []ds.Key
 	iter     query.Results
-	lastSeek []byte
 }
 
 func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	i := &iterator{
-		txn: txn,
+		txn:   txn,
+		query: q,
 	}
-	var err error
-
 	// Key field or index not specified, pass thru to base 'iterator'
-	// @todo: Could probably just be a pass-thru to the Query.Results, rather than this slower iterator
 	if q.Index == "" {
 		dsq := query.Query{
 			Prefix: baseKey.String(),
+			Filters: []query.Filter{
+				FilterQuery{
+					query: q,
+				},
+			},
 		}
-		i.iter, err = txn.Query(dsq)
-		if err != nil {
-			i.err = fmt.Errorf("error when building internal query: %v", err)
-			return i
-		}
+		i.iter, i.err = txn.Query(dsq)
 		i.nextKeys = func() ([]ds.Key, error) {
-			var nKeys []ds.Key
-
-			for len(nKeys) < iteratorKeyMinCacheSize {
-				result, ok := i.iter.NextSync()
-				if !ok {
-					return nKeys, result.Error
-				}
-				val := make(map[string]interface{})
-				if err := json.Unmarshal(result.Value, &val); err != nil {
-					return nKeys, fmt.Errorf("error when unmarshaling query result: %v", err)
-				}
-				ok, err := q.matchJSON(val)
-				if err != nil {
-					return nKeys, fmt.Errorf("error when matching entry with query: %v", err)
-				}
-				if ok {
-					nKeys = append(nKeys, ds.RawKey(result.Key))
-				}
-			}
-			return nKeys, nil
+			return nil, nil
 		}
 		return i
 	}
@@ -226,7 +220,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	dsq := query.Query{
 		Prefix: indexKey.String(),
 	}
-	i.iter, err = txn.Query(dsq)
+	i.iter, i.err = txn.Query(dsq)
 	first := true
 	i.nextKeys = func() ([]ds.Key, error) {
 		var nKeys []ds.Key
@@ -240,12 +234,11 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 				return nKeys, result.Error
 			}
 			first = false
-			// result.Key contains the indexed value, extra here first
+			// result.Key contains the indexed value, extract here first
 			key := ds.RawKey(result.Key)
 			base := key.Type()
 			name := key.Name()
 			val := gjson.Parse(name).Value()
-			// For some reason, strings are sometimes returned as null?
 			if val == nil {
 				val = name
 			}
@@ -277,18 +270,12 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 	return i
 }
 
-func createNested(path []string, dict map[string]interface{}, value interface{}) {
-	if len(path) > 1 {
-		newDict := make(map[string]interface{})
-		dict[path[0]] = newDict
-		createNested(path[1:], newDict, value)
-	}
-	dict[path[0]] = value
-}
-
 // NextSync returns the next key value that matches the iterators criteria
 // If there is an error, ok is false and result.Error() will return the error
 func (i *iterator) NextSync() (result query.Result, ok bool) {
+	if i.query.Index == "" {
+		return i.iter.NextSync()
+	}
 	if len(i.keyCache) == 0 {
 		newKeys, err := i.nextKeys()
 		if err != nil {
@@ -329,4 +316,9 @@ func (i *iterator) NextSync() (result query.Result, ok bool) {
 
 func (i *iterator) Close() {
 	i.iter.Close()
+}
+
+// Error returns the last error on the iterator
+func (i *iterator) Error() error {
+	return i.err
 }

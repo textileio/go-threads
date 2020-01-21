@@ -40,6 +40,24 @@ provide the public API for creating, deleting, updating, and querying instances
 within this model. They also provide read/write transactions which have 
 _serializable isolation_ within the `Store` scope.
 
+*Indexes*
+
+Models support indexes for faster queries on schema-defined fields. When registering
+a new schema (and defining a Model), a caller may supply a list of field paths to
+index on. This creates an Index, which can be used to speed up queries at the expense
+of additional storage and compute on entity creation and updates. For stores with
+a small number of entities, it may not be worth the added overhead, so as always
+avoid optimizing your queries until you need it!
+
+Insertion with indexes costs approximately twice as much as without (depending on the
+complexity and frequency of a given index), whereas updates are only slightly more
+costly (almost identical in most cases). Depending on the underlying data distribution,
+queries can be greater than an order of magnitude faster. This depends on many factors,
+including the size of the store (i.e., number of entities), the uniqueness of the
+indexed field, and the complexity of the query. For example, in our benchmark tests
+using a relatively simple Model and a relatively small store size (i.e., ~5000
+entities), the query speedup for a simple OR-based equality test is ~10x. See
+`store/bench_test.go` for details or to run the benchmarks yourself.
 
 #### EventCodec
 This is an internal component not available in the public API.
