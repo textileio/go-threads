@@ -71,12 +71,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 }
 
 // pushLog to a peer.
-func (s *server) pushLog(ctx context.Context, id thread.ID, lid peer.ID, pid peer.ID, fk *sym.Key, rk *sym.Key) error {
-	lg, err := s.threads.store.LogInfo(id, lid)
-	if err != nil {
-		return err
-	}
-
+func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, pid peer.ID, fk *sym.Key, rk *sym.Key) error {
 	lreq := &pb.PushLogRequest{
 		Header: &pb.PushLogRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
@@ -274,11 +269,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		return err
 	}
 	for _, l := range info.Logs {
-		laddrs, err := s.threads.store.Addrs(id, l)
-		if err != nil {
-			return err
-		}
-		addrs = append(addrs, laddrs...)
+		addrs = append(addrs, l.Addrs...)
 	}
 
 	// Serialize and sign the record for transport
@@ -292,7 +283,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 	sk := s.threads.getPrivKey()
 	if sk == nil {
-		return fmt.Errorf("key for host not found")
+		return fmt.Errorf("private key for host not found")
 	}
 	sig, err := sk.Sign(payload)
 	if err != nil {

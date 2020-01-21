@@ -25,8 +25,8 @@ type record struct {
 	Prev  cid.Cid `refmt:",omitempty"`
 }
 
-// NewRecord returns a new record from the given block and log private key.
-func NewRecord(
+// CreateRecord returns a new record from the given block and log private key.
+func CreateRecord(
 	ctx context.Context,
 	dag format.DAGService,
 	block format.Node,
@@ -56,9 +56,10 @@ func NewRecord(
 		return nil, err
 	}
 
-	err = dag.Add(ctx, coded)
-	if err != nil {
-		return nil, err
+	if dag != nil {
+		if err = dag.Add(ctx, coded); err != nil {
+			return nil, err
+		}
 	}
 
 	return &Record{
@@ -84,8 +85,7 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (service.Record
 	if err != nil {
 		return nil, err
 	}
-	err = cbornode.DecodeInto(node.RawData(), obj)
-	if err != nil {
+	if err = cbornode.DecodeInto(node.RawData(), obj); err != nil {
 		return nil, err
 	}
 	return &Record{
@@ -153,14 +153,12 @@ func RecordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (service.Reco
 		return nil, err
 	}
 	robj := new(record)
-	err = cbornode.DecodeInto(decoded.RawData(), robj)
-	if err != nil {
+	if err = cbornode.DecodeInto(decoded.RawData(), robj); err != nil {
 		return nil, err
 	}
 
 	eobj := new(event)
-	err = cbornode.DecodeInto(enode.RawData(), eobj)
-	if err != nil {
+	if err = cbornode.DecodeInto(enode.RawData(), eobj); err != nil {
 		return nil, err
 	}
 	event := &Event{

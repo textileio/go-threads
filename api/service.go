@@ -22,7 +22,7 @@ type service struct {
 }
 
 // NewStore adds a new store into the manager.
-func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.NewStoreReply, error) {
+func (s *service) NewStore(context.Context, *pb.NewStoreRequest) (*pb.NewStoreReply, error) {
 	log.Debugf("received new store request")
 
 	id, _, err := s.manager.NewStore()
@@ -36,7 +36,7 @@ func (s *service) NewStore(ctx context.Context, req *pb.NewStoreRequest) (*pb.Ne
 }
 
 // RegisterSchema registers a JSON schema with a store.
-func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
+func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
 	log.Debugf("received register schema request in store %s", req.StoreID)
 
 	st, err := s.getStore(req.StoreID)
@@ -57,7 +57,7 @@ func (s *service) RegisterSchema(ctx context.Context, req *pb.RegisterSchemaRequ
 	return &pb.RegisterSchemaReply{}, nil
 }
 
-func (s *service) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartReply, error) {
+func (s *service) Start(_ context.Context, req *pb.StartRequest) (*pb.StartReply, error) {
 	st, err := s.getStore(req.GetStoreID())
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest)
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := st.Service().Store().ThreadInfo(tid)
+	tinfo, err := st.Service().GetThread(ctx, tid)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest)
 	return reply, nil
 }
 
-func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
+func (s *service) StartFromAddress(_ context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
 	var err error
 	var st *store.Store
 	var addr ma.Multiaddr
@@ -122,7 +122,7 @@ func (s *service) StartFromAddress(ctx context.Context, req *pb.StartFromAddress
 }
 
 // ModelCreate adds a new instance of a model to a store.
-func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
+func (s *service) ModelCreate(_ context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
 	log.Debugf("received model create request for model %s", req.ModelName)
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *service) ModelCreate(ctx context.Context, req *pb.ModelCreateRequest) (
 	return s.processCreateRequest(req, model.Create)
 }
 
-func (s *service) ModelSave(ctx context.Context, req *pb.ModelSaveRequest) (*pb.ModelSaveReply, error) {
+func (s *service) ModelSave(_ context.Context, req *pb.ModelSaveRequest) (*pb.ModelSaveReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (s *service) ModelSave(ctx context.Context, req *pb.ModelSaveRequest) (*pb.
 	return s.processSaveRequest(req, model.Save)
 }
 
-func (s *service) ModelDelete(ctx context.Context, req *pb.ModelDeleteRequest) (*pb.ModelDeleteReply, error) {
+func (s *service) ModelDelete(_ context.Context, req *pb.ModelDeleteRequest) (*pb.ModelDeleteReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (s *service) ModelDelete(ctx context.Context, req *pb.ModelDeleteRequest) (
 	return s.processDeleteRequest(req, model.Delete)
 }
 
-func (s *service) ModelHas(ctx context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
+func (s *service) ModelHas(_ context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (s *service) ModelHas(ctx context.Context, req *pb.ModelHasRequest) (*pb.Mo
 	return s.processHasRequest(req, model.Has)
 }
 
-func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
+func (s *service) ModelFind(_ context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func (s *service) ModelFind(ctx context.Context, req *pb.ModelFindRequest) (*pb.
 	return s.processFindRequest(req, model.FindJSON)
 }
 
-func (s *service) ModelFindByID(ctx context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
+func (s *service) ModelFindByID(_ context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
 	model, err := s.getModel(req.StoreID, req.ModelName)
 	if err != nil {
 		return nil, err
@@ -401,8 +401,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 				Action:    replyAction,
 				Entity:    entity,
 			}
-			err := server.Send(reply)
-			if err != nil {
+			if err := server.Send(reply); err != nil {
 				return err
 			}
 		}

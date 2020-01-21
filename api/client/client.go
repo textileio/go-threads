@@ -307,7 +307,7 @@ func (c *Client) Listen(ctx context.Context, storeID string, listenOptions ...Li
 	go func() {
 		defer close(channel)
 
-	ExitStreamRecv:
+	loop:
 		for {
 			event, err := stream.Recv()
 			if err != nil {
@@ -327,7 +327,7 @@ func (c *Client) Listen(ctx context.Context, storeID string, listenOptions ...Li
 				actionType = ActionSave
 			default:
 				channel <- ListenEvent{err: fmt.Errorf("unknown listen reply action %v", event.GetAction())}
-				break ExitStreamRecv
+				break loop
 			}
 			action := Action{
 				Model:    event.GetModelName(),

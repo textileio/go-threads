@@ -196,7 +196,19 @@ func (s *Store) Start() error {
 	}
 	if !found {
 		id = thread.NewIDV1(thread.Raw, 32)
-		if _, err := util.CreateThread(s.service, id); err != nil {
+		fk, err := symmetric.CreateKey()
+		if err != nil {
+			return err
+		}
+		rk, err := symmetric.CreateKey()
+		if err != nil {
+			return err
+		}
+		if _, err := s.service.CreateThread(
+			context.Background(),
+			id,
+			service.FollowKey(fk),
+			service.ReadKey(rk)); err != nil {
 			return err
 		}
 		if err := s.datastore.Put(dsStoreThreadID, id.Bytes()); err != nil {

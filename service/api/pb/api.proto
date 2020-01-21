@@ -1,0 +1,122 @@
+syntax = "proto3";
+package api.pb;
+
+option java_multiple_files = true;
+option java_package = "io.textile.threads_service_grpc";
+option java_outer_classname = "ThreadsService";
+option objc_class_prefix = "THRDSS";
+
+message GetHostIDRequest {}
+
+message GetHostIDReply {
+    bytes peerID = 1;
+}
+
+message ThreadKeys {
+    bytes readKey = 1;
+    bytes followKey = 2;
+    bytes logKey = 3;
+}
+
+message CreateThreadRequest {
+    bytes threadID = 1;
+    ThreadKeys keys = 2;
+}
+
+message LogInfo {
+    bytes ID = 1;
+    bytes pubKey = 2;
+	bytes privKey = 3;
+	repeated bytes addrs = 4;
+	repeated bytes heads = 5;
+}
+
+message ThreadInfoReply {
+    bytes ID = 1;
+    repeated LogInfo logs = 2;
+    bytes readKey = 3;
+    bytes followKey = 4;
+}
+
+message AddThreadRequest {
+    bytes addr = 1;
+    ThreadKeys keys = 2;
+}
+
+message GetThreadRequest {
+    bytes threadID = 1;
+}
+
+message PullThreadRequest {
+    bytes threadID = 1;
+}
+
+message PullThreadReply {}
+
+message DeleteThreadRequest {
+    bytes threadID = 1;
+}
+
+message DeleteThreadReply {}
+
+message AddFollowerRequest {
+    bytes threadID = 1;
+    bytes addr = 2;
+}
+
+message AddFollowerReply {
+    bytes peerID = 1;
+}
+
+message CreateRecordRequest {
+    bytes threadID = 1;
+    bytes body = 2;
+}
+
+message Record {
+    bytes recordNode = 1;
+    bytes eventNode = 2;
+    bytes headerNode = 3;
+    bytes bodyNode = 4;
+}
+
+message NewRecordReply {
+    bytes threadID = 1;
+    bytes logID = 2;
+    Record record = 3;
+}
+
+message AddRecordRequest {
+    bytes threadID = 1;
+    bytes logID = 2;
+    Record record = 3;
+}
+
+message AddRecordReply {}
+
+message GetRecordRequest {
+    bytes threadID = 1;
+    bytes recordID = 2;
+}
+
+message GetRecordReply {
+    Record record = 1;
+}
+
+message SubscribeRequest {
+    repeated bytes threadIDs = 1;
+}
+
+service API {
+    rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
+    rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
+    rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
+    rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}
+    rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
+    rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
+    rpc AddFollower(AddFollowerRequest) returns (AddFollowerReply) {}
+    rpc CreateRecord(CreateRecordRequest) returns (NewRecordReply) {}
+    rpc AddRecord(AddRecordRequest) returns (AddRecordReply) {}
+    rpc GetRecord(GetRecordRequest) returns (GetRecordReply) {}
+    rpc Subscribe(SubscribeRequest) returns (stream NewRecordReply) {}
+}

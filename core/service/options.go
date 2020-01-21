@@ -1,30 +1,42 @@
 package service
 
 import (
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 )
 
-// AddOptions defines options for adding a new thread.
-type AddOptions struct {
+// KeyOptions defines options for keys when creating / adding a thread.
+type KeyOptions struct {
 	FollowKey *symmetric.Key
 	ReadKey   *symmetric.Key
+	LogKey    crypto.Key
 }
 
-// AddOption is an add thread option.
-type AddOption func(*AddOptions)
+// KeyOption specifies encryption keys.
+type KeyOption func(*KeyOptions)
 
 // FollowKey allows thread record traversal.
-func FollowKey(key *symmetric.Key) AddOption {
-	return func(args *AddOptions) {
+func FollowKey(key *symmetric.Key) KeyOption {
+	return func(args *KeyOptions) {
 		args.FollowKey = key
 	}
 }
 
 // ReadKey allows for thread record decryption.
-func ReadKey(key *symmetric.Key) AddOption {
-	return func(args *AddOptions) {
+func ReadKey(key *symmetric.Key) KeyOption {
+	return func(args *KeyOptions) {
 		args.ReadKey = key
+	}
+}
+
+// LogKey defines the public or private key used to write a log records.
+// If this is just a public key, the service itself won't be able to create records.
+// In other words, all records must pre-created and added with AddRecord.
+// If no log key is provided, one will be created internally.
+func LogKey(key crypto.Key) KeyOption {
+	return func(args *KeyOptions) {
+		args.LogKey = key
 	}
 }
 
