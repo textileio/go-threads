@@ -41,9 +41,6 @@ jobs:
         run: |
           export GO111MODULE=off
           go get github.com/golang/protobuf/protoc-gen-go
-          go get github.com/gogo/protobuf/proto
-          go get github.com/gogo/protobuf/protoc-gen-gogofaster
-          go get github.com/gogo/protobuf/gogoproto
       - name: Get JS dependencies
         run: |
           cd api/pb/javascript && npm install
@@ -62,7 +59,7 @@ jobs:
       - name: Protoc generate Service
         run: |
           cd service/api/pb
-          make clean && make && make gogo
+          make clean && make
       - name: Publish JS API
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
