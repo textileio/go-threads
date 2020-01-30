@@ -79,5 +79,6 @@ lint/outputs/
 lint/tmp/
 # lint/reports/
 
-
+# gradle moved proto files
 threads/src/main/proto/api.proto
+threads/src/test/proto/api.proto
