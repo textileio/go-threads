@@ -52,9 +52,8 @@ jobs:
       - name: Check android
         run: |
              cd api/pb/android
-             ./gradlew help
              ./gradlew check --stacktrace
-      - name: Build
+      - name: Test
         run: |
              cd api/pb/android
              ./gradlew threads:test
