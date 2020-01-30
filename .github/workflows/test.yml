@@ -36,6 +36,11 @@ jobs:
   android-client:
     name: Android Client Test
     runs-on: ubuntu-latest
+    services:
+      threads:
+        image: textile/go-threads
+        ports:
+        - 6007:6007
     steps:
       - name: set up JDK 1.8
         uses: actions/setup-java@v1
