@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       threads:
-        image: 'Dockerfile'
+        image: textile/go-threads
         ports:
         - 6006:6006
     steps:
