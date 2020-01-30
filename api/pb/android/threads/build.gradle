@@ -1,0 +1,231 @@
+apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'com.google.protobuf'
+
+repositories {
+    maven {
+        url 'https://dl.bintray.com/textile/maven'
+    }
+}
+
+android {
+    compileSdkVersion targetSdk
+
+    defaultConfig {
+        minSdkVersion minSdk
+        targetSdkVersion targetSdk
+        versionCode 1
+        versionName '1.0'
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    sourceSets {
+        main {
+            java {
+                srcDirs 'build/generated/source/proto/debug/grpc'
+                srcDirs 'build/generated/source/proto/debug/java'
+            }
+        }
+        test {
+            java {
+                srcDirs 'build/generated/source/proto/debug/grpc'
+                srcDirs 'build/generated/source/proto/debug/java'
+            }
+        }
+    }
+    buildToolsVersion = '28.0.3'
+}
+
+dependencies {
+    // gRPC IPFS Lite
+    api "io.textile:grpc-ipfs-lite:$gRPCIpfsVersion"
+
+    implementation "io.grpc:grpc-core:$gRPCVersion"
+    implementation "io.grpc:grpc-okhttp:$gRPCVersion"
+    testImplementation "io.grpc:grpc-testing:$gRPCVersion"
+    implementation "io.grpc:grpc-stub:$gRPCVersion"
+
+    // Lite, use below for Full
+    implementation "io.grpc:grpc-protobuf-lite:$gRPCVersion"
+
+    // Support
+    implementation "com.android.support:appcompat-v7:$appcompatVersion"
+    implementation "com.android.support:support-v4:$appcompatVersion"
+
+    // Lifecycle
+    implementation "android.arch.lifecycle:extensions:$lifecycleVersion"
+    annotationProcessor "android.arch.lifecycle:compiler:$lifecycleVersion"
+    implementation "javax.annotation:javax.annotation-api:1.3"
+
+    // Testing
+    testImplementation "junit:junit:$junitVersion"
+
+    // Core library
+    androidTestImplementation "com.android.support.test:runner:$testRunnerVersion"
+
+    // Utils
+    androidTestImplementation "org.awaitility:awaitility:$awaitilityVersion"
+    androidTestImplementation "commons-io:commons-io:$commonsIOVersion"
+}
+
+group = publishedGroupId
+version = libraryVersion
+
+install {
+    repositories.mavenInstaller {
+        pom.project {
+            packaging 'aar'
+            groupId publishedGroupId
+            artifactId artifact
+
+            name libraryName
+            description libraryDescription
+            url siteUrl
+
+            licenses {
+                license {
+                    name licenseName
+                    url licenseUrl
+                }
+            }
+            developers {
+                developer {
+                    id developerId
+                    name developerName
+                    email developerEmail
+                }
+            }
+            scm {
+                connection gitUrl
+                developerConnection gitUrl
+                url siteUrl
+            }
+        }
+
+        pom.withXml {
+            def dependenciesNode = asNode().getAt('dependencies')[0] ?: asNode().appendNode('dependencies')
+            // Iterate over the implementation dependencies (we don't want the test ones), adding a <dependency> node for each
+            configurations.implementation.allDependencies.each {
+                // Ensure dependencies such as fileTree are not included.
+                if (it.name != 'unspecified') {
+                    def dependencyNode = dependenciesNode.appendNode('dependency')
+                    dependencyNode.appendNode('groupId', it.group)
+                    dependencyNode.appendNode('artifactId', it.name)
+                    dependencyNode.appendNode('version', it.version)
+                }
+            }
+        }
+    }
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
+// Build docs
+/**
+task javadoc(type: Javadoc) {
+    source = android.sourceSets.main.java.srcDirs
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    destinationDir = new File("$rootProject.projectDir/docs")
+}
+
+afterEvaluate {
+    javadoc.classpath += files(android.libraryVariants.collect { variant ->
+        variant.javaCompileProvider.get().classpath.files
+    })
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives javadocJar
+    archives sourcesJar
+}
+ */
+
+artifacts {
+    archives sourcesJar
+}
+
+bintray {
+    user = String.valueOf(System.getenv('BINTRAY_USERNAME'))
+	key = String.valueOf(System.getenv('BINTRAY_API_KEY'))
+
+    configurations = ['archives']
+    pkg {
+        repo = bintrayRepo
+        name = bintrayName
+        desc = libraryDescription
+        websiteUrl = siteUrl
+        vcsUrl = gitUrl
+        licenses = allLicenses
+        dryRun = false
+        publish = true
+        override = false
+        publicDownloadNumbers = true
+        version {
+            desc = libraryDescription
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.9.1"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:$gRPCVersion"
+        }
+        javalite {
+            artifact = "com.google.protobuf:protoc-gen-javalite:3.11.2"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            java {
+                option 'lite'
+            }
+            grpc {
+                // remove for full
+                option 'lite'
+            }
+        }
+    }
+    generatedFilesBaseDir = "$projectDir/build/generated"
+}
+
+task copyFiles(type: Copy) {
+    from "../../api.proto"
+    into "$projectDir/src/main/proto/"
+}
+task copyTestFiles(type: Copy) {
+    from "../../api.proto"
+    into "$projectDir/src/test/proto"
+}
+preBuild.dependsOn(copyFiles)
+preBuild.dependsOn(copyTestFiles)

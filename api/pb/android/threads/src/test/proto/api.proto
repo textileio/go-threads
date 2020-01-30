@@ -1,0 +1,197 @@
+syntax = "proto3";
+package api.pb;
+
+option java_multiple_files = true;
+option java_package = "io.textile.threads_grpc";
+option java_outer_classname = "Threads";
+option objc_class_prefix = "THRDS";
+
+message NewStoreRequest {}
+
+message NewStoreReply {
+    string ID = 1;
+}
+
+message RegisterSchemaRequest {
+    string storeID = 1;
+    string name = 2;
+    string schema = 3;
+    message IndexConfig {
+        string path = 1;
+        bool unique = 2;
+    }
+    repeated IndexConfig indexes = 4;
+}
+
+message RegisterSchemaReply {}
+
+message StartRequest {
+    string storeID = 1;
+}
+
+message StartReply {}
+
+message StartFromAddressRequest {
+    string storeID = 1;
+    string address = 2;
+    bytes followKey = 3;
+    bytes readKey = 4;
+}
+
+message StartFromAddressReply {}
+
+message GetStoreLinkRequest {
+    string storeID = 1;
+}
+
+message GetStoreLinkReply {
+    repeated string addresses = 1;
+    bytes followKey = 2;
+    bytes readKey = 3;
+}
+
+message ModelCreateRequest {
+    string storeID = 1;
+    string modelName = 2;
+    repeated string values = 3;
+}
+
+message ModelCreateReply {
+    repeated string entities = 1;
+}
+
+message ModelSaveRequest {
+    string storeID = 1;
+    string modelName = 2;
+    repeated string values = 3;
+}
+
+message ModelSaveReply {}
+
+message ModelDeleteRequest {
+    string storeID = 1;
+    string modelName = 2;
+    repeated string entityIDs = 3;
+}
+
+message ModelDeleteReply {}
+
+message ModelHasRequest {
+    string storeID = 1;
+    string modelName = 2;
+    repeated string entityIDs = 3;
+}
+
+message ModelHasReply {
+    bool exists = 1;
+}
+
+message ModelFindRequest {
+    string storeID = 1;
+    string modelName = 2;
+    bytes queryJSON = 3;
+}
+
+message ModelFindReply {
+    repeated bytes entities = 1;
+}
+
+message ModelFindByIDRequest {
+    string storeID = 1;
+    string modelName = 2;
+    string entityID = 3;
+}
+
+message ModelFindByIDReply {
+    string entity = 1;
+}
+
+message StartTransactionRequest {
+    string storeID = 1;
+    string modelName = 2;
+}
+
+message ReadTransactionRequest {
+    oneof option {
+        StartTransactionRequest startTransactionRequest = 1;
+        ModelHasRequest modelHasRequest = 2;
+        ModelFindRequest modelFindRequest = 3;
+        ModelFindByIDRequest modelFindByIDRequest = 4;
+    }
+}
+
+message ReadTransactionReply {
+    oneof option {
+        ModelHasReply modelHasReply = 1;
+        ModelFindReply modelFindReply = 2;
+        ModelFindByIDReply modelFindByIDReply = 3;
+    }
+}
+
+message WriteTransactionRequest {
+    oneof option {
+        StartTransactionRequest startTransactionRequest = 1;
+        ModelCreateRequest modelCreateRequest = 2;
+        ModelSaveRequest modelSaveRequest = 3;
+        ModelDeleteRequest modelDeleteRequest = 4;
+        ModelHasRequest modelHasRequest = 5;
+        ModelFindRequest modelFindRequest = 6;
+        ModelFindByIDRequest modelFindByIDRequest = 7;
+    }
+}
+
+message WriteTransactionReply {
+    oneof option {
+        ModelCreateReply modelCreateReply = 1;
+        ModelSaveReply modelSaveReply = 2;
+        ModelDeleteReply modelDeleteReply = 3;
+        ModelHasReply modelHasReply = 4;
+        ModelFindReply modelFindReply = 5;
+        ModelFindByIDReply modelFindByIDReply = 6;
+    }
+}
+
+message ListenRequest {
+    string storeID = 1;
+    message Filter {
+        string modelName = 1;
+        string entityID = 2;
+        enum Action {
+            ALL = 0;
+            CREATE = 1;
+            SAVE = 2;
+            DELETE = 3;
+        }
+        Action action = 3;
+    }
+    repeated Filter filters = 2;
+}
+
+message ListenReply {
+    string modelName = 1;
+    string entityID = 2;
+    enum Action {
+        CREATE = 0;
+        SAVE = 1;
+        DELETE = 2;
+    }
+    Action action = 3;
+    bytes entity = 4;
+}
+
+service API {
+    rpc NewStore(NewStoreRequest) returns (NewStoreReply) {}
+    rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
+    rpc Start(StartRequest) returns (StartReply) {}
+    rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
+    rpc GetStoreLink(GetStoreLinkRequest) returns (GetStoreLinkReply) {}
+    rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
+    rpc ModelSave(ModelSaveRequest) returns (ModelSaveReply) {}
+    rpc ModelDelete(ModelDeleteRequest) returns (ModelDeleteReply) {}
+    rpc ModelHas(ModelHasRequest) returns (ModelHasReply) {}
+    rpc ModelFind(ModelFindRequest) returns (ModelFindReply) {}
+    rpc ModelFindByID(ModelFindByIDRequest) returns (ModelFindByIDReply) {}
+    rpc ReadTransaction(stream ReadTransactionRequest) returns (stream ReadTransactionReply) {}
+    rpc WriteTransaction(stream WriteTransactionRequest) returns (stream WriteTransactionReply) {}
+    rpc Listen(ListenRequest) returns (stream ListenReply) {}
+}

@@ -1,0 +1,65 @@
+ext {
+    bintrayRepo = 'maven'
+    bintrayName = 'threads'
+
+    publishedGroupId = 'io.textile'
+    libraryName = 'threads'
+    artifact = 'threads'
+
+    demoAppId = 'io.textile.textileexample'
+
+    libraryDescription = 'IPFS Lite for Android'
+    libraryKeywords = ['textile', 'ipfs', 'libp2p', 'decentralized', 'encrypted', 'android']
+
+    siteUrl = 'https://github.com/textileio/android-ipfs-lite'
+    gitUrl = 'https://github.com/textileio/android-ipfs-lite.git'
+
+    libraryVersion = '0.1.2'
+
+    minSdk = 26
+    targetSdk = 28
+
+    // Gradle classpath dependencies versions
+    gradleVersion = '3.5.2'
+    mavenGradleVersion = '2.1'
+    bintrayPluginVersion = '1.7'
+
+    // Library and app testing dependencies versions
+    junitVersion = '4.12'
+    // androidxTestCoreVersion = '1.2.0'
+    // androidxTestRunnerVersion = '1.2.0'
+    // androidxTestRulesVersion = '1.2.0'
+    // androidxTestExtJunitVersion = '1.1.1'
+    // androidxTestExtTruthVersion = '1.2.0'
+    // androidxTestEspressoVersion = '3.2.0'
+    testRunnerVersion = '1.0.2'
+
+    // Library and app dependencies versions
+    // androidxAppcompatVersion = '1.0.2'
+    appcompatVersion = '28.0.0'
+
+    // gRPC Version
+    gRPCVersion = '1.26.0'
+    // gRPC IPFS Lite Version
+    gRPCIpfsVersion = '0.1.2'
+
+    protobufVersion = '3.10.0'
+
+    // Lifecycle
+    lifecycleVersion = '1.1.1'
+
+    // Demo App
+    constraintLayoutVersion = '1.1.3'
+
+    // Demo App Tests
+    awaitilityVersion = '3.1.6'
+    commonsIOVersion = '2.6'
+
+    developerId = 'textile'
+    developerName = 'Textile'
+    developerEmail = 'contact@textile.io'
+
+    licenseName = 'MIT'
+    licenseUrl = 'https://github.com/textileio/android-ipfs-lite/blob/master/LICENSE'
+    allLicenses = ['MIT']
+}
