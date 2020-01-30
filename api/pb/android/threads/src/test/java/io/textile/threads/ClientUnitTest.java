@@ -1,5 +1,8 @@
 package io.textile.threads;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
+
 import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.FixMethodOrder;
@@ -7,6 +10,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.MethodSorters;
 
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
 
 import io.textile.threads_grpc.GetStoreLinkReply;
 import io.textile.threads_grpc.ModelCreateReply;
@@ -53,13 +63,25 @@ public class ClientUnitTest {
 
     @Test
     public void t05_RegisterSchema() throws Exception {
-        String schema = "{\\r\\n  '\\\\$id': 'https:\\/\\/example.com\\/person.schema.json',\\r\\n  '\\\\$schema': 'http:\\/\\/json-schema.org\\/draft-07\\/schema#',\\r\\n  'title': 'Person',\\r\\n  'type': 'object',\\r\\n  'required': ['ID'],\\r\\n  'properties': {\\r\\n    'ID': {\\r\\n      'type': 'string',\\r\\n      'description': 'The entity\\\\'s id.',\\r\\n    },\\r\\n    'firstName': {\\r\\n      'type': 'string',\\r\\n      'description': 'The person\\\\'s first name.',\\r\\n    },\\r\\n    'lastName': {\\r\\n      'type': 'string',\\r\\n      'description': 'The person\\\\'s last name.',\\r\\n    },\\r\\n    'age': {\\r\\n      'description': 'Age in years which must be equal to or greater than zero.',\\r\\n      'type': 'integer',\\r\\n      'minimum': 0,\\r\\n    },\\r\\n  },\\r\\n};";
-        client.RegisterSchemaSync(storeId, "Person", schema);
-        assertTrue(true);
+        String jsonStr = getStoredSchema();
+        JSONObject json = new JSONObject(jsonStr);
+        assertEquals(json.get("title").toString(), "Person");
+        client.RegisterSchemaSync(storeId, "Person", jsonStr);
     }
 
+    @Test
     public void t06_ModelCreate() throws Exception {
-        JSONObject person = createPerson("ABCDEF", 22);
+        JSONObject person = createPerson("", 22);
+        String[] data = { person.toString() };
+        ModelCreateReply reply = client.ModelCreateSync(storeId, "Person", data);
+        assertEquals(1, reply.getEntitiesCount());
+        // @todo once working, store modelid to update in later tests
+    }
+
+    @Test
+    public void t06_ModelSave() throws Exception {
+        // @todo use existing modelid
+        JSONObject person = createPerson("", 22);
         String[] data = { person.toString() };
         ModelCreateReply reply = client.ModelCreateSync(storeId, "Person", data);
         assertEquals(1, reply.getEntitiesCount());
@@ -72,6 +94,17 @@ public class ClientUnitTest {
         obj.put("lastName", "doe");
         obj.put("age", new Integer(age));
         return obj;
+    }
+
+    private String getStoredSchema() throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream("./src/test/resources/person.json")));
+        StringBuilder sb = new StringBuilder();
+        String line = br.readLine();
+        while (line != null) {
+            sb.append(line);
+            line = br.readLine();
+        }
+        return sb.toString();
     }
 }
 

@@ -44,6 +44,16 @@ android {
                 srcDirs 'build/generated/source/proto/debug/java'
             }
         }
+        test {
+            resources {
+                srcDirs 'src/test/resources'
+            }
+        }
+        androidTest {
+            resources {
+                srcDirs 'src/test/resources'
+            }
+        }
     }
     buildToolsVersion = '28.0.3'
 }
