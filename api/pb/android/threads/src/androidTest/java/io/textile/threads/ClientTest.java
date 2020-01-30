@@ -39,7 +39,7 @@ public class ClientTest {
             connect();
         }
 
-        String storeId = client.NewStore();
+        String storeId = client.NewStoreSync();
 
         assertEquals(36, storeId.length());
     }

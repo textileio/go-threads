@@ -46,7 +46,8 @@ dependencies {
     implementation project(':threads')
 
     // Testing
-    testImplementation "junit:junit:$junitVersion"
+//    testImplementation "junit:junit:$junitVersion"
+    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
 
     androidTestImplementation "com.android.support.test:runner:$testRunnerVersion"
 }

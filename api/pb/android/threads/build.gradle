@@ -77,7 +77,8 @@ dependencies {
     implementation "javax.annotation:javax.annotation-api:1.3"
 
     // Testing
-    testImplementation "junit:junit:$junitVersion"
+//    testImplementation "junit:junit:$junitVersion"
+    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
 
     // Core library
     androidTestImplementation "com.android.support.test:runner:$testRunnerVersion"
@@ -85,6 +86,8 @@ dependencies {
     // Utils
     androidTestImplementation "org.awaitility:awaitility:$awaitilityVersion"
     androidTestImplementation "commons-io:commons-io:$commonsIOVersion"
+
+    testImplementation 'org.json:json:20190722'
 }
 
 group = publishedGroupId

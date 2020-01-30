@@ -25,7 +25,7 @@ ext {
     bintrayPluginVersion = '1.7'
 
     // Library and app testing dependencies versions
-    junitVersion = '4.12'
+    junitVersion = '5.6.0'
     // androidxTestCoreVersion = '1.2.0'
     // androidxTestRunnerVersion = '1.2.0'
     // androidxTestRulesVersion = '1.2.0'

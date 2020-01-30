@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void onButtonClick(View v) {
         try {
-            String storeId = client.NewStore();
+            String storeId = client.NewStoreSync();
             System.out.println("Success: " + storeId);
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -32,7 +32,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void initIPFS() {
         try {
-            client = new Client("huh", 232);
+            client = new Client("localhost", 6006);
             client.Connect();
         } catch (Exception e) {
             System.out.println(e.getMessage());
