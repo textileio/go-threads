@@ -54,10 +54,6 @@ jobs:
         uses: malinskiy/action-android/install-sdk@release/0.0.5
       - name: Check out code
         uses: actions/checkout@v1
-      - name: Check android
-        run: |
-             cd api/pb/android
-             ./gradlew check --stacktrace
       - name: Test
         run: |
              cd api/pb/android
