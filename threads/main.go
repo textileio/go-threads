@@ -21,8 +21,6 @@ import (
 var (
 	apiClient      *client.Client
 	apiTimeout     = time.Second * 5
-	streamTimeout  = time.Second * 30
-	openStream     = false
 	promptPrefix   = ">>> "
 	noStoreMessage = "Store required. `use <store id>`"
 	currentStore   string
