@@ -59,8 +59,8 @@ type ListenOption struct {
 
 // ListenEvent is used to send data or error values for Listen
 type ListenEvent struct {
-	action Action
-	err    error
+	Action Action
+	Err    error
 }
 
 // Client provides the client api
@@ -313,7 +313,7 @@ func (c *Client) Listen(ctx context.Context, storeID string, listenOptions ...Li
 			if err != nil {
 				stat := status.Convert(err)
 				if stat == nil || (stat.Code() != codes.Canceled) {
-					channel <- ListenEvent{err: err}
+					channel <- ListenEvent{Err: err}
 				}
 				break
 			}
@@ -326,7 +326,7 @@ func (c *Client) Listen(ctx context.Context, storeID string, listenOptions ...Li
 			case pb.ListenReply_SAVE:
 				actionType = ActionSave
 			default:
-				channel <- ListenEvent{err: fmt.Errorf("unknown listen reply action %v", event.GetAction())}
+				channel <- ListenEvent{Err: fmt.Errorf("unknown listen reply action %v", event.GetAction())}
 				break loop
 			}
 			action := Action{
@@ -335,7 +335,7 @@ func (c *Client) Listen(ctx context.Context, storeID string, listenOptions ...Li
 				EntityID: event.GetEntityID(),
 				Entity:   event.GetEntity(),
 			}
-			channel <- ListenEvent{action: action}
+			channel <- ListenEvent{Action: action}
 		}
 	}()
 	return channel, nil
