@@ -16,34 +16,35 @@ import (
 	"time"
 )
 
-var apiClient *client.Client
-var apiTimeout = time.Second * 5
-var streamTimeout = time.Second * 30
-var currentStore string
+var (
+	apiClient      *client.Client
+	apiTimeout     = time.Second * 5
+	streamTimeout  = time.Second * 30
+	noStoreMessage = "Store required. `use <store id>`"
+	currentStore   string
+	suggestions    = []prompt.Suggest{
+		{
+			Text:        "use",
+			Description: "Switch the store.",
+		},
+		{
+			Text:        "exit",
+			Description: "Exit.",
+		},
+	}
+	storeSuggestions = []prompt.Suggest{
+		{
+			Text:        "listen",
+			Description: "Stream all store updates.",
+		},
+		{
+			Text:        "getModel",
+			Description: "Get all models by model name.",
+		},
+	}
+)
 
 type any map[string]interface{}
-
-var suggestions = []prompt.Suggest{
-	{
-		Text:        "use",
-		Description: "Switch the store.",
-	},
-	{
-		Text:        "exit",
-		Description: "Exit.",
-	},
-}
-
-var storeSuggestions = []prompt.Suggest{
-	{
-		Text:        "listen",
-		Description: "Stream all store updates.",
-	},
-	{
-		Text:        "getModel",
-		Description: "Get all models by model name.",
-	},
-}
 
 func completer(in prompt.Document) []prompt.Suggest {
 	w := in.GetWordBeforeCursor()
@@ -56,11 +57,29 @@ func completer(in prompt.Document) []prompt.Suggest {
 	return prompt.FilterHasPrefix(suggestions, w, true)
 }
 
+func storeExecutor(blocks []string) {
+	switch blocks[0] {
+	case "listen":
+		listen(currentStore)
+		return
+	case "getModel":
+		if len(blocks) < 2 {
+			fmt.Println("You must provide a model name.")
+			return
+		}
+		getModel(currentStore, blocks[1], apiTimeout)
+		return
+	default:
+		fmt.Println("Sorry, I don't understand.")
+	}
+}
+
 func executor(in string) {
 	in = strings.TrimSpace(in)
-
 	blocks := strings.Split(in, " ")
 	switch blocks[0] {
+	case "":
+		return
 	case "use":
 		if len(blocks) < 2 {
 			fmt.Println("You must provide a store ID.")
@@ -69,21 +88,16 @@ func executor(in string) {
 		currentStore = blocks[1]
 		fmt.Printf("Switched to %s\n", blocks[1])
 		return
-	case "listen":
-		listen(currentStore)
-		return
-	case "getModel":
-		if len(blocks) < 1 {
-			fmt.Println("You must provide a model name.")
-			return
-		}
-		getModel(currentStore, blocks[1], apiTimeout)
-		return
 	case "exit":
 		fmt.Println("Bye!")
 		os.Exit(0)
+	default:
+		if currentStore == "" {
+			fmt.Println(noStoreMessage)
+			return
+		}
+		storeExecutor(blocks)
 	}
-	fmt.Println("Sorry, I don't understand.")
 }
 
 func getModel(id string, model string, maxAwaitTime time.Duration) {
@@ -97,7 +111,7 @@ func getModel(id string, model string, maxAwaitTime time.Duration) {
 	}
 	entities := rawResults.([]*any)
 	if len(entities) == 0 {
-		fmt.Printf("None found")
+		fmt.Println("None found")
 		return
 	}
 	for _, el := range entities {
