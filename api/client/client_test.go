@@ -490,18 +490,18 @@ func TestListen(t *testing.T) {
 		if !ok {
 			t.Fatal("channel no longer active at first event")
 		} else {
-			if val.err != nil {
-				t.Fatalf("failed to receive first listen result: %v", val.err)
+			if val.Err != nil {
+				t.Fatalf("failed to receive first listen result: %v", val.Err)
 			}
 			p := &Person{}
-			if err := json.Unmarshal(val.action.Entity, p); err != nil {
+			if err := json.Unmarshal(val.Action.Entity, p); err != nil {
 				t.Fatalf("failed to unmarshal listen result: %v", err)
 			}
 			if p.Age != 30 {
 				t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
 			}
-			if val.action.EntityID != person.ID {
-				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.EntityID)
+			if val.Action.EntityID != person.ID {
+				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.EntityID)
 			}
 		}
 
@@ -509,18 +509,18 @@ func TestListen(t *testing.T) {
 		if !ok {
 			t.Fatal("channel no longer active at second event")
 		} else {
-			if val.err != nil {
-				t.Fatalf("failed to receive second listen result: %v", val.err)
+			if val.Err != nil {
+				t.Fatalf("failed to receive second listen result: %v", val.Err)
 			}
 			p := &Person{}
-			if err := json.Unmarshal(val.action.Entity, p); err != nil {
+			if err := json.Unmarshal(val.Action.Entity, p); err != nil {
 				t.Fatalf("failed to unmarshal listen result: %v", err)
 			}
 			if p.Age != 40 {
 				t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
 			}
-			if val.action.EntityID != person.ID {
-				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.action.EntityID)
+			if val.Action.EntityID != person.ID {
+				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.EntityID)
 			}
 		}
 	})
