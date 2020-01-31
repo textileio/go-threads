@@ -5,21 +5,25 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/c-bata/go-prompt"
-	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-threads/api/client"
-	"github.com/textileio/go-threads/util"
-	"google.golang.org/grpc"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/c-bata/go-prompt"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-threads/api/client"
+	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/util"
+	"google.golang.org/grpc"
 )
 
 var (
 	apiClient      *client.Client
 	apiTimeout     = time.Second * 5
 	streamTimeout  = time.Second * 30
+	openStream     = false
+	promptPrefix   = ">>> "
 	noStoreMessage = "Store required. `use <store id>`"
 	currentStore   string
 	suggestions    = []prompt.Suggest{
@@ -38,11 +42,31 @@ var (
 			Description: "Stream all store updates.",
 		},
 		{
-			Text:        "getModel",
-			Description: "Get all models by model name.",
+			Text:        "modelFind",
+			Description: "Find all entities by model name.",
+		},
+		{
+			Text:        "modelFindByID",
+			Description: "Find entity by model name and entity ID.",
 		},
 	}
 )
+
+var listenState struct {
+	LivePrefix string
+	IsEnable   bool
+	Cancel     context.CancelFunc
+}
+
+func resetPrefix() {
+	listenState.LivePrefix = promptPrefix
+	listenState.IsEnable = false
+	fmt.Println("done")
+}
+
+func getLivePrefix() (string, bool) {
+	return listenState.LivePrefix, listenState.IsEnable
+}
 
 type any map[string]interface{}
 
@@ -62,12 +86,23 @@ func storeExecutor(blocks []string) {
 	case "listen":
 		listen(currentStore)
 		return
-	case "getModel":
+	case "modelFind":
 		if len(blocks) < 2 {
 			fmt.Println("You must provide a model name.")
 			return
 		}
-		getModel(currentStore, blocks[1], apiTimeout)
+		modelFind(currentStore, blocks[1])
+		return
+	case "modelFindByID":
+		if len(blocks) < 2 {
+			fmt.Println("You must provide a model name.")
+			return
+		}
+		if len(blocks) < 3 {
+			fmt.Println("You must provide an entity ID.")
+			return
+		}
+		modelFindByID(currentStore, blocks[1], blocks[2])
 		return
 	default:
 		fmt.Println("Sorry, I don't understand.")
@@ -75,14 +110,20 @@ func storeExecutor(blocks []string) {
 }
 
 func executor(in string) {
-	in = strings.TrimSpace(in)
-	blocks := strings.Split(in, " ")
+	blocks := trimmedBlocks(in)
 	switch blocks[0] {
 	case "":
+		if listenState.IsEnable {
+			listenState.Cancel()
+		}
 		return
 	case "use":
 		if len(blocks) < 2 {
 			fmt.Println("You must provide a store ID.")
+			return
+		}
+		if currentStore == blocks[1] {
+			fmt.Printf("Already using %s\n", blocks[1])
 			return
 		}
 		currentStore = blocks[1]
@@ -100,11 +141,11 @@ func executor(in string) {
 	}
 }
 
-func getModel(id string, model string, maxAwaitTime time.Duration) {
+func modelFind(id string, model string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	rawResults, err := apiClient.ModelFind(ctx, id, model, nil, []*any{})
+	rawResults, err := apiClient.ModelFind(ctx, id, model, &store.JSONQuery{}, []*any{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -119,38 +160,62 @@ func getModel(id string, model string, maxAwaitTime time.Duration) {
 	}
 }
 
-func listen(id string) {
-	channel, err := apiClient.Listen(context.Background(), id)
+func modelFindByID(id string, model string, modelID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+
+	entity := &any{}
+	err := apiClient.ModelFindByID(ctx, id, model, modelID, entity)
 	if err != nil {
 		fmt.Println(err.Error())
+		return
+	}
+
+	prettyPrint(entity)
+}
+
+func backgroundListen(ctx context.Context, id string) {
+	channel, err := apiClient.Listen(ctx, id)
+	if err != nil {
+		fmt.Println(err.Error())
+		resetPrefix()
 		return
 	}
 	for {
 		select {
 		case val, ok := <-channel:
 			if !ok {
+				resetPrefix()
 				return
-			} else {
-				if val.Err != nil {
-					fmt.Println(val.Err)
-					continue
-				}
-				obj := &any{}
-				if err := json.Unmarshal(val.Action.Entity, obj); err != nil {
-					fmt.Println("failed to unmarshal listen result")
-					continue
-				}
-				prettyPrint(obj)
 			}
-		case <-time.After(streamTimeout):
-			fmt.Println("timeout")
+			if val.Err != nil {
+				fmt.Println(val.Err)
+				continue
+			}
+			obj := &any{}
+			if err := json.Unmarshal(val.Action.Entity, obj); err != nil {
+				fmt.Println("failed to unmarshal listen result")
+				continue
+			}
+			prettyPrint(obj)
+		case <-ctx.Done():
+			resetPrefix()
 			return
 		}
 	}
 }
 
+func listen(id string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	listenState.LivePrefix = ""
+	listenState.IsEnable = true
+	listenState.Cancel = cancel
+	fmt.Println("<enter> to cancel")
+	go backgroundListen(ctx, id)
+}
+
 func main() {
-	addr := flag.String("addr", "/ip4/0.0.0.0/tcp/6006", "Threads APIs")
+	addr := flag.String("addr", "/ip4/0.0.0.0/tcp/6006", "Threads API address")
 	flag.Parse()
 	maddr, err := ma.NewMultiaddr(*addr)
 	if err != nil {
@@ -181,7 +246,10 @@ func main() {
 	p := prompt.New(
 		executor,
 		completer,
-		prompt.OptionPrefix(">>> "),
+		prompt.OptionTitle("Threads"),
+
+		prompt.OptionPrefix(promptPrefix),
+		prompt.OptionLivePrefix(getLivePrefix),
 
 		prompt.OptionPreviewSuggestionTextColor(prompt.Green),
 		prompt.OptionPreviewSuggestionBGColor(prompt.Black),
@@ -201,10 +269,20 @@ func main() {
 }
 
 func prettyPrint(obj interface{}) {
-	mapB, err := json.MarshalIndent(obj, "", " ")
+	mapB, err := json.MarshalIndent(obj, "", "  ")
 	if err != nil {
-		fmt.Println(obj)
+		fmt.Printf("error printing object %v: %v\n", obj, err)
 		return
 	}
 	fmt.Println(string(mapB))
+}
+
+func trimmedBlocks(in string) []string {
+	trimmed := strings.TrimSpace(in)
+	blocks := strings.Split(trimmed, " ")
+	cleaned := []string{}
+	for _, n := range blocks {
+		cleaned = append(cleaned, strings.TrimSpace(n))
+	}
+	return cleaned
 }
