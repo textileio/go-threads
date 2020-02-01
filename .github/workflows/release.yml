@@ -10,8 +10,11 @@ jobs:
   release-linux:
     name: Release Linux
     runs-on: ubuntu-latest
-    container: golang:1.13-stretch
     steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
       - name: Check out code
         uses: actions/checkout@v1
       - name: Cache dependencies
@@ -31,6 +34,8 @@ jobs:
              go get github.com/mitchellh/gox  
       - name: Compile
         run: |
+              export GOPATH=$HOME/go
+              echo $(which gox)
               COMMIT="test"
               SUMMARY="test"
               DATE=$(date --iso-8601=seconds)
