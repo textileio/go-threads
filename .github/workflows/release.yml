@@ -45,7 +45,7 @@ jobs:
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threads-{{.OS}}-{{.Arch}}" ./threads
       - name: Collect artifacts
         run: |
-          VERSION="test"
+          VERSION=${GITHUB_REF##*/}
           OUT=~/dist/cli
           mkdir -p ${OUT}
           mkdir -p tmp
@@ -57,23 +57,24 @@ jobs:
           for i in "${arr[@]}"
           do
               OSARCH=${i%.*}
-              EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
-              cp ../threadsd-${i} threadsd${EXT}
-              cp ../threads-${i} threads${EXT}
-              if [ "${EXT}" == ".exe" ]; then
-                  zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md install threadsd${EXT}
-                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
-              else
-                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd${EXT}
-                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
-              fi
+              cp ../threadsd-${i} threadsd
+              cp ../threads-${i} threads
+              tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd${EXT}
+              mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
           done
           cd .. && rm -rf tmp
-          echo $(ls ${OUT}/)
       - name: Mock Publish
         run: |
               OUT=~/dist/cli
               echo $(ls ${OUT}/)
+      # - name: Upload multiple assets to release
+      #   uses: radiusnetworks/release-asset-action@v1
+      #   with:
+      #     files: |
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
   release-win-mac:
     name: Release Mac and Win
     runs-on: macos-latest
@@ -114,10 +115,9 @@ jobs:
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
               gox -ldflags="-w $FLAGS" -osarch="darwin/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               gox -ldflags="-w $FLAGS" -osarch="darwin/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
-              echo $(ls ./)
       - name: Collect artifacts
         run: |
-          VERSION="test"
+          VERSION=${GITHUB_REF##*/}
           OUT=~/dist/cli
           mkdir -p ${OUT}
           mkdir -p tmp
@@ -141,7 +141,6 @@ jobs:
               fi
           done
           cd .. && rm -rf tmp
-          echo $(ls ${OUT}/)
       - name: Mock Publish
         run: |
               OUT=~/dist/cli
@@ -150,7 +149,6 @@ jobs:
       #   uses: radiusnetworks/release-asset-action@v1
       #   with:
       #     files: |
-      #       dist/cli/go-threads_VERSION_OSARCH.tar.gz
-      #       dist/cli/go-threads_VERSION_OSARCH2.tar.gz
-      #       dist/cli/go-threads_VERSION_OSARCH3.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
       #     github-token: ${{ secrets.GITHUB_TOKEN }}
