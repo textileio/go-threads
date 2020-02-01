@@ -42,7 +42,6 @@ jobs:
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd/main.go
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threads-{{.OS}}-{{.Arch}}" ./threads/main.go
               ls
-
         - name: Collect artifacts
           run: |
             VERSION="test"
