@@ -68,7 +68,7 @@ jobs:
                   mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
               else
                   tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd${EXT}
-                  mv go-threadsd_${VERSION}_${OSARCH}.tar.gz ${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
               fi
           done
           cd .. && rm -rf tmp
