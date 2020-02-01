@@ -86,7 +86,7 @@ jobs:
 
   release-win-mac:
     name: Release Mac and Win
-    runs-on: mac-latest
+    runs-on: macos-latest
     steps:
       - name: Set up Go
         uses: actions/setup-go@v1
