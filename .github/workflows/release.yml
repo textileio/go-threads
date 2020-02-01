@@ -38,14 +38,14 @@ jobs:
       - name: Compile
         run: |
               export PATH=${PATH}:`go env GOPATH`/bin
-              SUMMARY=${GITHUB_REF##*/}s
+              SUMMARY=${GITHUB_REF/refs\/tags\//}
               DATE=$(date --iso-8601=seconds)
               FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=master -X github.com/textileio/go-textile/common.GitState=clean"
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threads-{{.OS}}-{{.Arch}}" ./threads
       - name: Collect artifacts
         run: |
-          VERSION=${GITHUB_REF##*/}
+          VERSION=${GITHUB_REF/refs\/tags\//}
           OUT=~/dist/cli
           mkdir -p ${OUT}
           mkdir -p tmp
@@ -71,9 +71,9 @@ jobs:
       #   uses: radiusnetworks/release-asset-action@v1
       #   with:
       #     files: |
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_linux-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_linux-386.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_linux-arm.tar.gz
       #     github-token: ${{ secrets.GITHUB_TOKEN }}
   release-win-mac:
     name: Release Mac and Win
@@ -108,7 +108,7 @@ jobs:
       - name: Compile
         run: |
               export PATH=${PATH}:`go env GOPATH`/bin
-              SUMMARY=${GITHUB_REF##*/}
+              SUMMARY=${GITHUB_REF/refs\/tags\//}
               DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
               FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=master -X github.com/textileio/go-textile/common.GitState=clean"
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
@@ -117,7 +117,7 @@ jobs:
               gox -ldflags="-w $FLAGS" -osarch="darwin/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
       - name: Collect artifacts
         run: |
-          VERSION=${GITHUB_REF##*/}
+          VERSION=${GITHUB_REF/refs\/tags\//}
           OUT=~/dist/cli
           mkdir -p ${OUT}
           mkdir -p tmp
@@ -149,6 +149,6 @@ jobs:
       #   uses: radiusnetworks/release-asset-action@v1
       #   with:
       #     files: |
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_windows-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_darwin-amd64.tar.gz
       #     github-token: ${{ secrets.GITHUB_TOKEN }}
