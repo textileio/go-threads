@@ -75,14 +75,6 @@ jobs:
       - run: |
               OUT=~/dist/cli
               echo $(ls ${OUT}/)
-      # - name: Upload multiple assets to release
-      #   uses: radiusnetworks/release-asset-action@v1
-      #   with:
-      #     files: |
-      #       dist/cli/go-threads_VERSION_OSARCH.tar.gz
-      #       dist/cli/go-threads_VERSION_OSARCH2.tar.gz
-      #       dist/cli/go-threads_VERSION_OSARCH3.tar.gz
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
   release-win-mac:
     name: Release Mac and Win
     runs-on: macos-latest
