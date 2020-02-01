@@ -38,12 +38,11 @@ jobs:
       - name: Compile
         run: |
               export PATH=${PATH}:`go env GOPATH`/bin
-              SUMMARY="test"
+              SUMMARY=${GITHUB_REF##*/}s
               DATE=$(date --iso-8601=seconds)
-              FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=${GITHUB_REF##*/} -X github.com/textileio/go-textile/common.GitState=clean"
+              FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=master -X github.com/textileio/go-textile/common.GitState=clean"
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threads-{{.OS}}-{{.Arch}}" ./threads
-              echo $(ls ./)
       - name: Collect artifacts
         run: |
           VERSION="test"
@@ -108,11 +107,12 @@ jobs:
       - name: Compile
         run: |
               export PATH=${PATH}:`go env GOPATH`/bin
-              SUMMARY="test"
+              SUMMARY=${GITHUB_REF##*/}
               DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=${GITHUB_REF##*/} -X github.com/textileio/go-textile/common.GitState=clean"
+              FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=master -X github.com/textileio/go-textile/common.GitState=clean"
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
+              echo $(ls ./)
       - name: Collect artifacts
         run: |
           VERSION="test"
