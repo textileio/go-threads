@@ -42,32 +42,32 @@ jobs:
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd/main.go
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threads-{{.OS}}-{{.Arch}}" ./threads/main.go
               echo $(ls ./)
-        - name: Collect artifacts
-          run: |
-            VERSION="test"
-            OUT=~/dist/cli
-            mkdir -p ${OUT}
-            mkdir -p tmp
-            cp LICENSE tmp/
-            cp dist/README.md tmp/
-            cp dist/install tmp/
-            cd tmp
-            declare -a arr=("linux-amd64" "linux-386" "linux-arm")
-            for i in "${arr[@]}"
-            do
-                OSARCH=${i%.*}
-                EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
-                cp ../threadsd-${i} threadsd${EXT}
-                cp ../threads-${i} threads${EXT}
-                if [ "${EXT}" == ".exe" ]; then
-                    zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md install threadsd${EXT}
-                    mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
-                else
-                    tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd${EXT}
-                    mv go-threadsd_${VERSION}_${OSARCH}.tar.gz ${OUT}/
-                fi
-            done
-            cd .. && rm -rf tmp
+      - name: Collect artifacts
+        run: |
+          VERSION="test"
+          OUT=~/dist/cli
+          mkdir -p ${OUT}
+          mkdir -p tmp
+          cp LICENSE tmp/
+          cp dist/README.md tmp/
+          cp dist/install tmp/
+          cd tmp
+          declare -a arr=("linux-amd64" "linux-386" "linux-arm")
+          for i in "${arr[@]}"
+          do
+              OSARCH=${i%.*}
+              EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
+              cp ../threadsd-${i} threadsd${EXT}
+              cp ../threads-${i} threads${EXT}
+              if [ "${EXT}" == ".exe" ]; then
+                  zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md install threadsd${EXT}
+                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
+              else
+                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd${EXT}
+                  mv go-threadsd_${VERSION}_${OSARCH}.tar.gz ${OUT}/
+              fi
+          done
+          cd .. && rm -rf tmp
       # - name: Upload multiple assets to release
       #   uses: radiusnetworks/release-asset-action@v1
       #   with:
