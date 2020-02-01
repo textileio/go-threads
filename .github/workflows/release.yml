@@ -110,7 +110,7 @@ jobs:
               export PATH=${PATH}:`go env GOPATH`/bin
               COMMIT="test"
               SUMMARY="test"
-              DATE=$(date --iso-8601=seconds)
+              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
               FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${COMMIT} -X github.com/textileio/go-textile/common.GitBranch=${GITHUB_REF##*/} -X github.com/textileio/go-textile/common.GitState=clean"
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
