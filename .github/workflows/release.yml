@@ -112,6 +112,8 @@ jobs:
               FLAGS="-X github.com/textileio/go-threads/common.GitSummary=${SUMMARY} -X github.com/textileio/go-textile/common.BuildDate=${DATE} -X github.com/textileio/go-textile/common.GitCommit=${GITHUB_SHA} -X github.com/textileio/go-textile/common.GitBranch=master -X github.com/textileio/go-textile/common.GitState=clean"
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               CC="x86_64-w64-mingw32-gcc" CXX="x86_64-w64-mingw32-g++" gox -ldflags="-w $FLAGS" -cgo -osarch="windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
+              gox -ldflags="-w $FLAGS" -osarch="darwin/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
+              gox -ldflags="-w $FLAGS" -osarch="darwin/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
               echo $(ls ./)
       - name: Collect artifacts
         run: |
