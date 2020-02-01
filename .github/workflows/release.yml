@@ -47,7 +47,7 @@ jobs:
               gox -ldflags="-w $FLAGS" -osarch="linux/amd64 linux/386 linux/arm" -output="threads-{{.OS}}-{{.Arch}}" ./threads
       - name: Collect artifacts
         run: |
-          VERSION=${GITHUB_REF/refs\/tags\//}
+          VERSION=${GITHUB_REF##*/}
           OUT=~/dist/cli
           mkdir -p ${OUT}
           mkdir -p tmp
@@ -73,9 +73,9 @@ jobs:
       #   uses: radiusnetworks/release-asset-action@v1
       #   with:
       #     files: |
-      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_linux-amd64.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_linux-386.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_linux-arm.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
       #     github-token: ${{ secrets.GITHUB_TOKEN }}
   release-win-mac:
     name: Release Mac and Win
@@ -122,7 +122,7 @@ jobs:
               gox -ldflags="-w $FLAGS" -osarch="darwin/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
       - name: Collect artifacts
         run: |
-          VERSION=${GITHUB_REF/refs\/tags\//}
+          VERSION=${GITHUB_REF##*/}
           OUT=~/dist/cli
           mkdir -p ${OUT}
           mkdir -p tmp
@@ -154,6 +154,6 @@ jobs:
       #   uses: radiusnetworks/release-asset-action@v1
       #   with:
       #     files: |
-      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_windows-amd64.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF/refs\/tags\//}_darwin-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
+      #       dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
       #     github-token: ${{ secrets.GITHUB_TOKEN }}
