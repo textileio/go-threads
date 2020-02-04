@@ -189,13 +189,9 @@ jobs:
       - name: Compile
         run: |
               export PATH=${PATH}:`go env GOPATH`/bin
-              SUMMARY=${GITHUB_SHA}
-              if [[ $GITHUB_REF == refs/tags/* ]]; then
-                SUMMARY=${GITHUB_REF/refs\/tags\//}
-              fi  
-              DATE=$(date --iso-8601=seconds)
               gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
               gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
+              echo $(ls ./)
       - name: Collect artifacts
         run: |
           VERSION=${GITHUB_REF##*/}
