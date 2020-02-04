@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -113,7 +114,9 @@ func NewService(
 	}
 	go func() {
 		pb.RegisterServiceServer(t.rpc, t.server)
-		t.rpc.Serve(listener)
+		if err := t.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Fatalf("unable to start gRPC server: %v", err)
+		}
 	}()
 
 	go t.startPulling()
