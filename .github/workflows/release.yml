@@ -57,10 +57,10 @@ jobs:
               cp ../threadsd-${i} threadsd${EXT}
               cp ../threads-${i} threads${EXT}
               if [ "${EXT}" == ".exe" ]; then
-                  zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md install threadsd${EXT}
+                  zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md threadsd${EXT} threads${EXT}
                   mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
               else
-                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd${EXT}
+                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd threads
                   mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
               fi
           done
