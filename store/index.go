@@ -25,9 +25,9 @@ const (
 // ErrUniqueExists is the error thrown when data is being inserted for a unique constraint value that already exists
 var (
 	indexPrefix     = ds.NewKey("_index")
-	ErrUniqueExists = errors.New("Unique constraint violation")
-	ErrNotIndexable = errors.New("Value not indexable")
-	ErrNoIndexFound = errors.New("No index found")
+	ErrUniqueExists = errors.New("unique constraint violation")
+	ErrNotIndexable = errors.New("value not indexable")
+	ErrNoIndexFound = errors.New("no index found")
 )
 
 // Indexer is the interface to implement to support Model property indexes
@@ -166,7 +166,7 @@ func (v *keyList) in(key ds.Key) bool {
 		return bytes.Compare((*v)[i], b) >= 0
 	})
 
-	return (i < len(*v) && bytes.Equal((*v)[i], b))
+	return i < len(*v) && bytes.Equal((*v)[i], b)
 }
 
 type MarshaledResult struct {

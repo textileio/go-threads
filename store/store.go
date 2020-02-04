@@ -69,21 +69,6 @@ type Store struct {
 	stateChangedNotifee *stateChangedNotifee
 }
 
-func defaultIndexFunc(s *Store) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-	return func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-		indexer := s.GetModel(model)
-		if err := indexDelete(indexer, txn, key, oldData); err != nil {
-			return err
-		}
-		if newData != nil {
-			if err := indexAdd(indexer, txn, key, newData); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
 // NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
 func NewStore(ts service.Service, opts ...Option) (*Store, error) {
@@ -152,10 +137,10 @@ func (s *Store) reregisterSchemas() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-		index, err := s.datastore.Get(dsStoreIndexes.ChildString(name))
 		var indexes []*IndexConfig
+		index, err := s.datastore.Get(dsStoreIndexes.ChildString(name))
 		if err == nil && index != nil {
-			json.Unmarshal(index, &indexes)
+			_ = json.Unmarshal(index, &indexes)
 		}
 		if _, err := s.RegisterSchema(name, string(res.Value), indexes...); err != nil {
 			return err
@@ -287,7 +272,7 @@ func (s *Store) RegisterSchema(name string, schema string, indexes ...*IndexConf
 
 	for _, config := range indexes {
 		// @todo: Should check to make sure this is a valid field path for this schema
-		m.AddIndex(config.Path, config.Unique)
+		_ = m.AddIndex(config.Path, config.Unique)
 	}
 
 	indexBytes, err := json.Marshal(indexes)
@@ -424,4 +409,19 @@ func isValidModel(t interface{}) (valid bool) {
 		v = reflect.New(reflect.TypeOf(v))
 	}
 	return v.Elem().FieldByName(idFieldName).IsValid()
+}
+
+func defaultIndexFunc(s *Store) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+	return func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+		indexer := s.GetModel(model)
+		if err := indexDelete(indexer, txn, key, oldData); err != nil {
+			return err
+		}
+		if newData != nil {
+			if err := indexAdd(indexer, txn, key, newData); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }

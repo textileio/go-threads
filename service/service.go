@@ -414,6 +414,8 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multia
 	dialable, err := getDialable(paddr)
 	if err == nil {
 		t.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
+	} else {
+		log.Warnf("peer %s address requires a DHT lookup", pid.String())
 	}
 
 	// Send all logs to the new follower

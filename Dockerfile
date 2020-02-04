@@ -75,4 +75,4 @@ VOLUME $THREADS_PATH
 
 ENTRYPOINT ["/sbin/tini", "--", "threadsd"]
 
-CMD ["--repo=/data/threads", "--serviceApiAddr=/ip4/0.0.0.0/tcp/5006", "--serviceApiProxyAddr=/ip4/0.0.0.0/tcp/5007", "--apiAddr=/ip4/0.0.0.0/tcp/6006", "--apiProxyAddr=/ip4/0.0.0.0/tcp/6007"]
+CMD ["--repo=/data/threads"]

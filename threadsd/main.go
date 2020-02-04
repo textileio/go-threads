@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	"os"
 
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/namsral/flag"
 	"github.com/textileio/go-threads/api"
 	serviceapi "github.com/textileio/go-threads/service/api"
 	"github.com/textileio/go-threads/store"
@@ -16,14 +17,18 @@ import (
 var log = logging.Logger("threadsd")
 
 func main() {
-	repo := flag.String("repo", ".threads", "repo location")
-	hostAddrStr := flag.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
-	serviceApiAddrStr := flag.String("serviceApiAddr", "/ip4/127.0.0.1/tcp/5006", "Threads service API bind address")
-	serviceApiProxyAddrStr := flag.String("serviceApiProxyAddr", "/ip4/127.0.0.1/tcp/5007", "Threads service API gRPC proxy bind address")
-	apiAddrStr := flag.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
-	apiProxyAddrStr := flag.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "API gRPC proxy bind address")
-	debug := flag.Bool("debug", false, "Enable debug logging")
-	flag.Parse()
+	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], "THRDS", 0)
+
+	repo := fs.String("repo", ".threads", "repo location")
+	hostAddrStr := fs.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Threads host bind address")
+	serviceApiAddrStr := fs.String("serviceApiAddr", "/ip4/127.0.0.1/tcp/5006", "Threads service API bind address")
+	serviceApiProxyAddrStr := fs.String("serviceApiProxyAddr", "/ip4/127.0.0.1/tcp/5007", "Threads service API gRPC proxy bind address")
+	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "API bind address")
+	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "API gRPC proxy bind address")
+	debug := fs.Bool("debug", false, "Enable debug logging")
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
 
 	hostAddr, err := ma.NewMultiaddr(*hostAddrStr)
 	if err != nil {
@@ -52,6 +57,14 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+
+	log.Debugf("repo: %v", *repo)
+	log.Debugf("hostAddr: %v", *hostAddrStr)
+	log.Debugf("serviceApiAddr: %v", *serviceApiAddrStr)
+	log.Debugf("serviceApiProxyAddr: %v", *serviceApiProxyAddrStr)
+	log.Debugf("apiAddr: %v", *apiAddrStr)
+	log.Debugf("apiProxyAddr: %v", *apiProxyAddrStr)
+	log.Debugf("debug: %v", *debug)
 
 	ts, err := store.DefaultService(
 		*repo,

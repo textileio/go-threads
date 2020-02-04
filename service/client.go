@@ -97,7 +97,7 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 	client := pb.NewServiceClient(conn)
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
-		log.Warnf("push log to %s failed: %s", pid.String(), err)
+		return fmt.Errorf("push log to %s failed: %s", pid.String(), err)
 	}
 	return err
 }
