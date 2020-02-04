@@ -13,11 +13,11 @@
 
 # Dependency directories (remove the comment below to include it)
 vendor/
-service/pb/github.com
 
 # Examples repo
 .threads*/
 .e2e_counter_writeraddr
+docker-compose.yml
 
 # JS PB files
 *.js

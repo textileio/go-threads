@@ -120,10 +120,10 @@ func (jp *jsonPatcher) Reduce(
 				return nil, errCantCreateExistingInstance
 			}
 			if err := txn.Put(key, je.Patch.JSONPatch); err != nil {
-				return nil, fmt.Errorf("error when reducing create event: %v", err)
+				return nil, fmt.Errorf("error when reducing create event: %w", err)
 			}
 			if err := indexFunc(e.Model(), key, nil, je.Patch.JSONPatch, txn); err != nil {
-				return nil, fmt.Errorf("error when indexing created data: %v", err)
+				return nil, fmt.Errorf("error when indexing created data: %w", err)
 			}
 			actions[i] = core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
 			log.Debug("\tcreate operation applied")
@@ -137,13 +137,13 @@ func (jp *jsonPatcher) Reduce(
 			}
 			patchedValue, err := jsonpatch.MergePatch(value, je.Patch.JSONPatch)
 			if err != nil {
-				return nil, fmt.Errorf("error when reducing save event: %v", err)
+				return nil, fmt.Errorf("error when reducing save event: %w", err)
 			}
 			if err = txn.Put(key, patchedValue); err != nil {
 				return nil, err
 			}
 			if err := indexFunc(e.Model(), key, value, patchedValue, txn); err != nil {
-				return nil, fmt.Errorf("error when indexing created data: %v", err)
+				return nil, fmt.Errorf("error when indexing created data: %w", err)
 			}
 			actions[i] = core.ReduceAction{Type: core.Save, Model: e.Model(), EntityID: e.EntityID()}
 			log.Debug("\tsave operation applied")
@@ -156,7 +156,7 @@ func (jp *jsonPatcher) Reduce(
 				return nil, err
 			}
 			if err := indexFunc(e.Model(), key, value, nil, txn); err != nil {
-				return nil, fmt.Errorf("error when removing index: %v", err)
+				return nil, fmt.Errorf("error when removing index: %w", err)
 			}
 			actions[i] = core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
 			log.Debug("\tdelete operation applied")
