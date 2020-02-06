@@ -1,11 +1,7 @@
 name: Release
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+  release:
+    types: [created]
 jobs:
   release-platform-builds:
     name: Release Builds
@@ -65,14 +61,13 @@ jobs:
               fi
           done
           cd .. && rm -rf tmp
-      - name: Mock Publish
-        run: |
-              OUT=~/dist/cli
-              echo $(ls ${OUT}/)
-      # - name: Upload multiple assets to release
-      #   uses: radiusnetworks/release-asset-action@v1
-      #   with:
-      #     files: |
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
-      #       dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
-      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload multiple assets to release
+        uses: radiusnetworks/release-asset-action@v1
+        with:
+          files: |
+            dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
+          github-token: ${{ secrets.GITHUB_TOKEN }}
