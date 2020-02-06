@@ -1,0 +1,73 @@
+name: Release
+on:
+  release:
+    types: [created]
+jobs:
+  release-platform-builds:
+    name: Release Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.13
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Get dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          export PATH=${PATH}:`go env GOPATH`/bin
+          go get -v -t -d ./...
+      - name: Install gox
+        run: |
+          export PATH=${PATH}:`go env GOPATH`/bin
+          go get github.com/mitchellh/gox  
+      - name: Compile
+        run: |
+          export PATH=${PATH}:`go env GOPATH`/bin
+          gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
+          gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
+      - name: Collect artifacts
+        run: |
+          VERSION=${GITHUB_REF##*/}
+          OUT=~/dist/cli
+          mkdir -p ${OUT}
+          mkdir -p tmp
+          cp LICENSE tmp/
+          cp dist/README.md tmp/
+          cp dist/install tmp/
+          cd tmp
+          declare -a arr=("darwin-amd64" "windows-amd64.exe" "linux-amd64" "linux-386" "linux-arm")
+          for i in "${arr[@]}"
+          do
+              OSARCH=${i%.*}
+              EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
+              cp ../threadsd-${i} threadsd${EXT}
+              cp ../threads-${i} threads${EXT}
+              if [ "${EXT}" == ".exe" ]; then
+                  zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md threadsd${EXT} threads${EXT}
+                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
+              else
+                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd threads
+                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
+              fi
+          done
+          cd .. && rm -rf tmp
+      - name: Upload multiple assets to release
+        uses: radiusnetworks/release-asset-action@v1
+        with:
+          files: |
+            dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
+            dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
+          github-token: ${{ secrets.GITHUB_TOKEN }}
