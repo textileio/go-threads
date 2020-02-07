@@ -86,7 +86,6 @@ public class ClientUnitTest {
     @Test
     public void t06_ModelSave() throws Exception {
         String person = createPerson(modelId, 22);
-        System.out.println(person);
         String[] data = { person };
         client.ModelSaveSync(storeId, "Person", data);
         // now check that it's been updated

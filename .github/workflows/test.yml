@@ -40,7 +40,7 @@ jobs:
       threads:
         image: textile/go-threads:latest
         env:
-          THRDS_APIPROXYADDR: /ip4/0.0.0.0/tcp/6006
+          THRDS_APIADDR: /ip4/0.0.0.0/tcp/6006
         ports:
           - "127.0.0.1:6006:6006"
     steps:

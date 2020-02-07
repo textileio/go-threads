@@ -94,16 +94,8 @@ public class Client implements LifecycleObserver {
         ModelCreateRequest.Builder request = ModelCreateRequest.newBuilder();
         request.setStoreID(storeID);
         request.setModelName(modelName);
-        System.out.println(values.length);
-        System.out.println(request.addAllValues(Arrays.asList(values)));
-//        for (int i = 0; i < values.length; i++) {
-//        System.out.println(values[i]);
-//            request.setValues(i, values[i]);
-//        }
-        System.out.println("okay");
-        System.out.println(request.getValuesCount());
+        request.addAllValues(Arrays.asList(values));
         ModelCreateReply reply = blockingStub.modelCreate(request.build());
-        System.out.println(reply);
         return reply;
     }
 
@@ -111,9 +103,7 @@ public class Client implements LifecycleObserver {
         ModelSaveRequest.Builder request = ModelSaveRequest.newBuilder();
         request.setStoreID(storeID);
         request.setModelName(modelName);
-        for (int i = 1; i < values.length; i++) {
-            request.setValues(i, values[i]);
-        }
+        request.addAllValues(Arrays.asList(values));
         ModelSaveReply reply = blockingStub.modelSave(request.build());
         return reply;
     }
