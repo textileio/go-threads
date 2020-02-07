@@ -33,20 +33,28 @@ const (
 	V1 = 0x01
 )
 
+// Variant is a type for thread variants.
+type Variant uint64
+
 // Variants.
 const (
-	Raw              = 0x55
-	AccessControlled = 0x70 // Supports access control lists
+	Raw              Variant = 0x55
+	AccessControlled Variant = 0x70 // Supports access control lists
 )
 
-// VariantToStr maps the numeric variant to its name.
-var VariantToStr = map[uint64]string{
-	Raw:              "raw",
-	AccessControlled: "access_controlled",
+func (v Variant) String() string {
+	switch v {
+	case Raw:
+		return "raw"
+	case AccessControlled:
+		return "access_controlled"
+	default:
+		panic(fmt.Errorf("variant %d is invalid", v))
+	}
 }
 
 // NewIDV1 returns a new random ID using the given variant.
-func NewIDV1(variant uint64, size uint8) ID {
+func NewIDV1(variant Variant, size uint8) ID {
 	num := make([]byte, size)
 	_, err := rand.Read(num)
 	if err != nil {
@@ -57,7 +65,7 @@ func NewIDV1(variant uint64, size uint8) ID {
 	// two 8 bytes (max) numbers plus num
 	buf := make([]byte, 2*binary.MaxVarintLen64+numlen)
 	n := binary.PutUvarint(buf, V1)
-	n += binary.PutUvarint(buf[n:], variant)
+	n += binary.PutUvarint(buf[n:], uint64(variant))
 	cn := copy(buf[n:], num)
 	if cn != numlen {
 		panic("copy length is inconsistent")
@@ -187,10 +195,10 @@ func (i ID) Version() uint64 {
 }
 
 // Variant returns the variant of an ID.
-func (i ID) Variant() uint64 {
+func (i ID) Variant() Variant {
 	_, n := uvarint(i.str)
 	variant, _ := uvarint(i.str[n:])
-	return variant
+	return Variant(variant)
 }
 
 // String returns the default string representation of an ID.

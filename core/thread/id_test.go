@@ -48,7 +48,7 @@ func TestID_Variant(t *testing.T) {
 		t.Errorf("got wrong variant from %s: %d", i.String(), v)
 	}
 
-	t.Logf("Variant: %s", VariantToStr[v])
+	t.Logf("Variant: %s", v)
 
 	i = NewIDV1(AccessControlled, 32)
 
@@ -57,5 +57,5 @@ func TestID_Variant(t *testing.T) {
 		t.Errorf("got wrong variant from %s: %d", i.String(), v)
 	}
 
-	t.Logf("Variant: %s", VariantToStr[v])
+	t.Logf("Variant: %s", v)
 }
