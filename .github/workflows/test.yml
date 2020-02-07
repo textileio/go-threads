@@ -38,9 +38,11 @@ jobs:
     runs-on: ubuntu-latest
     services:
       threads:
-        image: textile/go-threads
+        image: textile/go-threads:latest
+        env:
+          THRDS_APIPROXYADDR: /ip4/0.0.0.0/tcp/6006
         ports:
-        - 6006:6006
+          - "127.0.0.1:6006:6006"
     steps:
       - name: set up JDK 1.8
         uses: actions/setup-java@v1
