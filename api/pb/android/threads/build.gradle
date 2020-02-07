@@ -64,8 +64,8 @@ dependencies {
 
     implementation "io.grpc:grpc-core:$gRPCVersion"
     implementation "io.grpc:grpc-okhttp:$gRPCVersion"
-    testImplementation "io.grpc:grpc-testing:$gRPCVersion"
     implementation "io.grpc:grpc-stub:$gRPCVersion"
+    testImplementation "io.grpc:grpc-testing:$gRPCVersion"
 
     // Lite, use below for Full
     implementation "io.grpc:grpc-protobuf-lite:$gRPCVersion"
@@ -90,6 +90,7 @@ dependencies {
     androidTestImplementation "commons-io:commons-io:$commonsIOVersion"
 
     testImplementation 'org.json:json:20190722'
+    implementation 'com.google.code.gson:gson:2.8.6'
 }
 
 group = publishedGroupId

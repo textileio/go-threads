@@ -18,8 +18,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 
-import io.textile.threads_grpc.GetStoreLinkReply;
-import io.textile.threads_grpc.ModelCreateReply;
+import java.util.Base64;
+import com.google.gson.Gson;
+
+import io.textile.threads_grpc.*;
 
 import static org.junit.Assert.*;
 
@@ -29,6 +31,7 @@ public class ClientUnitTest {
 
     static Client client;
     static String storeId;
+    static String modelId = "";
 
     void connect() throws Exception {
         // Initialize & start
@@ -45,7 +48,6 @@ public class ClientUnitTest {
     @Test
     public void t02_NewStore() throws Exception {
         storeId = client.NewStoreSync();
-
         assertEquals(36, storeId.length());
     }
 
@@ -71,29 +73,34 @@ public class ClientUnitTest {
 
     @Test
     public void t06_ModelCreate() throws Exception {
-        JSONObject person = createPerson("", 22);
-        String[] data = { person.toString() };
+        String person = createPerson("", 22);
+        String[] data = { person };
         ModelCreateReply reply = client.ModelCreateSync(storeId, "Person", data);
         assertEquals(1, reply.getEntitiesCount());
-        // @todo once working, store modelid to update in later tests
+        String jsonString = reply.getEntities(0);
+        Person model = new Gson().fromJson(jsonString, Person.class);
+        modelId = model.ID;
+        assertEquals(model.ID.length(), 36);
     }
 
     @Test
     public void t06_ModelSave() throws Exception {
-        // @todo use existing modelid
-        JSONObject person = createPerson("", 22);
-        String[] data = { person.toString() };
-        ModelCreateReply reply = client.ModelCreateSync(storeId, "Person", data);
-        assertEquals(1, reply.getEntitiesCount());
+        String person = createPerson(modelId, 22);
+        System.out.println(person);
+        String[] data = { person };
+        client.ModelSaveSync(storeId, "Person", data);
+        // now check that it's been updated
+        ModelFindByIDReply reply = client.ModelFindByIDSync(storeId, "Person", modelId);
+        String jsonString = reply.getEntity();
+        Person model = new Gson().fromJson(jsonString, Person.class);
+        assertEquals(modelId, model.ID);
     }
 
-    private JSONObject createPerson(String ID, int age) throws Exception {
-        JSONObject obj = new JSONObject();
-        obj.put("ID", ID);
-        obj.put("firstName", "adam");
-        obj.put("lastName", "doe");
-        obj.put("age", new Integer(age));
-        return obj;
+    private String createPerson(String ID, int age) throws Exception {
+        Gson gson = new Gson();
+        Person person = new Person(ID, age);
+        String json = gson.toJson(person);
+        return json;
     }
 
     private String getStoredSchema() throws Exception {
@@ -105,6 +112,17 @@ public class ClientUnitTest {
             line = br.readLine();
         }
         return sb.toString();
+    }
+}
+
+class Person {
+    public String firstName = "adam";
+    public String lastName = "doe";
+    public String ID;
+    public int age;
+    Person(String ID, int age) {
+        this.age = age;
+        this.ID = ID;
     }
 }
 

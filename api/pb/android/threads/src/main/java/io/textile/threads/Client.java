@@ -94,10 +94,17 @@ public class Client implements LifecycleObserver {
         ModelCreateRequest.Builder request = ModelCreateRequest.newBuilder();
         request.setStoreID(storeID);
         request.setModelName(modelName);
-        for (int i = 1; i < values.length; i++) {
-            request.setValues(i, values[i]);
-        }
-        return blockingStub.modelCreate(request.build());
+        System.out.println(values.length);
+        System.out.println(request.addAllValues(Arrays.asList(values)));
+//        for (int i = 0; i < values.length; i++) {
+//        System.out.println(values[i]);
+//            request.setValues(i, values[i]);
+//        }
+        System.out.println("okay");
+        System.out.println(request.getValuesCount());
+        ModelCreateReply reply = blockingStub.modelCreate(request.build());
+        System.out.println(reply);
+        return reply;
     }
 
     public ModelSaveReply ModelSaveSync (String storeID, String modelName, String[] values) {
