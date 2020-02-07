@@ -10,6 +10,7 @@ import (
 	pt "github.com/libp2p/go-libp2p-core/test"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	varint "github.com/multiformats/go-varint"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 )
@@ -123,7 +124,7 @@ func (c ProtoCid) MarshalJSON() ([]byte, error) {
 
 func (c *ProtoCid) Unmarshal(data []byte) (err error) {
 	c.Cid, err = cid.Cast(data)
-	if err == cid.ErrCidTooShort {
+	if err == varint.ErrUnderflow {
 		c.Cid = cid.Undef
 		return nil
 	}

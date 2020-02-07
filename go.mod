@@ -47,6 +47,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.2.0
 	github.com/multiformats/go-multibase v0.0.1
 	github.com/multiformats/go-multihash v0.0.13
+	github.com/multiformats/go-varint v0.0.5
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/namsral/flag v1.7.4-pre
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
