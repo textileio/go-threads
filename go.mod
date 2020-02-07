@@ -24,7 +24,7 @@ require (
 	github.com/improbable-eng/grpc-web v0.12.0
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-blockservice v0.1.2
-	github.com/ipfs/go-cid v0.0.4
+	github.com/ipfs/go-cid v0.0.5
 	github.com/ipfs/go-datastore v0.3.1
 	github.com/ipfs/go-ds-badger v0.2.0
 	github.com/ipfs/go-ipfs-blockstore v0.1.1
@@ -49,8 +49,7 @@ require (
 	github.com/mr-tron/base58 v1.1.3
 	github.com/multiformats/go-multiaddr v0.2.0
 	github.com/multiformats/go-multibase v0.0.1
-	github.com/multiformats/go-multihash v0.0.10
-	github.com/multiformats/go-varint v0.0.2 // indirect
+	github.com/multiformats/go-multihash v0.0.13
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/namsral/flag v1.7.4-pre // indirect
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2

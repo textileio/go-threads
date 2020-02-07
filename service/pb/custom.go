@@ -123,7 +123,7 @@ func (c ProtoCid) MarshalJSON() ([]byte, error) {
 
 func (c *ProtoCid) Unmarshal(data []byte) (err error) {
 	c.Cid, err = cid.Cast(data)
-	if err == cid.ErrVarintBuffSmall {
+	if err == cid.ErrCidTooShort {
 		c.Cid = cid.Undef
 		return nil
 	}
