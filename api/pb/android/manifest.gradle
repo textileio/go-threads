@@ -8,11 +8,11 @@ ext {
 
     demoAppId = 'io.textile.textileexample'
 
-    libraryDescription = 'IPFS Lite for Android'
-    libraryKeywords = ['textile', 'ipfs', 'libp2p', 'decentralized', 'encrypted', 'android']
+    libraryDescription = 'Threads Client for Android'
+    libraryKeywords = ['textile', 'ipfs', 'libp2p', 'decentralized', 'encrypted', 'android', 'threads']
 
-    siteUrl = 'https://github.com/textileio/android-ipfs-lite'
-    gitUrl = 'https://github.com/textileio/android-ipfs-lite.git'
+    siteUrl = 'https://github.com/textileio/go-threads'
+    gitUrl = 'https://github.com/textileio/go-threads.git'
 
     libraryVersion = '<version>'
 

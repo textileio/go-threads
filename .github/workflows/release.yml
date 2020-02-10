@@ -92,6 +92,9 @@ jobs:
           cd api/pb/android
           ./gradlew threads:install
       - name: Publish
+        env:
+          BINTRAY_USERNAME: ${{ secrets.BINTRAY_USERNAME }}
+          BINTRAY_API_KEY: ${{ secrets.BINTRAY_API_KEY }}
         run: |
           cd api/pb/android
           ./gradlew threads:bintrayUpload
