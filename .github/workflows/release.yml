@@ -62,7 +62,7 @@ jobs:
           done
           cd .. && rm -rf tmp
       - name: Upload multiple assets to release
-        uses: radiusnetworks/release-asset-action@v2
+        uses: AButler/upload-release-assets@v2.0
         with:
-          pattern: "dist/cli/go-threads_*"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          files: '~/dist/cli/go-threads_*'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
