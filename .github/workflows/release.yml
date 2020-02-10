@@ -86,10 +86,12 @@ jobs:
       - name: Update Version
         run: |
           cd api/pb/android
-          sed -i.bak "s/0.0.1-dev/${GITHUB_REF##*/}/g" manifest.gradle
+          sed -i.bak "s/<version>/${GITHUB_REF##*/}/g" manifest.gradle
       - name: Install
         run: |
+          cd api/pb/android
           ./gradlew threads:install
       - name: Publish
         run: |
+          cd api/pb/android
           ./gradlew threads:bintrayUpload

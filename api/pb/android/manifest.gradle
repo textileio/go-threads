@@ -14,7 +14,7 @@ ext {
     siteUrl = 'https://github.com/textileio/android-ipfs-lite'
     gitUrl = 'https://github.com/textileio/android-ipfs-lite.git'
 
-    libraryVersion = '0.0.1'
+    libraryVersion = '<version>'
 
     minSdk = 26
     targetSdk = 28
