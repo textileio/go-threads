@@ -64,10 +64,5 @@ jobs:
       - name: Upload multiple assets to release
         uses: radiusnetworks/release-asset-action@v2
         with:
-          files: |
-            dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
+          pattern: "dist/cli/go-threads_*"
           github-token: ${{ secrets.GITHUB_TOKEN }}
