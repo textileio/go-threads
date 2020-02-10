@@ -38,7 +38,7 @@ jobs:
       - name: Collect artifacts
         run: |
           VERSION=${GITHUB_REF##*/}
-          OUT=~/dist/cli
+          OUT=release/cli
           mkdir -p ${OUT}
           mkdir -p tmp
           cp LICENSE tmp/
@@ -54,23 +54,19 @@ jobs:
               cp ../threads-${i} threads${EXT}
               if [ "${EXT}" == ".exe" ]; then
                   zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md threadsd${EXT} threads${EXT}
-                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.zip ../${OUT}/
               else
                   tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd threads
-                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ../${OUT}/
               fi
           done
           cd .. && rm -rf tmp
+          echo $(ls ./release/cli)
       - name: Upload multiple assets to release
-        uses: radiusnetworks/release-asset-action@v1
+        uses: AButler/upload-release-assets@v2.0
         with:
-          files: |
-            dist/cli/go-threads_${GITHUB_REF##*/}_windows-amd64.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_darwin-amd64.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_linux-amd64.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_linux-arm.tar.gz
-            dist/cli/go-threads_${GITHUB_REF##*/}_linux-386.tar.gz
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          files: 'release/cli/go-threads_*'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
   android-client:
     name: Android Client Test
     runs-on: ubuntu-latest
@@ -97,4 +93,3 @@ jobs:
       - name: Publish
         run: |
           ./gradlew threads:bintrayUpload
-     
