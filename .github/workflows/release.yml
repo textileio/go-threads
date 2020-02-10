@@ -38,7 +38,7 @@ jobs:
       - name: Collect artifacts
         run: |
           VERSION=${GITHUB_REF##*/}
-          OUT=dist/cli
+          OUT=release/cli
           mkdir -p ${OUT}
           mkdir -p tmp
           cp LICENSE tmp/
@@ -61,9 +61,9 @@ jobs:
               fi
           done
           cd .. && rm -rf tmp
-          echo $(ls ./dist/out)
+          echo $(ls ./release/out)
       - name: Upload multiple assets to release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: 'dist/cli/go-threads_*'
+          files: 'release/cli/go-threads_*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
