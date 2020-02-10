@@ -54,14 +54,14 @@ jobs:
               cp ../threads-${i} threads${EXT}
               if [ "${EXT}" == ".exe" ]; then
                   zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md threadsd${EXT} threads${EXT}
-                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.zip ../${OUT}/
               else
                   tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd threads
-                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ../${OUT}/
               fi
           done
           cd .. && rm -rf tmp
-          echo $(ls ./release/out)
+          echo $(ls ./release/cli)
       - name: Upload multiple assets to release
         uses: AButler/upload-release-assets@v2.0
         with:
