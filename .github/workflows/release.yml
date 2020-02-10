@@ -68,7 +68,7 @@ jobs:
           files: 'release/cli/go-threads_*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
   android-client:
-    name: Android Client Test
+    name: Android Release
     runs-on: ubuntu-latest
     steps:
       - name: set up JDK 1.8
