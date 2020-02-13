@@ -40,27 +40,26 @@ jobs:
           VERSION=${GITHUB_REF##*/}
           OUT=release/cli
           mkdir -p ${OUT}
-          mkdir -p tmp
-          cp LICENSE tmp/
-          cp dist/README.md tmp/
-          cp dist/install tmp/
-          cd tmp
+          mkdir -p threads
+          cp LICENSE threads/
+          cp dist/README.md threads/
+          cp dist/install threads/
           declare -a arr=("darwin-amd64" "windows-amd64.exe" "linux-amd64" "linux-386" "linux-arm")
           for i in "${arr[@]}"
           do
               OSARCH=${i%.*}
               EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
-              cp ../threadsd-${i} threadsd${EXT}
-              cp ../threads-${i} threads${EXT}
+              cp threadsd-${i} threads/threadsd${EXT}
+              cp threads-${i} threads/threads${EXT}
               if [ "${EXT}" == ".exe" ]; then
-                  zip go-threads_${VERSION}_${OSARCH}.zip LICENSE README.md threadsd${EXT} threads${EXT}
+                  zip go-threads_${VERSION}_${OSARCH}.zip threads
                   mv go-threads_${VERSION}_${OSARCH}.zip ../${OUT}/
               else
-                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz LICENSE README.md install threadsd threads
+                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz threads
                   mv go-threads_${VERSION}_${OSARCH}.tar.gz ../${OUT}/
               fi
           done
-          cd .. && rm -rf tmp
+          cd .. && rm -rf threads
           echo $(ls ./release/cli)
       - name: Upload multiple assets to release
         uses: AButler/upload-release-assets@v2.0
