@@ -53,10 +53,10 @@ jobs:
               cp threads-${i} install-threads/threads${EXT}
               if [ "${EXT}" == ".exe" ]; then
                   zip go-threads_${VERSION}_${OSARCH}.zip install-threads
-                  mv go-threads_${VERSION}_${OSARCH}.zip ../${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
               else
                   tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz install-threads
-                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ../${OUT}/
+                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
               fi
           done
           rm -rf install-threads
