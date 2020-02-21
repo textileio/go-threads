@@ -32,3 +32,4 @@ api/pb/dart/lib
 .vscode/
 
 **/node_modules
+tags

@@ -35,7 +35,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 	}
 
 	if config.Datastore == nil {
-		datastore, err := newDefaultDatastore(config.RepoPath)
+		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
 			return nil, err
 		}

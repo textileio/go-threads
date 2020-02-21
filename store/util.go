@@ -93,6 +93,7 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	// Build a logstore
 	logstorePath := filepath.Join(repoPath, defaultLogstorePath)
 	if err := os.MkdirAll(logstorePath, os.ModePerm); err != nil {
+		cancel()
 		return nil, err
 	}
 	logstore, err := badger.NewDatastore(logstorePath, &badger.DefaultOptions)
