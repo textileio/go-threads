@@ -85,7 +85,7 @@ func NewStore(ts service.Service, opts ...Option) (*Store, error) {
 // with the same config.
 func newStore(ts service.Service, config *Config) (*Store, error) {
 	if config.Datastore == nil {
-		datastore, err := newDefaultDatastore(config.RepoPath)
+		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
 			return nil, err
 		}
