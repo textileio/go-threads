@@ -47,6 +47,7 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 func WithLowMem(low bool) Option {
 	return func(sc *Config) error {
 		sc.LowMem = low
+		return nil
 	}
 }
 
