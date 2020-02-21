@@ -44,6 +44,12 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 	return badger.NewDatastore(path, &opts)
 }
 
+func WithLowMem(low bool) Option {
+	return func(sc *Config) error {
+		sc.LowMem = low
+	}
+}
+
 func WithJsonMode(enabled bool) Option {
 	return func(sc *Config) error {
 		sc.JsonMode = enabled
