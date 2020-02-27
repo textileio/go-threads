@@ -35,8 +35,10 @@ public class ClientUnitTest {
 
     void connect() throws Exception {
         // Initialize & start
-        client = new Client("localhost", 6006);
-        client.Connect();
+        client = new Client();
+        client.init((success)->{
+            System.out.println("Thread Info: " + "READY!");
+        });
     }
 
     @Test
