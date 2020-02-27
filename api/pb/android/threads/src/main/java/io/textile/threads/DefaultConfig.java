@@ -27,6 +27,7 @@ public class DefaultConfig implements Config {
     public String getSession() {
         return session;
     }
+    public void setSession(String session) { this.session = session; }
     /**
      * @return the gRPC managed channel
      */

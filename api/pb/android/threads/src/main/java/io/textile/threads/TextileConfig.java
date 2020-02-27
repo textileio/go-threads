@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
-@Deprecated
 public class TextileConfig implements Config {
     public static String scheme = "https";
     public static String host = "api.textile.io";
@@ -41,6 +40,14 @@ public class TextileConfig implements Config {
     public String getSession(){
         return session;
     }
+
+    /**
+     *
+     * @param session an existing session from getSession
+     */
+    public void setSession(String session){
+        this.session = session;
+    }
     /**
      * @return the gRPC managed channel
      */
@@ -52,10 +59,6 @@ public class TextileConfig implements Config {
      * @param ready
      */
     public void init(Consumer<Boolean> ready) {
-        this.refreshSession((result) -> {
-            this.session = result.session_id;
-            ready.accept(true);
-        });
         if (scheme == "http") {
             channel = ManagedChannelBuilder
                     .forAddress(host, port)
@@ -67,6 +70,15 @@ public class TextileConfig implements Config {
                     .useTransportSecurity()
                     .build();
         }
+        if (this.session != null) {
+            // skip the session refresh if it's not null
+            ready.accept(true);
+            return;
+        }
+        this.refreshSession((result) -> {
+            this.session = result.session_id;
+            ready.accept(true);
+        });
     }
     public void refreshSession(Consumer<Session> callback) {
         OkHttpClient client = new OkHttpClient();
@@ -93,15 +105,10 @@ public class TextileConfig implements Config {
                 if (!response.isSuccessful()) throw new IOException(
                         "Unexpected code " + response);
                 String output = response.body().string();
-                System.out.println("Info: response " + response.toString());
-                System.out.println("Info: response " + output);
-
                 Gson gson = new Gson();
                 Session result = gson.fromJson(output, Session.class);
-                System.out.println("Info: response " + result.session_id);
                 callback.accept(result);
             }
         });
     }
 }
-

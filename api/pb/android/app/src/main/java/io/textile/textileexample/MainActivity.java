@@ -32,16 +32,27 @@ public class MainActivity extends AppCompatActivity {
 
     private void initIPFS() {
         try {
-            Config config = new DefaultConfig();
             /**
-             * Replace the above with your Textile cloud info to run with cloud.textile.io
+             * To use hosted threads from Textile, use the following instead of DefaultConfig
              */
-            //Config config = new TextileConfig(
-            //        "PROJECT TOKEN, "DEVICE UUID"
-            //);
+            /*
+                Config config = new TextileConfig(
+                    PROJECT_TOKEN,
+                    DEVICE_UUID
+                );
+                // Optionally, restore a session for the same user by supplying the session ID
+                config.setSession(SESSION_ID);
+                ...
+                // If it's your first time starting the client, you can get and locally store the session id
+                String SESSION_ID = client.getSession();
+                // The above only works when using the TextileConfig
+            */
+
+            Config config = new DefaultConfig();
             client = new Client(config);
             client.init((success)->{
                 System.out.println("Thread Info: " + "READY!");
+                // System.out.println("Session Info: " + client.getSession());
             });
         } catch (Exception e) {
             System.out.println("Thread Info: " + e.getMessage());

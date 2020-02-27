@@ -37,6 +37,13 @@ public class Client implements LifecycleObserver {
     }
 
     /**
+     *
+     * @return the current session id or null
+     */
+    public String getSession() {
+        return this.config.getSession();
+    }
+    /**
      * Method must be called before using the Client and while the device has an internet connection.
      * @param ready
      */
