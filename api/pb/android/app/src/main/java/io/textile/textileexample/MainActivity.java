@@ -32,10 +32,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void initIPFS() {
         try {
-            Config config = new TextileConfig(
-                    "54e24fc3-fda5-478a-b1f7-040ea5aaab33", "77b7b712-5ec4-42f2-b3c4-57b22f0cf057"
-            );
-//            Config config = new DefaultConfig();
+            Config config = new DefaultConfig();
+            /**
+             * Replace the above with your Textile cloud info to run with cloud.textile.io
+             */
+            //Config config = new TextileConfig(
+            //        "PROJECT TOKEN, "DEVICE UUID"
+            //);
             client = new Client(config);
             client.init((success)->{
                 System.out.println("Thread Info: " + "READY!");
