@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"fmt"
@@ -192,7 +192,7 @@ func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JS
 
 // FindJSON queries for entities by JSONQuery
 func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
-	txn, err := t.model.store.datastore.NewTransaction(true)
+	txn, err := t.model.db.datastore.NewTransaction(true)
 	if err != nil {
 		return nil, fmt.Errorf("error building internal query: %v", err)
 	}

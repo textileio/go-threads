@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"errors"
@@ -39,18 +39,18 @@ func TestSchemaRegistration(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		_, err := store.Register("Dog", &Dog{})
+		_, err := db.Register("Dog", &Dog{})
 		checkErr(t, err)
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		_, err := store.Register("Dog", &Dog{})
+		_, err := db.Register("Dog", &Dog{})
 		checkErr(t, err)
-		_, err = store.Register("Person", &Person{})
+		_, err = db.Register("Person", &Person{})
 		checkErr(t, err)
 	})
 	t.Run("Fail/WithoutEntityID", func(t *testing.T) {
@@ -58,9 +58,9 @@ func TestSchemaRegistration(t *testing.T) {
 		type FailingModel struct {
 			IDontHaveAnIDField int
 		}
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		if _, err := store.Register("FailingModel", &FailingModel{}); err != ErrInvalidModel {
+		if _, err := db.Register("FailingModel", &FailingModel{}); err != ErrInvalidModel {
 			t.Fatal("the model should be invalid")
 		}
 	})
@@ -70,9 +70,9 @@ func TestCreateInstance(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		model, err := store.Register("Person", &Person{})
+		model, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 
 		t.Run("WithImplicitTx", func(t *testing.T) {
@@ -92,9 +92,9 @@ func TestCreateInstance(t *testing.T) {
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		model, err := store.Register("Person", &Person{})
+		model, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 
 		newPerson1 := &Person{Name: "Foo1", Age: 42}
@@ -113,9 +113,9 @@ func TestCreateInstance(t *testing.T) {
 
 	t.Run("WithDefinedID", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		model, err := store.Register("Person", &Person{})
+		model, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 
 		definedID := core.NewEntityID()
@@ -132,9 +132,9 @@ func TestCreateInstance(t *testing.T) {
 
 	t.Run("Re-Create", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		m, err := store.Register("Person", &Person{})
+		m, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 
 		p := &Person{Name: "Foo1", Age: 42}
@@ -151,9 +151,9 @@ func TestReadTxnValidation(t *testing.T) {
 
 	t.Run("TryCreate", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		m, err := store.Register("Person", &Person{})
+		m, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		err = m.ReadTxn(func(txn *Txn) error {
@@ -165,9 +165,9 @@ func TestReadTxnValidation(t *testing.T) {
 	})
 	t.Run("TrySave", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		m, err := store.Register("Person", &Person{})
+		m, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		checkErr(t, m.Create(p))
@@ -180,9 +180,9 @@ func TestReadTxnValidation(t *testing.T) {
 	})
 	t.Run("TryDelete", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		m, err := store.Register("Person", &Person{})
+		m, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		checkErr(t, m.Create(p))
@@ -198,9 +198,9 @@ func TestReadTxnValidation(t *testing.T) {
 func TestVariadic(t *testing.T) {
 	t.Parallel()
 
-	store, clean := createTestStore(t)
+	db, clean := createTestDB(t)
 	defer clean()
-	m, err := store.Register("Person", &Person{})
+	m, err := db.Register("Person", &Person{})
 	checkErr(t, err)
 
 	p1 := &Person{Name: "Foo1", Age: 42}
@@ -232,9 +232,9 @@ func TestVariadic(t *testing.T) {
 func TestGetInstance(t *testing.T) {
 	t.Parallel()
 
-	store, clean := createTestStore(t)
+	db, clean := createTestDB(t)
 	defer clean()
-	model, err := store.Register("Person", &Person{})
+	model, err := db.Register("Person", &Person{})
 	checkErr(t, err)
 
 	newPerson := &Person{Name: "Foo", Age: 42}
@@ -282,9 +282,9 @@ func TestSaveInstance(t *testing.T) {
 
 	t.Run("Simple", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		model, err := store.Register("Person", &Person{})
+		model, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 
 		newPerson := &Person{Name: "Alice", Age: 42}
@@ -312,9 +312,9 @@ func TestSaveInstance(t *testing.T) {
 	})
 	t.Run("SaveNonExistant", func(t *testing.T) {
 		t.Parallel()
-		store, clean := createTestStore(t)
+		db, clean := createTestDB(t)
 		defer clean()
-		m, err := store.Register("Person", &Person{})
+		m, err := db.Register("Person", &Person{})
 		checkErr(t, err)
 
 		p := &Person{Name: "Alice", Age: 42}
@@ -327,9 +327,9 @@ func TestSaveInstance(t *testing.T) {
 func TestDeleteInstance(t *testing.T) {
 	t.Parallel()
 
-	store, clean := createTestStore(t)
+	db, clean := createTestDB(t)
 	defer clean()
-	model, err := store.Register("Person", &Person{})
+	model, err := db.Register("Person", &Person{})
 	checkErr(t, err)
 
 	newPerson := &Person{Name: "Alice", Age: 42}
@@ -362,9 +362,9 @@ type PersonFake struct {
 func TestInvalidActions(t *testing.T) {
 	t.Parallel()
 
-	store, clean := createTestStore(t)
+	db, clean := createTestDB(t)
 	defer clean()
-	model, err := store.Register("Person", &Person{})
+	model, err := db.Register("Person", &Person{})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
 		f := &PersonFake{Name: "fake"}
@@ -400,13 +400,13 @@ func assertPersonInModel(t *testing.T, model *Model, person *Person) {
 	}
 }
 
-func createTestStore(t *testing.T, opts ...Option) (*Store, func()) {
+func createTestDB(t *testing.T, opts ...Option) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	ts, err := DefaultService(dir)
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
-	s, err := NewStore(ts, opts...)
+	s, err := NewDB(ts, opts...)
 	checkErr(t, err)
 	return s, func() {
 		if err := ts.Close(); err != nil {

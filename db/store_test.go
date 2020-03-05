@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 func TestE2EWithThreads(t *testing.T) {
 	t.Parallel()
 
-	// peer1: Create store1, register a model, create and update an instance.
+	// peer1: Create db1, register a model, create and update an instance.
 	tmpDir1, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
@@ -26,30 +26,30 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer ts1.Close()
 
-	s1, err := NewStore(ts1, WithRepoPath(tmpDir1))
+	d1, err := NewDB(ts1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
-	defer s1.Close()
-	m1, err := s1.Register("dummy", &dummyModel{})
+	defer d1.Close()
+	m1, err := d1.Register("dummy", &dummyModel{})
 	checkErr(t, err)
-	checkErr(t, s1.Start())
+	checkErr(t, d1.Start())
 	dummyInstance := &dummyModel{Name: "Textile", Counter: 0}
 	checkErr(t, m1.Create(dummyInstance))
 	dummyInstance.Counter += 42
 	checkErr(t, m1.Save(dummyInstance))
 
 	// Boilerplate to generate peer1 thread-addr and get follow/read keys
-	threadID, _, err := s1.ThreadID()
+	threadID, _, err := d1.ThreadID()
 	checkErr(t, err)
-	threadInfo, err := s1.Service().GetThread(context.Background(), threadID)
+	threadInfo, err := d1.Service().GetThread(context.Background(), threadID)
 	checkErr(t, err)
-	peer1Addr := s1.Service().Host().Addrs()[0]
-	peer1ID, err := multiaddr.NewComponent("p2p", s1.Service().Host().ID().String())
+	peer1Addr := d1.Service().Host().Addrs()[0]
+	peer1ID, err := multiaddr.NewComponent("p2p", d1.Service().Host().ID().String())
 	checkErr(t, err)
 	threadComp, err := multiaddr.NewComponent("thread", threadID.String())
 	checkErr(t, err)
 	threadAddr := peer1Addr.Encapsulate(peer1ID).Encapsulate(threadComp)
 
-	// Create a completely parallel store, which will sync with the previous one
+	// Create a completely parallel db, which will sync with the previous one
 	// and should have the same state of dummyInstance.
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
@@ -58,12 +58,12 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer ts2.Close()
 
-	s2, err := NewStore(ts2, WithRepoPath(tmpDir2))
+	d2, err := NewDB(ts2, WithRepoPath(tmpDir2))
 	checkErr(t, err)
-	defer s2.Close()
-	m2, err := s2.Register("dummy", &dummyModel{})
+	defer d2.Close()
+	m2, err := d2.Register("dummy", &dummyModel{})
 	checkErr(t, err)
-	checkErr(t, s2.StartFromAddr(threadAddr, threadInfo.FollowKey, threadInfo.ReadKey))
+	checkErr(t, d2.StartFromAddr(threadAddr, threadInfo.FollowKey, threadInfo.ReadKey))
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
@@ -84,10 +84,10 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
-	s, err := NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err := NewDB(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
-	m, err := s.Register("dummy", &dummyModel{})
+	m, err := d.Register("dummy", &dummyModel{})
 	checkErr(t, err)
 	checkErr(t, m.Create(&dummyModel{Name: "Textile"}))
 
@@ -97,15 +97,15 @@ func TestOptions(t *testing.T) {
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
 	checkErr(t, ts.Close())
-	checkErr(t, s.Close())
+	checkErr(t, d.Close())
 
 	time.Sleep(time.Second * 3)
 	ts, err = DefaultService(tmpDir)
 	checkErr(t, err)
 	defer ts.Close()
-	s, err = NewStore(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err = NewDB(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
-	checkErr(t, s.Close())
+	checkErr(t, d.Close())
 }
 
 func TestListeners(t *testing.T) {
@@ -122,7 +122,7 @@ func TestListeners(t *testing.T) {
 		}
 	}
 
-	t.Run("AllStoreEvents", func(t *testing.T) {
+	t.Run("AllDBEvents", func(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t)
 		expected := []Action{
@@ -229,11 +229,11 @@ func TestListeners(t *testing.T) {
 	})
 }
 
-// runListenersComplexUseCase runs a complex store use-case, and returns
+// runListenersComplexUseCase runs a complex db use-case, and returns
 // Actions received with the ...ListenOption provided.
 func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	t.Helper()
-	s, cls := createTestStore(t)
+	s, cls := createTestDB(t)
 	m1, err := s.Register("Model1", &dummyModel{})
 	checkErr(t, err)
 	m2, err := s.Register("Model2", &dummyModel{})

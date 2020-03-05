@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"os"
@@ -18,7 +18,7 @@ const (
 // Option takes a Config and modifies it
 type Option func(*Config) error
 
-// Config has configuration parameters for a store
+// Config has configuration parameters for a db
 type Config struct {
 	RepoPath   string
 	Datastore  ds.TxnDatastore

@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"errors"
@@ -163,8 +163,8 @@ func TestInvalidSliceType(t *testing.T) {
 }
 
 func createModelWithData(t *testing.T) (*Model, func()) {
-	store, clean := createTestStore(t)
-	m, err := store.Register("Book", &book{})
+	db, clean := createTestDB(t)
+	m, err := db.Register("Book", &book{})
 	checkErr(t, err)
 	for i := range sampleData {
 		if err = m.Create(&sampleData[i]); err != nil {
