@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	pb "github.com/textileio/go-threads/api/pb"
-	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 )
 
 // ReadTransaction encapsulates a read transaction
 type ReadTransaction struct {
-	client             pb.API_ReadTransactionClient
-	storeID, modelName string
+	client          pb.API_ReadTransactionClient
+	dbID, modelName string
 }
 
 // EndTransactionFunc must be called to end a transaction after it has been started
@@ -19,7 +19,7 @@ type EndTransactionFunc = func() error
 
 // Start starts the read transaction
 func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
-	innerReq := &pb.StartTransactionRequest{StoreID: t.storeID, ModelName: t.modelName}
+	innerReq := &pb.StartTransactionRequest{DBID: t.dbID, ModelName: t.modelName}
 	option := &pb.ReadTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
 	if err := t.client.Send(&pb.ReadTransactionRequest{Option: option}); err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (t *ReadTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *ReadTransaction) Find(query *store.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (t *ReadTransaction) Find(query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
