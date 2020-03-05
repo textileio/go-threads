@@ -21,8 +21,8 @@ import (
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/service/api"
-	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -393,10 +393,10 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
-	ts, err := store.DefaultService(
+	ts, err := db.DefaultService(
 		dir,
-		store.WithServiceHostAddr(hostAddr),
-		store.WithServiceDebug(true))
+		db.WithServiceHostAddr(hostAddr),
+		db.WithServiceDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}

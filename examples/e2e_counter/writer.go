@@ -10,7 +10,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/store"
 	"github.com/textileio/go-threads/core/thread"
-	s "github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 )
 
 type myCounter struct {
@@ -22,21 +22,21 @@ type myCounter struct {
 func runWriterPeer(repo string) {
 	fmt.Printf("I'm a writer\n")
 
-	ts, err := s.DefaultService(repo)
+	ts, err := db.DefaultService(repo)
 	checkErr(err)
 	defer ts.Close()
-	store, err := s.NewStore(ts, s.WithRepoPath(repo))
+	d, err := db.NewDB(ts, db.WithRepoPath(repo))
 	checkErr(err)
-	defer store.Close()
+	defer d.Close()
 
-	m, err := store.Register("counter", &myCounter{})
+	m, err := d.Register("counter", &myCounter{})
 	checkErr(err)
-	checkErr(store.Start())
+	checkErr(d.Start())
 	checkErr(err)
 
 	var counter *myCounter
 	var counters []*myCounter
-	checkErr(m.Find(&counters, s.Where("Name").Eq("TestCounter")))
+	checkErr(m.Find(&counters, db.Where("Name").Eq("TestCounter")))
 	if len(counters) > 0 {
 		counter = counters[0]
 	} else {
@@ -44,13 +44,13 @@ func runWriterPeer(repo string) {
 		checkErr(m.Create(counter))
 	}
 
-	threadID, _, err := store.ThreadID()
+	threadID, _, err := d.ThreadID()
 	checkErr(err)
-	saveThreadMultiaddrForOtherPeer(store, threadID)
+	saveThreadMultiaddrForOtherPeer(d, threadID)
 
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
-		err = m.WriteTxn(func(txn *s.Txn) error {
+		err = m.WriteTxn(func(txn *db.Txn) error {
 			c := &myCounter{}
 			if err = txn.FindByID(counter.ID, c); err != nil {
 				return err
@@ -63,9 +63,9 @@ func runWriterPeer(repo string) {
 	}
 }
 
-func saveThreadMultiaddrForOtherPeer(store *s.Store, threadID thread.ID) {
-	host := store.Service().Host()
-	tinfo, err := store.Service().GetThread(context.Background(), threadID)
+func saveThreadMultiaddrForOtherPeer(d *db.DB, threadID thread.ID) {
+	host := d.Service().Host()
+	tinfo, err := d.Service().GetThread(context.Background(), threadID)
 	checkErr(err)
 
 	// Create listen addr

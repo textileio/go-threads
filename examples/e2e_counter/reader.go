@@ -8,28 +8,28 @@ import (
 	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/crypto/symmetric"
-	s "github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 )
 
 func runReaderPeer(repo string) {
 	fmt.Printf("I'm a model reader.\n")
 	writerAddr, fkey, rkey := getWriterAddr()
 
-	ts, err := s.DefaultService(repo)
+	ts, err := db.DefaultService(repo)
 	checkErr(err)
 	defer ts.Close()
-	store, err := s.NewStore(ts, s.WithRepoPath(repo))
+	d, err := db.NewDB(ts, db.WithRepoPath(repo))
 	checkErr(err)
-	defer store.Close()
+	defer d.Close()
 
-	m, err := store.Register("counter", &myCounter{})
+	m, err := d.Register("counter", &myCounter{})
 	checkErr(err)
 
-	l, err := store.Listen()
+	l, err := d.Listen()
 	checkErr(err)
-	checkErr(store.StartFromAddr(writerAddr, fkey, rkey))
+	checkErr(d.StartFromAddr(writerAddr, fkey, rkey))
 	for range l.Channel() {
-		err := m.ReadTxn(func(txn *s.Txn) error {
+		err := m.ReadTxn(func(txn *db.Txn) error {
 			var res []*myCounter
 			if err := txn.Find(&res, nil); err != nil {
 				return err

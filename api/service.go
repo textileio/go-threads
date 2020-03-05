@@ -11,46 +11,46 @@ import (
 	pb "github.com/textileio/go-threads/api/pb"
 	corestore "github.com/textileio/go-threads/core/store"
 	"github.com/textileio/go-threads/crypto/symmetric"
-	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// service is a gRPC service for a store manager.
+// service is a gRPC service for a db manager.
 type service struct {
-	manager *store.Manager
+	manager *db.Manager
 }
 
-// NewStore adds a new store into the manager.
-func (s *service) NewStore(context.Context, *pb.NewStoreRequest) (*pb.NewStoreReply, error) {
-	log.Debugf("received new store request")
+// NewDB adds a new db into the manager.
+func (s *service) NewDB(context.Context, *pb.NewDBRequest) (*pb.NewDBReply, error) {
+	log.Debugf("received new db request")
 
-	id, _, err := s.manager.NewStore()
+	id, _, err := s.manager.NewDB()
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.NewStoreReply{
+	return &pb.NewDBReply{
 		ID: id.String(),
 	}, nil
 }
 
-// RegisterSchema registers a JSON schema with a store.
+// RegisterSchema registers a JSON schema with a db.
 func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
-	log.Debugf("received register schema request in store %s", req.StoreID)
+	log.Debugf("received register schema request in db %s", req.DBID)
 
-	st, err := s.getStore(req.StoreID)
+	d, err := s.getDB(req.DBID)
 	if err != nil {
 		return nil, err
 	}
-	indexes := make([]*store.IndexConfig, len(req.Indexes))
+	indexes := make([]*db.IndexConfig, len(req.Indexes))
 	for i, index := range req.Indexes {
-		indexes[i] = &store.IndexConfig{
+		indexes[i] = &db.IndexConfig{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
 	}
-	if _, err = st.RegisterSchema(req.Name, req.Schema, indexes...); err != nil {
+	if _, err = d.RegisterSchema(req.Name, req.Schema, indexes...); err != nil {
 		return nil, err
 	}
 
@@ -58,31 +58,31 @@ func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaReques
 }
 
 func (s *service) Start(_ context.Context, req *pb.StartRequest) (*pb.StartReply, error) {
-	st, err := s.getStore(req.GetStoreID())
+	d, err := s.getDB(req.GetDBID())
 	if err != nil {
 		return nil, err
 	}
-	if err := st.Start(); err != nil {
+	if err := d.Start(); err != nil {
 		return nil, err
 	}
 	return &pb.StartReply{}, nil
 }
 
-func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest) (*pb.GetStoreLinkReply, error) {
+func (s *service) GetDBLink(ctx context.Context, req *pb.GetDBLinkRequest) (*pb.GetDBLinkReply, error) {
 	var err error
-	var st *store.Store
-	if st, err = s.getStore(req.GetStoreID()); err != nil {
+	var d *db.DB
+	if d, err = s.getDB(req.GetDBID()); err != nil {
 		return nil, err
 	}
-	tid, _, err := st.ThreadID()
+	tid, _, err := d.ThreadID()
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := st.Service().GetThread(ctx, tid)
+	tinfo, err := d.Service().GetThread(ctx, tid)
 	if err != nil {
 		return nil, err
 	}
-	host := st.Service().Host()
+	host := d.Service().Host()
 	id, _ := ma.NewComponent("p2p", host.ID().String())
 	thread, _ := ma.NewComponent("thread", tid.String())
 	addrs := host.Addrs()
@@ -90,7 +90,7 @@ func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest)
 	for i := range addrs {
 		res[i] = addrs[i].Encapsulate(id).Encapsulate(thread).String()
 	}
-	reply := &pb.GetStoreLinkReply{
+	reply := &pb.GetDBLinkReply{
 		Addresses: res,
 		FollowKey: tinfo.FollowKey.Bytes(),
 		ReadKey:   tinfo.ReadKey.Bytes(),
@@ -100,10 +100,10 @@ func (s *service) GetStoreLink(ctx context.Context, req *pb.GetStoreLinkRequest)
 
 func (s *service) StartFromAddress(_ context.Context, req *pb.StartFromAddressRequest) (*pb.StartFromAddressReply, error) {
 	var err error
-	var st *store.Store
+	var d *db.DB
 	var addr ma.Multiaddr
 	var readKey, followKey *symmetric.Key
-	if st, err = s.getStore(req.GetStoreID()); err != nil {
+	if d, err = s.getDB(req.GetDBID()); err != nil {
 		return nil, err
 	}
 	if addr, err = ma.NewMultiaddr(req.GetAddress()); err != nil {
@@ -115,16 +115,16 @@ func (s *service) StartFromAddress(_ context.Context, req *pb.StartFromAddressRe
 	if followKey, err = symmetric.NewKey(req.GetFollowKey()); err != nil {
 		return nil, err
 	}
-	if err = st.StartFromAddr(addr, followKey, readKey); err != nil {
+	if err = d.StartFromAddr(addr, followKey, readKey); err != nil {
 		return nil, err
 	}
 	return &pb.StartFromAddressReply{}, nil
 }
 
-// ModelCreate adds a new instance of a model to a store.
+// ModelCreate adds a new instance of a model to a db.
 func (s *service) ModelCreate(_ context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
 	log.Debugf("received model create request for model %s", req.ModelName)
-	model, err := s.getModel(req.StoreID, req.ModelName)
+	model, err := s.getModel(req.DBID, req.ModelName)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (s *service) ModelCreate(_ context.Context, req *pb.ModelCreateRequest) (*p
 }
 
 func (s *service) ModelSave(_ context.Context, req *pb.ModelSaveRequest) (*pb.ModelSaveReply, error) {
-	model, err := s.getModel(req.StoreID, req.ModelName)
+	model, err := s.getModel(req.DBID, req.ModelName)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (s *service) ModelSave(_ context.Context, req *pb.ModelSaveRequest) (*pb.Mo
 }
 
 func (s *service) ModelDelete(_ context.Context, req *pb.ModelDeleteRequest) (*pb.ModelDeleteReply, error) {
-	model, err := s.getModel(req.StoreID, req.ModelName)
+	model, err := s.getModel(req.DBID, req.ModelName)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (s *service) ModelDelete(_ context.Context, req *pb.ModelDeleteRequest) (*p
 }
 
 func (s *service) ModelHas(_ context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
-	model, err := s.getModel(req.StoreID, req.ModelName)
+	model, err := s.getModel(req.DBID, req.ModelName)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (s *service) ModelHas(_ context.Context, req *pb.ModelHasRequest) (*pb.Mode
 }
 
 func (s *service) ModelFind(_ context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
-	model, err := s.getModel(req.StoreID, req.ModelName)
+	model, err := s.getModel(req.DBID, req.ModelName)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (s *service) ModelFind(_ context.Context, req *pb.ModelFindRequest) (*pb.Mo
 }
 
 func (s *service) ModelFindByID(_ context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
-	model, err := s.getModel(req.StoreID, req.ModelName)
+	model, err := s.getModel(req.DBID, req.ModelName)
 	if err != nil {
 		return nil, err
 	}
@@ -177,10 +177,10 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return err
 	}
 
-	var storeID, modelName string
+	var dbID, modelName string
 	switch x := firstReq.GetOption().(type) {
 	case *pb.ReadTransactionRequest_StartTransactionRequest:
-		storeID = x.StartTransactionRequest.GetStoreID()
+		dbID = x.StartTransactionRequest.GetDBID()
 		modelName = x.StartTransactionRequest.GetModelName()
 	case nil:
 		return fmt.Errorf("no ReadTransactionRequest type set")
@@ -188,12 +188,12 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	model, err := s.getModel(storeID, modelName)
+	model, err := s.getModel(dbID, modelName)
 	if err != nil {
 		return err
 	}
 
-	return model.ReadTxn(func(txn *store.Txn) error {
+	return model.ReadTxn(func(txn *db.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -245,10 +245,10 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return err
 	}
 
-	var storeID, modelName string
+	var dbID, modelName string
 	switch x := firstReq.GetOption().(type) {
 	case *pb.WriteTransactionRequest_StartTransactionRequest:
-		storeID = x.StartTransactionRequest.GetStoreID()
+		dbID = x.StartTransactionRequest.GetDBID()
 		modelName = x.StartTransactionRequest.GetModelName()
 	case nil:
 		return fmt.Errorf("no WriteTransactionRequest type set")
@@ -256,12 +256,12 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	model, err := s.getModel(storeID, modelName)
+	model, err := s.getModel(dbID, modelName)
 	if err != nil {
 		return err
 	}
 
-	return model.WriteTxn(func(txn *store.Txn) error {
+	return model.WriteTxn(func(txn *db.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -336,34 +336,34 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 
 // Listen returns a stream of entities, trigged by a local or remote state change.
 func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
-	st, err := s.getStore(req.StoreID)
+	d, err := s.getDB(req.DBID)
 	if err != nil {
 		return err
 	}
 
-	options := make([]store.ListenOption, len(req.GetFilters()))
+	options := make([]db.ListenOption, len(req.GetFilters()))
 	for i, filter := range req.GetFilters() {
-		var listenActionType store.ListenActionType
+		var listenActionType db.ListenActionType
 		switch filter.GetAction() {
 		case pb.ListenRequest_Filter_ALL:
-			listenActionType = store.ListenAll
+			listenActionType = db.ListenAll
 		case pb.ListenRequest_Filter_CREATE:
-			listenActionType = store.ListenCreate
+			listenActionType = db.ListenCreate
 		case pb.ListenRequest_Filter_DELETE:
-			listenActionType = store.ListenDelete
+			listenActionType = db.ListenDelete
 		case pb.ListenRequest_Filter_SAVE:
-			listenActionType = store.ListenSave
+			listenActionType = db.ListenSave
 		default:
 			return status.Errorf(codes.InvalidArgument, "invalid filter action %v", filter.GetAction())
 		}
-		options[i] = store.ListenOption{
+		options[i] = db.ListenOption{
 			Type:  listenActionType,
 			Model: filter.GetModelName(),
 			ID:    corestore.EntityID(filter.EntityID),
 		}
 	}
 
-	l, err := st.Listen(options...)
+	l, err := d.Listen(options...)
 	if err != nil {
 		return err
 	}
@@ -381,14 +381,14 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			var replyAction pb.ListenReply_Action
 			var entity []byte
 			switch action.Type {
-			case store.ActionCreate:
+			case db.ActionCreate:
 				replyAction = pb.ListenReply_CREATE
-				entity, err = s.entityForAction(st, action)
-			case store.ActionDelete:
+				entity, err = s.entityForAction(d, action)
+			case db.ActionDelete:
 				replyAction = pb.ListenReply_DELETE
-			case store.ActionSave:
+			case db.ActionSave:
 				replyAction = pb.ListenReply_SAVE
-				entity, err = s.entityForAction(st, action)
+				entity, err = s.entityForAction(d, action)
 			default:
 				err = status.Errorf(codes.Internal, "unknown action type %v", action.Type)
 			}
@@ -408,8 +408,8 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 }
 
-func (s *service) entityForAction(store *store.Store, action store.Action) ([]byte, error) {
-	model := store.GetModel(action.Model)
+func (s *service) entityForAction(db *db.DB, action db.Action) ([]byte, error) {
+	model := db.GetModel(action.Model)
 	if model == nil {
 		return nil, status.Error(codes.NotFound, "model not found")
 	}
@@ -483,8 +483,8 @@ func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc 
 	return &pb.ModelFindByIDReply{Entity: result}, nil
 }
 
-func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *store.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
-	q := &store.JSONQuery{}
+func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *db.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
+	q := &db.JSONQuery{}
 	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
 	}
@@ -499,24 +499,24 @@ func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *
 	return &pb.ModelFindReply{Entities: byteEntities}, nil
 }
 
-func (s *service) getStore(idStr string) (*store.Store, error) {
+func (s *service) getDB(idStr string) (*db.DB, error) {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		return nil, err
 	}
-	st := s.manager.GetStore(id)
-	if st == nil {
-		return nil, status.Error(codes.NotFound, "store not found")
+	d := s.manager.GetDB(id)
+	if d == nil {
+		return nil, status.Error(codes.NotFound, "db not found")
 	}
-	return st, nil
+	return d, nil
 }
 
-func (s *service) getModel(storeID string, modelName string) (*store.Model, error) {
-	st, err := s.getStore(storeID)
+func (s *service) getModel(dbID string, modelName string) (*db.Model, error) {
+	d, err := s.getDB(dbID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "store not found")
+		return nil, status.Error(codes.NotFound, "db not found")
 	}
-	model := st.GetModel(modelName)
+	model := d.GetModel(modelName)
 	if model == nil {
 		return nil, status.Error(codes.NotFound, "model not found")
 	}
