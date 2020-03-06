@@ -11,7 +11,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 )
 
 func TestE2EWithThreads(t *testing.T) {

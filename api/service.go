@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
-	corestore "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"google.golang.org/grpc/codes"
@@ -359,7 +359,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		options[i] = db.ListenOption{
 			Type:  listenActionType,
 			Model: filter.GetModelName(),
-			ID:    corestore.EntityID(filter.EntityID),
+			ID:    core.EntityID(filter.EntityID),
 		}
 	}
 
@@ -451,10 +451,10 @@ func (s *service) processSaveRequest(req *pb.ModelSaveRequest, saveFunc func(...
 	return &pb.ModelSaveReply{}, nil
 }
 
-func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc func(...corestore.EntityID) error) (*pb.ModelDeleteReply, error) {
-	entityIDs := make([]corestore.EntityID, len(req.GetEntityIDs()))
+func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc func(...core.EntityID) error) (*pb.ModelDeleteReply, error) {
+	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
 	for i, ID := range req.GetEntityIDs() {
-		entityIDs[i] = corestore.EntityID(ID)
+		entityIDs[i] = core.EntityID(ID)
 	}
 	if err := deleteFunc(entityIDs...); err != nil {
 		return nil, err
@@ -462,10 +462,10 @@ func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc fu
 	return &pb.ModelDeleteReply{}, nil
 }
 
-func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...corestore.EntityID) (bool, error)) (*pb.ModelHasReply, error) {
-	entityIDs := make([]corestore.EntityID, len(req.GetEntityIDs()))
+func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...core.EntityID) (bool, error)) (*pb.ModelHasReply, error) {
+	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
 	for i, ID := range req.GetEntityIDs() {
-		entityIDs[i] = corestore.EntityID(ID)
+		entityIDs[i] = core.EntityID(ID)
 	}
 	exists, err := hasFunc(entityIDs...)
 	if err != nil {
@@ -474,8 +474,8 @@ func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...cor
 	return &pb.ModelHasReply{Exists: exists}, nil
 }
 
-func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc func(id corestore.EntityID, v interface{}) error) (*pb.ModelFindByIDReply, error) {
-	entityID := corestore.EntityID(req.EntityID)
+func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc func(id core.EntityID, v interface{}) error) (*pb.ModelFindByIDReply, error) {
+	entityID := core.EntityID(req.EntityID)
 	var result string
 	if err := findFunc(entityID, &result); err != nil {
 		return nil, err

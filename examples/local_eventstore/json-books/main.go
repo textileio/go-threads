@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/db"
 )
 

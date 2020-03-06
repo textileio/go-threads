@@ -9,7 +9,7 @@ import (
 	"github.com/alecthomas/jsonschema"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
 )

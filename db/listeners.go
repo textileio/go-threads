@@ -6,7 +6,7 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/broadcast"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 )
 
 // Listen returns a Listener which notifies about actions applying the
