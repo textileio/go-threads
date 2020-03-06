@@ -34,13 +34,13 @@ public class ClientTest {
     }
 
     @Test
-    public void NewStore() throws Exception {
+    public void NewDB() throws Exception {
         if (client == null) {
             connect();
         }
 
-        String storeId = client.NewStoreSync();
+        String dbId = client.NewDBSync();
 
-        assertEquals(36, storeId.length());
+        assertEquals(36, dbId.length());
     }
 }

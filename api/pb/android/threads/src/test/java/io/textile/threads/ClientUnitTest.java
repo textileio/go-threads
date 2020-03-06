@@ -30,7 +30,7 @@ import static org.junit.Assert.*;
 public class ClientUnitTest {
 
     static Client client;
-    static String storeId;
+    static String dbId;
     static String modelId = "";
 
     void connect() throws Exception {
@@ -46,20 +46,20 @@ public class ClientUnitTest {
     }
 
     @Test
-    public void t02_NewStore() throws Exception {
-        storeId = client.NewStoreSync();
-        assertEquals(36, storeId.length());
+    public void t02_NewDB() throws Exception {
+        dbId = client.NewDBSync();
+        assertEquals(36, dbId.length());
     }
 
     @Test
-    public void t03_StartStore() throws Exception {
-        client.StartSync(storeId);
+    public void t03_StartDB() throws Exception {
+        client.StartSync(dbId);
         assertTrue(true);
     }
 
     @Test
-    public void t04_GetStoreLink() throws Exception {
-        GetStoreLinkReply reply = client.GetStoreLinkSync(storeId);
+    public void t04_GetDBLink() throws Exception {
+        GetDBLinkReply reply = client.GetDBLinkSync(dbId);
         assertNotEquals(0, reply.getAddressesCount());
     }
 
@@ -68,14 +68,14 @@ public class ClientUnitTest {
         String jsonStr = getStoredSchema();
         JSONObject json = new JSONObject(jsonStr);
         assertEquals(json.get("title").toString(), "Person");
-        client.RegisterSchemaSync(storeId, "Person", jsonStr);
+        client.RegisterSchemaSync(dbId, "Person", jsonStr);
     }
 
     @Test
     public void t06_ModelCreate() throws Exception {
         String person = createPerson("", 22);
         String[] data = { person };
-        ModelCreateReply reply = client.ModelCreateSync(storeId, "Person", data);
+        ModelCreateReply reply = client.ModelCreateSync(dbId, "Person", data);
         assertEquals(1, reply.getEntitiesCount());
         String jsonString = reply.getEntities(0);
         Person model = new Gson().fromJson(jsonString, Person.class);
@@ -87,9 +87,9 @@ public class ClientUnitTest {
     public void t06_ModelSave() throws Exception {
         String person = createPerson(modelId, 22);
         String[] data = { person };
-        client.ModelSaveSync(storeId, "Person", data);
+        client.ModelSaveSync(dbId, "Person", data);
         // now check that it's been updated
-        ModelFindByIDReply reply = client.ModelFindByIDSync(storeId, "Person", modelId);
+        ModelFindByIDReply reply = client.ModelFindByIDSync(dbId, "Person", modelId);
         String jsonString = reply.getEntity();
         Person model = new Gson().fromJson(jsonString, Person.class);
         assertEquals(modelId, model.ID);
