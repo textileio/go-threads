@@ -51,8 +51,7 @@ jobs:
         uses: actions/checkout@v1
       - name: Run Daemon
         run: |
-            (rm -rf .threads && go run threadsd/main.go) &
-            sleep 20
+            rm -rf .threads && go run threadsd/main.go
       - name: LSOF
         run: |
             lsof -i ":6006"
