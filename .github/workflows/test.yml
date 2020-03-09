@@ -55,7 +55,7 @@ jobs:
             sleep 20
       - name: Test
         run: |
-            lsof -i :6006
+            lsof -i ":6006"
             cd api/pb/android
             ./gradlew threads:test
             
