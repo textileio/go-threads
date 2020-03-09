@@ -29,15 +29,15 @@ import (
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
+	db "github.com/textileio/go-threads/db"
 	serviceapi "github.com/textileio/go-threads/service/api"
-	store "github.com/textileio/go-threads/store"
 	util "github.com/textileio/go-threads/util"
 )
 
 var (
 	ctx      context.Context
 	ds       datastore.Batching
-	ts       store.ServiceBoostrapper
+	ts       db.ServiceBoostrapper
 	threadID thread.ID
 
 	grey  = color.New(color.FgHiBlack).SprintFunc()
@@ -117,10 +117,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ts, err = store.DefaultService(
+	ts, err = db.DefaultService(
 		*repo,
-		store.WithServiceHostAddr(hostAddr),
-		store.WithServiceDebug(*debug))
+		db.WithServiceHostAddr(hostAddr),
+		db.WithServiceDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}

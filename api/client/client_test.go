@@ -14,19 +14,19 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/api"
-	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
 
-func TestNewStore(t *testing.T) {
+func TestNewDB(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test new store", func(t *testing.T) {
-		if _, err := client.NewStore(context.Background()); err != nil {
-			t.Fatalf("failed to create new store: %v", err)
+	t.Run("test new db", func(t *testing.T) {
+		if _, err := client.NewDB(context.Background()); err != nil {
+			t.Fatalf("failed to create new db: %v", err)
 		}
 	})
 }
@@ -37,9 +37,9 @@ func TestRegisterSchema(t *testing.T) {
 	defer done()
 
 	t.Run("test register schema", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		if err != nil {
 			t.Fatalf("failed to register schema: %v", err)
 		}
@@ -52,11 +52,11 @@ func TestStart(t *testing.T) {
 	defer done()
 
 	t.Run("test start", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		if err != nil {
 			t.Fatalf("failed to start: %v", err)
 		}
@@ -69,13 +69,13 @@ func TestStartFromAddress(t *testing.T) {
 	defer done()
 
 	t.Run("test start from address", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
 
 		// @todo: figure out how to test this
-		// client.StartFromAddress(storeId, <multiaddress>, <read key>, <follow key>)
+		// client.StartFromAddress(dbId, <multiaddress>, <read key>, <follow key>)
 	})
 }
 
@@ -85,32 +85,32 @@ func TestModelCreate(t *testing.T) {
 	defer done()
 
 	t.Run("test model create", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, createPerson())
+		err = client.ModelCreate(context.Background(), dbID, modelName, createPerson())
 		if err != nil {
 			t.Fatalf("failed to create model: %v", err)
 		}
 	})
 }
 
-func TestGetStoreLink(t *testing.T) {
+func TestGetDBLink(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test get store link", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+	t.Run("test get db link", func(t *testing.T) {
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
-		_, err = client.GetStoreLink(context.Background(), storeID)
+		_, err = client.GetDBLink(context.Background(), dbID)
 		if err != nil {
 			t.Fatalf("failed to create model: %v", err)
 		}
@@ -124,20 +124,20 @@ func TestModelSave(t *testing.T) {
 	defer done()
 
 	t.Run("test model save", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
 		person.Age = 30
-		err = client.ModelSave(context.Background(), storeID, modelName, person)
+		err = client.ModelSave(context.Background(), dbID, modelName, person)
 		if err != nil {
 			t.Fatalf("failed to save model: %v", err)
 		}
@@ -150,19 +150,19 @@ func TestModelDelete(t *testing.T) {
 	defer done()
 
 	t.Run("test model delete", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
-		err = client.ModelDelete(context.Background(), storeID, modelName, person.ID)
+		err = client.ModelDelete(context.Background(), dbID, modelName, person.ID)
 		if err != nil {
 			t.Fatalf("failed to delete model: %v", err)
 		}
@@ -175,19 +175,19 @@ func TestModelHas(t *testing.T) {
 	defer done()
 
 	t.Run("test model has", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
-		exists, err := client.ModelHas(context.Background(), storeID, modelName, person.ID)
+		exists, err := client.ModelHas(context.Background(), dbID, modelName, person.ID)
 		if err != nil {
 			t.Fatalf("failed to check model has: %v", err)
 		}
@@ -203,21 +203,21 @@ func TestModelFind(t *testing.T) {
 	defer done()
 
 	t.Run("test model find", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
-		q := store.JSONWhere("lastName").Eq(person.LastName)
+		q := db.JSONWhere("lastName").Eq(person.LastName)
 
-		rawResults, err := client.ModelFind(context.Background(), storeID, modelName, q, []*Person{})
+		rawResults, err := client.ModelFind(context.Background(), dbID, modelName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -236,26 +236,26 @@ func TestModelFindWithIndex(t *testing.T) {
 	client, done := setup(t)
 	defer done()
 	t.Run("test model find", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema,
-			&store.IndexConfig{
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema,
+			&db.IndexConfig{
 				Path:   "lastName",
 				Unique: true,
 			},
 		)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
-		q := store.JSONWhere("lastName").Eq(person.LastName).UseIndex("lastName")
+		q := db.JSONWhere("lastName").Eq(person.LastName).UseIndex("lastName")
 
-		rawResults, err := client.ModelFind(context.Background(), storeID, modelName, q, []*Person{})
+		rawResults, err := client.ModelFind(context.Background(), dbID, modelName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -275,20 +275,20 @@ func TestModelFindByID(t *testing.T) {
 	defer done()
 
 	t.Run("test model find by ID", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
 		newPerson := &Person{}
-		err = client.ModelFindByID(context.Background(), storeID, modelName, person.ID, newPerson)
+		err = client.ModelFindByID(context.Background(), dbID, modelName, person.ID, newPerson)
 		if err != nil {
 			t.Fatalf("failed to find model by id: %v", err)
 		}
@@ -304,17 +304,17 @@ func TestReadTransaction(t *testing.T) {
 	defer done()
 
 	t.Run("test read transaction", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 		person := createPerson()
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
-		txn, err := client.ReadTransaction(context.Background(), storeID, modelName)
+		txn, err := client.ReadTransaction(context.Background(), dbID, modelName)
 		if err != nil {
 			t.Fatalf("failed to create read txn: %v", err)
 		}
@@ -347,7 +347,7 @@ func TestReadTransaction(t *testing.T) {
 			t.Fatal("txn model found by id does't equal the original")
 		}
 
-		q := store.JSONWhere("lastName").Eq(person.LastName)
+		q := db.JSONWhere("lastName").Eq(person.LastName)
 
 		rawResults, err := txn.Find(q, []*Person{})
 		if err != nil {
@@ -369,17 +369,17 @@ func TestWriteTransaction(t *testing.T) {
 	defer done()
 
 	t.Run("test write transaction", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 		existingPerson := createPerson()
-		err = client.ModelCreate(context.Background(), storeID, modelName, existingPerson)
+		err = client.ModelCreate(context.Background(), dbID, modelName, existingPerson)
 		checkErr(t, err)
 
-		txn, err := client.WriteTransaction(context.Background(), storeID, modelName)
+		txn, err := client.WriteTransaction(context.Background(), dbID, modelName)
 		if err != nil {
 			t.Fatalf("failed to create write txn: %v", err)
 		}
@@ -422,7 +422,7 @@ func TestWriteTransaction(t *testing.T) {
 			t.Fatalf("txn model found by id does't equal the original")
 		}
 
-		q := store.JSONWhere("lastName").Eq(person.LastName)
+		q := db.JSONWhere("lastName").Eq(person.LastName)
 
 		rawResults, err := txn.Find(q, []*Person{})
 		if err != nil {
@@ -455,16 +455,16 @@ func TestListen(t *testing.T) {
 	defer done()
 
 	t.Run("test listen", func(t *testing.T) {
-		storeID, err := client.NewStore(context.Background())
+		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), storeID, modelName, schema)
+		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
 		checkErr(t, err)
-		err = client.Start(context.Background(), storeID)
+		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), storeID, modelName, person)
+		err = client.ModelCreate(context.Background(), dbID, modelName, person)
 		checkErr(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -473,7 +473,7 @@ func TestListen(t *testing.T) {
 			Model:    modelName,
 			EntityID: person.ID,
 		}
-		channel, err := client.Listen(ctx, storeID, opt)
+		channel, err := client.Listen(ctx, dbID, opt)
 		if err != nil {
 			t.Fatalf("failed to call listen: %v", err)
 		}
@@ -481,9 +481,9 @@ func TestListen(t *testing.T) {
 		go func() {
 			time.Sleep(1 * time.Second)
 			person.Age = 30
-			_ = client.ModelSave(context.Background(), storeID, modelName, person)
+			_ = client.ModelSave(context.Background(), dbID, modelName, person)
 			person.Age = 40
-			_ = client.ModelSave(context.Background(), storeID, modelName, person)
+			_ = client.ModelSave(context.Background(), dbID, modelName, person)
 		}()
 
 		val, ok := <-channel
@@ -569,9 +569,9 @@ func makeServer(t *testing.T) (addr ma.Multiaddr, shutdown func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts, err := store.DefaultService(
+	ts, err := db.DefaultService(
 		dir,
-		store.WithServiceDebug(true))
+		db.WithServiceDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}

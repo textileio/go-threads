@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"encoding/json"
@@ -100,7 +100,7 @@ func (t *Txn) Find(res interface{}, q *Query) error {
 	dsq := dsquery.Query{
 		Prefix: baseKey.ChildString(t.model.name).String(),
 	}
-	dsr, err := t.model.store.datastore.Query(dsq)
+	dsr, err := t.model.db.datastore.Query(dsq)
 	if err != nil {
 		return fmt.Errorf("error when internal query: %v", err)
 	}

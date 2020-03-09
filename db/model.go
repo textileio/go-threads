@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"github.com/alecthomas/jsonschema"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -38,30 +38,30 @@ type Model struct {
 	name         string
 	schemaLoader gojsonschema.JSONLoader
 	valueType    reflect.Type
-	store        *Store
+	db           *DB
 	indexes      map[string]Index
 }
 
-func newModel(name string, defaultInstance interface{}, s *Store) *Model {
+func newModel(name string, defaultInstance interface{}, d *DB) *Model {
 	schema := jsonschema.Reflect(defaultInstance)
 	schemaLoader := gojsonschema.NewGoLoader(schema)
 	m := &Model{
 		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    reflect.TypeOf(defaultInstance),
-		store:        s,
+		db:           d,
 		indexes:      make(map[string]Index),
 	}
 	return m
 }
 
-func newModelFromSchema(name string, schema string, s *Store) *Model {
+func newModelFromSchema(name string, schema string, d *DB) *Model {
 	schemaLoader := gojsonschema.NewStringLoader(schema)
 	m := &Model{
 		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    nil,
-		store:        s,
+		db:           d,
 		indexes:      make(map[string]Index),
 	}
 	return m
@@ -100,13 +100,13 @@ func (m *Model) AddIndex(path string, unique bool) error {
 // that tries to mutate an instance of the model will ErrReadonlyTx.
 // Provides serializable isolation gurantees.
 func (m *Model) ReadTxn(f func(txn *Txn) error) error {
-	return m.store.readTxn(m, f)
+	return m.db.readTxn(m, f)
 }
 
 // WriteTxn creates an explicit write transaction. Provides
 // serializable isolation gurantees.
 func (m *Model) WriteTxn(f func(txn *Txn) error) error {
-	return m.store.writeTxn(m, f)
+	return m.db.writeTxn(m, f)
 }
 
 // FindByID finds an instance by its ID and saves it in v.
@@ -167,7 +167,7 @@ func (m *Model) FindJSON(q *JSONQuery) (ret []string, err error) {
 
 func (m *Model) validInstance(v interface{}) (bool, error) {
 	var vLoader gojsonschema.JSONLoader
-	if m.store.jsonMode {
+	if m.db.jsonMode {
 		strJSON := v.(*string)
 		vLoader = gojsonschema.NewBytesLoader([]byte(*strJSON))
 	} else {
@@ -184,8 +184,8 @@ func (m *Model) validInstance(v interface{}) (bool, error) {
 // Sanity check
 var _ Indexer = (*Model)(nil)
 
-// Txn represents a read/write transaction in the Store. It allows for
-// serializable isolation level within the store.
+// Txn represents a read/write transaction in the db. It allows for
+// serializable isolation level within the db.
 type Txn struct {
 	model     *Model
 	discarded bool
@@ -211,13 +211,13 @@ func (t *Txn) Create(new ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		jsonMode := t.model.store.jsonMode
+		jsonMode := t.model.db.jsonMode
 		id := getEntityID(new[i], jsonMode)
 		if id == core.EmptyEntityID {
 			id = setNewEntityID(new[i], jsonMode)
 		}
 		key := baseKey.ChildString(t.model.name).ChildString(id.String())
-		exists, err := t.model.store.datastore.Has(key)
+		exists, err := t.model.db.datastore.Has(key)
 		if err != nil {
 			return err
 		}
@@ -253,9 +253,9 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getEntityID(updated[i], t.model.store.jsonMode)
+		id := getEntityID(updated[i], t.model.db.jsonMode)
 		key := baseKey.ChildString(t.model.name).ChildString(id.String())
-		beforeBytes, err := t.model.store.datastore.Get(key)
+		beforeBytes, err := t.model.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
 			return errCantSaveNonExistentInstance
 		}
@@ -265,7 +265,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 
 		var previous interface{}
 		previous = beforeBytes
-		if !t.model.store.jsonMode {
+		if !t.model.db.jsonMode {
 			before := reflect.New(t.model.valueType.Elem()).Interface()
 			if err = json.Unmarshal(beforeBytes, before); err != nil {
 				return err
@@ -291,7 +291,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 			return ErrReadonlyTx
 		}
 		key := baseKey.ChildString(t.model.name).ChildString(ids[i].String())
-		exists, err := t.model.store.datastore.Has(key)
+		exists, err := t.model.db.datastore.Has(key)
 		if err != nil {
 			return err
 		}
@@ -315,7 +315,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 	for i := range ids {
 		key := baseKey.ChildString(t.model.name).ChildString(ids[i].String())
-		exists, err := t.model.store.datastore.Has(key)
+		exists, err := t.model.db.datastore.Has(key)
 		if err != nil {
 			return false, err
 		}
@@ -329,14 +329,14 @@ func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
 	key := baseKey.ChildString(t.model.name).ChildString(id.String())
-	bytes, err := t.model.store.datastore.Get(key)
+	bytes, err := t.model.db.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
 		return err
 	}
-	if t.model.store.jsonMode {
+	if t.model.db.jsonMode {
 		str := string(bytes)
 		rflStr := reflect.ValueOf(str)
 		reflV := reflect.ValueOf(v)
@@ -354,14 +354,14 @@ func (t *Txn) Commit() error {
 	if t.discarded || t.commited {
 		return errAlreadyDiscardedCommitedTxn
 	}
-	events, node, err := t.model.store.eventcodec.Create(t.actions)
+	events, node, err := t.model.db.eventcodec.Create(t.actions)
 	if err != nil {
 		return err
 	}
-	if err := t.model.store.dispatcher.Dispatch(events); err != nil {
+	if err := t.model.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
-	if err := t.model.store.notifyTxnEvents(node); err != nil {
+	if err := t.model.db.notifyTxnEvents(node); err != nil {
 		return err
 	}
 	return nil

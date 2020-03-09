@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"io"
@@ -22,10 +22,10 @@ type Manager struct {
 	config *Config
 
 	service service.Service
-	stores  map[uuid.UUID]*Store
+	dbs     map[uuid.UUID]*DB
 }
 
-// NewManager hydrates stores from prefixes and starts them.
+// NewManager hydrates dbs from prefixes and starts them.
 func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 	config := &Config{}
 	for _, opt := range opts {
@@ -42,7 +42,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		config.Datastore = datastore
 	}
 	if config.Debug {
-		if err := util.SetLogLevels(map[string]logging.LogLevel{"store": logging.LevelDebug}); err != nil {
+		if err := util.SetLogLevels(map[string]logging.LogLevel{"db": logging.LevelDebug}); err != nil {
 			return nil, err
 		}
 	}
@@ -50,7 +50,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 	m := &Manager{
 		config:  config,
 		service: ts,
-		stores:  make(map[uuid.UUID]*Store),
+		dbs:     make(map[uuid.UUID]*DB),
 	}
 
 	results, err := m.config.Datastore.Query(query.Query{
@@ -70,47 +70,47 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		if err != nil {
 			continue
 		}
-		if _, ok := m.stores[id]; ok {
+		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		s, err := newStore(m.service, getStoreConfig(id, m.config))
+		s, err := newDB(m.service, getDBConfig(id, m.config))
 		if err != nil {
 			return nil, err
 		}
-		// @todo: Auto-starting reloaded stores could lead to issues (#115)
+		// @todo: Auto-starting reloaded dbs could lead to issues (#115)
 		if err = s.Start(); err != nil {
 			return nil, err
 		}
-		m.stores[id] = s
+		m.dbs[id] = s
 	}
 
 	return m, nil
 }
 
-// NewStore creates a new store and prefix its datastore with base key.
-func (m *Manager) NewStore() (id uuid.UUID, store *Store, err error) {
+// NewDB creates a new db and prefix its datastore with base key.
+func (m *Manager) NewDB() (id uuid.UUID, db *DB, err error) {
 	id, err = uuid.NewRandom()
 	if err != nil {
 		return
 	}
-	store, err = newStore(m.service, getStoreConfig(id, m.config))
+	db, err = newDB(m.service, getDBConfig(id, m.config))
 	if err != nil {
 		return
 	}
 
-	m.stores[id] = store
-	return id, store, nil
+	m.dbs[id] = db
+	return id, db, nil
 }
 
-// GetStore returns a store by id from the in-mem map.
-func (m *Manager) GetStore(id uuid.UUID) *Store {
-	return m.stores[id]
+// GetDB returns a db by id from the in-mem map.
+func (m *Manager) GetDB(id uuid.UUID) *DB {
+	return m.dbs[id]
 }
 
-// Close all the in-mem stores.
+// Close all the in-mem dbs.
 func (m *Manager) Close() error {
 	var err error
-	for _, s := range m.stores {
+	for _, s := range m.dbs {
 		if err = s.Close(); err != nil {
 			log.Error("error when closing manager datastore: %v", err)
 		}
@@ -122,9 +122,9 @@ func (m *Manager) Close() error {
 	return err2
 }
 
-// getStoreConfig copies the manager's base config and
+// getDBConfig copies the manager's base config and
 // wraps the datastore with an id prefix.
-func getStoreConfig(id uuid.UUID, base *Config) *Config {
+func getDBConfig(id uuid.UUID, base *Config) *Config {
 	return &Config{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{

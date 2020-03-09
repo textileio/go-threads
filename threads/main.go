@@ -13,31 +13,31 @@ import (
 	"github.com/c-bata/go-prompt"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/api/client"
-	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
 
 var (
-	apiClient      *client.Client
-	apiTimeout     = time.Second * 5
-	promptPrefix   = ">>> "
-	noStoreMessage = "Store required. `use <store id>`"
-	currentStore   string
-	suggestions    = []prompt.Suggest{
+	apiClient    *client.Client
+	apiTimeout   = time.Second * 5
+	promptPrefix = ">>> "
+	noDBMessage  = "DB required. `use <db id>`"
+	currentDB    string
+	suggestions  = []prompt.Suggest{
 		{
 			Text:        "use",
-			Description: "Switch the store.",
+			Description: "Switch the DB.",
 		},
 		{
 			Text:        "exit",
 			Description: "Exit.",
 		},
 	}
-	storeSuggestions = []prompt.Suggest{
+	dbSuggestions = []prompt.Suggest{
 		{
 			Text:        "listen",
-			Description: "Stream all store updates.",
+			Description: "Stream all db updates.",
 		},
 		{
 			Text:        "modelFind",
@@ -73,23 +73,23 @@ func completer(in prompt.Document) []prompt.Suggest {
 	if w == "" {
 		return []prompt.Suggest{}
 	}
-	if currentStore != "" {
-		return prompt.FilterHasPrefix(append(suggestions, storeSuggestions...), w, true)
+	if currentDB != "" {
+		return prompt.FilterHasPrefix(append(suggestions, dbSuggestions...), w, true)
 	}
 	return prompt.FilterHasPrefix(suggestions, w, true)
 }
 
-func storeExecutor(blocks []string) {
+func dbExecutor(blocks []string) {
 	switch blocks[0] {
 	case "listen":
-		listen(currentStore)
+		listen(currentDB)
 		return
 	case "modelFind":
 		if len(blocks) < 2 {
 			fmt.Println("You must provide a model name.")
 			return
 		}
-		modelFind(currentStore, blocks[1])
+		modelFind(currentDB, blocks[1])
 		return
 	case "modelFindByID":
 		if len(blocks) < 2 {
@@ -100,7 +100,7 @@ func storeExecutor(blocks []string) {
 			fmt.Println("You must provide an entity ID.")
 			return
 		}
-		modelFindByID(currentStore, blocks[1], blocks[2])
+		modelFindByID(currentDB, blocks[1], blocks[2])
 		return
 	default:
 		fmt.Println("Sorry, I don't understand.")
@@ -117,25 +117,25 @@ func executor(in string) {
 		return
 	case "use":
 		if len(blocks) < 2 {
-			fmt.Println("You must provide a store ID.")
+			fmt.Println("You must provide a db ID.")
 			return
 		}
-		if currentStore == blocks[1] {
+		if currentDB == blocks[1] {
 			fmt.Printf("Already using %s\n", blocks[1])
 			return
 		}
-		currentStore = blocks[1]
+		currentDB = blocks[1]
 		fmt.Printf("Switched to %s\n", blocks[1])
 		return
 	case "exit":
 		fmt.Println("Bye!")
 		os.Exit(0)
 	default:
-		if currentStore == "" {
-			fmt.Println(noStoreMessage)
+		if currentDB == "" {
+			fmt.Println(noDBMessage)
 			return
 		}
-		storeExecutor(blocks)
+		dbExecutor(blocks)
 	}
 }
 
@@ -143,7 +143,7 @@ func modelFind(id string, model string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	rawResults, err := apiClient.ModelFind(ctx, id, model, &store.JSONQuery{}, []*any{})
+	rawResults, err := apiClient.ModelFind(ctx, id, model, &db.JSONQuery{}, []*any{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return

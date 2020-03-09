@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"sort"
@@ -339,7 +339,7 @@ func TestQueryJsonMode(t *testing.T) {
 }
 
 func createModelWithJSONData(t *testing.T) (*Model, func()) {
-	s, clean := createTestStore(t, WithJsonMode(true))
+	s, clean := createTestDB(t, WithJsonMode(true))
 	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema,
 		&IndexConfig{
 			Path: "Meta.TotalReads",

@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	ds "github.com/ipfs/go-datastore"

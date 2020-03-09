@@ -11,7 +11,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	core "github.com/textileio/go-threads/core/service"
-	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -20,7 +20,7 @@ var (
 	log = logging.Logger("threadsapi")
 )
 
-// Server provides a gRPC API to a store manager.
+// Server provides a gRPC API to a db manager.
 type Server struct {
 	rpc     *grpc.Server
 	proxy   *http.Server
@@ -51,11 +51,11 @@ func NewServer(ctx context.Context, ts core.Service, conf Config, opts ...grpc.S
 		}
 	}
 
-	manager, err := store.NewManager(
+	manager, err := db.NewManager(
 		ts,
-		store.WithJsonMode(true),
-		store.WithRepoPath(conf.RepoPath),
-		store.WithDebug(true))
+		db.WithJsonMode(true),
+		db.WithRepoPath(conf.RepoPath),
+		db.WithDebug(true))
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func NewServer(ctx context.Context, ts core.Service, conf Config, opts ...grpc.S
 	return s, nil
 }
 
-// Close the server and the store manager.
+// Close the server and the db manager.
 func (s *Server) Close() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

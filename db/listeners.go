@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"fmt"
@@ -6,17 +6,17 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/broadcast"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 )
 
 // Listen returns a Listener which notifies about actions applying the
-// defined filters. The Store *won't* wait for slow receivers, so if the
+// defined filters. The DB *won't* wait for slow receivers, so if the
 // channel is full, the action will be dropped.
-func (s *Store) Listen(los ...ListenOption) (Listener, error) {
+func (s *DB) Listen(los ...ListenOption) (Listener, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.closed {
-		return nil, fmt.Errorf("can't listen on closed Store")
+		return nil, fmt.Errorf("can't listen on closed DB")
 	}
 
 	sl := &listener{
@@ -29,17 +29,17 @@ func (s *Store) Listen(los ...ListenOption) (Listener, error) {
 }
 
 // localEventListen returns a listener which notifies *locally generated*
-// events in models of the store. Caller should call .Discard() when
+// events in models of the db. Caller should call .Discard() when
 // done.
-func (s *Store) localEventListen() *LocalEventListener {
+func (s *DB) localEventListen() *LocalEventListener {
 	return s.localEventsBus.Listen()
 }
 
-func (s *Store) notifyStateChanged(actions []Action) {
+func (s *DB) notifyStateChanged(actions []Action) {
 	s.stateChangedNotifee.notify(actions)
 }
 
-func (s *Store) notifyTxnEvents(node format.Node) error {
+func (s *DB) notifyTxnEvents(node format.Node) error {
 	return s.localEventsBus.send(node)
 }
 
@@ -132,7 +132,7 @@ func (scn *stateChangedNotifee) close() {
 }
 
 // Channel returns an unbuffered channel to receive
-// store change notifications
+// db change notifications
 func (sl *listener) Channel() <-chan Action {
 	return sl.c
 }

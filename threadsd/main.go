@@ -9,8 +9,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/namsral/flag"
 	"github.com/textileio/go-threads/api"
+	"github.com/textileio/go-threads/db"
 	serviceapi "github.com/textileio/go-threads/service/api"
-	"github.com/textileio/go-threads/store"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -66,10 +66,10 @@ func main() {
 	log.Debugf("apiProxyAddr: %v", *apiProxyAddrStr)
 	log.Debugf("debug: %v", *debug)
 
-	ts, err := store.DefaultService(
+	ts, err := db.DefaultService(
 		*repo,
-		store.WithServiceHostAddr(hostAddr),
-		store.WithServiceDebug(*debug))
+		db.WithServiceHostAddr(hostAddr),
+		db.WithServiceDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}

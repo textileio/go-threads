@@ -20,8 +20,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void onButtonClick(View v) {
         try {
-            String storeId = client.NewStoreSync();
-            System.out.println("Success: " + storeId);
+            String dbId = client.NewDBSync();
+            System.out.println("Success: " + dbId);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }

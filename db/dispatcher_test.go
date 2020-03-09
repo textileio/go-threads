@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 )
 
 func TestNewEventDispatcher(t *testing.T) {

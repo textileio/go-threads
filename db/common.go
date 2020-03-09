@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 )
 
 type TxMapDatastore struct {

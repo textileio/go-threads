@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"fmt"
@@ -54,14 +54,14 @@ func checkBenchErr(b *testing.B, err error) {
 	}
 }
 
-func createBenchStore(b *testing.B, opts ...Option) (*Store, func()) {
+func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
 	ts, err := DefaultService(dir)
 	checkBenchErr(b, err)
 	opts = append(opts, WithRepoPath(dir))
 	opts = append(opts, WithJsonMode(true))
-	s, err := NewStore(ts, opts...)
+	s, err := NewDB(ts, opts...)
 	checkBenchErr(b, err)
 	return s, func() {
 		if err := ts.Close(); err != nil {
@@ -72,9 +72,9 @@ func createBenchStore(b *testing.B, opts ...Option) (*Store, func()) {
 }
 
 func BenchmarkNoIndexCreate(b *testing.B) {
-	store, clean := createBenchStore(b)
+	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema)
+	model, err := db.RegisterSchema("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -89,9 +89,9 @@ func BenchmarkNoIndexCreate(b *testing.B) {
 }
 
 func BenchmarkIndexCreate(b *testing.B) {
-	store, clean := createBenchStore(b)
+	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema,
+	model, err := db.RegisterSchema("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Name",
 			Unique: false,
@@ -111,9 +111,9 @@ func BenchmarkIndexCreate(b *testing.B) {
 }
 
 func BenchmarkNoIndexSave(b *testing.B) {
-	store, clean := createBenchStore(b)
+	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema)
+	model, err := db.RegisterSchema("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
@@ -135,9 +135,9 @@ func BenchmarkNoIndexSave(b *testing.B) {
 }
 
 func BenchmarkIndexSave(b *testing.B) {
-	store, clean := createBenchStore(b)
+	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema,
+	model, err := db.RegisterSchema("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Age",
 			Unique: false,
@@ -164,9 +164,9 @@ func BenchmarkIndexSave(b *testing.B) {
 }
 
 func BenchmarkNoIndexFind(b *testing.B) {
-	store, clean := createBenchStore(b)
+	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema)
+	model, err := db.RegisterSchema("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {
@@ -197,9 +197,9 @@ func BenchmarkNoIndexFind(b *testing.B) {
 }
 
 func BenchmarkIndexFind(b *testing.B) {
-	store, clean := createBenchStore(b)
+	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := store.RegisterSchema("Dog", testBenchSchema,
+	model, err := db.RegisterSchema("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Name",
 			Unique: false,
