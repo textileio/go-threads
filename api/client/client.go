@@ -95,22 +95,22 @@ func (c *Client) NewDB(ctx context.Context) (string, error) {
 	return resp.GetID(), nil
 }
 
-// RegisterSchema registers a new model shecma
-func (c *Client) RegisterSchema(ctx context.Context, dbID, name, schema string, indexes ...*db.IndexConfig) error {
-	idx := make([]*pb.RegisterSchemaRequest_IndexConfig, len(indexes))
+// NewCollection registers a new model shecma
+func (c *Client) NewCollection(ctx context.Context, dbID, name, schema string, indexes ...*db.IndexConfig) error {
+	idx := make([]*pb.NewCollectionRequest_IndexConfig, len(indexes))
 	for i, index := range indexes {
-		idx[i] = &pb.RegisterSchemaRequest_IndexConfig{
+		idx[i] = &pb.NewCollectionRequest_IndexConfig{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
 	}
-	req := &pb.RegisterSchemaRequest{
+	req := &pb.NewCollectionRequest{
 		DBID:    dbID,
 		Name:    name,
 		Schema:  schema,
 		Indexes: idx,
 	}
-	_, err := c.c.RegisterSchema(ctx, req)
+	_, err := c.c.NewCollection(ctx, req)
 	return err
 }
 

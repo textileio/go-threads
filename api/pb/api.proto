@@ -12,7 +12,7 @@ message NewDBReply {
     string ID = 1;
 }
 
-message RegisterSchemaRequest {
+message NewCollectionRequest {
     string DBID = 1;
     string name = 2;
     string schema = 3;
@@ -23,7 +23,7 @@ message RegisterSchemaRequest {
     repeated IndexConfig indexes = 4;
 }
 
-message RegisterSchemaReply {}
+message NewCollectionReply {}
 
 message StartRequest {
     string DBID = 1;
@@ -181,7 +181,7 @@ message ListenReply {
 
 service API {
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
-    rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
+    rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
     rpc Start(StartRequest) returns (StartReply) {}
     rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
     rpc GetDBLink(GetDBLinkRequest) returns (GetDBLinkReply) {}

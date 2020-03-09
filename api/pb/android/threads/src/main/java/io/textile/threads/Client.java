@@ -137,12 +137,12 @@ public class Client implements LifecycleObserver {
         return reply;
     }
 
-    public void RegisterSchemaSync (String dbID, String name, String schema) {
-        RegisterSchemaRequest.Builder request = RegisterSchemaRequest.newBuilder();
+    public void NewCollectionSync (String dbID, String name, String schema) {
+        NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDBID(dbID);
         request.setName(name);
         request.setSchema(schema);
-        blockingStub.registerSchema(request.build());
+        blockingStub.newCollection(request.build());
         return;
     }
 

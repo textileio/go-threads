@@ -340,7 +340,7 @@ func TestQueryJsonMode(t *testing.T) {
 
 func createModelWithJSONData(t *testing.T) (*Model, func()) {
 	s, clean := createTestDB(t, WithJsonMode(true))
-	m, err := s.RegisterSchema("Book", testQueryJSONModeSchema,
+	m, err := s.NewCollection("Book", testQueryJSONModeSchema,
 		&IndexConfig{
 			Path: "Meta.TotalReads",
 		},

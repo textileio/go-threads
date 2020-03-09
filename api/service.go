@@ -35,8 +35,8 @@ func (s *service) NewDB(context.Context, *pb.NewDBRequest) (*pb.NewDBReply, erro
 	}, nil
 }
 
-// RegisterSchema registers a JSON schema with a db.
-func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaRequest) (*pb.RegisterSchemaReply, error) {
+// NewCollection registers a JSON schema with a db.
+func (s *service) NewCollection(_ context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
 	log.Debugf("received register schema request in db %s", req.DBID)
 
 	d, err := s.getDB(req.DBID)
@@ -50,11 +50,11 @@ func (s *service) RegisterSchema(_ context.Context, req *pb.RegisterSchemaReques
 			Unique: index.Unique,
 		}
 	}
-	if _, err = d.RegisterSchema(req.Name, req.Schema, indexes...); err != nil {
+	if _, err = d.NewCollection(req.Name, req.Schema, indexes...); err != nil {
 		return nil, err
 	}
 
-	return &pb.RegisterSchemaReply{}, nil
+	return &pb.NewCollectionReply{}, nil
 }
 
 func (s *service) Start(_ context.Context, req *pb.StartRequest) (*pb.StartReply, error) {

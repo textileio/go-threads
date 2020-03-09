@@ -117,7 +117,7 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 	}
 
 	if s.jsonMode {
-		if err := s.reregisterSchemas(); err != nil {
+		if err := s.reCreateCollections(); err != nil {
 			return nil, err
 		}
 	}
@@ -125,8 +125,8 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 	return s, nil
 }
 
-// reregisterSchemas loads and registers schemas from the datastore.
-func (s *DB) reregisterSchemas() error {
+// reCreateCollections loads and registers schemas from the datastore.
+func (s *DB) reCreateCollections() error {
 	results, err := s.datastore.Query(query.Query{
 		Prefix: dsStoreSchemas.String(),
 	})
@@ -142,7 +142,7 @@ func (s *DB) reregisterSchemas() error {
 		if err == nil && index != nil {
 			_ = json.Unmarshal(index, &indexes)
 		}
-		if _, err := s.RegisterSchema(name, string(res.Value), indexes...); err != nil {
+		if _, err := s.NewCollection(name, string(res.Value), indexes...); err != nil {
 			return err
 		}
 	}
@@ -249,8 +249,8 @@ func (s *DB) Register(name string, defaultInstance interface{}) (*Model, error) 
 	return m, nil
 }
 
-// RegisterSchema a new model in the db with a JSON schema.
-func (s *DB) RegisterSchema(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
+// NewCollection a new model in the db with a JSON schema.
+func (s *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

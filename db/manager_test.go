@@ -77,7 +77,7 @@ func TestManager_GetDB(t *testing.T) {
 	}
 
 	// Register a schema, start, and create an instance
-	model, err := db.RegisterSchema("Person", jsonSchema)
+	model, err := db.NewCollection("Person", jsonSchema)
 	checkErr(t, err)
 	err = db.Start()
 	checkErr(t, err)

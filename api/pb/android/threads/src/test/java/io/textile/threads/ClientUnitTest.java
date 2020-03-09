@@ -64,11 +64,11 @@ public class ClientUnitTest {
     }
 
     @Test
-    public void t05_RegisterSchema() throws Exception {
+    public void t05_NewCollection() throws Exception {
         String jsonStr = getStoredSchema();
         JSONObject json = new JSONObject(jsonStr);
         assertEquals(json.get("title").toString(), "Person");
-        client.RegisterSchemaSync(dbId, "Person", jsonStr);
+        client.NewCollectionSync(dbId, "Person", jsonStr);
     }
 
     @Test
