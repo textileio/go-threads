@@ -53,6 +53,7 @@ jobs:
         run: |
             go run ./threadsd/main.go &
             sleep 5
+            lsof -i :6006
             cd api/pb/android
             ./gradlew threads:test
             
