@@ -49,11 +49,12 @@ jobs:
         uses: malinskiy/action-android/install-sdk@release/0.0.5
       - name: Check out code
         uses: actions/checkout@v1
+      - name: Run Daemon
+        run: |
+            (rm -rf .threads && go run threadsd/main.go) &
+            sleep 20
       - name: Test
         run: |
-            go run ./threadsd/main.go &
-            sleep 5
-            lsof -i :6006
             cd api/pb/android
             ./gradlew threads:test
             
