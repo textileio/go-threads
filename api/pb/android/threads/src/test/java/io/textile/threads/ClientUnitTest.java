@@ -35,7 +35,7 @@ public class ClientUnitTest {
 
     void connect() throws Exception {
         // Initialize & start
-        client = new Client("localhost", 6006);
+        client = new Client("10.0.2.2", 6006);
         client.Connect();
     }
 
