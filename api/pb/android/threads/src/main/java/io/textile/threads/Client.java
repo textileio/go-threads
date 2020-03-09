@@ -104,9 +104,9 @@ public class Client implements LifecycleObserver {
         return;
     }
 
-    public void StartFromAddress (String storeID, String address, ByteString followKey, ByteString readKey, StreamObserver<StartFromAddressReply> responseObserver) {
+    public void StartFromAddress (String dbID, String address, ByteString followKey, ByteString readKey, StreamObserver<StartFromAddressReply> responseObserver) {
         StartFromAddressRequest.Builder request = StartFromAddressRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setAddress(address);
         request.setFollowKey(followKey);
         request.setReadKey(readKey);
@@ -120,10 +120,10 @@ public class Client implements LifecycleObserver {
         return blockingStub.getDBLink(request.build());
     }
 
-    public void GetStoreLink (String dbID, StreamObserver<GetStoreLinkReply> responseObserver) {
-        GetStoreLinkRequest.Builder request = GetStoreLinkRequest.newBuilder();
+    public void GetDBLink (String dbID, StreamObserver<GetDBLinkReply> responseObserver) {
+        GetDBLinkRequest.Builder request = GetDBLinkRequest.newBuilder();
         request.setDBID(dbID);
-        asyncStub.getStoreLink(request.build(), responseObserver);
+        asyncStub.getDBLink(request.build(), responseObserver);
     }
 
     public ModelCreateReply ModelCreateSync (String dbID, String modelName, String[] values) {
@@ -193,7 +193,7 @@ public class Client implements LifecycleObserver {
   
     public void ModelFindByID (String dbID, String modelName, String entityID, StreamObserver<ModelFindByIDReply> responseObserver) {
         ModelFindByIDRequest.Builder request = ModelFindByIDRequest.newBuilder();
-        request.setDBID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.setEntityID(entityID);
         asyncStub.modelFindByID(request.build(), responseObserver);
@@ -225,9 +225,9 @@ public class Client implements LifecycleObserver {
         return;
     }
 
-    public void RegisterSchema (String storeID, String name, String schema, StreamObserver<RegisterSchemaReply> responseObserver) {
+    public void RegisterSchema (String dbID, String name, String schema, StreamObserver<RegisterSchemaReply> responseObserver) {
         RegisterSchemaRequest.Builder request = RegisterSchemaRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setName(name);
         request.setSchema(schema);
         asyncStub.registerSchema(request.build(), responseObserver);
