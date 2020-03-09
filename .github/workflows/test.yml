@@ -49,6 +49,18 @@ jobs:
         uses: malinskiy/action-android/install-sdk@release/0.0.5
       - name: Check out code
         uses: actions/checkout@v1
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Get dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          go get -v -t -d ./...
       - name: Run Daemon
         run: |
             rm -rf .threads && go run threadsd/main.go
