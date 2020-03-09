@@ -69,32 +69,34 @@ public class Client implements LifecycleObserver {
         });
     }
 
-    public String NewStoreSync () {
-        NewStoreRequest.Builder request = NewStoreRequest.newBuilder();
-        NewStoreReply reply = blockingStub.newStore(request.build());
+    public String NewDBSync () {
+        NewDBRequest.Builder request = NewDBRequest.newBuilder();
+        NewDBReply reply = blockingStub.newDB(request.build());
         return reply.getID();
     }
 
-    public void NewStore (StreamObserver<NewStoreReply> responseObserver) {
-        NewStoreRequest.Builder request = NewStoreRequest.newBuilder();
-        asyncStub.newStore(request.build(), responseObserver);
+
+    public void NewDB (StreamObserver<NewDBReply> responseObserver) {
+        NewDBRequest.Builder request = NewDBRequest.newBuilder();
+        asyncStub.newDB(request.build(), responseObserver);
     }
 
-    public void StartSync (String storeID) {
+    public void StartSync (String dbID) {
         StartRequest.Builder request = StartRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         blockingStub.start(request.build());
         return;
     }
 
-    public void Start (StreamObserver<StartReply> responseObserver) {
+    public void Start (String dbID, StreamObserver<StartReply> responseObserver) {
         StartRequest.Builder request = StartRequest.newBuilder();
+        request.setDBID(dbID);
         asyncStub.start(request.build(), responseObserver);
     }
 
-    public void StartFromAddressSync (String storeID, String address, ByteString followKey, ByteString readKey) {
+    public void StartFromAddressSync (String dbID, String address, ByteString followKey, ByteString readKey) {
         StartFromAddressRequest.Builder request = StartFromAddressRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setAddress(address);
         request.setFollowKey(followKey);
         request.setReadKey(readKey);
@@ -112,58 +114,56 @@ public class Client implements LifecycleObserver {
     }
 
 
-    public GetStoreLinkReply GetStoreLinkSync (String storeID) {
-        GetStoreLinkRequest.Builder request = GetStoreLinkRequest.newBuilder();
-        request.setStoreID(storeID);
-        return blockingStub.getStoreLink(request.build());
+    public GetDBLinkReply GetDBLinkSync (String dbID) {
+        GetDBLinkRequest.Builder request = GetDBLinkRequest.newBuilder();
+        request.setDBID(dbID);
+        return blockingStub.getDBLink(request.build());
     }
 
-
-    public void GetStoreLink (String storeID, StreamObserver<GetStoreLinkReply> responseObserver) {
+    public void GetStoreLink (String dbID, StreamObserver<GetStoreLinkReply> responseObserver) {
         GetStoreLinkRequest.Builder request = GetStoreLinkRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         asyncStub.getStoreLink(request.build(), responseObserver);
     }
 
-    public ModelCreateReply ModelCreateSync (String storeID, String modelName, String[] values) {
+    public ModelCreateReply ModelCreateSync (String dbID, String modelName, String[] values) {
         ModelCreateRequest.Builder request = ModelCreateRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.addAllValues(Arrays.asList(values));
         ModelCreateReply reply = blockingStub.modelCreate(request.build());
         return reply;
     }
 
-
-    public void ModelCreate (String storeID, String modelName, String[] values, StreamObserver<ModelCreateReply> responseObserver) {
+    public void ModelCreate (String dbID, String modelName, String[] values, StreamObserver<ModelCreateReply> responseObserver) {
         ModelCreateRequest.Builder request = ModelCreateRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.addAllValues(Arrays.asList(values));
         asyncStub.modelCreate(request.build(), responseObserver);
     }
 
-    public ModelSaveReply ModelSaveSync (String storeID, String modelName, String[] values) {
+    public ModelSaveReply ModelSaveSync (String dbID, String modelName, String[] values) {
         ModelSaveRequest.Builder request = ModelSaveRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.addAllValues(Arrays.asList(values));
         ModelSaveReply reply = blockingStub.modelSave(request.build());
         return reply;
     }
 
-    public void ModelSave (String storeID, String modelName, String[] values, StreamObserver<ModelSaveReply> responseObserver) {
+    public void ModelSave (String dbID, String modelName, String[] values, StreamObserver<ModelSaveReply> responseObserver) {
         ModelSaveRequest.Builder request = ModelSaveRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.addAllValues(Arrays.asList(values));
         ModelSaveReply reply = blockingStub.modelSave(request.build());
         asyncStub.modelSave(request.build(), responseObserver);
     }
 
-    public boolean ModelHasSync (String storeID, String modelName, String[] entityIDs) {
+    public boolean ModelHasSync (String dbID, String modelName, String[] entityIDs) {
         ModelHasRequest.Builder request = ModelHasRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         for (int i = 1; i < entityIDs.length; i++) {
             request.setEntityIDs(i, entityIDs[i]);
@@ -172,9 +172,9 @@ public class Client implements LifecycleObserver {
         return reply.getExists();
     }
 
-    public void ModelHas (String storeID, String modelName, String[] entityIDs, StreamObserver<ModelHasReply> responseObserver) {
+    public void ModelHas (String dbID, String modelName, String[] entityIDs, StreamObserver<ModelHasReply> responseObserver) {
         ModelHasRequest.Builder request = ModelHasRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         for (int i = 1; i < entityIDs.length; i++) {
             request.setEntityIDs(i, entityIDs[i]);
@@ -182,43 +182,43 @@ public class Client implements LifecycleObserver {
         asyncStub.modelHas(request.build(), responseObserver);
     }
 
-    public ModelFindByIDReply ModelFindByIDSync (String storeID, String modelName, String entityID) {
+    public ModelFindByIDReply ModelFindByIDSync (String dbID, String modelName, String entityID) {
         ModelFindByIDRequest.Builder request = ModelFindByIDRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.setEntityID(entityID);
         ModelFindByIDReply reply = blockingStub.modelFindByID(request.build());
         return reply;
     }
-
-    public void ModelFindByID (String storeID, String modelName, String entityID, StreamObserver<ModelFindByIDReply> responseObserver) {
+  
+    public void ModelFindByID (String dbID, String modelName, String entityID, StreamObserver<ModelFindByIDReply> responseObserver) {
         ModelFindByIDRequest.Builder request = ModelFindByIDRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(storeID);
         request.setModelName(modelName);
         request.setEntityID(entityID);
         asyncStub.modelFindByID(request.build(), responseObserver);
     }
 
-    public ModelFindReply ModelFindSync (String storeID, String modelName, ByteString query) {
+    public ModelFindReply ModelFindSync (String dbID, String modelName, ByteString query) {
         ModelFindRequest.Builder request = ModelFindRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.setQueryJSON(query);
         ModelFindReply reply = blockingStub.modelFind(request.build());
         return reply;
     }
 
-    public void ModelFind (String storeID, String modelName, ByteString query, StreamObserver<ModelFindReply> responseObserver) {
+    public void ModelFind (String dbID, String modelName, ByteString query, StreamObserver<ModelFindReply> responseObserver) {
         ModelFindRequest.Builder request = ModelFindRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setModelName(modelName);
         request.setQueryJSON(query);
         asyncStub.modelFind(request.build(), responseObserver);
     }
 
-    public void RegisterSchemaSync (String storeID, String name, String schema) {
+    public void RegisterSchemaSync (String dbID, String name, String schema) {
         RegisterSchemaRequest.Builder request = RegisterSchemaRequest.newBuilder();
-        request.setStoreID(storeID);
+        request.setDBID(dbID);
         request.setName(name);
         request.setSchema(schema);
         blockingStub.registerSchema(request.build());

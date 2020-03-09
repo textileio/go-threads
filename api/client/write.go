@@ -5,18 +5,18 @@ import (
 	"fmt"
 
 	pb "github.com/textileio/go-threads/api/pb"
-	"github.com/textileio/go-threads/store"
+	"github.com/textileio/go-threads/db"
 )
 
 // WriteTransaction encapsulates a write transaction
 type WriteTransaction struct {
-	client             pb.API_WriteTransactionClient
-	storeID, modelName string
+	client          pb.API_WriteTransactionClient
+	dbID, modelName string
 }
 
 // Start starts the write transaction
 func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
-	innerReq := &pb.StartTransactionRequest{StoreID: t.storeID, ModelName: t.modelName}
+	innerReq := &pb.StartTransactionRequest{DBID: t.dbID, ModelName: t.modelName}
 	option := &pb.WriteTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
 	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 }
 
 // Find finds entities by query
-func (t *WriteTransaction) Find(query *store.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (t *WriteTransaction) Find(query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

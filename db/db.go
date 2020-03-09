@@ -1,5 +1,5 @@
-// Package eventstore provides a Store which manage models
-package store
+// Package db provides a DB which manage models
+package db
 
 import (
 	"context"
@@ -17,8 +17,8 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/broadcast"
+	core "github.com/textileio/go-threads/core/db"
 	service "github.com/textileio/go-threads/core/service"
-	core "github.com/textileio/go-threads/core/store"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
@@ -37,18 +37,18 @@ var (
 	// with a Model type.
 	ErrInvalidModelType = errors.New("the model type should be a non-nil pointer to a struct")
 
-	log             = logging.Logger("store")
-	dsStorePrefix   = ds.NewKey("/store")
+	log             = logging.Logger("db")
+	dsStorePrefix   = ds.NewKey("/db")
 	dsStoreThreadID = dsStorePrefix.ChildString("threadid")
 	dsStoreSchemas  = dsStorePrefix.ChildString("schema")
 	dsStoreIndexes  = dsStorePrefix.ChildString("index")
 )
 
-// Store is the aggregate-root of events and state. External/remote events
-// are dispatched to the Store, and are internally processed to impact model
+// DB is the aggregate-root of events and state. External/remote events
+// are dispatched to the DB, and are internally processed to impact model
 // states. Likewise, local changes in models registered produce events dispatched
 // externally.
-type Store struct {
+type DB struct {
 	io.Closer
 
 	ctx    context.Context
@@ -69,21 +69,21 @@ type Store struct {
 	stateChangedNotifee *stateChangedNotifee
 }
 
-// NewStore creates a new Store, which will *own* ds and dispatcher for internal use.
+// NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewStore(ts service.Service, opts ...Option) (*Store, error) {
+func NewDB(ts service.Service, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
 		}
 	}
-	return newStore(ts, config)
+	return newDB(ts, config)
 }
 
-// newStore is used directly by a store manager to create new stores
+// newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newStore(ts service.Service, config *Config) (*Store, error) {
+func newDB(ts service.Service, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -96,14 +96,14 @@ func newStore(ts service.Service, config *Config) (*Store, error) {
 	}
 	if !managedDatastore(config.Datastore) {
 		if config.Debug {
-			if err := util.SetLogLevels(map[string]logging.LogLevel{"store": logging.LevelDebug}); err != nil {
+			if err := util.SetLogLevels(map[string]logging.LogLevel{"db": logging.LevelDebug}); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Store{
+	s := &DB{
 		ctx:                 ctx,
 		cancel:              cancel,
 		datastore:           config.Datastore,
@@ -126,7 +126,7 @@ func newStore(ts service.Service, config *Config) (*Store, error) {
 }
 
 // reregisterSchemas loads and registers schemas from the datastore.
-func (s *Store) reregisterSchemas() error {
+func (s *DB) reregisterSchemas() error {
 	results, err := s.datastore.Query(query.Query{
 		Prefix: dsStoreSchemas.String(),
 	})
@@ -149,8 +149,8 @@ func (s *Store) reregisterSchemas() error {
 	return nil
 }
 
-// ThreadID returns the store's theadID if it exists.
-func (s *Store) ThreadID() (thread.ID, bool, error) {
+// ThreadID returns the db's theadID if it exists.
+func (s *DB) ThreadID() (thread.ID, bool, error) {
 	v, err := s.datastore.Get(dsStoreThreadID)
 	if err == ds.ErrNotFound {
 		return thread.ID{}, false, nil
@@ -163,9 +163,9 @@ func (s *Store) ThreadID() (thread.ID, bool, error) {
 }
 
 // Start should be called immediatelly after registering all schemas and before
-// any operation on them. If the store already boostraped on a thread, it will
+// any operation on them. If the db already boostraped on a thread, it will
 // continue using that thread. In the opposite case, it will create a new thread.
-func (s *Store) Start() error {
+func (s *DB) Start() error {
 	id, found, err := s.ThreadID()
 	if err != nil {
 		return err
@@ -198,9 +198,9 @@ func (s *Store) Start() error {
 }
 
 // StartFromAddr should be called immediatelly after registering all schemas
-// and before any operation on them. It pulls the current Store thread from
+// and before any operation on them. It pulls the current DB thread from
 // thread addr
-func (s *Store) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
+func (s *DB) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
 	idstr, err := addr.ValueForProtocol(thread.Code)
 	if err != nil {
 		return err
@@ -221,13 +221,13 @@ func (s *Store) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.K
 	return nil
 }
 
-// Service returns the Service used by the store
-func (s *Store) Service() service.Service {
+// Service returns the Service used by the db
+func (s *DB) Service() service.Service {
 	return s.service
 }
 
-// Register a new model in the store by infering using a defaultInstance
-func (s *Store) Register(name string, defaultInstance interface{}) (*Model, error) {
+// Register a new model in the db by infering using a defaultInstance
+func (s *DB) Register(name string, defaultInstance interface{}) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -249,8 +249,8 @@ func (s *Store) Register(name string, defaultInstance interface{}) (*Model, erro
 	return m, nil
 }
 
-// RegisterSchema a new model in the store with a JSON schema.
-func (s *Store) RegisterSchema(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
+// RegisterSchema a new model in the db with a JSON schema.
+func (s *DB) RegisterSchema(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -295,12 +295,12 @@ func (s *Store) RegisterSchema(name string, schema string, indexes ...*IndexConf
 }
 
 // GetModel returns a model by name.
-func (s *Store) GetModel(name string) *Model {
+func (s *DB) GetModel(name string) *Model {
 	return s.modelNames[name]
 }
 
 // Reduce processes txn events into the models.
-func (s *Store) Reduce(events []core.Event) error {
+func (s *DB) Reduce(events []core.Event) error {
 	codecActions, err := s.eventcodec.Reduce(
 		events,
 		s.datastore,
@@ -330,21 +330,21 @@ func (s *Store) Reduce(events []core.Event) error {
 	return nil
 }
 
-// dispatch applies external events to the store. This function guarantee
+// dispatch applies external events to the db. This function guarantee
 // no interference with registered model states, and viceversa.
-func (s *Store) dispatch(events []core.Event) error {
+func (s *DB) dispatch(events []core.Event) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.dispatcher.Dispatch(events)
 }
 
 // eventFromBytes generates an Event from its binary representation using
-// the underlying EventCodec configured in the Store.
-func (s *Store) eventsFromBytes(data []byte) ([]core.Event, error) {
+// the underlying EventCodec configured in the DB.
+func (s *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
 	return s.eventcodec.EventsFromBytes(data)
 }
 
-func (s *Store) readTxn(m *Model, f func(txn *Txn) error) error {
+func (s *DB) readTxn(m *Model, f func(txn *Txn) error) error {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -356,8 +356,8 @@ func (s *Store) readTxn(m *Model, f func(txn *Txn) error) error {
 	return nil
 }
 
-// Close closes the store
-func (s *Store) Close() error {
+// Close closes the db
+func (s *DB) Close() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.closed {
@@ -386,7 +386,7 @@ func managedDatastore(ds ds.Datastore) bool {
 	return ok
 }
 
-func (s *Store) writeTxn(m *Model, f func(txn *Txn) error) error {
+func (s *DB) writeTxn(m *Model, f func(txn *Txn) error) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -411,7 +411,7 @@ func isValidModel(t interface{}) (valid bool) {
 	return v.Elem().FieldByName(idFieldName).IsValid()
 }
 
-func defaultIndexFunc(s *Store) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+func defaultIndexFunc(s *DB) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
 	return func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
 		indexer := s.GetModel(model)
 		if err := indexDelete(indexer, txn, key, oldData); err != nil {

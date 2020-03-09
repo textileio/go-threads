@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"github.com/dgraph-io/badger/options"
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
-	core "github.com/textileio/go-threads/core/store"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/jsonpatcher"
 )
 
@@ -18,7 +18,7 @@ const (
 // Option takes a Config and modifies it
 type Option func(*Config) error
 
-// Config has configuration parameters for a store
+// Config has configuration parameters for a db
 type Config struct {
 	RepoPath   string
 	Datastore  ds.TxnDatastore

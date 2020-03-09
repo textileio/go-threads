@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"io/ioutil"
@@ -36,27 +36,27 @@ var (
 	}`
 )
 
-func TestManager_NewStore(t *testing.T) {
+func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, _, err := man.NewStore()
+		_, _, err := man.NewDB()
 		checkErr(t, err)
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, _, err := man.NewStore()
+		_, _, err := man.NewDB()
 		checkErr(t, err)
-		_, _, err = man.NewStore()
+		_, _, err = man.NewDB()
 		checkErr(t, err)
 	})
 }
 
-func TestManager_GetStore(t *testing.T) {
+func TestManager_GetDB(t *testing.T) {
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("", "")
@@ -69,17 +69,17 @@ func TestManager_GetStore(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	id, _, err := man.NewStore()
+	id, _, err := man.NewDB()
 	checkErr(t, err)
-	store := man.GetStore(id)
-	if store == nil {
-		t.Fatal("store not found")
+	db := man.GetDB(id)
+	if db == nil {
+		t.Fatal("db not found")
 	}
 
 	// Register a schema, start, and create an instance
-	model, err := store.RegisterSchema("Person", jsonSchema)
+	model, err := db.RegisterSchema("Person", jsonSchema)
 	checkErr(t, err)
-	err = store.Start()
+	err = db.Start()
 	checkErr(t, err)
 	person1 := `{"ID": "", "Name": "Foo", "Age": 21}`
 	err = model.Create(&person1)
@@ -99,13 +99,13 @@ func TestManager_GetStore(t *testing.T) {
 		man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 		checkErr(t, err)
 
-		store := man.GetStore(id)
-		if store == nil {
-			t.Fatal("store was not hydrated")
+		db := man.GetDB(id)
+		if db == nil {
+			t.Fatal("db was not hydrated")
 		}
 
 		// Add another instance, this time there should be no need to register the schema
-		model := store.GetModel("Person")
+		model := db.GetModel("Person")
 		if model == nil {
 			t.Fatal("model was not hydrated")
 		}

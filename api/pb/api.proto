@@ -6,14 +6,14 @@ option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THRDS";
 
-message NewStoreRequest {}
+message NewDBRequest {}
 
-message NewStoreReply {
+message NewDBReply {
     string ID = 1;
 }
 
 message RegisterSchemaRequest {
-    string storeID = 1;
+    string DBID = 1;
     string name = 2;
     string schema = 3;
     message IndexConfig {
@@ -26,13 +26,13 @@ message RegisterSchemaRequest {
 message RegisterSchemaReply {}
 
 message StartRequest {
-    string storeID = 1;
+    string DBID = 1;
 }
 
 message StartReply {}
 
 message StartFromAddressRequest {
-    string storeID = 1;
+    string DBID = 1;
     string address = 2;
     bytes followKey = 3;
     bytes readKey = 4;
@@ -40,18 +40,18 @@ message StartFromAddressRequest {
 
 message StartFromAddressReply {}
 
-message GetStoreLinkRequest {
-    string storeID = 1;
+message GetDBLinkRequest {
+    string DBID = 1;
 }
 
-message GetStoreLinkReply {
+message GetDBLinkReply {
     repeated string addresses = 1;
     bytes followKey = 2;
     bytes readKey = 3;
 }
 
 message ModelCreateRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
     repeated string values = 3;
 }
@@ -61,7 +61,7 @@ message ModelCreateReply {
 }
 
 message ModelSaveRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
     repeated string values = 3;
 }
@@ -69,7 +69,7 @@ message ModelSaveRequest {
 message ModelSaveReply {}
 
 message ModelDeleteRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
     repeated string entityIDs = 3;
 }
@@ -77,7 +77,7 @@ message ModelDeleteRequest {
 message ModelDeleteReply {}
 
 message ModelHasRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
     repeated string entityIDs = 3;
 }
@@ -87,7 +87,7 @@ message ModelHasReply {
 }
 
 message ModelFindRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
     bytes queryJSON = 3;
 }
@@ -97,7 +97,7 @@ message ModelFindReply {
 }
 
 message ModelFindByIDRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
     string entityID = 3;
 }
@@ -107,7 +107,7 @@ message ModelFindByIDReply {
 }
 
 message StartTransactionRequest {
-    string storeID = 1;
+    string DBID = 1;
     string modelName = 2;
 }
 
@@ -152,7 +152,7 @@ message WriteTransactionReply {
 }
 
 message ListenRequest {
-    string storeID = 1;
+    string DBID = 1;
     message Filter {
         string modelName = 1;
         string entityID = 2;
@@ -180,11 +180,11 @@ message ListenReply {
 }
 
 service API {
-    rpc NewStore(NewStoreRequest) returns (NewStoreReply) {}
+    rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaReply) {}
     rpc Start(StartRequest) returns (StartReply) {}
     rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
-    rpc GetStoreLink(GetStoreLinkRequest) returns (GetStoreLinkReply) {}
+    rpc GetDBLink(GetDBLinkRequest) returns (GetDBLinkReply) {}
     rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
     rpc ModelSave(ModelSaveRequest) returns (ModelSaveReply) {}
     rpc ModelDelete(ModelDeleteRequest) returns (ModelDeleteReply) {}
