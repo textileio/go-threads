@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v1
       - name: Start threadsd
         run: |
-            go run ./threadsd/main.go
+            go run ./threadsd/main.go &
             sleep 5
       - name: Test
         run: |
