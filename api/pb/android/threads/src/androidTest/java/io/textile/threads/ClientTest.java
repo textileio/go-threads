@@ -23,7 +23,7 @@ public class ClientTest {
 
     void connect() {
         // Start
-        client = new Client("10.0.2.2", 6006);
+        client = new Client("localhost", 6006);
         client.Connect();
     }
 
