@@ -36,13 +36,6 @@ jobs:
   android-client:
     name: Android Client Test
     runs-on: ubuntu-latest
-    services:
-      threads:
-        image: textile/go-threads:latest
-        env:
-          THRDS_APIADDR: /ip4/0.0.0.0/tcp/6006
-        ports:
-          - "127.0.0.1:6006:6006"
     steps:
       - name: set up JDK 1.8
         uses: actions/setup-java@v1
@@ -56,8 +49,12 @@ jobs:
         uses: malinskiy/action-android/install-sdk@release/0.0.5
       - name: Check out code
         uses: actions/checkout@v1
+      - name: Start threadsd
+        run: |
+            go run ./threadsd/main.go
+            sleep 5
       - name: Test
         run: |
-             cd api/pb/android
-             ./gradlew threads:test
+            cd api/pb/android
+            ./gradlew threads:test
             
