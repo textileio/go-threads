@@ -50,111 +50,111 @@ message GetDBLinkReply {
     bytes readKey = 3;
 }
 
-message ModelCreateRequest {
+message CreateRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
     repeated string values = 3;
 }
 
-message ModelCreateReply {
+message CreateReply {
     repeated string entities = 1;
 }
 
-message ModelSaveRequest {
+message SaveRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
     repeated string values = 3;
 }
 
-message ModelSaveReply {}
+message SaveReply {}
 
-message ModelDeleteRequest {
+message DeleteRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
     repeated string entityIDs = 3;
 }
 
-message ModelDeleteReply {}
+message DeleteReply {}
 
-message ModelHasRequest {
+message HasRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
     repeated string entityIDs = 3;
 }
 
-message ModelHasReply {
+message HasReply {
     bool exists = 1;
 }
 
-message ModelFindRequest {
+message FindRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
     bytes queryJSON = 3;
 }
 
-message ModelFindReply {
+message FindReply {
     repeated bytes entities = 1;
 }
 
-message ModelFindByIDRequest {
+message FindByIDRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
     string entityID = 3;
 }
 
-message ModelFindByIDReply {
+message FindByIDReply {
     string entity = 1;
 }
 
 message StartTransactionRequest {
     string DBID = 1;
-    string modelName = 2;
+    string collectionName = 2;
 }
 
 message ReadTransactionRequest {
     oneof option {
         StartTransactionRequest startTransactionRequest = 1;
-        ModelHasRequest modelHasRequest = 2;
-        ModelFindRequest modelFindRequest = 3;
-        ModelFindByIDRequest modelFindByIDRequest = 4;
+        HasRequest hasRequest = 2;
+        FindRequest findRequest = 3;
+        FindByIDRequest findByIDRequest = 4;
     }
 }
 
 message ReadTransactionReply {
     oneof option {
-        ModelHasReply modelHasReply = 1;
-        ModelFindReply modelFindReply = 2;
-        ModelFindByIDReply modelFindByIDReply = 3;
+        HasReply hasReply = 1;
+        FindReply findReply = 2;
+        FindByIDReply findByIDReply = 3;
     }
 }
 
 message WriteTransactionRequest {
     oneof option {
         StartTransactionRequest startTransactionRequest = 1;
-        ModelCreateRequest modelCreateRequest = 2;
-        ModelSaveRequest modelSaveRequest = 3;
-        ModelDeleteRequest modelDeleteRequest = 4;
-        ModelHasRequest modelHasRequest = 5;
-        ModelFindRequest modelFindRequest = 6;
-        ModelFindByIDRequest modelFindByIDRequest = 7;
+        CreateRequest createRequest = 2;
+        SaveRequest saveRequest = 3;
+        DeleteRequest deleteRequest = 4;
+        HasRequest hasRequest = 5;
+        FindRequest findRequest = 6;
+        FindByIDRequest findByIDRequest = 7;
     }
 }
 
 message WriteTransactionReply {
     oneof option {
-        ModelCreateReply modelCreateReply = 1;
-        ModelSaveReply modelSaveReply = 2;
-        ModelDeleteReply modelDeleteReply = 3;
-        ModelHasReply modelHasReply = 4;
-        ModelFindReply modelFindReply = 5;
-        ModelFindByIDReply modelFindByIDReply = 6;
+        CreateReply createReply = 1;
+        SaveReply saveReply = 2;
+        DeleteReply deleteReply = 3;
+        HasReply hasReply = 4;
+        FindReply findReply = 5;
+        FindByIDReply findByIDReply = 6;
     }
 }
 
 message ListenRequest {
     string DBID = 1;
     message Filter {
-        string modelName = 1;
+        string collectionName = 1;
         string entityID = 2;
         enum Action {
             ALL = 0;
@@ -168,7 +168,7 @@ message ListenRequest {
 }
 
 message ListenReply {
-    string modelName = 1;
+    string collectionName = 1;
     string entityID = 2;
     enum Action {
         CREATE = 0;
@@ -185,12 +185,12 @@ service API {
     rpc Start(StartRequest) returns (StartReply) {}
     rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
     rpc GetDBLink(GetDBLinkRequest) returns (GetDBLinkReply) {}
-    rpc ModelCreate(ModelCreateRequest) returns (ModelCreateReply) {}
-    rpc ModelSave(ModelSaveRequest) returns (ModelSaveReply) {}
-    rpc ModelDelete(ModelDeleteRequest) returns (ModelDeleteReply) {}
-    rpc ModelHas(ModelHasRequest) returns (ModelHasReply) {}
-    rpc ModelFind(ModelFindRequest) returns (ModelFindReply) {}
-    rpc ModelFindByID(ModelFindByIDRequest) returns (ModelFindByIDReply) {}
+    rpc Create(CreateRequest) returns (CreateReply) {}
+    rpc Save(SaveRequest) returns (SaveReply) {}
+    rpc Delete(DeleteRequest) returns (DeleteReply) {}
+    rpc Has(HasRequest) returns (HasReply) {}
+    rpc Find(FindRequest) returns (FindReply) {}
+    rpc FindByID(FindByIDRequest) returns (FindByIDReply) {}
     rpc ReadTransaction(stream ReadTransactionRequest) returns (stream ReadTransactionReply) {}
     rpc WriteTransaction(stream WriteTransactionRequest) returns (stream WriteTransactionReply) {}
     rpc Listen(ListenRequest) returns (stream ListenReply) {}

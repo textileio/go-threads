@@ -121,54 +121,54 @@ func (s *service) StartFromAddress(_ context.Context, req *pb.StartFromAddressRe
 	return &pb.StartFromAddressReply{}, nil
 }
 
-// ModelCreate adds a new instance of a model to a db.
-func (s *service) ModelCreate(_ context.Context, req *pb.ModelCreateRequest) (*pb.ModelCreateReply, error) {
-	log.Debugf("received model create request for model %s", req.ModelName)
-	model, err := s.getModel(req.DBID, req.ModelName)
+// Create adds a new instance of a collection to a db.
+func (s *service) Create(_ context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
+	log.Debugf("received collection create request for collection %s", req.CollectionName)
+	collection, err := s.getCollection(req.DBID, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
-	return s.processCreateRequest(req, model.Create)
+	return s.processCreateRequest(req, collection.Create)
 }
 
-func (s *service) ModelSave(_ context.Context, req *pb.ModelSaveRequest) (*pb.ModelSaveReply, error) {
-	model, err := s.getModel(req.DBID, req.ModelName)
+func (s *service) Save(_ context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
+	collection, err := s.getCollection(req.DBID, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
-	return s.processSaveRequest(req, model.Save)
+	return s.processSaveRequest(req, collection.Save)
 }
 
-func (s *service) ModelDelete(_ context.Context, req *pb.ModelDeleteRequest) (*pb.ModelDeleteReply, error) {
-	model, err := s.getModel(req.DBID, req.ModelName)
+func (s *service) Delete(_ context.Context, req *pb.DeleteRequest) (*pb.DeleteReply, error) {
+	collection, err := s.getCollection(req.DBID, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
-	return s.processDeleteRequest(req, model.Delete)
+	return s.processDeleteRequest(req, collection.Delete)
 }
 
-func (s *service) ModelHas(_ context.Context, req *pb.ModelHasRequest) (*pb.ModelHasReply, error) {
-	model, err := s.getModel(req.DBID, req.ModelName)
+func (s *service) Has(_ context.Context, req *pb.HasRequest) (*pb.HasReply, error) {
+	collection, err := s.getCollection(req.DBID, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
-	return s.processHasRequest(req, model.Has)
+	return s.processHasRequest(req, collection.Has)
 }
 
-func (s *service) ModelFind(_ context.Context, req *pb.ModelFindRequest) (*pb.ModelFindReply, error) {
-	model, err := s.getModel(req.DBID, req.ModelName)
+func (s *service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, error) {
+	collection, err := s.getCollection(req.DBID, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
-	return s.processFindRequest(req, model.FindJSON)
+	return s.processFindRequest(req, collection.FindJSON)
 }
 
-func (s *service) ModelFindByID(_ context.Context, req *pb.ModelFindByIDRequest) (*pb.ModelFindByIDReply, error) {
-	model, err := s.getModel(req.DBID, req.ModelName)
+func (s *service) FindByID(_ context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {
+	collection, err := s.getCollection(req.DBID, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
-	return s.processFindByIDRequest(req, model.FindByID)
+	return s.processFindByIDRequest(req, collection.FindByID)
 }
 
 func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
@@ -177,23 +177,23 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return err
 	}
 
-	var dbID, modelName string
+	var dbID, collectionName string
 	switch x := firstReq.GetOption().(type) {
 	case *pb.ReadTransactionRequest_StartTransactionRequest:
 		dbID = x.StartTransactionRequest.GetDBID()
-		modelName = x.StartTransactionRequest.GetModelName()
+		collectionName = x.StartTransactionRequest.GetCollectionName()
 	case nil:
 		return fmt.Errorf("no ReadTransactionRequest type set")
 	default:
 		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	model, err := s.getModel(dbID, modelName)
+	collection, err := s.getCollection(dbID, collectionName)
 	if err != nil {
 		return err
 	}
 
-	return model.ReadTxn(func(txn *db.Txn) error {
+	return collection.ReadTxn(func(txn *db.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -203,30 +203,30 @@ func (s *service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 				return err
 			}
 			switch x := req.GetOption().(type) {
-			case *pb.ReadTransactionRequest_ModelHasRequest:
-				innerReply, err := s.processHasRequest(x.ModelHasRequest, txn.Has)
+			case *pb.ReadTransactionRequest_HasRequest:
+				innerReply, err := s.processHasRequest(x.HasRequest, txn.Has)
 				if err != nil {
 					return err
 				}
-				option := &pb.ReadTransactionReply_ModelHasReply{ModelHasReply: innerReply}
+				option := &pb.ReadTransactionReply_HasReply{HasReply: innerReply}
 				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.ReadTransactionRequest_ModelFindByIDRequest:
-				innerReply, err := s.processFindByIDRequest(x.ModelFindByIDRequest, txn.FindByID)
+			case *pb.ReadTransactionRequest_FindByIDRequest:
+				innerReply, err := s.processFindByIDRequest(x.FindByIDRequest, txn.FindByID)
 				if err != nil {
 					return err
 				}
-				option := &pb.ReadTransactionReply_ModelFindByIDReply{ModelFindByIDReply: innerReply}
+				option := &pb.ReadTransactionReply_FindByIDReply{FindByIDReply: innerReply}
 				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.ReadTransactionRequest_ModelFindRequest:
-				innerReply, err := s.processFindRequest(x.ModelFindRequest, txn.FindJSON)
+			case *pb.ReadTransactionRequest_FindRequest:
+				innerReply, err := s.processFindRequest(x.FindRequest, txn.FindJSON)
 				if err != nil {
 					return err
 				}
-				option := &pb.ReadTransactionReply_ModelFindReply{ModelFindReply: innerReply}
+				option := &pb.ReadTransactionReply_FindReply{FindReply: innerReply}
 				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
 					return err
 				}
@@ -245,23 +245,23 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return err
 	}
 
-	var dbID, modelName string
+	var dbID, collectionName string
 	switch x := firstReq.GetOption().(type) {
 	case *pb.WriteTransactionRequest_StartTransactionRequest:
 		dbID = x.StartTransactionRequest.GetDBID()
-		modelName = x.StartTransactionRequest.GetModelName()
+		collectionName = x.StartTransactionRequest.GetCollectionName()
 	case nil:
 		return fmt.Errorf("no WriteTransactionRequest type set")
 	default:
 		return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	model, err := s.getModel(dbID, modelName)
+	collection, err := s.getCollection(dbID, collectionName)
 	if err != nil {
 		return err
 	}
 
-	return model.WriteTxn(func(txn *db.Txn) error {
+	return collection.WriteTxn(func(txn *db.Txn) error {
 		for {
 			req, err := stream.Recv()
 			if err == io.EOF {
@@ -271,57 +271,57 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 				return err
 			}
 			switch x := req.GetOption().(type) {
-			case *pb.WriteTransactionRequest_ModelHasRequest:
-				innerReply, err := s.processHasRequest(x.ModelHasRequest, txn.Has)
+			case *pb.WriteTransactionRequest_HasRequest:
+				innerReply, err := s.processHasRequest(x.HasRequest, txn.Has)
 				if err != nil {
 					return err
 				}
-				option := &pb.WriteTransactionReply_ModelHasReply{ModelHasReply: innerReply}
+				option := &pb.WriteTransactionReply_HasReply{HasReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.WriteTransactionRequest_ModelFindByIDRequest:
-				innerReply, err := s.processFindByIDRequest(x.ModelFindByIDRequest, txn.FindByID)
+			case *pb.WriteTransactionRequest_FindByIDRequest:
+				innerReply, err := s.processFindByIDRequest(x.FindByIDRequest, txn.FindByID)
 				if err != nil {
 					return err
 				}
-				option := &pb.WriteTransactionReply_ModelFindByIDReply{ModelFindByIDReply: innerReply}
+				option := &pb.WriteTransactionReply_FindByIDReply{FindByIDReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.WriteTransactionRequest_ModelFindRequest:
-				innerReply, err := s.processFindRequest(x.ModelFindRequest, txn.FindJSON)
+			case *pb.WriteTransactionRequest_FindRequest:
+				innerReply, err := s.processFindRequest(x.FindRequest, txn.FindJSON)
 				if err != nil {
 					return err
 				}
-				option := &pb.WriteTransactionReply_ModelFindReply{ModelFindReply: innerReply}
+				option := &pb.WriteTransactionReply_FindReply{FindReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.WriteTransactionRequest_ModelCreateRequest:
-				innerReply, err := s.processCreateRequest(x.ModelCreateRequest, txn.Create)
+			case *pb.WriteTransactionRequest_CreateRequest:
+				innerReply, err := s.processCreateRequest(x.CreateRequest, txn.Create)
 				if err != nil {
 					return err
 				}
-				option := &pb.WriteTransactionReply_ModelCreateReply{ModelCreateReply: innerReply}
+				option := &pb.WriteTransactionReply_CreateReply{CreateReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.WriteTransactionRequest_ModelSaveRequest:
-				innerReply, err := s.processSaveRequest(x.ModelSaveRequest, txn.Save)
+			case *pb.WriteTransactionRequest_SaveRequest:
+				innerReply, err := s.processSaveRequest(x.SaveRequest, txn.Save)
 				if err != nil {
 					return err
 				}
-				option := &pb.WriteTransactionReply_ModelSaveReply{ModelSaveReply: innerReply}
+				option := &pb.WriteTransactionReply_SaveReply{SaveReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
-			case *pb.WriteTransactionRequest_ModelDeleteRequest:
-				innerReply, err := s.processDeleteRequest(x.ModelDeleteRequest, txn.Delete)
+			case *pb.WriteTransactionRequest_DeleteRequest:
+				innerReply, err := s.processDeleteRequest(x.DeleteRequest, txn.Delete)
 				if err != nil {
 					return err
 				}
-				option := &pb.WriteTransactionReply_ModelDeleteReply{ModelDeleteReply: innerReply}
+				option := &pb.WriteTransactionReply_DeleteReply{DeleteReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
@@ -357,9 +357,9 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			return status.Errorf(codes.InvalidArgument, "invalid filter action %v", filter.GetAction())
 		}
 		options[i] = db.ListenOption{
-			Type:  listenActionType,
-			Model: filter.GetModelName(),
-			ID:    core.EntityID(filter.EntityID),
+			Type:       listenActionType,
+			Collection: filter.GetCollectionName(),
+			ID:         core.EntityID(filter.EntityID),
 		}
 	}
 
@@ -396,10 +396,10 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 				return err
 			}
 			reply := &pb.ListenReply{
-				ModelName: action.Model,
-				EntityID:  action.ID.String(),
-				Action:    replyAction,
-				Entity:    entity,
+				CollectionName: action.Collection,
+				EntityID:       action.ID.String(),
+				Action:         replyAction,
+				Entity:         entity,
 			}
 			if err := server.Send(reply); err != nil {
 				return err
@@ -409,18 +409,18 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 }
 
 func (s *service) entityForAction(db *db.DB, action db.Action) ([]byte, error) {
-	model := db.GetModel(action.Model)
-	if model == nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+	collection := db.GetCollection(action.Collection)
+	if collection == nil {
+		return nil, status.Error(codes.NotFound, "collection not found")
 	}
 	var res string
-	if err := model.FindByID(action.ID, &res); err != nil {
+	if err := collection.FindByID(action.ID, &res); err != nil {
 		return nil, err
 	}
 	return []byte(res), nil
 }
 
-func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc func(...interface{}) error) (*pb.ModelCreateReply, error) {
+func (s *service) processCreateRequest(req *pb.CreateRequest, createFunc func(...interface{}) error) (*pb.CreateReply, error) {
 	values := make([]interface{}, len(req.Values))
 	for i, v := range req.Values {
 		s := v
@@ -430,7 +430,7 @@ func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc fu
 		return nil, err
 	}
 
-	reply := &pb.ModelCreateReply{
+	reply := &pb.CreateReply{
 		Entities: make([]string, len(values)),
 	}
 	for i, v := range values {
@@ -439,7 +439,7 @@ func (s *service) processCreateRequest(req *pb.ModelCreateRequest, createFunc fu
 	return reply, nil
 }
 
-func (s *service) processSaveRequest(req *pb.ModelSaveRequest, saveFunc func(...interface{}) error) (*pb.ModelSaveReply, error) {
+func (s *service) processSaveRequest(req *pb.SaveRequest, saveFunc func(...interface{}) error) (*pb.SaveReply, error) {
 	values := make([]interface{}, len(req.Values))
 	for i, v := range req.Values {
 		s := v
@@ -448,10 +448,10 @@ func (s *service) processSaveRequest(req *pb.ModelSaveRequest, saveFunc func(...
 	if err := saveFunc(values...); err != nil {
 		return nil, err
 	}
-	return &pb.ModelSaveReply{}, nil
+	return &pb.SaveReply{}, nil
 }
 
-func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc func(...core.EntityID) error) (*pb.ModelDeleteReply, error) {
+func (s *service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(...core.EntityID) error) (*pb.DeleteReply, error) {
 	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
 	for i, ID := range req.GetEntityIDs() {
 		entityIDs[i] = core.EntityID(ID)
@@ -459,10 +459,10 @@ func (s *service) processDeleteRequest(req *pb.ModelDeleteRequest, deleteFunc fu
 	if err := deleteFunc(entityIDs...); err != nil {
 		return nil, err
 	}
-	return &pb.ModelDeleteReply{}, nil
+	return &pb.DeleteReply{}, nil
 }
 
-func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...core.EntityID) (bool, error)) (*pb.ModelHasReply, error) {
+func (s *service) processHasRequest(req *pb.HasRequest, hasFunc func(...core.EntityID) (bool, error)) (*pb.HasReply, error) {
 	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
 	for i, ID := range req.GetEntityIDs() {
 		entityIDs[i] = core.EntityID(ID)
@@ -471,19 +471,19 @@ func (s *service) processHasRequest(req *pb.ModelHasRequest, hasFunc func(...cor
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ModelHasReply{Exists: exists}, nil
+	return &pb.HasReply{Exists: exists}, nil
 }
 
-func (s *service) processFindByIDRequest(req *pb.ModelFindByIDRequest, findFunc func(id core.EntityID, v interface{}) error) (*pb.ModelFindByIDReply, error) {
+func (s *service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(id core.EntityID, v interface{}) error) (*pb.FindByIDReply, error) {
 	entityID := core.EntityID(req.EntityID)
 	var result string
 	if err := findFunc(entityID, &result); err != nil {
 		return nil, err
 	}
-	return &pb.ModelFindByIDReply{Entity: result}, nil
+	return &pb.FindByIDReply{Entity: result}, nil
 }
 
-func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *db.JSONQuery) (ret []string, err error)) (*pb.ModelFindReply, error) {
+func (s *service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.JSONQuery) (ret []string, err error)) (*pb.FindReply, error) {
 	q := &db.JSONQuery{}
 	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
@@ -496,7 +496,7 @@ func (s *service) processFindRequest(req *pb.ModelFindRequest, findFunc func(q *
 	for i, stringEntity := range stringEntities {
 		byteEntities[i] = []byte(stringEntity)
 	}
-	return &pb.ModelFindReply{Entities: byteEntities}, nil
+	return &pb.FindReply{Entities: byteEntities}, nil
 }
 
 func (s *service) getDB(idStr string) (*db.DB, error) {
@@ -511,14 +511,14 @@ func (s *service) getDB(idStr string) (*db.DB, error) {
 	return d, nil
 }
 
-func (s *service) getModel(dbID string, modelName string) (*db.Model, error) {
+func (s *service) getCollection(dbID string, collectionName string) (*db.Collection, error) {
 	d, err := s.getDB(dbID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "db not found")
 	}
-	model := d.GetModel(modelName)
-	if model == nil {
-		return nil, status.Error(codes.NotFound, "model not found")
+	collection := d.GetCollection(collectionName)
+	if collection == nil {
+		return nil, status.Error(codes.NotFound, "collection not found")
 	}
-	return model, nil
+	return collection, nil
 }

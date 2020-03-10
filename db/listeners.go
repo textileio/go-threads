@@ -29,7 +29,7 @@ func (s *DB) Listen(los ...ListenOption) (Listener, error) {
 }
 
 // localEventListen returns a listener which notifies *locally generated*
-// events in models of the db. Caller should call .Discard() when
+// events in collections of the db. Caller should call .Discard() when
 // done.
 func (s *DB) localEventListen() *LocalEventListener {
 	return s.localEventsBus.Listen()
@@ -60,15 +60,15 @@ const (
 )
 
 type Action struct {
-	Model string
-	Type  ActionType
-	ID    core.EntityID
+	Collection string
+	Type       ActionType
+	ID         core.EntityID
 }
 
 type ListenOption struct {
-	Type  ListenActionType
-	Model string
-	ID    core.EntityID
+	Type       ListenActionType
+	Collection string
+	ID         core.EntityID
 }
 
 type Listener interface {
@@ -168,7 +168,7 @@ func (sl *listener) evaluate(a Action) bool {
 			panic("unknown action type")
 		}
 
-		if f.Model != "" && f.Model != a.Model {
+		if f.Collection != "" && f.Collection != a.Collection {
 			continue
 		}
 
