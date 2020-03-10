@@ -31,7 +31,7 @@ public class ClientUnitTest {
 
     static Client client;
     static String dbId;
-    static String modelId = "";
+    static String collectionId = "";
 
     void connect() throws Exception {
         // Initialize & start
@@ -72,27 +72,27 @@ public class ClientUnitTest {
     }
 
     @Test
-    public void t06_ModelCreate() throws Exception {
+    public void t06_Create() throws Exception {
         String person = createPerson("", 22);
         String[] data = { person };
-        ModelCreateReply reply = client.ModelCreateSync(dbId, "Person", data);
+        CreateReply reply = client.CreateSync(dbId, "Person", data);
         assertEquals(1, reply.getEntitiesCount());
         String jsonString = reply.getEntities(0);
-        Person model = new Gson().fromJson(jsonString, Person.class);
-        modelId = model.ID;
-        assertEquals(model.ID.length(), 36);
+        Person instance = new Gson().fromJson(jsonString, Person.class);
+        instanceId = instance.ID;
+        assertEquals(instance.ID.length(), 36);
     }
 
     @Test
-    public void t06_ModelSave() throws Exception {
-        String person = createPerson(modelId, 22);
+    public void t06_Save() throws Exception {
+        String person = createPerson(instanceId, 22);
         String[] data = { person };
-        client.ModelSaveSync(dbId, "Person", data);
+        client.SaveSync(dbId, "Person", data);
         // now check that it's been updated
-        ModelFindByIDReply reply = client.ModelFindByIDSync(dbId, "Person", modelId);
+        FindByIDReply reply = client.FindByIDSync(dbId, "Person", instanceId);
         String jsonString = reply.getEntity();
-        Person model = new Gson().fromJson(jsonString, Person.class);
-        assertEquals(modelId, model.ID);
+        Person instance = new Gson().fromJson(jsonString, Person.class);
+        assertEquals(instanceId, instance.ID);
     }
 
     private String createPerson(String ID, int age) throws Exception {

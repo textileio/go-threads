@@ -90,50 +90,50 @@ public class Client implements LifecycleObserver {
         return blockingStub.getDBLink(request.build());
     }
 
-    public ModelCreateReply ModelCreateSync (String dbID, String modelName, String[] values) {
-        ModelCreateRequest.Builder request = ModelCreateRequest.newBuilder();
+    public CreateReply CreateSync (String dbID, String collectionName, String[] values) {
+        CreateRequest.Builder request = CreateRequest.newBuilder();
         request.setDBID(dbID);
-        request.setModelName(modelName);
+        request.setCollectionName(collectionName);
         request.addAllValues(Arrays.asList(values));
-        ModelCreateReply reply = blockingStub.modelCreate(request.build());
+        CreateReply reply = blockingStub.create(request.build());
         return reply;
     }
 
-    public ModelSaveReply ModelSaveSync (String dbID, String modelName, String[] values) {
-        ModelSaveRequest.Builder request = ModelSaveRequest.newBuilder();
+    public SaveReply SaveSync (String dbID, String collectionName, String[] values) {
+        SaveRequest.Builder request = SaveRequest.newBuilder();
         request.setDBID(dbID);
-        request.setModelName(modelName);
+        request.setCollectionName(collectionName);
         request.addAllValues(Arrays.asList(values));
-        ModelSaveReply reply = blockingStub.modelSave(request.build());
+        SaveReply reply = blockingStub.save(request.build());
         return reply;
     }
 
-    public boolean ModelHasSync (String dbID, String modelName, String[] entityIDs) {
-        ModelHasRequest.Builder request = ModelHasRequest.newBuilder();
+    public boolean HasSync (String dbID, String collectionName, String[] entityIDs) {
+        HasRequest.Builder request = HasRequest.newBuilder();
         request.setDBID(dbID);
-        request.setModelName(modelName);
+        request.setCollectionName(collectionName);
         for (int i = 1; i < entityIDs.length; i++) {
             request.setEntityIDs(i, entityIDs[i]);
         }
-        ModelHasReply reply = blockingStub.modelHas(request.build());
+        HasReply reply = blockingStub.has(request.build());
         return reply.getExists();
     }
 
-    public ModelFindByIDReply ModelFindByIDSync (String dbID, String modelName, String entityID) {
-        ModelFindByIDRequest.Builder request = ModelFindByIDRequest.newBuilder();
+    public FindByIDReply FindByIDSync (String dbID, String collectionName, String entityID) {
+        FindByIDRequest.Builder request = FindByIDRequest.newBuilder();
         request.setDBID(dbID);
-        request.setModelName(modelName);
+        request.setCollectionName(collectionName);
         request.setEntityID(entityID);
-        ModelFindByIDReply reply = blockingStub.modelFindByID(request.build());
+        FindByIDReply reply = blockingStub.findByID(request.build());
         return reply;
     }
 
-    public ModelFindReply ModelFindSync (String dbID, String modelName, ByteString query) {
-        ModelFindRequest.Builder request = ModelFindRequest.newBuilder();
+    public FindReply FindSync (String dbID, String collectionName, ByteString query) {
+        FindRequest.Builder request = FindRequest.newBuilder();
         request.setDBID(dbID);
-        request.setModelName(modelName);
+        request.setCollectionName(collectionName);
         request.setQueryJSON(query);
-        ModelFindReply reply = blockingStub.modelFind(request.build());
+        FindReply reply = blockingStub.find(request.build());
         return reply;
     }
 
