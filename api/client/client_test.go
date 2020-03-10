@@ -79,7 +79,7 @@ func TestStartFromAddress(t *testing.T) {
 	})
 }
 
-func TestModelCreate(t *testing.T) {
+func TestCreate(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -92,7 +92,7 @@ func TestModelCreate(t *testing.T) {
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, createPerson())
+		err = client.Create(context.Background(), dbID, collectionName, createPerson())
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
@@ -118,7 +118,7 @@ func TestGetDBLink(t *testing.T) {
 	})
 }
 
-func TestModelSave(t *testing.T) {
+func TestSave(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -133,18 +133,18 @@ func TestModelSave(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		person.Age = 30
-		err = client.ModelSave(context.Background(), dbID, collectionName, person)
+		err = client.Save(context.Background(), dbID, collectionName, person)
 		if err != nil {
 			t.Fatalf("failed to save collection: %v", err)
 		}
 	})
 }
 
-func TestModelDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -159,17 +159,17 @@ func TestModelDelete(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		err = client.ModelDelete(context.Background(), dbID, collectionName, person.ID)
+		err = client.Delete(context.Background(), dbID, collectionName, person.ID)
 		if err != nil {
 			t.Fatalf("failed to delete collection: %v", err)
 		}
 	})
 }
 
-func TestModelHas(t *testing.T) {
+func TestHas(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -184,10 +184,10 @@ func TestModelHas(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		exists, err := client.ModelHas(context.Background(), dbID, collectionName, person.ID)
+		exists, err := client.Has(context.Background(), dbID, collectionName, person.ID)
 		if err != nil {
 			t.Fatalf("failed to check collection has: %v", err)
 		}
@@ -197,7 +197,7 @@ func TestModelHas(t *testing.T) {
 	})
 }
 
-func TestModelFind(t *testing.T) {
+func TestFind(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -212,12 +212,12 @@ func TestModelFind(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		q := db.JSONWhere("lastName").Eq(person.LastName)
 
-		rawResults, err := client.ModelFind(context.Background(), dbID, collectionName, q, []*Person{})
+		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -231,7 +231,7 @@ func TestModelFind(t *testing.T) {
 	})
 }
 
-func TestModelFindWithIndex(t *testing.T) {
+func TestFindWithIndex(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -250,12 +250,12 @@ func TestModelFindWithIndex(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		q := db.JSONWhere("lastName").Eq(person.LastName).UseIndex("lastName")
 
-		rawResults, err := client.ModelFind(context.Background(), dbID, collectionName, q, []*Person{})
+		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -269,7 +269,7 @@ func TestModelFindWithIndex(t *testing.T) {
 	})
 }
 
-func TestModelFindByID(t *testing.T) {
+func TestFindByID(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -284,11 +284,11 @@ func TestModelFindByID(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		newPerson := &Person{}
-		err = client.ModelFindByID(context.Background(), dbID, collectionName, person.ID, newPerson)
+		err = client.FindByID(context.Background(), dbID, collectionName, person.ID, newPerson)
 		if err != nil {
 			t.Fatalf("failed to find collection by id: %v", err)
 		}
@@ -311,7 +311,7 @@ func TestReadTransaction(t *testing.T) {
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 		person := createPerson()
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		txn, err := client.ReadTransaction(context.Background(), dbID, collectionName)
@@ -376,7 +376,7 @@ func TestWriteTransaction(t *testing.T) {
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 		existingPerson := createPerson()
-		err = client.ModelCreate(context.Background(), dbID, collectionName, existingPerson)
+		err = client.Create(context.Background(), dbID, collectionName, existingPerson)
 		checkErr(t, err)
 
 		txn, err := client.WriteTransaction(context.Background(), dbID, collectionName)
@@ -464,14 +464,14 @@ func TestListen(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, collectionName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		opt := ListenOption{
-			Model:    collectionName,
-			EntityID: person.ID,
+			Collection: collectionName,
+			EntityID:   person.ID,
 		}
 		channel, err := client.Listen(ctx, dbID, opt)
 		if err != nil {
@@ -481,9 +481,9 @@ func TestListen(t *testing.T) {
 		go func() {
 			time.Sleep(1 * time.Second)
 			person.Age = 30
-			_ = client.ModelSave(context.Background(), dbID, collectionName, person)
+			_ = client.Save(context.Background(), dbID, collectionName, person)
 			person.Age = 40
-			_ = client.ModelSave(context.Background(), dbID, collectionName, person)
+			_ = client.Save(context.Background(), dbID, collectionName, person)
 		}()
 
 		val, ok := <-channel

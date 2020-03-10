@@ -77,12 +77,12 @@ func TestManager_GetDB(t *testing.T) {
 	}
 
 	// Register a schema, start, and create an instance
-	model, err := db.NewCollection("Person", jsonSchema)
+	collection, err := db.NewCollection("Person", jsonSchema)
 	checkErr(t, err)
 	err = db.Start()
 	checkErr(t, err)
 	person1 := `{"ID": "", "Name": "Foo", "Age": 21}`
-	err = model.Create(&person1)
+	err = collection.Create(&person1)
 	checkErr(t, err)
 
 	time.Sleep(time.Second)
@@ -105,13 +105,13 @@ func TestManager_GetDB(t *testing.T) {
 		}
 
 		// Add another instance, this time there should be no need to register the schema
-		model := db.GetModel("Person")
-		if model == nil {
-			t.Fatal("model was not hydrated")
+		collection := db.GetCollection("Person")
+		if collection == nil {
+			t.Fatal("collection was not hydrated")
 		}
 		person2 := `{"ID": "", "Name": "Bar", "Age": 21}`
 		person3 := `{"ID": "", "Name": "Baz", "Age": 21}`
-		err = model.Create(&person2, &person3)
+		err = collection.Create(&person2, &person3)
 		checkErr(t, err)
 
 		time.Sleep(time.Second)

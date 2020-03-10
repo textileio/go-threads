@@ -7,7 +7,7 @@ how things are wired. Creating a `DB` under the default configuration will
 automatically build everything required to work.
 
 Currently, a `DB` is backed by a single Thread. In the future, this can 
-change making the `DB` map different `Model`s to different Threads, or 
+change making the `DB` map different `Collection`s to different Threads, or 
 any other combination.
 
 ## Usage
@@ -31,19 +31,19 @@ Arrows aren't always synchronous calls, but also channel notifications and
 other mediums in order to inverse dependency between components. Arrows are 
 conceptual communications.
 
-#### Models
-Models are part of `DB` public-api.
+#### Collections
+Collections are part of `DB` public-api.
 Main responsibility: store instances of a user-defined schema.
 
-Models are json-schemas that describe instance types of the `DB`. They 
+Collections are json-schemas that describe instance types of the `DB`. They 
 provide the public API for creating, deleting, updating, and querying instances 
-within this model. They also provide read/write transactions which have 
+within this collection. They also provide read/write transactions which have 
 _serializable isolation_ within the `DB` scope.
 
 *Indexes*
 
-Models support indexes for faster queries on schema-defined fields. When registering
-a new schema (and defining a Model), a caller may supply a list of field paths to
+Collections support indexes for faster queries on schema-defined fields. When registering
+a new schema (and defining a Collection), a caller may supply a list of field paths to
 index on. This creates an Index, which can be used to speed up queries at the expense
 of additional storage and compute on entity creation and updates. For dbs with
 a small number of entities, it may not be worth the added overhead, so as always
@@ -55,7 +55,7 @@ costly (almost identical in most cases). Depending on the underlying data distri
 queries can be greater than an order of magnitude faster. This depends on many factors,
 including the size of the db (i.e., number of entities), the uniqueness of the
 indexed field, and the complexity of the query. For example, in our benchmark tests
-using a relatively simple Model and a relatively small db size (i.e., ~5000
+using a relatively simple Collection and a relatively small db size (i.e., ~5000
 entities), the query speedup for a simple OR-based equality test is ~10x. See
 `db/bench_test.go` for details or to run the benchmarks yourself.
 
@@ -71,7 +71,7 @@ the next building block for the appended Record in the local peer log.
 - The reverse of last point, when receiving external actions to allow to be 
 dispatched.
 
-For example, if within a model `WriteTxn()`, a new instance is created and 
+For example, if within a collection `WriteTxn()`, a new instance is created and 
 other was updated, these two action will be sent to the `EventCodec` to 
 transform them in `Event`s. These `Event` have a byte payload with the encoded 
 transformation. Currently, the only implementation of `EventCodec` is a 
@@ -85,7 +85,7 @@ the peer own log in the thread associated with the `DB`. Likewise,
 transforms its byte payload into actions that will be reduced in the db.
 
 The `EventCodec` abstraction allows an extensibility point. If instead of a 
-json-patcher we want to encode model changes as full instance snapshots 
+json-patcher we want to encode instance changes as full instance snapshots 
 (i.e: instead of generating the json-patch, let generate the full instance 
 data), we could provide another implementation of the `EventCodec` to use in 
 the DB.
@@ -106,7 +106,7 @@ these events to all registered Reducers. A reducer is a party which is
 interested in knowing about `DB` events. Currently, the only reducer is the 
 `DB` itself.
 
-For example, if a particular instance is updated in a `Model`, these 
+For example, if a particular instance is updated in a `Collection`, these 
 corresponding actions will be encoded as `Event` by the `EventCodec` as 
 mentioned in the last section. These `Events` will be dispatched to the 
 `Dispatcher`, which will:
@@ -126,7 +126,7 @@ of the same Thread.
 This is an internal component not available in the public API.
 Main responsibility: Delivering durable persistence for data.
 
-`Datastore` is the underlying persistence of ``Model`` instances and 
+`Datastore` is the underlying persistence of ``Collection`` instances and 
 `Dispatcher` raw `Event` information. In both cases, their interface is a 
 `datastore.TxnDatastore` to have txn guarantees.
 
@@ -140,7 +140,7 @@ is listening to this bus.
 #### DB Listener
 This is part of the public-api. 
 Main responsibility: Notify external actors that the `DB` changed its state, 
-with details about the change: in which model, what action (Create, Save, 
+with details about the change: in which collection, what action (Create, Save, 
 Delete), and wich EntityID.
 
 Listeners are useful for clients that want to be notified about changes in the 
@@ -151,12 +151,12 @@ The client can configure which kind of events wants to be notified. Can add
 any number of criterias; if more than one criteria is used they will be 
 interpreted as _OR_ conditions.
 A criteria contains the following information:
-- Which model to listen changes
+- Which collection to listen changes
 - What action is done (Create, Save, Delete)
 - Which EntitiID
 
 Any of the above three attributes can be set empty. For example, we can listen 
-to all changes of all entities in a model if only the first attribute is set 
+to all changes of all instances in a collection if only the first attribute is set 
 and the other two are left empty/default.
 
 ### DBThreadAdapter (SingleThreadAdapter, unique implementation)

@@ -30,12 +30,9 @@ const (
 )
 
 var (
-	// ErrInvalidCollection indicates that the registered collection isn't valid,
-	// most probably doesn't have an EntityID.ID field.
-	ErrInvalidCollection = errors.New("the collection is invalid")
 	// ErrInvalidCollectionType indicates the provided default type isn't compatible
 	// with a Collection type.
-	ErrInvalidCollectionType = errors.New("the collection type should be a non-nil pointer to a struct")
+	ErrInvalidCollectionType = errors.New("the collection type should be a non-nil pointer to a struct that has an ID property")
 
 	log             = logging.Logger("db")
 	dsStorePrefix   = ds.NewKey("/db")
@@ -226,8 +223,8 @@ func (s *DB) Service() service.Service {
 	return s.service
 }
 
-// RegisterCollection registers a new collection in the db by infering using a defaultInstance
-func (s *DB) RegisterCollection(name string, defaultInstance interface{}) (*Collection, error) {
+// NewCollectionFromInstance creates a new collection in the db by infering type from a defaultInstance
+func (s *DB) NewCollectionFromInstance(name string, defaultInstance interface{}) (*Collection, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -241,7 +238,7 @@ func (s *DB) RegisterCollection(name string, defaultInstance interface{}) (*Coll
 	}
 
 	if !isValidCollection(defaultInstance) {
-		return nil, ErrInvalidCollection
+		return nil, ErrInvalidCollectionType
 	}
 
 	c := newCollection(name, defaultInstance, s)

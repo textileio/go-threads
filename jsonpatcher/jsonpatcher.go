@@ -76,10 +76,10 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 			return nil, nil, err
 		}
 		revents.Patches[i] = patchEvent{
-			Timestamp: time.Now(),
-			ID:        actions[i].EntityID,
-			ModelName: actions[i].ModelName,
-			Patch:     *op,
+			Timestamp:      time.Now(),
+			ID:             actions[i].EntityID,
+			CollectionName: actions[i].CollectionName,
+			Patch:          *op,
 		}
 		events[i] = revents.Patches[i]
 	}
@@ -95,7 +95,7 @@ func (jp *jsonPatcher) Reduce(
 	events []core.Event,
 	datastore ds.TxnDatastore,
 	baseKey ds.Key,
-	indexFunc func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
+	indexFunc func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
 ) ([]core.ReduceAction, error) {
 	txn, err := datastore.NewTransaction(false)
 	if err != nil {
@@ -109,7 +109,7 @@ func (jp *jsonPatcher) Reduce(
 		if !ok {
 			return nil, fmt.Errorf("event unrecognized for jsonpatcher eventcodec")
 		}
-		key := baseKey.ChildString(e.Model()).ChildString(e.EntityID().String())
+		key := baseKey.ChildString(e.Collection()).ChildString(e.EntityID().String())
 		switch je.Patch.Type {
 		case create:
 			exist, err := txn.Has(key)
@@ -122,10 +122,10 @@ func (jp *jsonPatcher) Reduce(
 			if err := txn.Put(key, je.Patch.JSONPatch); err != nil {
 				return nil, fmt.Errorf("error when reducing create event: %w", err)
 			}
-			if err := indexFunc(e.Model(), key, nil, je.Patch.JSONPatch, txn); err != nil {
+			if err := indexFunc(e.Collection(), key, nil, je.Patch.JSONPatch, txn); err != nil {
 				return nil, fmt.Errorf("error when indexing created data: %w", err)
 			}
-			actions[i] = core.ReduceAction{Type: core.Create, Model: e.Model(), EntityID: e.EntityID()}
+			actions[i] = core.ReduceAction{Type: core.Create, Collection: e.Collection(), EntityID: e.EntityID()}
 			log.Debug("\tcreate operation applied")
 		case save:
 			value, err := txn.Get(key)
@@ -142,10 +142,10 @@ func (jp *jsonPatcher) Reduce(
 			if err = txn.Put(key, patchedValue); err != nil {
 				return nil, err
 			}
-			if err := indexFunc(e.Model(), key, value, patchedValue, txn); err != nil {
+			if err := indexFunc(e.Collection(), key, value, patchedValue, txn); err != nil {
 				return nil, fmt.Errorf("error when indexing created data: %w", err)
 			}
-			actions[i] = core.ReduceAction{Type: core.Save, Model: e.Model(), EntityID: e.EntityID()}
+			actions[i] = core.ReduceAction{Type: core.Save, Collection: e.Collection(), EntityID: e.EntityID()}
 			log.Debug("\tsave operation applied")
 		case delete:
 			value, err := txn.Get(key)
@@ -155,10 +155,10 @@ func (jp *jsonPatcher) Reduce(
 			if err := txn.Delete(key); err != nil {
 				return nil, err
 			}
-			if err := indexFunc(e.Model(), key, value, nil, txn); err != nil {
+			if err := indexFunc(e.Collection(), key, value, nil, txn); err != nil {
 				return nil, fmt.Errorf("error when removing index: %w", err)
 			}
-			actions[i] = core.ReduceAction{Type: core.Delete, Model: e.Model(), EntityID: e.EntityID()}
+			actions[i] = core.ReduceAction{Type: core.Delete, Collection: e.Collection(), EntityID: e.EntityID()}
 			log.Debug("\tdelete operation applied")
 		default:
 			return nil, errUnknownOperation
@@ -248,10 +248,10 @@ func deleteEvent(id core.EntityID) (*operation, error) {
 }
 
 type patchEvent struct {
-	Timestamp time.Time
-	ID        core.EntityID
-	ModelName string
-	Patch     operation
+	Timestamp      time.Time
+	ID             core.EntityID
+	CollectionName string
+	Patch          operation
 }
 
 func (je patchEvent) Time() []byte {
@@ -266,8 +266,8 @@ func (je patchEvent) EntityID() core.EntityID {
 	return je.ID
 }
 
-func (je patchEvent) Model() string {
-	return je.ModelName
+func (je patchEvent) Collection() string {
+	return je.CollectionName
 }
 
 var _ core.Event = (*patchEvent)(nil)

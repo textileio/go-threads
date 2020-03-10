@@ -17,7 +17,7 @@ import (
 func TestE2EWithThreads(t *testing.T) {
 	t.Parallel()
 
-	// peer1: Create db1, register a model, create and update an instance.
+	// peer1: Create db1, register a collection, create and update an instance.
 	tmpDir1, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
@@ -29,13 +29,13 @@ func TestE2EWithThreads(t *testing.T) {
 	d1, err := NewDB(ts1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
-	m1, err := d1.RegisterCollection("dummy", &dummyModel{})
+	c1, err := d1.NewCollectionFromInstance("dummy", &dummy{})
 	checkErr(t, err)
 	checkErr(t, d1.Start())
-	dummyInstance := &dummyModel{Name: "Textile", Counter: 0}
-	checkErr(t, m1.Create(dummyInstance))
+	dummyInstance := &dummy{Name: "Textile", Counter: 0}
+	checkErr(t, c1.Create(dummyInstance))
 	dummyInstance.Counter += 42
-	checkErr(t, m1.Save(dummyInstance))
+	checkErr(t, c1.Save(dummyInstance))
 
 	// Boilerplate to generate peer1 thread-addr and get follow/read keys
 	threadID, _, err := d1.ThreadID()
@@ -61,14 +61,14 @@ func TestE2EWithThreads(t *testing.T) {
 	d2, err := NewDB(ts2, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer d2.Close()
-	m2, err := d2.RegisterCollection("dummy", &dummyModel{})
+	c2, err := d2.NewCollectionFromInstance("dummy", &dummy{})
 	checkErr(t, err)
 	checkErr(t, d2.StartFromAddr(threadAddr, threadInfo.FollowKey, threadInfo.ReadKey))
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
-	dummyInstance2 := &dummyModel{}
-	checkErr(t, m2.FindByID(dummyInstance.ID, dummyInstance2))
+	dummyInstance2 := &dummy{}
+	checkErr(t, c2.FindByID(dummyInstance.ID, dummyInstance2))
 	if dummyInstance2.Name != dummyInstance.Name || dummyInstance2.Counter != dummyInstance.Counter {
 		t.Fatalf("instances of both peers must be equal after sync")
 	}
@@ -87,9 +87,9 @@ func TestOptions(t *testing.T) {
 	d, err := NewDB(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
-	m, err := d.RegisterCollection("dummy", &dummyModel{})
+	m, err := d.NewCollectionFromInstance("dummy", &dummy{})
 	checkErr(t, err)
-	checkErr(t, m.Create(&dummyModel{Name: "Textile"}))
+	checkErr(t, m.Create(&dummy{Name: "Textile"}))
 
 	if !ec.called {
 		t.Fatalf("custom event codec wasn't called")
@@ -126,38 +126,38 @@ func TestListeners(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t)
 		expected := []Action{
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionCreate, ID: "id-i2"},
-			{Model: "Model2", Type: ActionCreate, ID: "id-j1"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i2"},
-			{Model: "Model2", Type: ActionSave, ID: "id-j1"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i1"},
-			{Model: "Model2", Type: ActionDelete, ID: "id-j1"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionCreate, ID: "id-i2"},
+			{Collection: "Collection2", Type: ActionCreate, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i2"},
+			{Collection: "Collection2", Type: ActionSave, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i1"},
+			{Collection: "Collection2", Type: ActionDelete, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i2"},
 		}
 		assertActions(actions, expected)
 	})
-	t.Run("AnyModel1Events", func(t *testing.T) {
+	t.Run("AnyCollection1Events", func(t *testing.T) {
 		t.Parallel()
-		actions := runListenersComplexUseCase(t, ListenOption{Model: "Model1"})
+		actions := runListenersComplexUseCase(t, ListenOption{Collection: "Collection1"})
 		expected := []Action{
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionCreate, ID: "id-i2"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i2"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i1"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionCreate, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i2"},
 		}
 		assertActions(actions, expected)
 	})
-	t.Run("AnyModel2Events", func(t *testing.T) {
+	t.Run("AnyCollection2Events", func(t *testing.T) {
 		t.Parallel()
-		actions := runListenersComplexUseCase(t, ListenOption{Model: "Model2"})
+		actions := runListenersComplexUseCase(t, ListenOption{Collection: "Collection2"})
 		expected := []Action{
-			{Model: "Model2", Type: ActionCreate, ID: "id-j1"},
-			{Model: "Model2", Type: ActionSave, ID: "id-j1"},
-			{Model: "Model2", Type: ActionDelete, ID: "id-j1"},
+			{Collection: "Collection2", Type: ActionCreate, ID: "id-j1"},
+			{Collection: "Collection2", Type: ActionSave, ID: "id-j1"},
+			{Collection: "Collection2", Type: ActionDelete, ID: "id-j1"},
 		}
 		assertActions(actions, expected)
 	})
@@ -165,8 +165,8 @@ func TestListeners(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t, ListenOption{Type: ListenCreate})
 		expected := []Action{
-			{Model: "Model1", Type: ActionCreate, ID: "id-i2"},
-			{Model: "Model2", Type: ActionCreate, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionCreate, ID: "id-i2"},
+			{Collection: "Collection2", Type: ActionCreate, ID: "id-j1"},
 		}
 		assertActions(actions, expected)
 	})
@@ -174,10 +174,10 @@ func TestListeners(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t, ListenOption{Type: ListenSave})
 		expected := []Action{
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i2"},
-			{Model: "Model2", Type: ActionSave, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i2"},
+			{Collection: "Collection2", Type: ActionSave, ID: "id-j1"},
 		}
 		assertActions(actions, expected)
 	})
@@ -185,45 +185,45 @@ func TestListeners(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t, ListenOption{Type: ListenDelete})
 		expected := []Action{
-			{Model: "Model1", Type: ActionDelete, ID: "id-i1"},
-			{Model: "Model2", Type: ActionDelete, ID: "id-j1"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i1"},
+			{Collection: "Collection2", Type: ActionDelete, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i2"},
 		}
 		assertActions(actions, expected)
 	})
-	t.Run("AnyModel1OrDeleteModel2Events", func(t *testing.T) {
+	t.Run("AnyCollection1OrDeleteCollection2Events", func(t *testing.T) {
 		t.Parallel()
-		actions := runListenersComplexUseCase(t, ListenOption{Model: "Model1"}, ListenOption{Model: "Model2", Type: ListenDelete})
+		actions := runListenersComplexUseCase(t, ListenOption{Collection: "Collection1"}, ListenOption{Collection: "Collection2", Type: ListenDelete})
 		expected := []Action{
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionCreate, ID: "id-i2"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i1"},
-			{Model: "Model1", Type: ActionSave, ID: "id-i2"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i1"},
-			{Model: "Model2", Type: ActionDelete, ID: "id-j1"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionCreate, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i2"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i1"},
+			{Collection: "Collection2", Type: ActionDelete, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i2"},
 		}
 		assertActions(actions, expected)
 	})
 	t.Run("EmptyFilterEvent", func(t *testing.T) {
 		t.Parallel()
-		actions := runListenersComplexUseCase(t, ListenOption{Model: "Model3"})
+		actions := runListenersComplexUseCase(t, ListenOption{Collection: "Collection3"})
 		var expected []Action
 		assertActions(actions, expected)
 	})
 	t.Run("MixedComplexEvent", func(t *testing.T) {
 		t.Parallel()
 		actions := runListenersComplexUseCase(t,
-			ListenOption{Model: "Model2", Type: ListenSave},
-			ListenOption{Model: "Model1", Type: ListenSave, ID: "id-i2"},
-			ListenOption{Model: "Model1", Type: ListenDelete, ID: "id-i1"},
-			ListenOption{Model: "Model2", Type: ListenDelete},
+			ListenOption{Collection: "Collection2", Type: ListenSave},
+			ListenOption{Collection: "Collection1", Type: ListenSave, ID: "id-i2"},
+			ListenOption{Collection: "Collection1", Type: ListenDelete, ID: "id-i1"},
+			ListenOption{Collection: "Collection2", Type: ListenDelete},
 		)
 		expected := []Action{
-			{Model: "Model1", Type: ActionSave, ID: "id-i2"},
-			{Model: "Model2", Type: ActionSave, ID: "id-j1"},
-			{Model: "Model1", Type: ActionDelete, ID: "id-i1"},
-			{Model: "Model2", Type: ActionDelete, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionSave, ID: "id-i2"},
+			{Collection: "Collection2", Type: ActionSave, ID: "id-j1"},
+			{Collection: "Collection1", Type: ActionDelete, ID: "id-i1"},
+			{Collection: "Collection2", Type: ActionDelete, ID: "id-j1"},
 		}
 		assertActions(actions, expected)
 	})
@@ -234,15 +234,15 @@ func TestListeners(t *testing.T) {
 func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	t.Helper()
 	s, cls := createTestDB(t)
-	m1, err := s.RegisterCollection("Model1", &dummyModel{})
+	c1, err := s.NewCollectionFromInstance("Collection1", &dummy{})
 	checkErr(t, err)
-	m2, err := s.RegisterCollection("Model2", &dummyModel{})
+	c2, err := s.NewCollectionFromInstance("Collection2", &dummy{})
 	checkErr(t, err)
 
 	// Create some instance *before* any listener, just to test doesn't appear
 	// on listener Action stream.
-	i1 := &dummyModel{ID: "id-i1", Name: "Textile1"}
-	checkErr(t, m1.Create(i1))
+	i1 := &dummy{ID: "id-i1", Name: "Textile1"}
+	checkErr(t, c1.Create(i1))
 
 	l, err := s.Listen(los...)
 	checkErr(t, err)
@@ -253,21 +253,21 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 		}
 	}()
 
-	// Model1 Save i1
+	// Collection1 Save i1
 	i1.Name = "Textile0"
-	checkErr(t, m1.Save(i1))
+	checkErr(t, c1.Save(i1))
 
-	// Model1 Create i2
-	i2 := &dummyModel{ID: "id-i2", Name: "Textile2"}
-	checkErr(t, m1.Create(i2))
+	// Collection1 Create i2
+	i2 := &dummy{ID: "id-i2", Name: "Textile2"}
+	checkErr(t, c1.Create(i2))
 
-	// Model2 Create j1
-	j1 := &dummyModel{ID: "id-j1", Name: "Textile3"}
-	checkErr(t, m2.Create(j1))
+	// Collection2 Create j1
+	j1 := &dummy{ID: "id-j1", Name: "Textile3"}
+	checkErr(t, c2.Create(j1))
 
-	// Model1 Save i1
-	// Model1 Save i2
-	err = m1.WriteTxn(func(txn *Txn) error {
+	// Collection1 Save i1
+	// Collection1 Save i2
+	err = c1.WriteTxn(func(txn *Txn) error {
 		i1.Counter = 30
 		i2.Counter = 11
 		if err := txn.Save(i1, i2); err != nil {
@@ -277,36 +277,36 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	})
 	checkErr(t, err)
 
-	// Model2 Save j1
+	// Collection2 Save j1
 	j1.Counter = -1
 	j1.Name = "Textile33"
-	checkErr(t, m2.Save(j1))
+	checkErr(t, c2.Save(j1))
 
-	checkErr(t, m1.Delete(i1.ID))
+	checkErr(t, c1.Delete(i1.ID))
 
-	// Model2 Delete
-	checkErr(t, m2.Delete(j1.ID))
+	// Collection2 Delete
+	checkErr(t, c2.Delete(j1.ID))
 
-	// Model2 Delete i2
-	checkErr(t, m1.Delete(i2.ID))
+	// Collection2 Delete i2
+	checkErr(t, c1.Delete(i2.ID))
 
 	l.Close()
 	cls()
 	// Expected generated actions:
-	// Model1 Save i1
-	// Model1 Create i2
-	// Model2 Create j1
+	// Collection1 Save i1
+	// Collection1 Create i2
+	// Collection2 Create j1
 	// Save i1
 	// Save i2
-	// Model2 Save j1
+	// Collection2 Save j1
 	// Delete i1
-	// Model2 Delete j1
+	// Collection2 Delete j1
 	// Delete i2
 
 	return actions
 }
 
-type dummyModel struct {
+type dummy struct {
 	ID      core.EntityID
 	Name    string
 	Counter int
@@ -318,7 +318,7 @@ type mockEventCodec struct {
 
 var _ core.EventCodec = (*mockEventCodec)(nil)
 
-func (dec *mockEventCodec) Reduce([]core.Event, ds.TxnDatastore, ds.Key, func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error) ([]core.ReduceAction, error) {
+func (dec *mockEventCodec) Reduce([]core.Event, ds.TxnDatastore, ds.Key, func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error) ([]core.ReduceAction, error) {
 	dec.called = true
 	return nil, nil
 }

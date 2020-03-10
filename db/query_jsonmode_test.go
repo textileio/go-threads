@@ -305,14 +305,14 @@ var (
 )
 
 func TestQueryJsonMode(t *testing.T) {
-	m, clean := createModelWithJSONData(t)
+	c, clean := createCollectionWithJSONData(t)
 	defer clean()
 
 	for _, q := range jsonQueries {
 		q := q
 		t.Run(q.name, func(t *testing.T) {
 			t.Parallel()
-			res, err := m.FindJSON(q.query)
+			res, err := c.FindJSON(q.query)
 			checkErr(t, err)
 			if len(q.resIdx) != len(res) {
 				t.Fatalf("query results length doesn't match, expected: %d, got: %d", len(q.resIdx), len(res))
@@ -338,9 +338,9 @@ func TestQueryJsonMode(t *testing.T) {
 	}
 }
 
-func createModelWithJSONData(t *testing.T) (*Model, func()) {
+func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 	s, clean := createTestDB(t, WithJsonMode(true))
-	m, err := s.NewCollection("Book", testQueryJSONModeSchema,
+	c, err := s.NewCollection("Book", testQueryJSONModeSchema,
 		&IndexConfig{
 			Path: "Meta.TotalReads",
 		},
@@ -349,9 +349,9 @@ func createModelWithJSONData(t *testing.T) (*Model, func()) {
 		})
 	checkErr(t, err)
 	for i := range jsonSampleData {
-		if err = m.Create(&jsonSampleData[i]); err != nil {
+		if err = c.Create(&jsonSampleData[i]); err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
 	}
-	return m, clean
+	return c, clean
 }

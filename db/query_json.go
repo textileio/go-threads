@@ -192,12 +192,12 @@ func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JS
 
 // FindJSON queries for entities by JSONQuery
 func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
-	txn, err := t.model.db.datastore.NewTransaction(true)
+	txn, err := t.collection.db.datastore.NewTransaction(true)
 	if err != nil {
 		return nil, fmt.Errorf("error building internal query: %v", err)
 	}
 	defer txn.Discard()
-	iter := newIterator(txn, t.model.BaseKey(), q)
+	iter := newIterator(txn, t.collection.BaseKey(), q)
 	defer iter.Close()
 
 	var values []MarshaledResult

@@ -149,7 +149,7 @@ func (n *nullEvent) EntityID() core.EntityID {
 	return "null"
 }
 
-func (n *nullEvent) Model() string {
+func (n *nullEvent) Collection() string {
 	return "null"
 }
 

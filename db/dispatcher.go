@@ -123,6 +123,6 @@ func getKey(event core.Event) (key datastore.Key, err error) {
 	time := strconv.FormatInt(unix, 10)
 	key = dsDispatcherPrefix.ChildString(time).
 		ChildString(event.EntityID().String()).
-		ChildString(event.Model())
+		ChildString(event.Collection())
 	return key, nil
 }
