@@ -320,7 +320,7 @@ func (s *DB) Reduce(events []core.Event) error {
 		default:
 			panic("eventcodec action not recognized")
 		}
-		actions[i] = Action{Collection: ca.Collection, Type: actionType, ID: ca.EntityID}
+		actions[i] = Action{Collection: ca.Collection, Type: actionType, ID: ca.InstanceID}
 	}
 	s.notifyStateChanged(actions)
 

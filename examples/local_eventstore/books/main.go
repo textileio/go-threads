@@ -9,7 +9,7 @@ import (
 )
 
 type book struct {
-	ID     core.EntityID
+	ID     core.InstanceID
 	Title  string
 	Author string
 	Meta   bookStats

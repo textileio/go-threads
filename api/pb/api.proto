@@ -57,7 +57,7 @@ message CreateRequest {
 }
 
 message CreateReply {
-    repeated string entities = 1;
+    repeated string instances = 1;
 }
 
 message SaveRequest {
@@ -71,7 +71,7 @@ message SaveReply {}
 message DeleteRequest {
     string DBID = 1;
     string collectionName = 2;
-    repeated string entityIDs = 3;
+    repeated string instanceIDs = 3;
 }
 
 message DeleteReply {}
@@ -79,7 +79,7 @@ message DeleteReply {}
 message HasRequest {
     string DBID = 1;
     string collectionName = 2;
-    repeated string entityIDs = 3;
+    repeated string instanceIDs = 3;
 }
 
 message HasReply {
@@ -93,17 +93,17 @@ message FindRequest {
 }
 
 message FindReply {
-    repeated bytes entities = 1;
+    repeated bytes instances = 1;
 }
 
 message FindByIDRequest {
     string DBID = 1;
     string collectionName = 2;
-    string entityID = 3;
+    string instanceID = 3;
 }
 
 message FindByIDReply {
-    string entity = 1;
+    string instance = 1;
 }
 
 message StartTransactionRequest {
@@ -155,7 +155,7 @@ message ListenRequest {
     string DBID = 1;
     message Filter {
         string collectionName = 1;
-        string entityID = 2;
+        string instanceID = 2;
         enum Action {
             ALL = 0;
             CREATE = 1;
@@ -169,14 +169,14 @@ message ListenRequest {
 
 message ListenReply {
     string collectionName = 1;
-    string entityID = 2;
+    string instanceID = 2;
     enum Action {
         CREATE = 0;
         SAVE = 1;
         DELETE = 2;
     }
     Action action = 3;
-    bytes entity = 4;
+    bytes instance = 4;
 }
 
 service API {

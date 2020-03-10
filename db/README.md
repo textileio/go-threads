@@ -45,18 +45,18 @@ _serializable isolation_ within the `DB` scope.
 Collections support indexes for faster queries on schema-defined fields. When registering
 a new schema (and defining a Collection), a caller may supply a list of field paths to
 index on. This creates an Index, which can be used to speed up queries at the expense
-of additional storage and compute on entity creation and updates. For dbs with
-a small number of entities, it may not be worth the added overhead, so as always
+of additional storage and compute on instance creation and updates. For dbs with
+a small number of instances, it may not be worth the added overhead, so as always
 avoid optimizing your queries until you need it!
 
 Insertion with indexes costs approximately twice as much as without (depending on the
 complexity and frequency of a given index), whereas updates are only slightly more
 costly (almost identical in most cases). Depending on the underlying data distribution,
 queries can be greater than an order of magnitude faster. This depends on many factors,
-including the size of the db (i.e., number of entities), the uniqueness of the
+including the size of the db (i.e., number of instances), the uniqueness of the
 indexed field, and the complexity of the query. For example, in our benchmark tests
 using a relatively simple Collection and a relatively small db size (i.e., ~5000
-entities), the query speedup for a simple OR-based equality test is ~10x. See
+instances), the query speedup for a simple OR-based equality test is ~10x. See
 `db/bench_test.go` for details or to run the benchmarks yourself.
 
 #### EventCodec
@@ -141,7 +141,7 @@ is listening to this bus.
 This is part of the public-api. 
 Main responsibility: Notify external actors that the `DB` changed its state, 
 with details about the change: in which collection, what action (Create, Save, 
-Delete), and wich EntityID.
+Delete), and wich InstanceID.
 
 Listeners are useful for clients that want to be notified about changes in the 
 `DB`. Recall that `DB` state can change by external events, such as 
@@ -153,7 +153,7 @@ interpreted as _OR_ conditions.
 A criteria contains the following information:
 - Which collection to listen changes
 - What action is done (Create, Save, Delete)
-- Which EntitiID
+- Which InstanceID
 
 Any of the above three attributes can be set empty. For example, we can listen 
 to all changes of all instances in a collection if only the first attribute is set 

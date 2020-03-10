@@ -14,7 +14,7 @@ import (
 )
 
 type myCounter struct {
-	ID    core.EntityID
+	ID    core.InstanceID
 	Name  string
 	Count int
 }

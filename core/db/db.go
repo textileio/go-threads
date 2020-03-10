@@ -7,24 +7,24 @@ import (
 )
 
 const (
-	// EmptyEntityID represents an empty EntityID
-	EmptyEntityID = EntityID("")
+	// EmptyInstanceID represents an empty InstanceID
+	EmptyInstanceID = InstanceID("")
 )
 
-// EntityID is the type used in instance identities
-type EntityID string
+// InstanceID is the type used in instance identities
+type InstanceID string
 
-// NewEntityID generates a new identity for an instance
-func NewEntityID() EntityID {
-	return EntityID(uuid.New().String())
+// NewInstanceID generates a new identity for an instance
+func NewInstanceID() InstanceID {
+	return InstanceID(uuid.New().String())
 }
 
-func (e EntityID) String() string {
+func (e InstanceID) String() string {
 	return string(e)
 }
 
-func IsValidEntityID(entityID string) bool {
-	_, err := uuid.Parse(entityID)
+func IsValidInstanceID(instanceID string) bool {
+	_, err := uuid.Parse(instanceID)
 	return err == nil
 }
 
@@ -32,7 +32,7 @@ func IsValidEntityID(entityID string) bool {
 // by Dispatcher.
 type Event interface {
 	Time() []byte
-	EntityID() EntityID
+	InstanceID() InstanceID
 	Collection() string
 }
 
@@ -52,8 +52,8 @@ const (
 type Action struct {
 	// Type of the action
 	Type ActionType
-	// EntityID of the instance in action
-	EntityID EntityID
+	// InstanceID of the instance in action
+	InstanceID InstanceID
 	// CollectionName of the instance in action
 	CollectionName string
 	// Previous is the instance before the action
@@ -67,8 +67,8 @@ type ReduceAction struct {
 	Type ActionType
 	// Collection in which action was made
 	Collection string
-	// EntityID of the instance in reduced action
-	EntityID EntityID
+	// InstanceID of the instance in reduced action
+	InstanceID InstanceID
 }
 
 // EventCodec transforms actions generated in collections to

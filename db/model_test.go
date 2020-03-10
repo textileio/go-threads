@@ -16,13 +16,13 @@ const (
 )
 
 type Person struct {
-	ID   core.EntityID
+	ID   core.InstanceID
 	Name string
 	Age  int
 }
 
 type Dog struct {
-	ID       core.EntityID
+	ID       core.InstanceID
 	Name     string
 	Comments []Comment
 }
@@ -53,7 +53,7 @@ func TestSchemaRegistration(t *testing.T) {
 		_, err = db.NewCollectionFromInstance("Person", &Person{})
 		checkErr(t, err)
 	})
-	t.Run("Fail/WithoutEntityID", func(t *testing.T) {
+	t.Run("Fail/WithoutInstanceID", func(t *testing.T) {
 		t.Parallel()
 		type FailingType struct {
 			IDontHaveAnIDField int
@@ -118,14 +118,14 @@ func TestCreateInstance(t *testing.T) {
 		collection, err := db.NewCollectionFromInstance("Person", &Person{})
 		checkErr(t, err)
 
-		definedID := core.NewEntityID()
+		definedID := core.NewInstanceID()
 		newPerson := &Person{ID: definedID, Name: "Foo1", Age: 42}
 		checkErr(t, collection.Create(newPerson))
 
 		exists, err := collection.Has(definedID)
 		checkErr(t, err)
 		if !exists {
-			t.Fatal("manually defined entity ID should exist")
+			t.Fatal("manually defined instance ID should exist")
 		}
 		assertPersonInCollection(t, collection, newPerson)
 	})
@@ -355,7 +355,7 @@ func TestDeleteInstance(t *testing.T) {
 }
 
 type PersonFake struct {
-	ID   core.EntityID
+	ID   core.InstanceID
 	Name string
 }
 

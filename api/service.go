@@ -334,7 +334,7 @@ func (s *service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 	})
 }
 
-// Listen returns a stream of entities, trigged by a local or remote state change.
+// Listen returns a stream of instances, trigged by a local or remote state change.
 func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
 	d, err := s.getDB(req.DBID)
 	if err != nil {
@@ -359,7 +359,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		options[i] = db.ListenOption{
 			Type:       listenActionType,
 			Collection: filter.GetCollectionName(),
-			ID:         core.EntityID(filter.EntityID),
+			ID:         core.InstanceID(filter.InstanceID),
 		}
 	}
 
@@ -379,16 +379,16 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 				return nil
 			}
 			var replyAction pb.ListenReply_Action
-			var entity []byte
+			var instance []byte
 			switch action.Type {
 			case db.ActionCreate:
 				replyAction = pb.ListenReply_CREATE
-				entity, err = s.entityForAction(d, action)
+				instance, err = s.instanceForAction(d, action)
 			case db.ActionDelete:
 				replyAction = pb.ListenReply_DELETE
 			case db.ActionSave:
 				replyAction = pb.ListenReply_SAVE
-				entity, err = s.entityForAction(d, action)
+				instance, err = s.instanceForAction(d, action)
 			default:
 				err = status.Errorf(codes.Internal, "unknown action type %v", action.Type)
 			}
@@ -397,9 +397,9 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			}
 			reply := &pb.ListenReply{
 				CollectionName: action.Collection,
-				EntityID:       action.ID.String(),
+				InstanceID:     action.ID.String(),
 				Action:         replyAction,
-				Entity:         entity,
+				Instance:       instance,
 			}
 			if err := server.Send(reply); err != nil {
 				return err
@@ -408,7 +408,7 @@ func (s *service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 }
 
-func (s *service) entityForAction(db *db.DB, action db.Action) ([]byte, error) {
+func (s *service) instanceForAction(db *db.DB, action db.Action) ([]byte, error) {
 	collection := db.GetCollection(action.Collection)
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, "collection not found")
@@ -431,10 +431,10 @@ func (s *service) processCreateRequest(req *pb.CreateRequest, createFunc func(..
 	}
 
 	reply := &pb.CreateReply{
-		Entities: make([]string, len(values)),
+		Instances: make([]string, len(values)),
 	}
 	for i, v := range values {
-		reply.Entities[i] = *(v.(*string))
+		reply.Instances[i] = *(v.(*string))
 	}
 	return reply, nil
 }
@@ -451,36 +451,36 @@ func (s *service) processSaveRequest(req *pb.SaveRequest, saveFunc func(...inter
 	return &pb.SaveReply{}, nil
 }
 
-func (s *service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(...core.EntityID) error) (*pb.DeleteReply, error) {
-	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
-	for i, ID := range req.GetEntityIDs() {
-		entityIDs[i] = core.EntityID(ID)
+func (s *service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(...core.InstanceID) error) (*pb.DeleteReply, error) {
+	instanceIDs := make([]core.InstanceID, len(req.GetInstanceIDs()))
+	for i, ID := range req.GetInstanceIDs() {
+		instanceIDs[i] = core.InstanceID(ID)
 	}
-	if err := deleteFunc(entityIDs...); err != nil {
+	if err := deleteFunc(instanceIDs...); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteReply{}, nil
 }
 
-func (s *service) processHasRequest(req *pb.HasRequest, hasFunc func(...core.EntityID) (bool, error)) (*pb.HasReply, error) {
-	entityIDs := make([]core.EntityID, len(req.GetEntityIDs()))
-	for i, ID := range req.GetEntityIDs() {
-		entityIDs[i] = core.EntityID(ID)
+func (s *service) processHasRequest(req *pb.HasRequest, hasFunc func(...core.InstanceID) (bool, error)) (*pb.HasReply, error) {
+	instanceIDs := make([]core.InstanceID, len(req.GetInstanceIDs()))
+	for i, ID := range req.GetInstanceIDs() {
+		instanceIDs[i] = core.InstanceID(ID)
 	}
-	exists, err := hasFunc(entityIDs...)
+	exists, err := hasFunc(instanceIDs...)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.HasReply{Exists: exists}, nil
 }
 
-func (s *service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(id core.EntityID, v interface{}) error) (*pb.FindByIDReply, error) {
-	entityID := core.EntityID(req.EntityID)
+func (s *service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(id core.InstanceID, v interface{}) error) (*pb.FindByIDReply, error) {
+	instanceID := core.InstanceID(req.InstanceID)
 	var result string
-	if err := findFunc(entityID, &result); err != nil {
+	if err := findFunc(instanceID, &result); err != nil {
 		return nil, err
 	}
-	return &pb.FindByIDReply{Entity: result}, nil
+	return &pb.FindByIDReply{Instance: result}, nil
 }
 
 func (s *service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.JSONQuery) (ret []string, err error)) (*pb.FindReply, error) {
@@ -488,15 +488,15 @@ func (s *service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.JS
 	if err := json.Unmarshal(req.GetQueryJSON(), q); err != nil {
 		return nil, err
 	}
-	stringEntities, err := findFunc(q)
+	stringInstances, err := findFunc(q)
 	if err != nil {
 		return nil, err
 	}
-	byteEntities := make([][]byte, len(stringEntities))
-	for i, stringEntity := range stringEntities {
-		byteEntities[i] = []byte(stringEntity)
+	byteInstances := make([][]byte, len(stringInstances))
+	for i, stringInstance := range stringInstances {
+		byteInstances[i] = []byte(stringInstance)
 	}
-	return &pb.FindReply{Entities: byteEntities}, nil
+	return &pb.FindReply{Instances: byteInstances}, nil
 }
 
 func (s *service) getDB(idStr string) (*db.DB, error) {

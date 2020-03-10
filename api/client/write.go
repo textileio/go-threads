@@ -25,8 +25,8 @@ func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
 }
 
 // Has runs a has query in the active transaction
-func (t *WriteTransaction) Has(entityIDs ...string) (bool, error) {
-	innerReq := &pb.HasRequest{EntityIDs: entityIDs}
+func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
+	innerReq := &pb.HasRequest{InstanceIDs: instanceIDs}
 	option := &pb.WriteTransactionRequest_HasRequest{HasRequest: innerReq}
 	var err error
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
@@ -44,9 +44,9 @@ func (t *WriteTransaction) Has(entityIDs ...string) (bool, error) {
 	}
 }
 
-// FindByID gets the entity with the specified ID
-func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
-	innerReq := &pb.FindByIDRequest{EntityID: entityID}
+// FindByID gets the instance with the specified ID
+func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) error {
+	innerReq := &pb.FindByIDRequest{InstanceID: instanceID}
 	option := &pb.WriteTransactionRequest_FindByIDRequest{FindByIDRequest: innerReq}
 	var err error
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
@@ -58,14 +58,14 @@ func (t *WriteTransaction) FindByID(entityID string, entity interface{}) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_FindByIDReply:
-		err := json.Unmarshal([]byte(x.FindByIDReply.GetEntity()), entity)
+		err := json.Unmarshal([]byte(x.FindByIDReply.GetInstance()), instance)
 		return err
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 
-// Find finds entities by query
+// Find finds instances by query
 func (t *WriteTransaction) Find(query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
@@ -107,8 +107,8 @@ func (t *WriteTransaction) Create(items ...interface{}) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_CreateReply:
-		for i, entity := range x.CreateReply.GetEntities() {
-			err := json.Unmarshal([]byte(entity), items[i])
+		for i, instance := range x.CreateReply.GetInstances() {
+			err := json.Unmarshal([]byte(instance), items[i])
 			if err != nil {
 				return err
 			}
@@ -145,9 +145,9 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 }
 
 // Delete deletes data
-func (t *WriteTransaction) Delete(entityIDs ...string) error {
+func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 	innerReq := &pb.DeleteRequest{
-		EntityIDs: entityIDs,
+		InstanceIDs: instanceIDs,
 	}
 	option := &pb.WriteTransactionRequest_DeleteRequest{DeleteRequest: innerReq}
 	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {

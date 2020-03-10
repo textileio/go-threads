@@ -28,8 +28,8 @@ func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
 }
 
 // Has runs a has query in the active transaction
-func (t *ReadTransaction) Has(entityIDs ...string) (bool, error) {
-	innerReq := &pb.HasRequest{EntityIDs: entityIDs}
+func (t *ReadTransaction) Has(instanceIDs ...string) (bool, error) {
+	innerReq := &pb.HasRequest{InstanceIDs: instanceIDs}
 	option := &pb.ReadTransactionRequest_HasRequest{HasRequest: innerReq}
 	var err error
 	var resp *pb.ReadTransactionReply
@@ -47,9 +47,9 @@ func (t *ReadTransaction) Has(entityIDs ...string) (bool, error) {
 	}
 }
 
-// FindByID gets the entity with the specified ID
-func (t *ReadTransaction) FindByID(entityID string, entity interface{}) error {
-	innerReq := &pb.FindByIDRequest{EntityID: entityID}
+// FindByID gets the instance with the specified ID
+func (t *ReadTransaction) FindByID(instanceID string, instance interface{}) error {
+	innerReq := &pb.FindByIDRequest{InstanceID: instanceID}
 	option := &pb.ReadTransactionRequest_FindByIDRequest{FindByIDRequest: innerReq}
 	var err error
 	var resp *pb.ReadTransactionReply
@@ -61,14 +61,14 @@ func (t *ReadTransaction) FindByID(entityID string, entity interface{}) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_FindByIDReply:
-		err := json.Unmarshal([]byte(x.FindByIDReply.GetEntity()), entity)
+		err := json.Unmarshal([]byte(x.FindByIDReply.GetInstance()), instance)
 		return err
 	default:
 		return fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
 	}
 }
 
-// Find finds entities by query
+// Find finds instances by query
 func (t *ReadTransaction) Find(query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {

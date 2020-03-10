@@ -402,7 +402,7 @@ func TestWriteTransaction(t *testing.T) {
 			t.Fatalf("failed to create in write txn: %v", err)
 		}
 		if person.ID == "" {
-			t.Fatalf("expected an entity id to be set but it wasn't")
+			t.Fatalf("expected an instance id to be set but it wasn't")
 		}
 
 		has, err := txn.Has(existingPerson.ID)
@@ -471,7 +471,7 @@ func TestListen(t *testing.T) {
 		defer cancel()
 		opt := ListenOption{
 			Collection: collectionName,
-			EntityID:   person.ID,
+			InstanceID: person.ID,
 		}
 		channel, err := client.Listen(ctx, dbID, opt)
 		if err != nil {
@@ -494,14 +494,14 @@ func TestListen(t *testing.T) {
 				t.Fatalf("failed to receive first listen result: %v", val.Err)
 			}
 			p := &Person{}
-			if err := json.Unmarshal(val.Action.Entity, p); err != nil {
+			if err := json.Unmarshal(val.Action.Instance, p); err != nil {
 				t.Fatalf("failed to unmarshal listen result: %v", err)
 			}
 			if p.Age != 30 {
 				t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
 			}
-			if val.Action.EntityID != person.ID {
-				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.EntityID)
+			if val.Action.InstanceID != person.ID {
+				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.InstanceID)
 			}
 		}
 
@@ -513,14 +513,14 @@ func TestListen(t *testing.T) {
 				t.Fatalf("failed to receive second listen result: %v", val.Err)
 			}
 			p := &Person{}
-			if err := json.Unmarshal(val.Action.Entity, p); err != nil {
+			if err := json.Unmarshal(val.Action.Instance, p); err != nil {
 				t.Fatalf("failed to unmarshal listen result: %v", err)
 			}
 			if p.Age != 40 {
 				t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
 			}
-			if val.Action.EntityID != person.ID {
-				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.EntityID)
+			if val.Action.InstanceID != person.ID {
+				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.InstanceID)
 			}
 		}
 	})
@@ -626,7 +626,7 @@ const (
 	"properties": {
 		"ID": {
 			"type": "string",
-			"description": "The entity's id."
+			"description": "The instance's id."
 		},
 		"firstName": {
 			"type": "string",

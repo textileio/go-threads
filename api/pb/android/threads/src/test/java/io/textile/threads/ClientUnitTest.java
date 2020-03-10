@@ -76,8 +76,8 @@ public class ClientUnitTest {
         String person = createPerson("", 22);
         String[] data = { person };
         CreateReply reply = client.CreateSync(dbId, "Person", data);
-        assertEquals(1, reply.getEntitiesCount());
-        String jsonString = reply.getEntities(0);
+        assertEquals(1, reply.getInstancesCount());
+        String jsonString = reply.getInstances(0);
         Person instance = new Gson().fromJson(jsonString, Person.class);
         instanceId = instance.ID;
         assertEquals(instance.ID.length(), 36);
@@ -90,7 +90,7 @@ public class ClientUnitTest {
         client.SaveSync(dbId, "Person", data);
         // now check that it's been updated
         FindByIDReply reply = client.FindByIDSync(dbId, "Person", instanceId);
-        String jsonString = reply.getEntity();
+        String jsonString = reply.getInstance();
         Person instance = new Gson().fromJson(jsonString, Person.class);
         assertEquals(instanceId, instance.ID);
     }

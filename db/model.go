@@ -111,7 +111,7 @@ func (c *Collection) WriteTxn(f func(txn *Txn) error) error {
 
 // FindByID finds an instance by its ID and saves it in v.
 // If doesn't exists returns ErrNotFound.
-func (c *Collection) FindByID(id core.EntityID, v interface{}) error {
+func (c *Collection) FindByID(id core.InstanceID, v interface{}) error {
 	return c.ReadTxn(func(txn *Txn) error {
 		return txn.FindByID(id, v)
 	})
@@ -126,7 +126,7 @@ func (c *Collection) Create(vs ...interface{}) error {
 
 // Delete deletes instances by its IDs. It doesn't
 // fail if the ID doesn't exist.
-func (c *Collection) Delete(ids ...core.EntityID) error {
+func (c *Collection) Delete(ids ...core.InstanceID) error {
 	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Delete(ids...)
 	})
@@ -141,7 +141,7 @@ func (c *Collection) Save(vs ...interface{}) error {
 
 // Has returns true if all IDs exist in the collection, false
 // otherwise.
-func (c *Collection) Has(ids ...core.EntityID) (exists bool, err error) {
+func (c *Collection) Has(ids ...core.InstanceID) (exists bool, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
 		exists, err = txn.Has(ids...)
 		return err
@@ -212,9 +212,9 @@ func (t *Txn) Create(new ...interface{}) error {
 		}
 
 		jsonMode := t.collection.db.jsonMode
-		id := getEntityID(new[i], jsonMode)
-		if id == core.EmptyEntityID {
-			id = setNewEntityID(new[i], jsonMode)
+		id := getInstanceID(new[i], jsonMode)
+		if id == core.EmptyInstanceID {
+			id = setNewInstanceID(new[i], jsonMode)
 		}
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -227,7 +227,7 @@ func (t *Txn) Create(new ...interface{}) error {
 
 		a := core.Action{
 			Type:           core.Create,
-			EntityID:       id,
+			InstanceID:     id,
 			CollectionName: t.collection.name,
 			Previous:       nil,
 			Current:        new[i],
@@ -253,7 +253,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getEntityID(updated[i], t.collection.db.jsonMode)
+		id := getInstanceID(updated[i], t.collection.db.jsonMode)
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -274,7 +274,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 		}
 		t.actions = append(t.actions, core.Action{
 			Type:           core.Save,
-			EntityID:       id,
+			InstanceID:     id,
 			CollectionName: t.collection.name,
 			Previous:       previous,
 			Current:        updated[i],
@@ -285,7 +285,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 
 // Delete deletes instances by ID when the current
 // transaction commits.
-func (t *Txn) Delete(ids ...core.EntityID) error {
+func (t *Txn) Delete(ids ...core.InstanceID) error {
 	for i := range ids {
 		if t.readonly {
 			return ErrReadonlyTx
@@ -300,7 +300,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 		}
 		a := core.Action{
 			Type:           core.Delete,
-			EntityID:       ids[i],
+			InstanceID:     ids[i],
 			CollectionName: t.collection.name,
 			Previous:       nil,
 			Current:        nil,
@@ -312,7 +312,7 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 
 // Has returns true if all IDs exists in the collection, false
 // otherwise.
-func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
+func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 	for i := range ids {
 		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -327,7 +327,7 @@ func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 }
 
 // FindByID gets an instance by ID in the current txn scope.
-func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
+func (t *Txn) FindByID(id core.InstanceID, v interface{}) error {
 	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 	bytes, err := t.collection.db.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
@@ -373,7 +373,7 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getEntityID(t interface{}, jsonMode bool) core.EntityID {
+func getInstanceID(t interface{}, jsonMode bool) core.InstanceID {
 	if jsonMode {
 		partial := &struct{ ID *string }{}
 		if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
@@ -382,25 +382,25 @@ func getEntityID(t interface{}, jsonMode bool) core.EntityID {
 		if partial.ID == nil {
 			log.Fatal("invalid instance: doesn't have an ID attribute")
 		}
-		if *partial.ID != "" && !core.IsValidEntityID(*partial.ID) {
+		if *partial.ID != "" && !core.IsValidInstanceID(*partial.ID) {
 			log.Fatal("invalid instance: invalid ID value")
 		}
-		return core.EntityID(*partial.ID)
+		return core.InstanceID(*partial.ID)
 	} else {
 		v := reflect.ValueOf(t)
 		if v.Type().Kind() != reflect.Ptr {
 			v = reflect.New(reflect.TypeOf(v))
 		}
 		v = v.Elem().FieldByName(idFieldName)
-		if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyEntityID) {
-			log.Fatal("invalid instance: doesn't have EntityID attribute")
+		if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyInstanceID) {
+			log.Fatal("invalid instance: doesn't have InstanceID attribute")
 		}
-		return core.EntityID(v.String())
+		return core.InstanceID(v.String())
 	}
 }
 
-func setNewEntityID(t interface{}, jsonMode bool) core.EntityID {
-	newID := core.NewEntityID()
+func setNewInstanceID(t interface{}, jsonMode bool) core.InstanceID {
+	newID := core.NewInstanceID()
 	if jsonMode {
 		patchedValue, err := jsonpatch.MergePatch([]byte(*(t.(*string))), []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
 		if err != nil {

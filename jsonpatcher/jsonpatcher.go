@@ -33,9 +33,9 @@ var (
 )
 
 type operation struct {
-	Type      operationType
-	EntityID  core.EntityID
-	JSONPatch []byte
+	Type       operationType
+	InstanceID core.InstanceID
+	JSONPatch  []byte
 }
 
 type jsonPatcher struct {
@@ -64,11 +64,11 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 		var err error
 		switch actions[i].Type {
 		case core.Create:
-			op, err = createEvent(actions[i].EntityID, actions[i].Current, jp.jsonMode)
+			op, err = createEvent(actions[i].InstanceID, actions[i].Current, jp.jsonMode)
 		case core.Save:
-			op, err = saveEvent(actions[i].EntityID, actions[i].Previous, actions[i].Current, jp.jsonMode)
+			op, err = saveEvent(actions[i].InstanceID, actions[i].Previous, actions[i].Current, jp.jsonMode)
 		case core.Delete:
-			op, err = deleteEvent(actions[i].EntityID)
+			op, err = deleteEvent(actions[i].InstanceID)
 		default:
 			panic("unkown action type")
 		}
@@ -77,7 +77,7 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 		}
 		revents.Patches[i] = patchEvent{
 			Timestamp:      time.Now(),
-			ID:             actions[i].EntityID,
+			ID:             actions[i].InstanceID,
 			CollectionName: actions[i].CollectionName,
 			Patch:          *op,
 		}
@@ -109,7 +109,7 @@ func (jp *jsonPatcher) Reduce(
 		if !ok {
 			return nil, fmt.Errorf("event unrecognized for jsonpatcher eventcodec")
 		}
-		key := baseKey.ChildString(e.Collection()).ChildString(e.EntityID().String())
+		key := baseKey.ChildString(e.Collection()).ChildString(e.InstanceID().String())
 		switch je.Patch.Type {
 		case create:
 			exist, err := txn.Has(key)
@@ -125,7 +125,7 @@ func (jp *jsonPatcher) Reduce(
 			if err := indexFunc(e.Collection(), key, nil, je.Patch.JSONPatch, txn); err != nil {
 				return nil, fmt.Errorf("error when indexing created data: %w", err)
 			}
-			actions[i] = core.ReduceAction{Type: core.Create, Collection: e.Collection(), EntityID: e.EntityID()}
+			actions[i] = core.ReduceAction{Type: core.Create, Collection: e.Collection(), InstanceID: e.InstanceID()}
 			log.Debug("\tcreate operation applied")
 		case save:
 			value, err := txn.Get(key)
@@ -145,7 +145,7 @@ func (jp *jsonPatcher) Reduce(
 			if err := indexFunc(e.Collection(), key, value, patchedValue, txn); err != nil {
 				return nil, fmt.Errorf("error when indexing created data: %w", err)
 			}
-			actions[i] = core.ReduceAction{Type: core.Save, Collection: e.Collection(), EntityID: e.EntityID()}
+			actions[i] = core.ReduceAction{Type: core.Save, Collection: e.Collection(), InstanceID: e.InstanceID()}
 			log.Debug("\tsave operation applied")
 		case delete:
 			value, err := txn.Get(key)
@@ -158,7 +158,7 @@ func (jp *jsonPatcher) Reduce(
 			if err := indexFunc(e.Collection(), key, value, nil, txn); err != nil {
 				return nil, fmt.Errorf("error when removing index: %w", err)
 			}
-			actions[i] = core.ReduceAction{Type: core.Delete, Collection: e.Collection(), EntityID: e.EntityID()}
+			actions[i] = core.ReduceAction{Type: core.Delete, Collection: e.Collection(), InstanceID: e.InstanceID()}
 			log.Debug("\tdelete operation applied")
 		default:
 			return nil, errUnknownOperation
@@ -190,7 +190,7 @@ func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
 	return res, nil
 }
 
-func createEvent(id core.EntityID, v interface{}, jsonMode bool) (*operation, error) {
+func createEvent(id core.InstanceID, v interface{}, jsonMode bool) (*operation, error) {
 	var opBytes []byte
 
 	if jsonMode {
@@ -204,13 +204,13 @@ func createEvent(id core.EntityID, v interface{}, jsonMode bool) (*operation, er
 		}
 	}
 	return &operation{
-		Type:      create,
-		EntityID:  id,
-		JSONPatch: opBytes,
+		Type:       create,
+		InstanceID: id,
+		JSONPatch:  opBytes,
 	}, nil
 }
 
-func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bool) (*operation, error) {
+func saveEvent(id core.InstanceID, prev interface{}, curr interface{}, jsonMode bool) (*operation, error) {
 	var prevBytes, currBytes []byte
 	if jsonMode {
 		strCurrJson := curr.(*string)
@@ -233,23 +233,23 @@ func saveEvent(id core.EntityID, prev interface{}, curr interface{}, jsonMode bo
 		return nil, err
 	}
 	return &operation{
-		Type:      save,
-		EntityID:  id,
-		JSONPatch: jsonPatch,
+		Type:       save,
+		InstanceID: id,
+		JSONPatch:  jsonPatch,
 	}, nil
 }
 
-func deleteEvent(id core.EntityID) (*operation, error) {
+func deleteEvent(id core.InstanceID) (*operation, error) {
 	return &operation{
-		Type:      delete,
-		EntityID:  id,
-		JSONPatch: nil,
+		Type:       delete,
+		InstanceID: id,
+		JSONPatch:  nil,
 	}, nil
 }
 
 type patchEvent struct {
 	Timestamp      time.Time
-	ID             core.EntityID
+	ID             core.InstanceID
 	CollectionName string
 	Patch          operation
 }
@@ -262,7 +262,7 @@ func (je patchEvent) Time() []byte {
 	return buf.Bytes()
 }
 
-func (je patchEvent) EntityID() core.EntityID {
+func (je patchEvent) InstanceID() core.InstanceID {
 	return je.ID
 }
 

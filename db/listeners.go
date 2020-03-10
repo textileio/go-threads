@@ -62,13 +62,13 @@ const (
 type Action struct {
 	Collection string
 	Type       ActionType
-	ID         core.EntityID
+	ID         core.InstanceID
 }
 
 type ListenOption struct {
 	Type       ListenActionType
 	Collection string
-	ID         core.EntityID
+	ID         core.InstanceID
 }
 
 type Listener interface {
@@ -172,7 +172,7 @@ func (sl *listener) evaluate(a Action) bool {
 			continue
 		}
 
-		if f.ID != core.EmptyEntityID && f.ID != a.ID {
+		if f.ID != core.EmptyInstanceID && f.ID != a.ID {
 			continue
 		}
 		return true

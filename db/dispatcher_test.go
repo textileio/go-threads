@@ -145,7 +145,7 @@ func (n *nullEvent) Time() []byte {
 	return buf.Bytes()
 }
 
-func (n *nullEvent) EntityID() core.EntityID {
+func (n *nullEvent) InstanceID() core.InstanceID {
 	return "null"
 }
 

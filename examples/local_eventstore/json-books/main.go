@@ -84,10 +84,10 @@ func main() {
 
 		idxStart := strings.Index(book2, `"ID":"`)
 		id := book2[idxStart+6 : idxStart+6+36] // Fast way of getting generated ID
-		entityID := core.EntityID(id)
+		instanceID := core.InstanceID(id)
 
 		// Try .Has(...)
-		exists, err := collection.Has(entityID)
+		exists, err := collection.Has(instanceID)
 		checkErr(err)
 		if !exists {
 			panic("instance should exist")
@@ -95,15 +95,15 @@ func main() {
 
 		// Try getting it by ID
 		var foundEditedBook2 string
-		checkErr(collection.FindByID(entityID, &foundEditedBook2))
+		checkErr(collection.FindByID(instanceID, &foundEditedBook2))
 		fmt.Printf("Book2 after edition: %s\n", foundEditedBook2)
 		if !strings.Contains(foundEditedBook2, "100000") {
 			panic("book2 doesn't have updated information")
 		}
 
-		checkErr(collection.Delete(entityID))
+		checkErr(collection.Delete(instanceID))
 
-		exists, err = collection.Has(entityID)
+		exists, err = collection.Has(instanceID)
 		checkErr(err)
 		if exists {
 			panic("instance shouldn't exist")

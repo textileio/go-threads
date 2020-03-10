@@ -108,22 +108,22 @@ public class Client implements LifecycleObserver {
         return reply;
     }
 
-    public boolean HasSync (String dbID, String collectionName, String[] entityIDs) {
+    public boolean HasSync (String dbID, String collectionName, String[] instanceIDs) {
         HasRequest.Builder request = HasRequest.newBuilder();
         request.setDBID(dbID);
         request.setCollectionName(collectionName);
-        for (int i = 1; i < entityIDs.length; i++) {
-            request.setEntityIDs(i, entityIDs[i]);
+        for (int i = 1; i < instanceIDs.length; i++) {
+            request.setInstanceIDs(i, instanceIDs[i]);
         }
         HasReply reply = blockingStub.has(request.build());
         return reply.getExists();
     }
 
-    public FindByIDReply FindByIDSync (String dbID, String collectionName, String entityID) {
+    public FindByIDReply FindByIDSync (String dbID, String collectionName, String instanceID) {
         FindByIDRequest.Builder request = FindByIDRequest.newBuilder();
         request.setDBID(dbID);
         request.setCollectionName(collectionName);
-        request.setEntityID(entityID);
+        request.setInstanceID(instanceID);
         FindByIDReply reply = blockingStub.findByID(request.build());
         return reply;
     }

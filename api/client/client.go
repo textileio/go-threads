@@ -20,11 +20,11 @@ import (
 type ActionType int
 
 const (
-	// ActionCreate represents an event for creating a new entity
+	// ActionCreate represents an event for creating a new instance
 	ActionCreate ActionType = iota + 1
-	// ActionSave represents an event for saving changes to an existing entity
+	// ActionSave represents an event for saving changes to an existing instance
 	ActionSave
-	// ActionDelete represents an event for deleting existing entity
+	// ActionDelete represents an event for deleting existing instance
 	ActionDelete
 )
 
@@ -32,8 +32,8 @@ const (
 type Action struct {
 	Collection string
 	Type       ActionType
-	EntityID   string
-	Entity     []byte
+	InstanceID string
+	Instance   []byte
 }
 
 // ListenActionType describes the type of event action when receiving data updates
@@ -54,7 +54,7 @@ const (
 type ListenOption struct {
 	Type       ListenActionType
 	Collection string
-	EntityID   string
+	InstanceID string
 }
 
 // ListenEvent is used to send data or error values for Listen
@@ -150,8 +150,8 @@ func (c *Client) Create(ctx context.Context, dbID, collectionName string, items 
 		return err
 	}
 
-	for i, entity := range resp.GetEntities() {
-		err := json.Unmarshal([]byte(entity), items[i])
+	for i, instance := range resp.GetInstances() {
+		err := json.Unmarshal([]byte(instance), items[i])
 		if err != nil {
 			return err
 		}
@@ -177,11 +177,11 @@ func (c *Client) Save(ctx context.Context, dbID, collectionName string, items ..
 }
 
 // Delete deletes data
-func (c *Client) Delete(ctx context.Context, dbID, collectionName string, entityIDs ...string) error {
+func (c *Client) Delete(ctx context.Context, dbID, collectionName string, instanceIDs ...string) error {
 	req := &pb.DeleteRequest{
 		DBID:           dbID,
 		CollectionName: collectionName,
-		EntityIDs:      entityIDs,
+		InstanceIDs:    instanceIDs,
 	}
 	_, err := c.c.Delete(ctx, req)
 	return err
@@ -207,12 +207,12 @@ func (c *Client) GetDBLink(ctx context.Context, dbID string) ([]string, error) {
 	return res, nil
 }
 
-// Has checks if the specified entities exist
-func (c *Client) Has(ctx context.Context, dbID, collectionName string, entityIDs ...string) (bool, error) {
+// Has checks if the specified instances exist
+func (c *Client) Has(ctx context.Context, dbID, collectionName string, instanceIDs ...string) (bool, error) {
 	req := &pb.HasRequest{
 		DBID:           dbID,
 		CollectionName: collectionName,
-		EntityIDs:      entityIDs,
+		InstanceIDs:    instanceIDs,
 	}
 	resp, err := c.c.Has(ctx, req)
 	if err != nil {
@@ -240,17 +240,17 @@ func (c *Client) Find(ctx context.Context, dbID, collectionName string, query *d
 }
 
 // FindByID finds a record by id
-func (c *Client) FindByID(ctx context.Context, dbID, collectionName, entityID string, entity interface{}) error {
+func (c *Client) FindByID(ctx context.Context, dbID, collectionName, instanceID string, instance interface{}) error {
 	req := &pb.FindByIDRequest{
 		DBID:           dbID,
 		CollectionName: collectionName,
-		EntityID:       entityID,
+		InstanceID:     instanceID,
 	}
 	resp, err := c.c.FindByID(ctx, req)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal([]byte(resp.GetEntity()), entity)
+	err = json.Unmarshal([]byte(resp.GetInstance()), instance)
 	return err
 }
 
@@ -272,7 +272,7 @@ func (c *Client) WriteTransaction(ctx context.Context, dbID, collectionName stri
 	return &WriteTransaction{client: client, dbID: dbID, collectionName: collectionName}, nil
 }
 
-// Listen provides an update whenever the specified db, collection, or entity instance is updated
+// Listen provides an update whenever the specified db, collection, or instance is updated
 func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
 	channel := make(chan ListenEvent)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
@@ -292,7 +292,7 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 		}
 		filters[i] = &pb.ListenRequest_Filter{
 			CollectionName: listenOption.Collection,
-			EntityID:       listenOption.EntityID,
+			InstanceID:     listenOption.InstanceID,
 			Action:         action,
 		}
 	}
@@ -332,8 +332,8 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 			action := Action{
 				Collection: event.GetCollectionName(),
 				Type:       actionType,
-				EntityID:   event.GetEntityID(),
-				Entity:     event.GetEntity(),
+				InstanceID: event.GetInstanceID(),
+				Instance:   event.GetInstance(),
 			}
 			channel <- ListenEvent{Action: action}
 		}
@@ -344,9 +344,9 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 func processFindReply(reply *pb.FindReply, dummySlice interface{}) (interface{}, error) {
 	sliceType := reflect.TypeOf(dummySlice)
 	elementType := sliceType.Elem().Elem()
-	length := len(reply.GetEntities())
+	length := len(reply.GetInstances())
 	results := reflect.MakeSlice(sliceType, length, length)
-	for i, result := range reply.GetEntities() {
+	for i, result := range reply.GetInstances() {
 		target := reflect.New(elementType).Interface()
 		err := json.Unmarshal(result, target)
 		if err != nil {

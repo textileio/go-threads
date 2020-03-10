@@ -7,7 +7,7 @@
   "properties": {
     "ID": {
       "type": "string",
-      "description": "The entity's id."
+      "description": "The instance's id."
     },
     "firstName": {
       "type": "string",

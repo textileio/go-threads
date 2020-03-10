@@ -97,7 +97,7 @@ func dbExecutor(blocks []string) {
 			return
 		}
 		if len(blocks) < 3 {
-			fmt.Println("You must provide an entity ID.")
+			fmt.Println("You must provide an instance ID.")
 			return
 		}
 		findByID(currentDB, blocks[1], blocks[2])
@@ -148,12 +148,12 @@ func find(id string, collection string) {
 		fmt.Println(err.Error())
 		return
 	}
-	entities := rawResults.([]*any)
-	if len(entities) == 0 {
+	instances := rawResults.([]*any)
+	if len(instances) == 0 {
 		fmt.Println("None found")
 		return
 	}
-	for _, el := range entities {
+	for _, el := range instances {
 		prettyPrint(el)
 	}
 }
@@ -162,14 +162,14 @@ func findByID(id string, collection string, instanceID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	entity := &any{}
-	err := apiClient.FindByID(ctx, id, collection, instanceID, entity)
+	instance := &any{}
+	err := apiClient.FindByID(ctx, id, collection, instanceID, instance)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	prettyPrint(entity)
+	prettyPrint(instance)
 }
 
 func backgroundListen(ctx context.Context, id string) {
@@ -191,7 +191,7 @@ func backgroundListen(ctx context.Context, id string) {
 				continue
 			}
 			obj := &any{}
-			if err := json.Unmarshal(val.Action.Entity, obj); err != nil {
+			if err := json.Unmarshal(val.Action.Instance, obj); err != nil {
 				fmt.Println("failed to unmarshal listen result")
 				continue
 			}
