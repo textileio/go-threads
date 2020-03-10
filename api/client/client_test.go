@@ -1,11 +1,14 @@
-package client
+package client_test
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
+	"net"
 	"os"
 	"reflect"
 	"testing"
@@ -14,6 +17,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/api"
+	. "github.com/textileio/go-threads/api/client"
+	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -563,7 +568,7 @@ func setup(t *testing.T) (*Client, func()) {
 	}
 }
 
-func makeServer(t *testing.T) (addr ma.Multiaddr, shutdown func()) {
+func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	time.Sleep(time.Second * time.Duration(rand.Intn(5)))
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -576,24 +581,40 @@ func makeServer(t *testing.T) (addr ma.Multiaddr, shutdown func()) {
 		t.Fatal(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
-	port, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	apiAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
-	apiProxyAddr := util.MustParseAddr("/ip4/127.0.0.1/tcp/0")
-	server, err := api.NewServer(context.Background(), ts, api.Config{
-		RepoPath:  dir,
-		Addr:      apiAddr,
-		ProxyAddr: apiProxyAddr,
-		Debug:     true,
+	service, err := api.NewService(ts, api.Config{
+		RepoPath: dir,
+		Debug:    true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return apiAddr, func() {
-		server.Close()
-		ts.Close()
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
+	target, err := util.TCPAddrFromMultiAddr(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	listener, err := net.Listen("tcp", target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		pb.RegisterAPIServer(server, service)
+		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Fatalf("serve error: %v", err)
+		}
+	}()
+
+	return addr, func() {
+		time.Sleep(time.Second) // Give threads a chance to finish work
+		server.GracefulStop()
+		if err := ts.Close(); err != nil {
+			t.Fatal(err)
+		}
 		_ = os.RemoveAll(dir)
 	}
 }

@@ -115,7 +115,7 @@ func NewService(
 	go func() {
 		pb.RegisterServiceServer(t.rpc, t.server)
 		if err := t.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Fatalf("unable to start gRPC server: %v", err)
+			log.Fatalf("serve error: %v", err)
 		}
 	}()
 

@@ -12,35 +12,35 @@ import (
 // Listen returns a Listener which notifies about actions applying the
 // defined filters. The DB *won't* wait for slow receivers, so if the
 // channel is full, the action will be dropped.
-func (s *DB) Listen(los ...ListenOption) (Listener, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	if s.closed {
+func (d *DB) Listen(los ...ListenOption) (Listener, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	if d.closed {
 		return nil, fmt.Errorf("can't listen on closed DB")
 	}
 
 	sl := &listener{
-		scn:     s.stateChangedNotifee,
+		scn:     d.stateChangedNotifee,
 		filters: los,
 		c:       make(chan Action, 1),
 	}
-	s.stateChangedNotifee.addListener(sl)
+	d.stateChangedNotifee.addListener(sl)
 	return sl, nil
 }
 
 // localEventListen returns a listener which notifies *locally generated*
 // events in collections of the db. Caller should call .Discard() when
 // done.
-func (s *DB) localEventListen() *LocalEventListener {
-	return s.localEventsBus.Listen()
+func (d *DB) localEventListen() *LocalEventListener {
+	return d.localEventsBus.Listen()
 }
 
-func (s *DB) notifyStateChanged(actions []Action) {
-	s.stateChangedNotifee.notify(actions)
+func (d *DB) notifyStateChanged(actions []Action) {
+	d.stateChangedNotifee.notify(actions)
 }
 
-func (s *DB) notifyTxnEvents(node format.Node) error {
-	return s.localEventsBus.send(node)
+func (d *DB) notifyTxnEvents(node format.Node) error {
+	return d.localEventsBus.send(node)
 }
 
 type ActionType int

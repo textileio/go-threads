@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/tidwall/sjson"
 )
 
@@ -61,7 +62,7 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	opts = append(opts, WithRepoPath(dir))
 	opts = append(opts, WithJsonMode(true))
-	s, err := NewDB(ts, opts...)
+	s, err := NewDB(ts, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkBenchErr(b, err)
 	return s, func() {
 		if err := ts.Close(); err != nil {

@@ -278,7 +278,7 @@ func prettyPrint(obj interface{}) {
 func trimmedBlocks(in string) []string {
 	trimmed := strings.TrimSpace(in)
 	blocks := strings.Split(trimmed, " ")
-	cleaned := []string{}
+	var cleaned []string
 	for _, n := range blocks {
 		cleaned = append(cleaned, strings.TrimSpace(n))
 	}

@@ -2,7 +2,6 @@
 package db
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,12 +14,10 @@ import (
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
-	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/broadcast"
 	core "github.com/textileio/go-threads/core/db"
 	service "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -30,15 +27,15 @@ const (
 )
 
 var (
+	log = logging.Logger("db")
+
 	// ErrInvalidCollectionType indicates the provided default type isn't compatible
 	// with a Collection type.
 	ErrInvalidCollectionType = errors.New("the collection type should be a non-nil pointer to a struct that has an ID property")
 
-	log             = logging.Logger("db")
-	dsStorePrefix   = ds.NewKey("/db")
-	dsStoreThreadID = dsStorePrefix.ChildString("threadid")
-	dsStoreSchemas  = dsStorePrefix.ChildString("schema")
-	dsStoreIndexes  = dsStorePrefix.ChildString("index")
+	dsDBPrefix  = ds.NewKey("/db")
+	dsDBSchemas = dsDBPrefix.ChildString("schema")
+	dsDBIndexes = dsDBPrefix.ChildString("index")
 )
 
 // DB is the aggregate-root of events and state. External/remote events
@@ -48,13 +45,9 @@ var (
 type DB struct {
 	io.Closer
 
-	ctx    context.Context
-	cancel context.CancelFunc
-
 	datastore  ds.TxnDatastore
 	dispatcher *dispatcher
 	eventcodec core.EventCodec
-	service    service.Service
 	adapter    *singleThreadAdapter
 
 	lock            sync.RWMutex
@@ -68,19 +61,19 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ts service.Service, opts ...Option) (*DB, error) {
+func NewDB(ts service.Service, id thread.ID, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
 		}
 	}
-	return newDB(ts, config)
+	return newDB(ts, id, config)
 }
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(ts service.Service, config *Config) (*DB, error) {
+func newDB(ts service.Service, id thread.ID, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -93,16 +86,15 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 	}
 	if !managedDatastore(config.Datastore) {
 		if config.Debug {
-			if err := util.SetLogLevels(map[string]logging.LogLevel{"db": logging.LevelDebug}); err != nil {
+			if err := util.SetLogLevels(map[string]logging.LogLevel{
+				"db": logging.LevelDebug,
+			}); err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	s := &DB{
-		ctx:                 ctx,
-		cancel:              cancel,
+	d := &DB{
 		datastore:           config.Datastore,
 		dispatcher:          newDispatcher(config.Datastore),
 		eventcodec:          config.EventCodec,
@@ -110,22 +102,25 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 		jsonMode:            config.JsonMode,
 		localEventsBus:      &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChangedNotifee: &stateChangedNotifee{},
-		service:             ts,
 	}
-
-	if s.jsonMode {
-		if err := s.reCreateCollections(); err != nil {
+	if d.jsonMode {
+		if err := d.reCreateCollections(); err != nil {
 			return nil, err
 		}
 	}
-	s.dispatcher.Register(s)
-	return s, nil
+	d.dispatcher.Register(d)
+
+	adapter := newSingleThreadAdapter(d, ts, id)
+	d.adapter = adapter
+	adapter.Start()
+
+	return d, nil
 }
 
 // reCreateCollections loads and registers schemas from the datastore.
-func (s *DB) reCreateCollections() error {
-	results, err := s.datastore.Query(query.Query{
-		Prefix: dsStoreSchemas.String(),
+func (d *DB) reCreateCollections() error {
+	results, err := d.datastore.Query(query.Query{
+		Prefix: dsDBSchemas.String(),
 	})
 	if err != nil {
 		return err
@@ -135,105 +130,29 @@ func (s *DB) reCreateCollections() error {
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
 		var indexes []*IndexConfig
-		index, err := s.datastore.Get(dsStoreIndexes.ChildString(name))
+		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
 		if err == nil && index != nil {
 			_ = json.Unmarshal(index, &indexes)
 		}
-		if _, err := s.NewCollection(name, string(res.Value), indexes...); err != nil {
+		if _, err := d.NewCollection(name, string(res.Value), indexes...); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// ThreadID returns the db's theadID if it exists.
-func (s *DB) ThreadID() (thread.ID, bool, error) {
-	v, err := s.datastore.Get(dsStoreThreadID)
-	if err == ds.ErrNotFound {
-		return thread.ID{}, false, nil
-	}
-	if err != nil {
-		return thread.ID{}, false, err
-	}
-	id, err := thread.Cast(v)
-	return id, true, err
-}
-
-// Start should be called immediatelly after registering all schemas and before
-// any operation on them. If the db already boostraped on a thread, it will
-// continue using that thread. In the opposite case, it will create a new thread.
-func (s *DB) Start() error {
-	id, found, err := s.ThreadID()
-	if err != nil {
-		return err
-	}
-	if !found {
-		id = thread.NewIDV1(thread.Raw, 32)
-		fk, err := symmetric.CreateKey()
-		if err != nil {
-			return err
-		}
-		rk, err := symmetric.CreateKey()
-		if err != nil {
-			return err
-		}
-		if _, err := s.service.CreateThread(
-			context.Background(),
-			id,
-			service.FollowKey(fk),
-			service.ReadKey(rk)); err != nil {
-			return err
-		}
-		if err := s.datastore.Put(dsStoreThreadID, id.Bytes()); err != nil {
-			return err
-		}
-	}
-	adapter := newSingleThreadAdapter(s, id)
-	s.adapter = adapter
-	adapter.Start()
-	return nil
-}
-
-// StartFromAddr should be called immediatelly after registering all schemas
-// and before any operation on them. It pulls the current DB thread from
-// thread addr
-func (s *DB) StartFromAddr(addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
-	idstr, err := addr.ValueForProtocol(thread.Code)
-	if err != nil {
-		return err
-	}
-	maThreadID, err := thread.Decode(idstr)
-	if err != nil {
-		return err
-	}
-	if err := s.datastore.Put(dsStoreThreadID, maThreadID.Bytes()); err != nil {
-		return err
-	}
-	if err = s.Start(); err != nil {
-		return err
-	}
-	if _, err = s.service.AddThread(s.ctx, addr, service.FollowKey(followKey), service.ReadKey(readKey)); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Service returns the Service used by the db
-func (s *DB) Service() service.Service {
-	return s.service
-}
-
-// NewCollectionFromInstance creates a new collection in the db by infering type from a defaultInstance
-func (s *DB) NewCollectionFromInstance(name string, defaultInstance interface{}) (*Collection, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+// NewCollectionFromInstance creates a new collection in the db
+// by infering type from a defaultInstance.
+func (d *DB) NewCollectionFromInstance(name string, defaultInstance interface{}) (*Collection, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 
 	diType := reflect.TypeOf(defaultInstance)
 	if reflect.ValueOf(defaultInstance).IsNil() || diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
 		return nil, ErrInvalidCollectionType
 	}
 
-	if _, ok := s.collectionNames[name]; ok {
+	if _, ok := d.collectionNames[name]; ok {
 		return nil, fmt.Errorf("already registered collection")
 	}
 
@@ -241,28 +160,28 @@ func (s *DB) NewCollectionFromInstance(name string, defaultInstance interface{})
 		return nil, ErrInvalidCollectionType
 	}
 
-	c := newCollection(name, defaultInstance, s)
-	s.collectionNames[name] = c
+	c := newCollection(name, defaultInstance, d)
+	d.collectionNames[name] = c
 	return c, nil
 }
 
 // NewCollection creates a new collection in the db with a JSON schema.
-func (s *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) (*Collection, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (d *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) (*Collection, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 
-	if _, ok := s.collectionNames[name]; ok {
+	if _, ok := d.collectionNames[name]; ok {
 		return nil, fmt.Errorf("already registered collection")
 	}
 
-	c := newCollectionFromSchema(name, schema, s)
-	key := dsStoreSchemas.ChildString(name)
-	exists, err := s.datastore.Has(key)
+	c := newCollectionFromSchema(name, schema, d)
+	key := dsDBSchemas.ChildString(name)
+	exists, err := d.datastore.Has(key)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		if err := s.datastore.Put(key, []byte(schema)); err != nil {
+		if err := d.datastore.Put(key, []byte(schema)); err != nil {
 			return nil, err
 		}
 	}
@@ -276,33 +195,33 @@ func (s *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) 
 	if err != nil {
 		return nil, err
 	}
-	indexKey := dsStoreIndexes.ChildString(name)
-	exists, err = s.datastore.Has(indexKey)
+	indexKey := dsDBIndexes.ChildString(name)
+	exists, err = d.datastore.Has(indexKey)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		if err := s.datastore.Put(indexKey, indexBytes); err != nil {
+		if err := d.datastore.Put(indexKey, indexBytes); err != nil {
 			return nil, err
 		}
 	}
 
-	s.collectionNames[name] = c
+	d.collectionNames[name] = c
 	return c, nil
 }
 
 // GetCollection returns a collection by name.
-func (s *DB) GetCollection(name string) *Collection {
-	return s.collectionNames[name]
+func (d *DB) GetCollection(name string) *Collection {
+	return d.collectionNames[name]
 }
 
 // Reduce processes txn events into the collections.
-func (s *DB) Reduce(events []core.Event) error {
-	codecActions, err := s.eventcodec.Reduce(
+func (d *DB) Reduce(events []core.Event) error {
+	codecActions, err := d.eventcodec.Reduce(
 		events,
-		s.datastore,
+		d.datastore,
 		baseKey,
-		defaultIndexFunc(s),
+		defaultIndexFunc(d),
 	)
 	if err != nil {
 		return err
@@ -322,57 +241,56 @@ func (s *DB) Reduce(events []core.Event) error {
 		}
 		actions[i] = Action{Collection: ca.Collection, Type: actionType, ID: ca.InstanceID}
 	}
-	s.notifyStateChanged(actions)
+	d.notifyStateChanged(actions)
 
+	return nil
+}
+
+// Close closes the db.
+func (d *DB) Close() error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	if d.closed {
+		return nil
+	}
+	d.closed = true
+
+	if d.adapter != nil {
+		d.adapter.Close()
+	}
+	d.localEventsBus.bus.Discard()
+	if !managedDatastore(d.datastore) {
+		if err := d.datastore.Close(); err != nil {
+			return err
+		}
+	}
+	d.stateChangedNotifee.close()
 	return nil
 }
 
 // dispatch applies external events to the db. This function guarantee
 // no interference with registered collection states, and viceversa.
-func (s *DB) dispatch(events []core.Event) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.dispatcher.Dispatch(events)
+func (d *DB) dispatch(events []core.Event) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	return d.dispatcher.Dispatch(events)
 }
 
 // eventFromBytes generates an Event from its binary representation using
 // the underlying EventCodec configured in the DB.
-func (s *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
-	return s.eventcodec.EventsFromBytes(data)
+func (d *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
+	return d.eventcodec.EventsFromBytes(data)
 }
 
-func (s *DB) readTxn(c *Collection, f func(txn *Txn) error) error {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
+func (d *DB) readTxn(c *Collection, f func(txn *Txn) error) error {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
 
 	txn := &Txn{collection: c, readonly: true}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err
 	}
-	return nil
-}
-
-// Close closes the db
-func (s *DB) Close() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	if s.closed {
-		return nil
-	}
-	s.closed = true
-
-	if s.adapter != nil {
-		s.adapter.Close()
-	}
-	s.cancel()
-	s.localEventsBus.bus.Discard()
-	if !managedDatastore(s.datastore) {
-		if err := s.datastore.Close(); err != nil {
-			return err
-		}
-	}
-	s.stateChangedNotifee.close()
 	return nil
 }
 
@@ -383,9 +301,9 @@ func managedDatastore(ds ds.Datastore) bool {
 	return ok
 }
 
-func (s *DB) writeTxn(c *Collection, f func(txn *Txn) error) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
 
 	txn := &Txn{collection: c}
 	defer txn.Discard()

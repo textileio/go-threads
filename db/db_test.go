@@ -12,6 +12,8 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 func TestE2EWithThreads(t *testing.T) {
@@ -26,26 +28,25 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer ts1.Close()
 
-	d1, err := NewDB(ts1, WithRepoPath(tmpDir1))
+	id1 := thread.NewIDV1(thread.Raw, 32)
+	t1, err := ts1.CreateThread(context.Background(), id1)
+	checkErr(t, err)
+
+	d1, err := NewDB(ts1, id1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollectionFromInstance("dummy", &dummy{})
 	checkErr(t, err)
-	checkErr(t, d1.Start())
 	dummyInstance := &dummy{Name: "Textile", Counter: 0}
 	checkErr(t, c1.Create(dummyInstance))
 	dummyInstance.Counter += 42
 	checkErr(t, c1.Save(dummyInstance))
 
 	// Boilerplate to generate peer1 thread-addr and get follow/read keys
-	threadID, _, err := d1.ThreadID()
+	peer1Addr := ts1.Host().Addrs()[0]
+	peer1ID, err := multiaddr.NewComponent("p2p", ts1.Host().ID().String())
 	checkErr(t, err)
-	threadInfo, err := d1.Service().GetThread(context.Background(), threadID)
-	checkErr(t, err)
-	peer1Addr := d1.Service().Host().Addrs()[0]
-	peer1ID, err := multiaddr.NewComponent("p2p", d1.Service().Host().ID().String())
-	checkErr(t, err)
-	threadComp, err := multiaddr.NewComponent("thread", threadID.String())
+	threadComp, err := multiaddr.NewComponent("thread", id1.String())
 	checkErr(t, err)
 	threadAddr := peer1Addr.Encapsulate(peer1ID).Encapsulate(threadComp)
 
@@ -58,12 +59,14 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer ts2.Close()
 
-	d2, err := NewDB(ts2, WithRepoPath(tmpDir2))
+	_, err = ts2.AddThread(context.Background(), threadAddr, service.FollowKey(t1.FollowKey), service.FollowKey(t1.ReadKey))
+	checkErr(t, err)
+
+	d2, err := NewDB(ts2, id1, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer d2.Close()
 	c2, err := d2.NewCollectionFromInstance("dummy", &dummy{})
 	checkErr(t, err)
-	checkErr(t, d2.StartFromAddr(threadAddr, threadInfo.FollowKey, threadInfo.ReadKey))
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
@@ -84,7 +87,8 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
-	d, err := NewDB(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
+	id := thread.NewIDV1(thread.Raw, 32)
+	d, err := NewDB(ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollectionFromInstance("dummy", &dummy{})
@@ -103,7 +107,7 @@ func TestOptions(t *testing.T) {
 	ts, err = DefaultService(tmpDir)
 	checkErr(t, err)
 	defer ts.Close()
-	d, err = NewDB(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err = NewDB(ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }

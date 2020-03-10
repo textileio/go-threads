@@ -1,11 +1,14 @@
-package client
+package client_test
 
 import (
 	"context"
 	crand "crypto/rand"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -23,6 +26,12 @@ import (
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/service/api"
+<<<<<<< HEAD
+=======
+	. "github.com/textileio/go-threads/service/api/client"
+	pb "github.com/textileio/go-threads/service/api/pb"
+	"github.com/textileio/go-threads/store"
+>>>>>>> api: consolidate servers
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -401,23 +410,38 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
-	apiPort, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	apiAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", apiPort))
-	apiProxyAddr := util.MustParseAddr("/ip4/127.0.0.1/tcp/0")
-	server, err := api.NewServer(context.Background(), ts, api.Config{
-		Addr:      apiAddr,
-		ProxyAddr: apiProxyAddr,
-		Debug:     true,
+	service, err := api.NewService(ts, api.Config{
+		Debug: true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return hostAddr, apiAddr, func() {
-		server.Close()
-		ts.Close()
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
+	target, err := util.TCPAddrFromMultiAddr(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	listener, err := net.Listen("tcp", target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		pb.RegisterAPIServer(server, service)
+		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Fatalf("serve error: %v", err)
+		}
+	}()
+
+	return hostAddr, addr, func() {
+		server.GracefulStop()
+		if err := ts.Close(); err != nil {
+			t.Fatal(err)
+		}
 		_ = os.RemoveAll(dir)
 	}
 }

@@ -33,15 +33,13 @@ type singleThreadAdapter struct {
 
 // NewSingleThreadAdapter returns a new Adapter which maps
 // a DB with a single Thread
-func newSingleThreadAdapter(db *DB, threadID thread.ID) *singleThreadAdapter {
-	a := &singleThreadAdapter{
-		api:       db.Service(),
+func newSingleThreadAdapter(db *DB, ts service.Service, threadID thread.ID) *singleThreadAdapter {
+	return &singleThreadAdapter{
+		api:       ts,
 		threadID:  threadID,
 		db:        db,
 		closeChan: make(chan struct{}),
 	}
-
-	return a
 }
 
 // Close closes the db thread and stops listening both directions
@@ -97,7 +95,7 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 			return
 		case rec, ok := <-sub:
 			if !ok {
-				log.Errorf("notification channel closed, not listening to external changes anymore")
+				log.Debug("notification channel closed, not listening to external changes anymore")
 				return
 			}
 			if rec.LogID() == a.ownLogID {

@@ -29,7 +29,7 @@ var (
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
-	baseKey = dsStorePrefix.ChildString("collection")
+	baseKey = dsDBPrefix.ChildString("collection")
 )
 
 // Collection contains instances of a schema, and provides operations

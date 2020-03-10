@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/textileio/go-threads/core/thread"
 )
 
 func checkErr(t *testing.T, err error) {
@@ -19,9 +21,9 @@ func createTestDB(t *testing.T, opts ...Option) (*DB, func()) {
 	ts, err := DefaultService(dir)
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
-	s, err := NewDB(ts, opts...)
+	d, err := NewDB(ts, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkErr(t, err)
-	return s, func() {
+	return d, func() {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}

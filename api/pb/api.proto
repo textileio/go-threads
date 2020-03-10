@@ -6,14 +6,20 @@ option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THRDS";
 
-message NewDBRequest {}
-
-message NewDBReply {
-    string ID = 1;
+message NewDBRequest {
+    string dbID = 1;
 }
 
+message NewDBFromAddrRequest {
+    string dbAddr = 2;
+    bytes followKey = 3;
+    bytes readKey = 4;
+}
+
+message NewDBReply {}
+
 message NewCollectionRequest {
-    string DBID = 1;
+    string dbID = 1;
     string name = 2;
     string schema = 3;
     message IndexConfig {
@@ -25,23 +31,8 @@ message NewCollectionRequest {
 
 message NewCollectionReply {}
 
-message StartRequest {
-    string DBID = 1;
-}
-
-message StartReply {}
-
-message StartFromAddressRequest {
-    string DBID = 1;
-    string address = 2;
-    bytes followKey = 3;
-    bytes readKey = 4;
-}
-
-message StartFromAddressReply {}
-
 message GetDBLinkRequest {
-    string DBID = 1;
+    string dbID = 1;
 }
 
 message GetDBLinkReply {
@@ -51,7 +42,7 @@ message GetDBLinkReply {
 }
 
 message CreateRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
     repeated string values = 3;
 }
@@ -61,7 +52,7 @@ message CreateReply {
 }
 
 message SaveRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
     repeated string values = 3;
 }
@@ -69,7 +60,7 @@ message SaveRequest {
 message SaveReply {}
 
 message DeleteRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
     repeated string instanceIDs = 3;
 }
@@ -77,7 +68,7 @@ message DeleteRequest {
 message DeleteReply {}
 
 message HasRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
     repeated string instanceIDs = 3;
 }
@@ -87,7 +78,7 @@ message HasReply {
 }
 
 message FindRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
     bytes queryJSON = 3;
 }
@@ -97,7 +88,7 @@ message FindReply {
 }
 
 message FindByIDRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
     string instanceID = 3;
 }
@@ -107,7 +98,7 @@ message FindByIDReply {
 }
 
 message StartTransactionRequest {
-    string DBID = 1;
+    string dbID = 1;
     string collectionName = 2;
 }
 
@@ -152,7 +143,7 @@ message WriteTransactionReply {
 }
 
 message ListenRequest {
-    string DBID = 1;
+    string dbID = 1;
     message Filter {
         string collectionName = 1;
         string instanceID = 2;
@@ -181,9 +172,8 @@ message ListenReply {
 
 service API {
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
+    rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
-    rpc Start(StartRequest) returns (StartReply) {}
-    rpc StartFromAddress(StartFromAddressRequest) returns (StartFromAddressReply) {}
     rpc GetDBLink(GetDBLinkRequest) returns (GetDBLinkReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}

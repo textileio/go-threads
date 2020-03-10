@@ -1,19 +1,23 @@
 package db
 
 import (
+	"context"
+	"fmt"
 	"io"
 
-	"github.com/google/uuid"
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
 )
 
 var (
-	dsStoreManagerBaseKey = ds.NewKey("/manager")
+	dsDBManagerBaseKey = ds.NewKey("/manager")
 )
 
 type Manager struct {
@@ -22,7 +26,7 @@ type Manager struct {
 	config *Config
 
 	service service.Service
-	dbs     map[uuid.UUID]*DB
+	dbs     map[thread.ID]*DB
 }
 
 // NewManager hydrates dbs from prefixes and starts them.
@@ -42,7 +46,9 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		config.Datastore = datastore
 	}
 	if config.Debug {
-		if err := util.SetLogLevels(map[string]logging.LogLevel{"db": logging.LevelDebug}); err != nil {
+		if err := util.SetLogLevels(map[string]logging.LogLevel{
+			"db": logging.LevelDebug,
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -50,11 +56,11 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 	m := &Manager{
 		config:  config,
 		service: ts,
-		dbs:     make(map[uuid.UUID]*DB),
+		dbs:     make(map[thread.ID]*DB),
 	}
 
 	results, err := m.config.Datastore.Query(query.Query{
-		Prefix:   dsStoreManagerBaseKey.String(),
+		Prefix:   dsDBManagerBaseKey.String(),
 		KeysOnly: true,
 	})
 	if err != nil {
@@ -66,19 +72,15 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		if key.BaseNamespace() != "threadid" {
 			continue
 		}
-		id, err := uuid.Parse(key.Parent().Parent().Name())
+		id, err := thread.Decode(key.Parent().Parent().Name())
 		if err != nil {
 			continue
 		}
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		s, err := newDB(m.service, getDBConfig(id, m.config))
+		s, err := newDB(m.service, id, getDBConfig(id, m.config))
 		if err != nil {
-			return nil, err
-		}
-		// @todo: Auto-starting reloaded dbs could lead to issues (#115)
-		if err = s.Start(); err != nil {
 			return nil, err
 		}
 		m.dbs[id] = s
@@ -88,47 +90,81 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 }
 
 // NewDB creates a new db and prefix its datastore with base key.
-func (m *Manager) NewDB() (id uuid.UUID, db *DB, err error) {
-	id, err = uuid.NewRandom()
-	if err != nil {
-		return
+func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
+	if _, ok := m.dbs[id]; ok {
+		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	db, err = newDB(m.service, getDBConfig(id, m.config))
+	fk, err := sym.CreateKey()
 	if err != nil {
-		return
+		return nil, err
+	}
+	rk, err := sym.CreateKey()
+	if err != nil {
+		return nil, err
+	}
+	if _, err = m.service.CreateThread(ctx, id, service.FollowKey(fk), service.ReadKey(rk)); err != nil {
+		return nil, err
 	}
 
+	db, err := newDB(m.service, id, getDBConfig(id, m.config))
+	if err != nil {
+		return nil, err
+	}
 	m.dbs[id] = db
-	return id, db, nil
+	return db, nil
+}
+
+func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *sym.Key) (*DB, error) {
+	idstr, err := addr.ValueForProtocol(thread.Code)
+	if err != nil {
+		return nil, err
+	}
+	id, err := thread.Decode(idstr)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := m.dbs[id]; ok {
+		return nil, fmt.Errorf("db %s already exists", id.String())
+	}
+	if _, err = m.service.AddThread(ctx, addr, service.FollowKey(followKey), service.ReadKey(readKey)); err != nil {
+		return nil, err
+	}
+
+	db, err := newDB(m.service, id, getDBConfig(id, m.config))
+	if err != nil {
+		return nil, err
+	}
+	m.dbs[id] = db
+	return db, nil
 }
 
 // GetDB returns a db by id from the in-mem map.
-func (m *Manager) GetDB(id uuid.UUID) *DB {
+func (m *Manager) GetDB(id thread.ID) *DB {
 	return m.dbs[id]
+}
+
+// Service returns the manager's thread service.
+func (m *Manager) Service() service.Service {
+	return m.service
 }
 
 // Close all the in-mem dbs.
 func (m *Manager) Close() error {
-	var err error
 	for _, s := range m.dbs {
-		if err = s.Close(); err != nil {
+		if err := s.Close(); err != nil {
 			log.Error("error when closing manager datastore: %v", err)
 		}
 	}
-	err2 := m.config.Datastore.Close()
-	if err != nil {
-		return err
-	}
-	return err2
+	return m.config.Datastore.Close()
 }
 
 // getDBConfig copies the manager's base config and
 // wraps the datastore with an id prefix.
-func getDBConfig(id uuid.UUID, base *Config) *Config {
+func getDBConfig(id thread.ID, base *Config) *Config {
 	return &Config{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
-			Prefix: dsStoreManagerBaseKey.ChildString(id.String()),
+			Prefix: dsDBManagerBaseKey.ChildString(id.String()),
 		}),
 		EventCodec: base.EventCodec,
 		JsonMode:   base.JsonMode,
