@@ -221,7 +221,7 @@ func (c *Client) Has(ctx context.Context, dbID, collectionName string, instanceI
 	return resp.GetExists(), nil
 }
 
-// Find finds records by query
+// Find finds instances by query
 func (c *Client) Find(ctx context.Context, dbID, collectionName string, query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
@@ -239,7 +239,7 @@ func (c *Client) Find(ctx context.Context, dbID, collectionName string, query *d
 	return processFindReply(resp, dummySlice)
 }
 
-// FindByID finds a record by id
+// FindByID finds an instance by id
 func (c *Client) FindByID(ctx context.Context, dbID, collectionName, instanceID string, instance interface{}) error {
 	req := &pb.FindByIDRequest{
 		DBID:           dbID,
