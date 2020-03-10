@@ -24,7 +24,7 @@ func main() {
 	s, clean := createMemDB()
 	defer clean()
 
-	model, err := s.Register("Book", &book{})
+	model, err := s.RegisterCollection("Book", &book{})
 	checkErr(err)
 
 	// Bootstrap the model with some books: two from Author1 and one from Author2

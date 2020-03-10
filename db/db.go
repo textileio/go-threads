@@ -226,8 +226,8 @@ func (s *DB) Service() service.Service {
 	return s.service
 }
 
-// Register a new model in the db by infering using a defaultInstance
-func (s *DB) Register(name string, defaultInstance interface{}) (*Model, error) {
+// RegisterCollection registers a new model in the db by infering using a defaultInstance
+func (s *DB) RegisterCollection(name string, defaultInstance interface{}) (*Model, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

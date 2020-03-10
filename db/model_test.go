@@ -41,16 +41,16 @@ func TestSchemaRegistration(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		_, err := db.Register("Dog", &Dog{})
+		_, err := db.RegisterCollection("Dog", &Dog{})
 		checkErr(t, err)
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		_, err := db.Register("Dog", &Dog{})
+		_, err := db.RegisterCollection("Dog", &Dog{})
 		checkErr(t, err)
-		_, err = db.Register("Person", &Person{})
+		_, err = db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 	})
 	t.Run("Fail/WithoutEntityID", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSchemaRegistration(t *testing.T) {
 		}
 		db, clean := createTestDB(t)
 		defer clean()
-		if _, err := db.Register("FailingModel", &FailingModel{}); err != ErrInvalidModel {
+		if _, err := db.RegisterCollection("FailingModel", &FailingModel{}); err != ErrInvalidModel {
 			t.Fatal("the model should be invalid")
 		}
 	})
@@ -72,7 +72,7 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		model, err := db.Register("Person", &Person{})
+		model, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 
 		t.Run("WithImplicitTx", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		model, err := db.Register("Person", &Person{})
+		model, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 
 		newPerson1 := &Person{Name: "Foo1", Age: 42}
@@ -115,7 +115,7 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		model, err := db.Register("Person", &Person{})
+		model, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 
 		definedID := core.NewEntityID()
@@ -134,7 +134,7 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.Register("Person", &Person{})
+		m, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 
 		p := &Person{Name: "Foo1", Age: 42}
@@ -153,7 +153,7 @@ func TestReadTxnValidation(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.Register("Person", &Person{})
+		m, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		err = m.ReadTxn(func(txn *Txn) error {
@@ -167,7 +167,7 @@ func TestReadTxnValidation(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.Register("Person", &Person{})
+		m, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		checkErr(t, m.Create(p))
@@ -182,7 +182,7 @@ func TestReadTxnValidation(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.Register("Person", &Person{})
+		m, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		checkErr(t, m.Create(p))
@@ -200,7 +200,7 @@ func TestVariadic(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	m, err := db.Register("Person", &Person{})
+	m, err := db.RegisterCollection("Person", &Person{})
 	checkErr(t, err)
 
 	p1 := &Person{Name: "Foo1", Age: 42}
@@ -234,7 +234,7 @@ func TestGetInstance(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	model, err := db.Register("Person", &Person{})
+	model, err := db.RegisterCollection("Person", &Person{})
 	checkErr(t, err)
 
 	newPerson := &Person{Name: "Foo", Age: 42}
@@ -284,7 +284,7 @@ func TestSaveInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		model, err := db.Register("Person", &Person{})
+		model, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 
 		newPerson := &Person{Name: "Alice", Age: 42}
@@ -314,7 +314,7 @@ func TestSaveInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.Register("Person", &Person{})
+		m, err := db.RegisterCollection("Person", &Person{})
 		checkErr(t, err)
 
 		p := &Person{Name: "Alice", Age: 42}
@@ -329,7 +329,7 @@ func TestDeleteInstance(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	model, err := db.Register("Person", &Person{})
+	model, err := db.RegisterCollection("Person", &Person{})
 	checkErr(t, err)
 
 	newPerson := &Person{Name: "Alice", Age: 42}
@@ -364,7 +364,7 @@ func TestInvalidActions(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	model, err := db.Register("Person", &Person{})
+	model, err := db.RegisterCollection("Person", &Person{})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
 		f := &PersonFake{Name: "fake"}

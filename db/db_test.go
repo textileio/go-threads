@@ -29,7 +29,7 @@ func TestE2EWithThreads(t *testing.T) {
 	d1, err := NewDB(ts1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
-	m1, err := d1.Register("dummy", &dummyModel{})
+	m1, err := d1.RegisterCollection("dummy", &dummyModel{})
 	checkErr(t, err)
 	checkErr(t, d1.Start())
 	dummyInstance := &dummyModel{Name: "Textile", Counter: 0}
@@ -61,7 +61,7 @@ func TestE2EWithThreads(t *testing.T) {
 	d2, err := NewDB(ts2, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer d2.Close()
-	m2, err := d2.Register("dummy", &dummyModel{})
+	m2, err := d2.RegisterCollection("dummy", &dummyModel{})
 	checkErr(t, err)
 	checkErr(t, d2.StartFromAddr(threadAddr, threadInfo.FollowKey, threadInfo.ReadKey))
 
@@ -87,7 +87,7 @@ func TestOptions(t *testing.T) {
 	d, err := NewDB(ts, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
-	m, err := d.Register("dummy", &dummyModel{})
+	m, err := d.RegisterCollection("dummy", &dummyModel{})
 	checkErr(t, err)
 	checkErr(t, m.Create(&dummyModel{Name: "Textile"}))
 
@@ -234,9 +234,9 @@ func TestListeners(t *testing.T) {
 func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	t.Helper()
 	s, cls := createTestDB(t)
-	m1, err := s.Register("Model1", &dummyModel{})
+	m1, err := s.RegisterCollection("Model1", &dummyModel{})
 	checkErr(t, err)
-	m2, err := s.Register("Model2", &dummyModel{})
+	m2, err := s.RegisterCollection("Model2", &dummyModel{})
 	checkErr(t, err)
 
 	// Create some instance *before* any listener, just to test doesn't appear

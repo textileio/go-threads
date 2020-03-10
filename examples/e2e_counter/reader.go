@@ -22,7 +22,7 @@ func runReaderPeer(repo string) {
 	checkErr(err)
 	defer d.Close()
 
-	m, err := d.Register("counter", &myCounter{})
+	m, err := d.RegisterCollection("counter", &myCounter{})
 	checkErr(err)
 
 	l, err := d.Listen()

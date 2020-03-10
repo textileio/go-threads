@@ -164,7 +164,7 @@ func TestInvalidSliceType(t *testing.T) {
 
 func createModelWithData(t *testing.T) (*Model, func()) {
 	db, clean := createTestDB(t)
-	m, err := db.Register("Book", &book{})
+	m, err := db.RegisterCollection("Book", &book{})
 	checkErr(t, err)
 	for i := range sampleData {
 		if err = m.Create(&sampleData[i]); err != nil {
