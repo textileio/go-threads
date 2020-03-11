@@ -12,14 +12,14 @@ import (
 
 var (
 	// ErrInvalidSortingField is returned when a query sorts a result by a
-	// non-existent field in the model schema.
+	// non-existent field in the collection schema.
 	ErrInvalidSortingField = errors.New("sorting field doesn't correspond to instance type")
 	// ErrInvalidSliceType is returned when a query receives a result by a
-	// slice type which doesn't correspond to the model being queried.
-	ErrInvalidSliceType = errors.New("slice type doesn't correspond to model type")
+	// slice type which doesn't correspond to the collection being queried.
+	ErrInvalidSliceType = errors.New("slice type doesn't correspond to collection type")
 )
 
-// Query allows to build queries to fetch data from a model.
+// Query allows to build queries to fetch data from a collection.
 type Query struct {
 	ands []*Criterion
 	ors  []*Query
@@ -84,23 +84,23 @@ func (q *Query) OrderByDesc(field string) *Query {
 	return q
 }
 
-// Find executes a query and store the result in res which should be a slice of
-// pointers with the correct model type. If the slice isn't empty, will be emptied.
+// Find executes a query and stores the result in res which should be a slice of
+// pointers with the correct collection type. If the slice isn't empty, will be emptied.
 func (t *Txn) Find(res interface{}, q *Query) error {
 	valRes := reflect.ValueOf(res)
 	if valRes.Kind() != reflect.Ptr || // Should be a pointer
 		valRes.Elem().Kind() != reflect.Slice || // To a slice
 		valRes.Elem().Type().Elem().Kind() != reflect.Ptr || // To a pointer
-		valRes.Elem().Type().Elem() != t.model.valueType { // To the model type
+		valRes.Elem().Type().Elem() != t.collection.valueType { // To the collection type
 		return ErrInvalidSliceType
 	}
 	if q == nil {
 		q = &Query{}
 	}
 	dsq := dsquery.Query{
-		Prefix: baseKey.ChildString(t.model.name).String(),
+		Prefix: baseKey.ChildString(t.collection.name).String(),
 	}
-	dsr, err := t.model.db.datastore.Query(dsq)
+	dsr, err := t.collection.db.datastore.Query(dsq)
 	if err != nil {
 		return fmt.Errorf("error when internal query: %v", err)
 	}
@@ -114,7 +114,7 @@ func (t *Txn) Find(res interface{}, q *Query) error {
 			break
 		}
 
-		instance := reflect.New(t.model.valueType.Elem())
+		instance := reflect.New(t.collection.valueType.Elem())
 		if err = json.Unmarshal(res.Value, instance.Interface()); err != nil {
 			return fmt.Errorf("error when unmarshaling query result: %v", err)
 		}

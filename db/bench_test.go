@@ -74,14 +74,14 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 func BenchmarkNoIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := db.RegisterSchema("Dog", testBenchSchema)
+	collection, err := db.NewCollection("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-		var err = model.Create(&benchItem)
+		var err = collection.Create(&benchItem)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -91,7 +91,7 @@ func BenchmarkNoIndexCreate(b *testing.B) {
 func BenchmarkIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := db.RegisterSchema("Dog", testBenchSchema,
+	collection, err := db.NewCollection("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Name",
 			Unique: false,
@@ -103,7 +103,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-		var err = model.Create(&benchItem)
+		var err = collection.Create(&benchItem)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -113,11 +113,11 @@ func BenchmarkIndexCreate(b *testing.B) {
 func BenchmarkNoIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := db.RegisterSchema("Dog", testBenchSchema)
+	collection, err := db.NewCollection("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-	err = model.Create(&benchItem)
+	err = collection.Create(&benchItem)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -127,7 +127,7 @@ func BenchmarkNoIndexSave(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Error modifying instance: %s", err)
 		}
-		err = model.Save(&newItem)
+		err = collection.Save(&newItem)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -137,7 +137,7 @@ func BenchmarkNoIndexSave(b *testing.B) {
 func BenchmarkIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := db.RegisterSchema("Dog", testBenchSchema,
+	collection, err := db.NewCollection("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Age",
 			Unique: false,
@@ -146,7 +146,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-	err = model.Create(&benchItem)
+	err = collection.Create(&benchItem)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -156,7 +156,7 @@ func BenchmarkIndexSave(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Error modifying instance: %s", err)
 		}
-		err = model.Save(&newItem)
+		err = collection.Save(&newItem)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -166,7 +166,7 @@ func BenchmarkIndexSave(b *testing.B) {
 func BenchmarkNoIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := db.RegisterSchema("Dog", testBenchSchema)
+	collection, err := db.NewCollection("Dog", testBenchSchema)
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {
@@ -176,7 +176,7 @@ func BenchmarkNoIndexFind(b *testing.B) {
 			if err != nil {
 				b.Fatalf("Error modifying instance: %s", err)
 			}
-			err = model.Create(&newItem)
+			err = collection.Create(&newItem)
 			if err != nil {
 				b.Fatalf("Error creating instance: %s", err)
 			}
@@ -186,7 +186,7 @@ func BenchmarkNoIndexFind(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result, err := model.FindJSON(JSONWhere("Name").Eq("Name0").JSONOr(JSONWhere("Name").Eq("Name6")))
+		result, err := collection.FindJSON(JSONWhere("Name").Eq("Name0").JSONOr(JSONWhere("Name").Eq("Name6")))
 		if err != nil {
 			b.Fatalf("Error finding data: %s", err)
 		}
@@ -199,7 +199,7 @@ func BenchmarkNoIndexFind(b *testing.B) {
 func BenchmarkIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	model, err := db.RegisterSchema("Dog", testBenchSchema,
+	collection, err := db.NewCollection("Dog", testBenchSchema,
 		&IndexConfig{
 			Path:   "Name",
 			Unique: false,
@@ -214,7 +214,7 @@ func BenchmarkIndexFind(b *testing.B) {
 			if err != nil {
 				b.Fatalf("Error modifying instance: %s", err)
 			}
-			err = model.Create(&newItem)
+			err = collection.Create(&newItem)
 			if err != nil {
 				b.Fatalf("Error creating instance: %s", err)
 			}
@@ -224,7 +224,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result, err := model.FindJSON(JSONWhere("Name").Eq("Name0").JSONOr(JSONWhere("Name").Eq("Name6")).UseIndex("Name"))
+		result, err := collection.FindJSON(JSONWhere("Name").Eq("Name0").JSONOr(JSONWhere("Name").Eq("Name6")).UseIndex("Name"))
 		if err != nil {
 			b.Fatalf("Error finding data: %s", err)
 		}

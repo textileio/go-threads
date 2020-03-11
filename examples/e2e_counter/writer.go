@@ -14,7 +14,7 @@ import (
 )
 
 type myCounter struct {
-	ID    core.EntityID
+	ID    core.InstanceID
 	Name  string
 	Count int
 }
@@ -29,7 +29,7 @@ func runWriterPeer(repo string) {
 	checkErr(err)
 	defer d.Close()
 
-	m, err := d.Register("counter", &myCounter{})
+	m, err := d.NewCollectionFromInstance("counter", &myCounter{})
 	checkErr(err)
 	checkErr(d.Start())
 	checkErr(err)

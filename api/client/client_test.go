@@ -31,7 +31,7 @@ func TestNewDB(t *testing.T) {
 	})
 }
 
-func TestRegisterSchema(t *testing.T) {
+func TestNewCollection(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -39,7 +39,7 @@ func TestRegisterSchema(t *testing.T) {
 	t.Run("test register schema", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		if err != nil {
 			t.Fatalf("failed to register schema: %v", err)
 		}
@@ -54,7 +54,7 @@ func TestStart(t *testing.T) {
 	t.Run("test start", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		if err != nil {
@@ -71,7 +71,7 @@ func TestStartFromAddress(t *testing.T) {
 	t.Run("test start from address", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 
 		// @todo: figure out how to test this
@@ -79,22 +79,22 @@ func TestStartFromAddress(t *testing.T) {
 	})
 }
 
-func TestModelCreate(t *testing.T) {
+func TestCreate(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test model create", func(t *testing.T) {
+	t.Run("test collection create", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, createPerson())
+		err = client.Create(context.Background(), dbID, collectionName, createPerson())
 		if err != nil {
-			t.Fatalf("failed to create model: %v", err)
+			t.Fatalf("failed to create collection: %v", err)
 		}
 	})
 }
@@ -112,112 +112,112 @@ func TestGetDBLink(t *testing.T) {
 
 		_, err = client.GetDBLink(context.Background(), dbID)
 		if err != nil {
-			t.Fatalf("failed to create model: %v", err)
+			t.Fatalf("failed to create collection: %v", err)
 		}
 		//@todo: Do proper parsing of the invites
 	})
 }
 
-func TestModelSave(t *testing.T) {
+func TestSave(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test model save", func(t *testing.T) {
+	t.Run("test collection save", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		person.Age = 30
-		err = client.ModelSave(context.Background(), dbID, modelName, person)
+		err = client.Save(context.Background(), dbID, collectionName, person)
 		if err != nil {
-			t.Fatalf("failed to save model: %v", err)
+			t.Fatalf("failed to save collection: %v", err)
 		}
 	})
 }
 
-func TestModelDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test model delete", func(t *testing.T) {
+	t.Run("test collection delete", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		err = client.ModelDelete(context.Background(), dbID, modelName, person.ID)
+		err = client.Delete(context.Background(), dbID, collectionName, person.ID)
 		if err != nil {
-			t.Fatalf("failed to delete model: %v", err)
+			t.Fatalf("failed to delete collection: %v", err)
 		}
 	})
 }
 
-func TestModelHas(t *testing.T) {
+func TestHas(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test model has", func(t *testing.T) {
+	t.Run("test collection has", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		exists, err := client.ModelHas(context.Background(), dbID, modelName, person.ID)
+		exists, err := client.Has(context.Background(), dbID, collectionName, person.ID)
 		if err != nil {
-			t.Fatalf("failed to check model has: %v", err)
+			t.Fatalf("failed to check collection has: %v", err)
 		}
 		if !exists {
-			t.Fatal("model should exist but it doesn't")
+			t.Fatal("collection should exist but it doesn't")
 		}
 	})
 }
 
-func TestModelFind(t *testing.T) {
+func TestFind(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test model find", func(t *testing.T) {
+	t.Run("test collection find", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		q := db.JSONWhere("lastName").Eq(person.LastName)
 
-		rawResults, err := client.ModelFind(context.Background(), dbID, modelName, q, []*Person{})
+		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -226,19 +226,19 @@ func TestModelFind(t *testing.T) {
 			t.Fatalf("expected 1 result, but got %v", len(results))
 		}
 		if !reflect.DeepEqual(results[0], person) {
-			t.Fatal("model found by query does't equal the original")
+			t.Fatal("collection found by query does't equal the original")
 		}
 	})
 }
 
-func TestModelFindWithIndex(t *testing.T) {
+func TestFindWithIndex(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
-	t.Run("test model find", func(t *testing.T) {
+	t.Run("test collection find", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema,
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema,
 			&db.IndexConfig{
 				Path:   "lastName",
 				Unique: true,
@@ -250,12 +250,12 @@ func TestModelFindWithIndex(t *testing.T) {
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		q := db.JSONWhere("lastName").Eq(person.LastName).UseIndex("lastName")
 
-		rawResults, err := client.ModelFind(context.Background(), dbID, modelName, q, []*Person{})
+		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -264,36 +264,36 @@ func TestModelFindWithIndex(t *testing.T) {
 			t.Fatalf("expected 1 result, but got %v", len(results))
 		}
 		if !reflect.DeepEqual(results[0], person) {
-			t.Fatal("model found by query does't equal the original")
+			t.Fatal("collection found by query does't equal the original")
 		}
 	})
 }
 
-func TestModelFindByID(t *testing.T) {
+func TestFindByID(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test model find by ID", func(t *testing.T) {
+	t.Run("test collection find by ID", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		newPerson := &Person{}
-		err = client.ModelFindByID(context.Background(), dbID, modelName, person.ID, newPerson)
+		err = client.FindByID(context.Background(), dbID, collectionName, person.ID, newPerson)
 		if err != nil {
-			t.Fatalf("failed to find model by id: %v", err)
+			t.Fatalf("failed to find collection by id: %v", err)
 		}
 		if !reflect.DeepEqual(newPerson, person) {
-			t.Fatal("model found by id does't equal the original")
+			t.Fatal("collection found by id does't equal the original")
 		}
 	})
 }
@@ -306,15 +306,15 @@ func TestReadTransaction(t *testing.T) {
 	t.Run("test read transaction", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 		person := createPerson()
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		txn, err := client.ReadTransaction(context.Background(), dbID, modelName)
+		txn, err := client.ReadTransaction(context.Background(), dbID, collectionName)
 		if err != nil {
 			t.Fatalf("failed to create read txn: %v", err)
 		}
@@ -344,7 +344,7 @@ func TestReadTransaction(t *testing.T) {
 			t.Fatalf("failed to txn find by id: %v", err)
 		}
 		if !reflect.DeepEqual(foundPerson, person) {
-			t.Fatal("txn model found by id does't equal the original")
+			t.Fatal("txn collection found by id does't equal the original")
 		}
 
 		q := db.JSONWhere("lastName").Eq(person.LastName)
@@ -358,7 +358,7 @@ func TestReadTransaction(t *testing.T) {
 			t.Fatalf("expected 1 result, but got %v", len(results))
 		}
 		if !reflect.DeepEqual(results[0], person) {
-			t.Fatal("model found by query does't equal the original")
+			t.Fatal("collection found by query does't equal the original")
 		}
 	})
 }
@@ -371,15 +371,15 @@ func TestWriteTransaction(t *testing.T) {
 	t.Run("test write transaction", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 		existingPerson := createPerson()
-		err = client.ModelCreate(context.Background(), dbID, modelName, existingPerson)
+		err = client.Create(context.Background(), dbID, collectionName, existingPerson)
 		checkErr(t, err)
 
-		txn, err := client.WriteTransaction(context.Background(), dbID, modelName)
+		txn, err := client.WriteTransaction(context.Background(), dbID, collectionName)
 		if err != nil {
 			t.Fatalf("failed to create write txn: %v", err)
 		}
@@ -402,7 +402,7 @@ func TestWriteTransaction(t *testing.T) {
 			t.Fatalf("failed to create in write txn: %v", err)
 		}
 		if person.ID == "" {
-			t.Fatalf("expected an entity id to be set but it wasn't")
+			t.Fatalf("expected an instance id to be set but it wasn't")
 		}
 
 		has, err := txn.Has(existingPerson.ID)
@@ -419,7 +419,7 @@ func TestWriteTransaction(t *testing.T) {
 			t.Fatalf("failed to txn find by id: %v", err)
 		}
 		if !reflect.DeepEqual(foundExistingPerson, existingPerson) {
-			t.Fatalf("txn model found by id does't equal the original")
+			t.Fatalf("txn collection found by id does't equal the original")
 		}
 
 		q := db.JSONWhere("lastName").Eq(person.LastName)
@@ -433,7 +433,7 @@ func TestWriteTransaction(t *testing.T) {
 			t.Fatalf("expected 1 result, but got %v", len(results))
 		}
 		if !reflect.DeepEqual(results[0], existingPerson) {
-			t.Fatal("model found by query does't equal the original")
+			t.Fatal("collection found by query does't equal the original")
 		}
 
 		existingPerson.Age = 99
@@ -457,21 +457,21 @@ func TestListen(t *testing.T) {
 	t.Run("test listen", func(t *testing.T) {
 		dbID, err := client.NewDB(context.Background())
 		checkErr(t, err)
-		err = client.RegisterSchema(context.Background(), dbID, modelName, schema)
+		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
 		checkErr(t, err)
 		err = client.Start(context.Background(), dbID)
 		checkErr(t, err)
 
 		person := createPerson()
 
-		err = client.ModelCreate(context.Background(), dbID, modelName, person)
+		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		opt := ListenOption{
-			Model:    modelName,
-			EntityID: person.ID,
+			Collection: collectionName,
+			InstanceID: person.ID,
 		}
 		channel, err := client.Listen(ctx, dbID, opt)
 		if err != nil {
@@ -481,9 +481,9 @@ func TestListen(t *testing.T) {
 		go func() {
 			time.Sleep(1 * time.Second)
 			person.Age = 30
-			_ = client.ModelSave(context.Background(), dbID, modelName, person)
+			_ = client.Save(context.Background(), dbID, collectionName, person)
 			person.Age = 40
-			_ = client.ModelSave(context.Background(), dbID, modelName, person)
+			_ = client.Save(context.Background(), dbID, collectionName, person)
 		}()
 
 		val, ok := <-channel
@@ -494,14 +494,14 @@ func TestListen(t *testing.T) {
 				t.Fatalf("failed to receive first listen result: %v", val.Err)
 			}
 			p := &Person{}
-			if err := json.Unmarshal(val.Action.Entity, p); err != nil {
+			if err := json.Unmarshal(val.Action.Instance, p); err != nil {
 				t.Fatalf("failed to unmarshal listen result: %v", err)
 			}
 			if p.Age != 30 {
 				t.Fatalf("expected listen result age = 30 but got: %v", p.Age)
 			}
-			if val.Action.EntityID != person.ID {
-				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.EntityID)
+			if val.Action.InstanceID != person.ID {
+				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.InstanceID)
 			}
 		}
 
@@ -513,14 +513,14 @@ func TestListen(t *testing.T) {
 				t.Fatalf("failed to receive second listen result: %v", val.Err)
 			}
 			p := &Person{}
-			if err := json.Unmarshal(val.Action.Entity, p); err != nil {
+			if err := json.Unmarshal(val.Action.Instance, p); err != nil {
 				t.Fatalf("failed to unmarshal listen result: %v", err)
 			}
 			if p.Age != 40 {
 				t.Fatalf("expected listen result age = 40 but got: %v", p.Age)
 			}
-			if val.Action.EntityID != person.ID {
-				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.EntityID)
+			if val.Action.InstanceID != person.ID {
+				t.Fatalf("expected listen result id = %v but got: %v", person.ID, val.Action.InstanceID)
 			}
 		}
 	})
@@ -615,18 +615,18 @@ func createPerson() *Person {
 }
 
 const (
-	modelName = "Person"
+	collectionName = "Person"
 
 	schema = `{
 	"$id": "https://example.com/person.schema.json",
 	"$schema": "http://json-schema.org/draft-07/schema#",
-	"title": "` + modelName + `",
+	"title": "` + collectionName + `",
 	"type": "object",
 	"required": ["ID"],
 	"properties": {
 		"ID": {
 			"type": "string",
-			"description": "The entity's id."
+			"description": "The instance's id."
 		},
 		"firstName": {
 			"type": "string",

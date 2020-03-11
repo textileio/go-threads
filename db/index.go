@@ -30,7 +30,7 @@ var (
 	ErrNoIndexFound = errors.New("no index found")
 )
 
-// Indexer is the interface to implement to support Model property indexes
+// Indexer is the interface to implement to support Collection indexes
 type Indexer interface {
 	BaseKey() ds.Key
 	Indexes() map[string]Index //[indexname]indexFunc

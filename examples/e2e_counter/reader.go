@@ -12,7 +12,7 @@ import (
 )
 
 func runReaderPeer(repo string) {
-	fmt.Printf("I'm a model reader.\n")
+	fmt.Printf("I'm a collection reader.\n")
 	writerAddr, fkey, rkey := getWriterAddr()
 
 	ts, err := db.DefaultService(repo)
@@ -22,14 +22,14 @@ func runReaderPeer(repo string) {
 	checkErr(err)
 	defer d.Close()
 
-	m, err := d.Register("counter", &myCounter{})
+	c, err := d.NewCollectionFromInstance("counter", &myCounter{})
 	checkErr(err)
 
 	l, err := d.Listen()
 	checkErr(err)
 	checkErr(d.StartFromAddr(writerAddr, fkey, rkey))
 	for range l.Channel() {
-		err := m.ReadTxn(func(txn *db.Txn) error {
+		err := c.ReadTxn(func(txn *db.Txn) error {
 			var res []*myCounter
 			if err := txn.Find(&res, nil); err != nil {
 				return err

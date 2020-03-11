@@ -1,4 +1,4 @@
-// Package db provides a DB which manage models
+// Package db provides a DB which manage collections
 package db
 
 import (
@@ -30,12 +30,9 @@ const (
 )
 
 var (
-	// ErrInvalidModel indicates that the registered model isn't valid,
-	// most probably doesn't have an EntityID.ID field.
-	ErrInvalidModel = errors.New("the model is invalid")
-	// ErrInvalidModelType indicates the provided default type isn't compatible
-	// with a Model type.
-	ErrInvalidModelType = errors.New("the model type should be a non-nil pointer to a struct")
+	// ErrInvalidCollectionType indicates the provided default type isn't compatible
+	// with a Collection type.
+	ErrInvalidCollectionType = errors.New("the collection type should be a non-nil pointer to a struct that has an ID property")
 
 	log             = logging.Logger("db")
 	dsStorePrefix   = ds.NewKey("/db")
@@ -45,8 +42,8 @@ var (
 )
 
 // DB is the aggregate-root of events and state. External/remote events
-// are dispatched to the DB, and are internally processed to impact model
-// states. Likewise, local changes in models registered produce events dispatched
+// are dispatched to the DB, and are internally processed to impact collection
+// states. Likewise, local changes in collections registered produce events dispatched
 // externally.
 type DB struct {
 	io.Closer
@@ -60,10 +57,10 @@ type DB struct {
 	service    service.Service
 	adapter    *singleThreadAdapter
 
-	lock       sync.RWMutex
-	modelNames map[string]*Model
-	jsonMode   bool
-	closed     bool
+	lock            sync.RWMutex
+	collectionNames map[string]*Collection
+	jsonMode        bool
+	closed          bool
 
 	localEventsBus      *localEventsBus
 	stateChangedNotifee *stateChangedNotifee
@@ -109,7 +106,7 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 		datastore:           config.Datastore,
 		dispatcher:          newDispatcher(config.Datastore),
 		eventcodec:          config.EventCodec,
-		modelNames:          make(map[string]*Model),
+		collectionNames:     make(map[string]*Collection),
 		jsonMode:            config.JsonMode,
 		localEventsBus:      &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChangedNotifee: &stateChangedNotifee{},
@@ -117,7 +114,7 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 	}
 
 	if s.jsonMode {
-		if err := s.reregisterSchemas(); err != nil {
+		if err := s.reCreateCollections(); err != nil {
 			return nil, err
 		}
 	}
@@ -125,8 +122,8 @@ func newDB(ts service.Service, config *Config) (*DB, error) {
 	return s, nil
 }
 
-// reregisterSchemas loads and registers schemas from the datastore.
-func (s *DB) reregisterSchemas() error {
+// reCreateCollections loads and registers schemas from the datastore.
+func (s *DB) reCreateCollections() error {
 	results, err := s.datastore.Query(query.Query{
 		Prefix: dsStoreSchemas.String(),
 	})
@@ -142,7 +139,7 @@ func (s *DB) reregisterSchemas() error {
 		if err == nil && index != nil {
 			_ = json.Unmarshal(index, &indexes)
 		}
-		if _, err := s.RegisterSchema(name, string(res.Value), indexes...); err != nil {
+		if _, err := s.NewCollection(name, string(res.Value), indexes...); err != nil {
 			return err
 		}
 	}
@@ -226,39 +223,39 @@ func (s *DB) Service() service.Service {
 	return s.service
 }
 
-// Register a new model in the db by infering using a defaultInstance
-func (s *DB) Register(name string, defaultInstance interface{}) (*Model, error) {
+// NewCollectionFromInstance creates a new collection in the db by infering type from a defaultInstance
+func (s *DB) NewCollectionFromInstance(name string, defaultInstance interface{}) (*Collection, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	diType := reflect.TypeOf(defaultInstance)
 	if reflect.ValueOf(defaultInstance).IsNil() || diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
-		return nil, ErrInvalidModelType
+		return nil, ErrInvalidCollectionType
 	}
 
-	if _, ok := s.modelNames[name]; ok {
-		return nil, fmt.Errorf("already registered model")
+	if _, ok := s.collectionNames[name]; ok {
+		return nil, fmt.Errorf("already registered collection")
 	}
 
-	if !isValidModel(defaultInstance) {
-		return nil, ErrInvalidModel
+	if !isValidCollection(defaultInstance) {
+		return nil, ErrInvalidCollectionType
 	}
 
-	m := newModel(name, defaultInstance, s)
-	s.modelNames[name] = m
-	return m, nil
+	c := newCollection(name, defaultInstance, s)
+	s.collectionNames[name] = c
+	return c, nil
 }
 
-// RegisterSchema a new model in the db with a JSON schema.
-func (s *DB) RegisterSchema(name string, schema string, indexes ...*IndexConfig) (*Model, error) {
+// NewCollection creates a new collection in the db with a JSON schema.
+func (s *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) (*Collection, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, ok := s.modelNames[name]; ok {
-		return nil, fmt.Errorf("already registered model")
+	if _, ok := s.collectionNames[name]; ok {
+		return nil, fmt.Errorf("already registered collection")
 	}
 
-	m := newModelFromSchema(name, schema, s)
+	c := newCollectionFromSchema(name, schema, s)
 	key := dsStoreSchemas.ChildString(name)
 	exists, err := s.datastore.Has(key)
 	if err != nil {
@@ -272,7 +269,7 @@ func (s *DB) RegisterSchema(name string, schema string, indexes ...*IndexConfig)
 
 	for _, config := range indexes {
 		// @todo: Should check to make sure this is a valid field path for this schema
-		_ = m.AddIndex(config.Path, config.Unique)
+		_ = c.AddIndex(config.Path, config.Unique)
 	}
 
 	indexBytes, err := json.Marshal(indexes)
@@ -290,16 +287,16 @@ func (s *DB) RegisterSchema(name string, schema string, indexes ...*IndexConfig)
 		}
 	}
 
-	s.modelNames[name] = m
-	return m, nil
+	s.collectionNames[name] = c
+	return c, nil
 }
 
-// GetModel returns a model by name.
-func (s *DB) GetModel(name string) *Model {
-	return s.modelNames[name]
+// GetCollection returns a collection by name.
+func (s *DB) GetCollection(name string) *Collection {
+	return s.collectionNames[name]
 }
 
-// Reduce processes txn events into the models.
+// Reduce processes txn events into the collections.
 func (s *DB) Reduce(events []core.Event) error {
 	codecActions, err := s.eventcodec.Reduce(
 		events,
@@ -323,7 +320,7 @@ func (s *DB) Reduce(events []core.Event) error {
 		default:
 			panic("eventcodec action not recognized")
 		}
-		actions[i] = Action{Model: ca.Model, Type: actionType, ID: ca.EntityID}
+		actions[i] = Action{Collection: ca.Collection, Type: actionType, ID: ca.InstanceID}
 	}
 	s.notifyStateChanged(actions)
 
@@ -331,7 +328,7 @@ func (s *DB) Reduce(events []core.Event) error {
 }
 
 // dispatch applies external events to the db. This function guarantee
-// no interference with registered model states, and viceversa.
+// no interference with registered collection states, and viceversa.
 func (s *DB) dispatch(events []core.Event) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -344,11 +341,11 @@ func (s *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
 	return s.eventcodec.EventsFromBytes(data)
 }
 
-func (s *DB) readTxn(m *Model, f func(txn *Txn) error) error {
+func (s *DB) readTxn(c *Collection, f func(txn *Txn) error) error {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	txn := &Txn{model: m, readonly: true}
+	txn := &Txn{collection: c, readonly: true}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err
@@ -386,11 +383,11 @@ func managedDatastore(ds ds.Datastore) bool {
 	return ok
 }
 
-func (s *DB) writeTxn(m *Model, f func(txn *Txn) error) error {
+func (s *DB) writeTxn(c *Collection, f func(txn *Txn) error) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	txn := &Txn{model: m}
+	txn := &Txn{collection: c}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err
@@ -398,7 +395,7 @@ func (s *DB) writeTxn(m *Model, f func(txn *Txn) error) error {
 	return txn.Commit()
 }
 
-func isValidModel(t interface{}) (valid bool) {
+func isValidCollection(t interface{}) (valid bool) {
 	defer func() {
 		if err := recover(); err != nil {
 			valid = false
@@ -411,9 +408,9 @@ func isValidModel(t interface{}) (valid bool) {
 	return v.Elem().FieldByName(idFieldName).IsValid()
 }
 
-func defaultIndexFunc(s *DB) func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-	return func(model string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-		indexer := s.GetModel(model)
+func defaultIndexFunc(s *DB) func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+	return func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+		indexer := s.GetCollection(collection)
 		if err := indexDelete(indexer, txn, key, oldData); err != nil {
 			return err
 		}

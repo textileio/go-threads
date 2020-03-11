@@ -11,7 +11,7 @@ import (
 )
 
 type book struct {
-	ID     core.EntityID
+	ID     core.InstanceID
 	Title  string
 	Author string
 	Meta   bookStats
@@ -104,16 +104,16 @@ var (
 	}
 )
 
-func TestModelQuery(t *testing.T) {
+func TestCollectionQuery(t *testing.T) {
 	t.Parallel()
-	m, clean := createModelWithData(t)
+	c, clean := createCollectionWithData(t)
 	defer clean()
 	for _, q := range queries {
 		q := q
 		t.Run(q.name, func(t *testing.T) {
 			t.Parallel()
 			var res []*book
-			if err := m.Find(&res, q.query); err != nil {
+			if err := c.Find(&res, q.query); err != nil {
 				t.Fatalf("error when executing query: %v", err)
 			}
 			if len(q.resIdx) != len(res) {
@@ -144,32 +144,32 @@ func TestModelQuery(t *testing.T) {
 func TestInvalidSortField(t *testing.T) {
 	t.Parallel()
 
-	m, clean := createModelWithData(t)
+	c, clean := createCollectionWithData(t)
 	defer clean()
 	var res []*book
-	if err := m.Find(&res, (&Query{}).OrderBy("WrongFieldName")); !errors.Is(err, ErrInvalidSortingField) {
+	if err := c.Find(&res, (&Query{}).OrderBy("WrongFieldName")); !errors.Is(err, ErrInvalidSortingField) {
 		t.Fatal("query should fail using an invalid field")
 	}
 }
 
 func TestInvalidSliceType(t *testing.T) {
 	t.Parallel()
-	m, clean := createModelWithData(t)
+	c, clean := createCollectionWithData(t)
 	defer clean()
 	var res []*string
-	if err := m.Find(&res, &Query{}); !errors.Is(err, ErrInvalidSliceType) {
+	if err := c.Find(&res, &Query{}); !errors.Is(err, ErrInvalidSliceType) {
 		t.Fatal("query should fail when slice has incorrect type")
 	}
 }
 
-func createModelWithData(t *testing.T) (*Model, func()) {
+func createCollectionWithData(t *testing.T) (*Collection, func()) {
 	db, clean := createTestDB(t)
-	m, err := db.Register("Book", &book{})
+	c, err := db.NewCollectionFromInstance("Book", &book{})
 	checkErr(t, err)
 	for i := range sampleData {
-		if err = m.Create(&sampleData[i]); err != nil {
+		if err = c.Create(&sampleData[i]); err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
 	}
-	return m, clean
+	return c, clean
 }

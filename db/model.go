@@ -16,25 +16,25 @@ import (
 
 var (
 	// ErrNotFound indicates that the specified instance doesn't
-	// exist in the model.
+	// exist in the collection.
 	ErrNotFound = errors.New("instance not found")
 	// ErrReadonlyTx indicates that no write operations can be done since
 	// the current transaction is readonly.
 	ErrReadonlyTx = errors.New("read only transaction")
 	// ErrInvalidSchemaInstance indicates the current operation is from an
-	// instance that doesn't satisfy the model schema.
+	// instance that doesn't satisfy the collection schema.
 	ErrInvalidSchemaInstance = errors.New("instance doesn't correspond to schema")
 
 	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/commited txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
-	baseKey = dsStorePrefix.ChildString("model")
+	baseKey = dsStorePrefix.ChildString("collection")
 )
 
-// Model contains instances of a schema, and provides operations
+// Collection contains instances of a schema, and provides operations
 // for creating, updating, deleting, and quering them.
-type Model struct {
+type Collection struct {
 	name         string
 	schemaLoader gojsonschema.JSONLoader
 	valueType    reflect.Type
@@ -42,38 +42,38 @@ type Model struct {
 	indexes      map[string]Index
 }
 
-func newModel(name string, defaultInstance interface{}, d *DB) *Model {
+func newCollection(name string, defaultInstance interface{}, d *DB) *Collection {
 	schema := jsonschema.Reflect(defaultInstance)
 	schemaLoader := gojsonschema.NewGoLoader(schema)
-	m := &Model{
+	c := &Collection{
 		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    reflect.TypeOf(defaultInstance),
 		db:           d,
 		indexes:      make(map[string]Index),
 	}
-	return m
+	return c
 }
 
-func newModelFromSchema(name string, schema string, d *DB) *Model {
+func newCollectionFromSchema(name string, schema string, d *DB) *Collection {
 	schemaLoader := gojsonschema.NewStringLoader(schema)
-	m := &Model{
+	c := &Collection{
 		name:         name,
 		schemaLoader: schemaLoader,
 		valueType:    nil,
 		db:           d,
 		indexes:      make(map[string]Index),
 	}
-	return m
+	return c
 }
 
-func (m *Model) BaseKey() ds.Key {
-	return baseKey.ChildString(m.name)
+func (c *Collection) BaseKey() ds.Key {
+	return baseKey.ChildString(c.name)
 }
 
-// Indexes is a map of model properties to Indexes
-func (m *Model) Indexes() map[string]Index {
-	return m.indexes
+// Indexes is a map of collection properties to Indexes
+func (c *Collection) Indexes() map[string]Index {
+	return c.indexes
 }
 
 // AddIndex creates a new index based on the given path string.
@@ -82,8 +82,8 @@ func (m *Model) Indexes() map[string]Index {
 // Adding an index will override any overlapping index values if they already exist.
 // @note: This does NOT currently build the index. If items have been added prior to adding
 // a new index, they will NOT be indexed a posteriori.
-func (m *Model) AddIndex(path string, unique bool) error {
-	m.indexes[path] = Index{
+func (c *Collection) AddIndex(path string, unique bool) error {
+	c.indexes[path] = Index{
 		IndexFunc: func(field string, value []byte) (ds.Key, error) {
 			result := gjson.GetBytes(value, field)
 			if !result.Exists() {
@@ -97,52 +97,52 @@ func (m *Model) AddIndex(path string, unique bool) error {
 }
 
 // ReadTxn creates an explicit readonly transaction. Any operation
-// that tries to mutate an instance of the model will ErrReadonlyTx.
+// that tries to mutate an instance of the collection will ErrReadonlyTx.
 // Provides serializable isolation gurantees.
-func (m *Model) ReadTxn(f func(txn *Txn) error) error {
-	return m.db.readTxn(m, f)
+func (c *Collection) ReadTxn(f func(txn *Txn) error) error {
+	return c.db.readTxn(c, f)
 }
 
 // WriteTxn creates an explicit write transaction. Provides
 // serializable isolation gurantees.
-func (m *Model) WriteTxn(f func(txn *Txn) error) error {
-	return m.db.writeTxn(m, f)
+func (c *Collection) WriteTxn(f func(txn *Txn) error) error {
+	return c.db.writeTxn(c, f)
 }
 
 // FindByID finds an instance by its ID and saves it in v.
 // If doesn't exists returns ErrNotFound.
-func (m *Model) FindByID(id core.EntityID, v interface{}) error {
-	return m.ReadTxn(func(txn *Txn) error {
+func (c *Collection) FindByID(id core.InstanceID, v interface{}) error {
+	return c.ReadTxn(func(txn *Txn) error {
 		return txn.FindByID(id, v)
 	})
 }
 
-// Create creates instances in the model.
-func (m *Model) Create(vs ...interface{}) error {
-	return m.WriteTxn(func(txn *Txn) error {
+// Create creates instances in the collection.
+func (c *Collection) Create(vs ...interface{}) error {
+	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Create(vs...)
 	})
 }
 
 // Delete deletes instances by its IDs. It doesn't
 // fail if the ID doesn't exist.
-func (m *Model) Delete(ids ...core.EntityID) error {
-	return m.WriteTxn(func(txn *Txn) error {
+func (c *Collection) Delete(ids ...core.InstanceID) error {
+	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Delete(ids...)
 	})
 }
 
-// Save saves changes of instances in the model.
-func (m *Model) Save(vs ...interface{}) error {
-	return m.WriteTxn(func(txn *Txn) error {
+// Save saves changes of instances in the collection.
+func (c *Collection) Save(vs ...interface{}) error {
+	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Save(vs...)
 	})
 }
 
-// Has returns true if all IDs exist in the model, false
+// Has returns true if all IDs exist in the collection, false
 // otherwise.
-func (m *Model) Has(ids ...core.EntityID) (exists bool, err error) {
-	_ = m.ReadTxn(func(txn *Txn) error {
+func (c *Collection) Has(ids ...core.InstanceID) (exists bool, err error) {
+	_ = c.ReadTxn(func(txn *Txn) error {
 		exists, err = txn.Has(ids...)
 		return err
 	})
@@ -150,30 +150,30 @@ func (m *Model) Has(ids ...core.EntityID) (exists bool, err error) {
 }
 
 // Find executes a Query into result.
-func (m *Model) Find(result interface{}, q *Query) error {
-	return m.ReadTxn(func(txn *Txn) error {
+func (c *Collection) Find(result interface{}, q *Query) error {
+	return c.ReadTxn(func(txn *Txn) error {
 		return txn.Find(result, q)
 	})
 }
 
 // FindJSON executes a Query in in JSONMode and returns the result.
-func (m *Model) FindJSON(q *JSONQuery) (ret []string, err error) {
-	_ = m.ReadTxn(func(txn *Txn) error {
+func (c *Collection) FindJSON(q *JSONQuery) (ret []string, err error) {
+	_ = c.ReadTxn(func(txn *Txn) error {
 		ret, err = txn.FindJSON(q)
 		return err
 	})
 	return
 }
 
-func (m *Model) validInstance(v interface{}) (bool, error) {
+func (c *Collection) validInstance(v interface{}) (bool, error) {
 	var vLoader gojsonschema.JSONLoader
-	if m.db.jsonMode {
+	if c.db.jsonMode {
 		strJSON := v.(*string)
 		vLoader = gojsonschema.NewBytesLoader([]byte(*strJSON))
 	} else {
 		vLoader = gojsonschema.NewGoLoader(v)
 	}
-	r, err := gojsonschema.Validate(m.schemaLoader, vLoader)
+	r, err := gojsonschema.Validate(c.schemaLoader, vLoader)
 	if err != nil {
 		return false, err
 	}
@@ -182,20 +182,20 @@ func (m *Model) validInstance(v interface{}) (bool, error) {
 }
 
 // Sanity check
-var _ Indexer = (*Model)(nil)
+var _ Indexer = (*Collection)(nil)
 
 // Txn represents a read/write transaction in the db. It allows for
 // serializable isolation level within the db.
 type Txn struct {
-	model     *Model
-	discarded bool
-	commited  bool
-	readonly  bool
+	collection *Collection
+	discarded  bool
+	commited   bool
+	readonly   bool
 
 	actions []core.Action
 }
 
-// Create creates new instances in the model
+// Create creates new instances in the collection
 // If the ID value on the instance is nil or otherwise a null value (e.g., "" in jsonMode),
 // the ID is updated in-place to reflect the automatically-genereted UUID.
 func (t *Txn) Create(new ...interface{}) error {
@@ -203,7 +203,7 @@ func (t *Txn) Create(new ...interface{}) error {
 		if t.readonly {
 			return ErrReadonlyTx
 		}
-		valid, err := t.model.validInstance(new[i])
+		valid, err := t.collection.validInstance(new[i])
 		if err != nil {
 			return err
 		}
@@ -211,13 +211,13 @@ func (t *Txn) Create(new ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		jsonMode := t.model.db.jsonMode
-		id := getEntityID(new[i], jsonMode)
-		if id == core.EmptyEntityID {
-			id = setNewEntityID(new[i], jsonMode)
+		jsonMode := t.collection.db.jsonMode
+		id := getInstanceID(new[i], jsonMode)
+		if id == core.EmptyInstanceID {
+			id = setNewInstanceID(new[i], jsonMode)
 		}
-		key := baseKey.ChildString(t.model.name).ChildString(id.String())
-		exists, err := t.model.db.datastore.Has(key)
+		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
+		exists, err := t.collection.db.datastore.Has(key)
 		if err != nil {
 			return err
 		}
@@ -226,11 +226,11 @@ func (t *Txn) Create(new ...interface{}) error {
 		}
 
 		a := core.Action{
-			Type:      core.Create,
-			EntityID:  id,
-			ModelName: t.model.name,
-			Previous:  nil,
-			Current:   new[i],
+			Type:           core.Create,
+			InstanceID:     id,
+			CollectionName: t.collection.name,
+			Previous:       nil,
+			Current:        new[i],
 		}
 		t.actions = append(t.actions, a)
 	}
@@ -245,7 +245,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return ErrReadonlyTx
 		}
 
-		valid, err := t.model.validInstance(updated[i])
+		valid, err := t.collection.validInstance(updated[i])
 		if err != nil {
 			return err
 		}
@@ -253,9 +253,9 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getEntityID(updated[i], t.model.db.jsonMode)
-		key := baseKey.ChildString(t.model.name).ChildString(id.String())
-		beforeBytes, err := t.model.db.datastore.Get(key)
+		id := getInstanceID(updated[i], t.collection.db.jsonMode)
+		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
+		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
 			return errCantSaveNonExistentInstance
 		}
@@ -265,19 +265,19 @@ func (t *Txn) Save(updated ...interface{}) error {
 
 		var previous interface{}
 		previous = beforeBytes
-		if !t.model.db.jsonMode {
-			before := reflect.New(t.model.valueType.Elem()).Interface()
+		if !t.collection.db.jsonMode {
+			before := reflect.New(t.collection.valueType.Elem()).Interface()
 			if err = json.Unmarshal(beforeBytes, before); err != nil {
 				return err
 			}
 			previous = before
 		}
 		t.actions = append(t.actions, core.Action{
-			Type:      core.Save,
-			EntityID:  id,
-			ModelName: t.model.name,
-			Previous:  previous,
-			Current:   updated[i],
+			Type:           core.Save,
+			InstanceID:     id,
+			CollectionName: t.collection.name,
+			Previous:       previous,
+			Current:        updated[i],
 		})
 	}
 	return nil
@@ -285,13 +285,13 @@ func (t *Txn) Save(updated ...interface{}) error {
 
 // Delete deletes instances by ID when the current
 // transaction commits.
-func (t *Txn) Delete(ids ...core.EntityID) error {
+func (t *Txn) Delete(ids ...core.InstanceID) error {
 	for i := range ids {
 		if t.readonly {
 			return ErrReadonlyTx
 		}
-		key := baseKey.ChildString(t.model.name).ChildString(ids[i].String())
-		exists, err := t.model.db.datastore.Has(key)
+		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
+		exists, err := t.collection.db.datastore.Has(key)
 		if err != nil {
 			return err
 		}
@@ -299,23 +299,23 @@ func (t *Txn) Delete(ids ...core.EntityID) error {
 			return ErrNotFound
 		}
 		a := core.Action{
-			Type:      core.Delete,
-			EntityID:  ids[i],
-			ModelName: t.model.name,
-			Previous:  nil,
-			Current:   nil,
+			Type:           core.Delete,
+			InstanceID:     ids[i],
+			CollectionName: t.collection.name,
+			Previous:       nil,
+			Current:        nil,
 		}
 		t.actions = append(t.actions, a)
 	}
 	return nil
 }
 
-// Has returns true if all IDs exists in the model, false
+// Has returns true if all IDs exists in the collection, false
 // otherwise.
-func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
+func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 	for i := range ids {
-		key := baseKey.ChildString(t.model.name).ChildString(ids[i].String())
-		exists, err := t.model.db.datastore.Has(key)
+		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
+		exists, err := t.collection.db.datastore.Has(key)
 		if err != nil {
 			return false, err
 		}
@@ -327,16 +327,16 @@ func (t *Txn) Has(ids ...core.EntityID) (bool, error) {
 }
 
 // FindByID gets an instance by ID in the current txn scope.
-func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
-	key := baseKey.ChildString(t.model.name).ChildString(id.String())
-	bytes, err := t.model.db.datastore.Get(key)
+func (t *Txn) FindByID(id core.InstanceID, v interface{}) error {
+	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
+	bytes, err := t.collection.db.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
 		return ErrNotFound
 	}
 	if err != nil {
 		return err
 	}
-	if t.model.db.jsonMode {
+	if t.collection.db.jsonMode {
 		str := string(bytes)
 		rflStr := reflect.ValueOf(str)
 		reflV := reflect.ValueOf(v)
@@ -348,20 +348,20 @@ func (t *Txn) FindByID(id core.EntityID, v interface{}) error {
 }
 
 // Commit applies all changes done in the current transaction
-// to the model. This is a syncrhonous call so changes can
+// to the collection. This is a syncrhonous call so changes can
 // be assumed to be applied on function return.
 func (t *Txn) Commit() error {
 	if t.discarded || t.commited {
 		return errAlreadyDiscardedCommitedTxn
 	}
-	events, node, err := t.model.db.eventcodec.Create(t.actions)
+	events, node, err := t.collection.db.eventcodec.Create(t.actions)
 	if err != nil {
 		return err
 	}
-	if err := t.model.db.dispatcher.Dispatch(events); err != nil {
+	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
-	if err := t.model.db.notifyTxnEvents(node); err != nil {
+	if err := t.collection.db.notifyTxnEvents(node); err != nil {
 		return err
 	}
 	return nil
@@ -373,7 +373,7 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getEntityID(t interface{}, jsonMode bool) core.EntityID {
+func getInstanceID(t interface{}, jsonMode bool) core.InstanceID {
 	if jsonMode {
 		partial := &struct{ ID *string }{}
 		if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
@@ -382,25 +382,25 @@ func getEntityID(t interface{}, jsonMode bool) core.EntityID {
 		if partial.ID == nil {
 			log.Fatal("invalid instance: doesn't have an ID attribute")
 		}
-		if *partial.ID != "" && !core.IsValidEntityID(*partial.ID) {
+		if *partial.ID != "" && !core.IsValidInstanceID(*partial.ID) {
 			log.Fatal("invalid instance: invalid ID value")
 		}
-		return core.EntityID(*partial.ID)
+		return core.InstanceID(*partial.ID)
 	} else {
 		v := reflect.ValueOf(t)
 		if v.Type().Kind() != reflect.Ptr {
 			v = reflect.New(reflect.TypeOf(v))
 		}
 		v = v.Elem().FieldByName(idFieldName)
-		if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyEntityID) {
-			log.Fatal("invalid instance: doesn't have EntityID attribute")
+		if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyInstanceID) {
+			log.Fatal("invalid instance: doesn't have InstanceID attribute")
 		}
-		return core.EntityID(v.String())
+		return core.InstanceID(v.String())
 	}
 }
 
-func setNewEntityID(t interface{}, jsonMode bool) core.EntityID {
-	newID := core.NewEntityID()
+func setNewInstanceID(t interface{}, jsonMode bool) core.InstanceID {
+	newID := core.NewInstanceID()
 	if jsonMode {
 		patchedValue, err := jsonpatch.MergePatch([]byte(*(t.(*string))), []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
 		if err != nil {

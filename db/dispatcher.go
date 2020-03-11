@@ -112,7 +112,7 @@ func (d *dispatcher) Query(query query.Query) ([]query.Entry, error) {
 	return result.Rest()
 }
 
-// Key format: <timestamp>/<entity-id>/<type>
+// Key format: <timestamp>/<instance-id>/<type>
 // @todo: This is up for debate, its a 'fake' Event struct right now anyway
 func getKey(event core.Event) (key datastore.Key, err error) {
 	buf := bytes.NewBuffer(event.Time())
@@ -122,7 +122,7 @@ func getKey(event core.Event) (key datastore.Key, err error) {
 	}
 	time := strconv.FormatInt(unix, 10)
 	key = dsDispatcherPrefix.ChildString(time).
-		ChildString(event.EntityID().String()).
-		ChildString(event.Model())
+		ChildString(event.InstanceID().String()).
+		ChildString(event.Collection())
 	return key, nil
 }

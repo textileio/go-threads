@@ -145,11 +145,11 @@ func (n *nullEvent) Time() []byte {
 	return buf.Bytes()
 }
 
-func (n *nullEvent) EntityID() core.EntityID {
+func (n *nullEvent) InstanceID() core.InstanceID {
 	return "null"
 }
 
-func (n *nullEvent) Model() string {
+func (n *nullEvent) Collection() string {
 	return "null"
 }
 

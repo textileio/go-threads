@@ -40,12 +40,12 @@ var (
 			Description: "Stream all db updates.",
 		},
 		{
-			Text:        "modelFind",
-			Description: "Find all entities by model name.",
+			Text:        "find",
+			Description: "Find all instances by collection name.",
 		},
 		{
-			Text:        "modelFindByID",
-			Description: "Find entity by model name and entity ID.",
+			Text:        "findByID",
+			Description: "Find an instance by collection name and instance ID.",
 		},
 	}
 )
@@ -84,23 +84,23 @@ func dbExecutor(blocks []string) {
 	case "listen":
 		listen(currentDB)
 		return
-	case "modelFind":
+	case "find":
 		if len(blocks) < 2 {
-			fmt.Println("You must provide a model name.")
+			fmt.Println("You must provide a collection name.")
 			return
 		}
-		modelFind(currentDB, blocks[1])
+		find(currentDB, blocks[1])
 		return
-	case "modelFindByID":
+	case "findByID":
 		if len(blocks) < 2 {
-			fmt.Println("You must provide a model name.")
+			fmt.Println("You must provide a collection name.")
 			return
 		}
 		if len(blocks) < 3 {
-			fmt.Println("You must provide an entity ID.")
+			fmt.Println("You must provide an instance ID.")
 			return
 		}
-		modelFindByID(currentDB, blocks[1], blocks[2])
+		findByID(currentDB, blocks[1], blocks[2])
 		return
 	default:
 		fmt.Println("Sorry, I don't understand.")
@@ -139,37 +139,37 @@ func executor(in string) {
 	}
 }
 
-func modelFind(id string, model string) {
+func find(id string, collection string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	rawResults, err := apiClient.ModelFind(ctx, id, model, &db.JSONQuery{}, []*any{})
+	rawResults, err := apiClient.Find(ctx, id, collection, &db.JSONQuery{}, []*any{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	entities := rawResults.([]*any)
-	if len(entities) == 0 {
+	instances := rawResults.([]*any)
+	if len(instances) == 0 {
 		fmt.Println("None found")
 		return
 	}
-	for _, el := range entities {
+	for _, el := range instances {
 		prettyPrint(el)
 	}
 }
 
-func modelFindByID(id string, model string, modelID string) {
+func findByID(id string, collection string, instanceID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	entity := &any{}
-	err := apiClient.ModelFindByID(ctx, id, model, modelID, entity)
+	instance := &any{}
+	err := apiClient.FindByID(ctx, id, collection, instanceID, instance)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	prettyPrint(entity)
+	prettyPrint(instance)
 }
 
 func backgroundListen(ctx context.Context, id string) {
@@ -191,7 +191,7 @@ func backgroundListen(ctx context.Context, id string) {
 				continue
 			}
 			obj := &any{}
-			if err := json.Unmarshal(val.Action.Entity, obj); err != nil {
+			if err := json.Unmarshal(val.Action.Instance, obj); err != nil {
 				fmt.Println("failed to unmarshal listen result")
 				continue
 			}

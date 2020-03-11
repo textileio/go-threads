@@ -20,20 +20,20 @@ import (
 type ActionType int
 
 const (
-	// ActionCreate represents an event for creating a new entity
+	// ActionCreate represents an event for creating a new instance
 	ActionCreate ActionType = iota + 1
-	// ActionSave represents an event for saving changes to an existing entity
+	// ActionSave represents an event for saving changes to an existing instance
 	ActionSave
-	// ActionDelete represents an event for deleting existing entity
+	// ActionDelete represents an event for deleting existing instance
 	ActionDelete
 )
 
 // Action represents a data event delivered to a listener
 type Action struct {
-	Model    string
-	Type     ActionType
-	EntityID string
-	Entity   []byte
+	Collection string
+	Type       ActionType
+	InstanceID string
+	Instance   []byte
 }
 
 // ListenActionType describes the type of event action when receiving data updates
@@ -52,9 +52,9 @@ const (
 
 // ListenOption represents a filter to apply when listening for data updates
 type ListenOption struct {
-	Type     ListenActionType
-	Model    string
-	EntityID string
+	Type       ListenActionType
+	Collection string
+	InstanceID string
 }
 
 // ListenEvent is used to send data or error values for Listen
@@ -95,22 +95,22 @@ func (c *Client) NewDB(ctx context.Context) (string, error) {
 	return resp.GetID(), nil
 }
 
-// RegisterSchema registers a new model shecma
-func (c *Client) RegisterSchema(ctx context.Context, dbID, name, schema string, indexes ...*db.IndexConfig) error {
-	idx := make([]*pb.RegisterSchemaRequest_IndexConfig, len(indexes))
+// NewCollection creates a new collection
+func (c *Client) NewCollection(ctx context.Context, dbID, name, schema string, indexes ...*db.IndexConfig) error {
+	idx := make([]*pb.NewCollectionRequest_IndexConfig, len(indexes))
 	for i, index := range indexes {
-		idx[i] = &pb.RegisterSchemaRequest_IndexConfig{
+		idx[i] = &pb.NewCollectionRequest_IndexConfig{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
 	}
-	req := &pb.RegisterSchemaRequest{
+	req := &pb.NewCollectionRequest{
 		DBID:    dbID,
 		Name:    name,
 		Schema:  schema,
 		Indexes: idx,
 	}
-	_, err := c.c.RegisterSchema(ctx, req)
+	_, err := c.c.NewCollection(ctx, req)
 	return err
 }
 
@@ -132,26 +132,26 @@ func (c *Client) StartFromAddress(ctx context.Context, dbID string, addr ma.Mult
 	return err
 }
 
-// ModelCreate creates new instances of model objects
-func (c *Client) ModelCreate(ctx context.Context, dbID, modelName string, items ...interface{}) error {
+// Create creates new instances of objects
+func (c *Client) Create(ctx context.Context, dbID, collectionName string, items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
 	}
 
-	req := &pb.ModelCreateRequest{
-		DBID:      dbID,
-		ModelName: modelName,
-		Values:    values,
+	req := &pb.CreateRequest{
+		DBID:           dbID,
+		CollectionName: collectionName,
+		Values:         values,
 	}
 
-	resp, err := c.c.ModelCreate(ctx, req)
+	resp, err := c.c.Create(ctx, req)
 	if err != nil {
 		return err
 	}
 
-	for i, entity := range resp.GetEntities() {
-		err := json.Unmarshal([]byte(entity), items[i])
+	for i, instance := range resp.GetInstances() {
+		err := json.Unmarshal([]byte(instance), items[i])
 		if err != nil {
 			return err
 		}
@@ -160,30 +160,30 @@ func (c *Client) ModelCreate(ctx context.Context, dbID, modelName string, items 
 	return nil
 }
 
-// ModelSave saves existing instances
-func (c *Client) ModelSave(ctx context.Context, dbID, modelName string, items ...interface{}) error {
+// Save saves existing instances
+func (c *Client) Save(ctx context.Context, dbID, collectionName string, items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
 	}
 
-	req := &pb.ModelSaveRequest{
-		DBID:      dbID,
-		ModelName: modelName,
-		Values:    values,
+	req := &pb.SaveRequest{
+		DBID:           dbID,
+		CollectionName: collectionName,
+		Values:         values,
 	}
-	_, err = c.c.ModelSave(ctx, req)
+	_, err = c.c.Save(ctx, req)
 	return err
 }
 
-// ModelDelete deletes data
-func (c *Client) ModelDelete(ctx context.Context, dbID, modelName string, entityIDs ...string) error {
-	req := &pb.ModelDeleteRequest{
-		DBID:      dbID,
-		ModelName: modelName,
-		EntityIDs: entityIDs,
+// Delete deletes data
+func (c *Client) Delete(ctx context.Context, dbID, collectionName string, instanceIDs ...string) error {
+	req := &pb.DeleteRequest{
+		DBID:           dbID,
+		CollectionName: collectionName,
+		InstanceIDs:    instanceIDs,
 	}
-	_, err := c.c.ModelDelete(ctx, req)
+	_, err := c.c.Delete(ctx, req)
 	return err
 }
 
@@ -207,72 +207,72 @@ func (c *Client) GetDBLink(ctx context.Context, dbID string) ([]string, error) {
 	return res, nil
 }
 
-// ModelHas checks if the specified entities exist
-func (c *Client) ModelHas(ctx context.Context, dbID, modelName string, entityIDs ...string) (bool, error) {
-	req := &pb.ModelHasRequest{
-		DBID:      dbID,
-		ModelName: modelName,
-		EntityIDs: entityIDs,
+// Has checks if the specified instances exist
+func (c *Client) Has(ctx context.Context, dbID, collectionName string, instanceIDs ...string) (bool, error) {
+	req := &pb.HasRequest{
+		DBID:           dbID,
+		CollectionName: collectionName,
+		InstanceIDs:    instanceIDs,
 	}
-	resp, err := c.c.ModelHas(ctx, req)
+	resp, err := c.c.Has(ctx, req)
 	if err != nil {
 		return false, err
 	}
 	return resp.GetExists(), nil
 }
 
-// ModelFind finds records by query
-func (c *Client) ModelFind(ctx context.Context, dbID, modelName string, query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
+// Find finds instances by query
+func (c *Client) Find(ctx context.Context, dbID, collectionName string, query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
-	req := &pb.ModelFindRequest{
-		DBID:      dbID,
-		ModelName: modelName,
-		QueryJSON: queryBytes,
+	req := &pb.FindRequest{
+		DBID:           dbID,
+		CollectionName: collectionName,
+		QueryJSON:      queryBytes,
 	}
-	resp, err := c.c.ModelFind(ctx, req)
+	resp, err := c.c.Find(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	return processFindReply(resp, dummySlice)
 }
 
-// ModelFindByID finds a record by id
-func (c *Client) ModelFindByID(ctx context.Context, dbID, modelName, entityID string, entity interface{}) error {
-	req := &pb.ModelFindByIDRequest{
-		DBID:      dbID,
-		ModelName: modelName,
-		EntityID:  entityID,
+// FindByID finds an instance by id
+func (c *Client) FindByID(ctx context.Context, dbID, collectionName, instanceID string, instance interface{}) error {
+	req := &pb.FindByIDRequest{
+		DBID:           dbID,
+		CollectionName: collectionName,
+		InstanceID:     instanceID,
 	}
-	resp, err := c.c.ModelFindByID(ctx, req)
+	resp, err := c.c.FindByID(ctx, req)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal([]byte(resp.GetEntity()), entity)
+	err = json.Unmarshal([]byte(resp.GetInstance()), instance)
 	return err
 }
 
 // ReadTransaction returns a read transaction that can be started and used and ended
-func (c *Client) ReadTransaction(ctx context.Context, dbID, modelName string) (*ReadTransaction, error) {
+func (c *Client) ReadTransaction(ctx context.Context, dbID, collectionName string) (*ReadTransaction, error) {
 	client, err := c.c.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &ReadTransaction{client: client, dbID: dbID, modelName: modelName}, nil
+	return &ReadTransaction{client: client, dbID: dbID, collectionName: collectionName}, nil
 }
 
 // WriteTransaction returns a read transaction that can be started and used and ended
-func (c *Client) WriteTransaction(ctx context.Context, dbID, modelName string) (*WriteTransaction, error) {
+func (c *Client) WriteTransaction(ctx context.Context, dbID, collectionName string) (*WriteTransaction, error) {
 	client, err := c.c.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &WriteTransaction{client: client, dbID: dbID, modelName: modelName}, nil
+	return &WriteTransaction{client: client, dbID: dbID, collectionName: collectionName}, nil
 }
 
-// Listen provides an update whenever the specified db, model type, or model instance is updated
+// Listen provides an update whenever the specified db, collection, or instance is updated
 func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
 	channel := make(chan ListenEvent)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
@@ -291,9 +291,9 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 			return nil, fmt.Errorf("unknown ListenOption.Type %v", listenOption.Type)
 		}
 		filters[i] = &pb.ListenRequest_Filter{
-			ModelName: listenOption.Model,
-			EntityID:  listenOption.EntityID,
-			Action:    action,
+			CollectionName: listenOption.Collection,
+			InstanceID:     listenOption.InstanceID,
+			Action:         action,
 		}
 	}
 	req := &pb.ListenRequest{
@@ -330,10 +330,10 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 				break loop
 			}
 			action := Action{
-				Model:    event.GetModelName(),
-				Type:     actionType,
-				EntityID: event.GetEntityID(),
-				Entity:   event.GetEntity(),
+				Collection: event.GetCollectionName(),
+				Type:       actionType,
+				InstanceID: event.GetInstanceID(),
+				Instance:   event.GetInstance(),
 			}
 			channel <- ListenEvent{Action: action}
 		}
@@ -341,12 +341,12 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 	return channel, nil
 }
 
-func processFindReply(reply *pb.ModelFindReply, dummySlice interface{}) (interface{}, error) {
+func processFindReply(reply *pb.FindReply, dummySlice interface{}) (interface{}, error) {
 	sliceType := reflect.TypeOf(dummySlice)
 	elementType := sliceType.Elem().Elem()
-	length := len(reply.GetEntities())
+	length := len(reply.GetInstances())
 	results := reflect.MakeSlice(sliceType, length, length)
-	for i, result := range reply.GetEntities() {
+	for i, result := range reply.GetInstances() {
 		target := reflect.New(elementType).Interface()
 		err := json.Unmarshal(result, target)
 		if err != nil {
