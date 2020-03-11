@@ -35,6 +35,7 @@ jobs:
 
   android-client:
     name: Android Client Test
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
