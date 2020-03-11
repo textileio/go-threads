@@ -52,17 +52,17 @@ func TestSchemaRegistration(t *testing.T) {
 		_, err = db.NewCollectionFromInstance("Person", &Person{})
 		checkErr(t, err)
 	})
-	// t.Run("Fail/WithoutInstanceID", func(t *testing.T) {
-	// 	t.Parallel()
-	// 	type FailingType struct {
-	// 		IDontHaveAnIDField int
-	// 	}
-	// 	db, clean := createTestDB(t)
-	// 	defer clean()
-	// 	if _, err := db.NewCollectionFromInstance("FailingType", &FailingType{}); err != ErrInvalidCollectionType {
-	// 		t.Fatal("the collection should be invalid")
-	// 	}
-	// })
+	t.Run("Fail/WithoutInstanceID", func(t *testing.T) {
+		t.Parallel()
+		type FailingType struct {
+			IDontHaveAnIDField int
+		}
+		db, clean := createTestDB(t)
+		defer clean()
+		if _, err := db.NewCollectionFromInstance("FailingType", &FailingType{}); err != ErrInvalidCollectionType {
+			t.Fatal("the collection should be invalid")
+		}
+	})
 }
 
 func TestCreateInstance(t *testing.T) {
