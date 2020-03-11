@@ -31,7 +31,7 @@ public class ClientUnitTest {
 
     static Client client;
     static String dbId;
-    static String collectionId = "";
+    static String instanceId = "";
 
     void connect() throws Exception {
         // Initialize & start
