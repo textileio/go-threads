@@ -218,8 +218,8 @@ public class Client implements LifecycleObserver {
         asyncStub.find(request.build(), responseObserver);
     }
 
-    public void RegisterSchemaSync (String dbID, String name, String schema) {
-        RegisterSchemaRequest.Builder request = RegisterSchemaRequest.newBuilder();
+    public void NewCollectionSync (String dbID, String name, String schema) {
+        NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDBID(dbID);
         request.setName(name);
         request.setSchema(schema);
@@ -227,12 +227,12 @@ public class Client implements LifecycleObserver {
         return;
     }
 
-    public void RegisterSchema (String dbID, String name, String schema, StreamObserver<RegisterSchemaReply> responseObserver) {
-        RegisterSchemaRequest.Builder request = RegisterSchemaRequest.newBuilder();
+    public void NewCollection (String dbID, String name, String schema, StreamObserver<NewCollectionReply> responseObserver) {
+        NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDBID(dbID);
         request.setName(name);
         request.setSchema(schema);
-        asyncStub.registerSchema(request.build(), responseObserver);
+        asyncStub.newCollection(request.build(), responseObserver);
     }
 
     public Boolean connected() {
