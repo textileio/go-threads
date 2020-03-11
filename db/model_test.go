@@ -2,7 +2,6 @@ package db
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -383,13 +382,6 @@ func TestInvalidActions(t *testing.T) {
 	})
 }
 
-func checkErr(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func assertPersonInCollection(t *testing.T, collection *Collection, person *Person) {
 	t.Helper()
 	p := &Person{}
@@ -397,21 +389,5 @@ func assertPersonInCollection(t *testing.T, collection *Collection, person *Pers
 	checkErr(t, err)
 	if !reflect.DeepEqual(person, p) {
 		t.Fatalf(errInvalidInstanceState)
-	}
-}
-
-func createTestDB(t *testing.T, opts ...Option) (*DB, func()) {
-	dir, err := ioutil.TempDir("", "")
-	checkErr(t, err)
-	ts, err := DefaultService(dir)
-	checkErr(t, err)
-	opts = append(opts, WithRepoPath(dir))
-	s, err := NewDB(ts, opts...)
-	checkErr(t, err)
-	return s, func() {
-		if err := ts.Close(); err != nil {
-			panic(err)
-		}
-		_ = os.RemoveAll(dir)
 	}
 }
