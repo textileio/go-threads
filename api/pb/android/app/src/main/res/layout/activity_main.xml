@@ -27,7 +27,7 @@
         android:layout_marginRight="165dp"
         android:layout_marginBottom="173dp"
         android:onClick="onButtonClick"
-        android:text="Log IPFS"
+        android:text="CREATE"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

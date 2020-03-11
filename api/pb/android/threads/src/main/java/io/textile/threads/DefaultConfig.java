@@ -37,9 +37,8 @@ public class DefaultConfig implements Config {
 
     /**
      * A private method to be used by the Client to initialize when instructed
-     * @param ready
      */
-    public void init(Consumer<Boolean> ready) {
+    public void init() {
         if (scheme == "http") {
             channel = ManagedChannelBuilder
                     .forAddress(host, port)
@@ -51,6 +50,6 @@ public class DefaultConfig implements Config {
                     .useTransportSecurity()
                     .build();
         }
-        ready.accept(true);
+        return;
     }
 }

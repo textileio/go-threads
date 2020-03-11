@@ -1,7 +1,9 @@
 package io.textile.threads;
 
 import java.util.Arrays;
-import java.util.function.Consumer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import android.arch.lifecycle.LifecycleObserver;
 import com.google.protobuf.ByteString;
 import io.grpc.CallCredentials;
@@ -15,7 +17,11 @@ import io.textile.threads_grpc.*;
 public class Client implements LifecycleObserver {
     private static APIGrpc.APIBlockingStub blockingStub;
     private static APIGrpc.APIStub asyncStub;
-    private static Config config;
+    private static Config config = new DefaultConfig();
+
+    private ExecutorService executor
+            = Executors.newSingleThreadExecutor();
+
     enum ClientState {
         Connected, Idle
     }
@@ -25,7 +31,6 @@ public class Client implements LifecycleObserver {
      * Initialize a new Client
      */
     public Client() {
-        this.config = new DefaultConfig();
     }
 
     /**
@@ -45,27 +50,24 @@ public class Client implements LifecycleObserver {
     }
     /**
      * Method must be called before using the Client and while the device has an internet connection.
-     * @param ready
      */
-    public void init(Consumer<Boolean> ready) {
-        config.init((success) -> {
-            if (success == true) {
-                String session = config.getSession();
-                ManagedChannel channel = config.getChannel();
-
-                if (session != null) {
-                    CallCredentials bearer = new BearerToken(session);
-                    blockingStub = APIGrpc.newBlockingStub(channel)
-                            .withCallCredentials(bearer);
-                    asyncStub = APIGrpc.newStub(channel)
-                            .withCallCredentials(bearer);
-                } else {
-                    blockingStub = APIGrpc.newBlockingStub(channel);
-                    asyncStub = APIGrpc.newStub(channel);
-                }
-                state = ClientState.Connected;
-                ready.accept(true);
+    public Future<Void> init() throws Exception {
+        return executor.submit(() -> {
+            config.init();
+            String session = config.getSession();
+            ManagedChannel channel = config.getChannel();
+            if (session != null) {
+                CallCredentials bearer = new BearerToken(session);
+                blockingStub = APIGrpc.newBlockingStub(channel)
+                        .withCallCredentials(bearer);
+                asyncStub = APIGrpc.newStub(channel)
+                        .withCallCredentials(bearer);
+            } else {
+                blockingStub = APIGrpc.newBlockingStub(channel);
+                asyncStub = APIGrpc.newStub(channel);
             }
+            state = ClientState.Connected;
+            return null;
         });
     }
 

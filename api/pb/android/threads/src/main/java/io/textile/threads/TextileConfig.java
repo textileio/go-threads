@@ -2,7 +2,6 @@ package io.textile.threads;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.squareup.okhttp.Callback;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Protocol;
@@ -13,17 +12,18 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.function.Consumer;
 
 public class TextileConfig implements Config {
     public static String scheme = "https";
     public static String host = "api.textile.io";
     public static int port = 6446;
     public static String session;
-    private static String token;
-    private static String deviceId;
+
     public static ManagedChannel channel;
     public String cloud = "https://cloud.textile.io:443/register";
+
+    private static String token;
+    private static String deviceId;
 
     /**
      * TextileConfig provide auth wrappers to use hosted Thread services from Textile
@@ -56,9 +56,8 @@ public class TextileConfig implements Config {
     }
     /**
      * A private method to be used by the Client to initialize when instructed
-     * @param ready
      */
-    public void init(Consumer<Boolean> ready) {
+    public void init() throws Exception {
         if (scheme == "http") {
             channel = ManagedChannelBuilder
                     .forAddress(host, port)
@@ -72,15 +71,19 @@ public class TextileConfig implements Config {
         }
         if (this.session != null) {
             // skip the session refresh if it's not null
-            ready.accept(true);
             return;
         }
-        this.refreshSession((result) -> {
-            this.session = result.session_id;
-            ready.accept(true);
-        });
+
+        Response response = this.refreshSession();
+        if (!response.isSuccessful()) throw new IOException(
+                "Unexpected code " + response);
+        String output = response.body().string();
+        Gson gson = new Gson();
+        Session result = gson.fromJson(output, Session.class);
+        this.session = result.session_id;
+        return;
     }
-    public void refreshSession(Consumer<Session> callback) {
+    public Response refreshSession() throws Exception {
         OkHttpClient client = new OkHttpClient();
         client.setProtocols(Arrays.asList(Protocol.HTTP_1_1));
         JsonObject json = new JsonObject();
@@ -93,22 +96,6 @@ public class TextileConfig implements Config {
                 .url(cloud)
                 .post(body)
                 .build();
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Request request, IOException throwable) {
-                throwable.printStackTrace();
-                System.out.println("Info: err " + throwable.getMessage());
-            }
-
-            @Override
-            public void onResponse(Response response) throws IOException {
-                if (!response.isSuccessful()) throw new IOException(
-                        "Unexpected code " + response);
-                String output = response.body().string();
-                Gson gson = new Gson();
-                Session result = gson.fromJson(output, Session.class);
-                callback.accept(result);
-            }
-        });
+        return client.newCall(request).execute();
     }
 }
