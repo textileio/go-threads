@@ -19,6 +19,8 @@ import java.io.InputStreamReader;
 import java.net.URL;
 
 import java.util.Base64;
+import java.util.concurrent.Future;
+
 import com.google.gson.Gson;
 
 import io.textile.threads_grpc.*;
@@ -35,8 +37,10 @@ public class ClientUnitTest {
 
     void connect() throws Exception {
         // Initialize & start
-        client = new Client("localhost", 6006);
-        client.Connect();
+        client = new Client();
+        // Await initialization
+        client.init().get();
+        System.out.println("Thread Info: " + "READY!");
     }
 
     @Test

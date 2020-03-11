@@ -45,8 +45,10 @@ dependencies {
     // gRPC IPFS Lite
     implementation project(':threads')
 
+    // HTTP Requests
+    implementation "com.squareup.okhttp3:okhttp:4.4.0"
+
     // Testing
-//    testImplementation "junit:junit:$junitVersion"
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
 
     androidTestImplementation "com.android.support.test:runner:$testRunnerVersion"
