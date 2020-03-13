@@ -401,6 +401,7 @@ func addCmd(args []string) (out string, err error) {
 		if err != nil {
 			return "", err
 		}
+		go ts.PullThread(ctx, info.ID)
 		id = info.ID
 	} else {
 		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(sym.New()), core.ReadKey(sym.New()))

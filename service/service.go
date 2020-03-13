@@ -72,15 +72,7 @@ type Config struct {
 }
 
 // NewService creates an instance of service from the given host and thread store.
-func NewService(
-	ctx context.Context,
-	h host.Host,
-	bstore bs.Blockstore,
-	ds format.DAGService,
-	ls lstore.Logstore,
-	conf Config,
-	opts ...grpc.ServerOption,
-) (core.Service, error) {
+func NewService(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (core.Service, error) {
 	var err error
 	if conf.Debug {
 		if err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -205,11 +197,7 @@ func (t *service) CreateThread(_ context.Context, id thread.ID, opts ...core.Key
 }
 
 // AddThread from a multiaddress.
-func (t *service) AddThread(
-	ctx context.Context,
-	addr ma.Multiaddr,
-	opts ...core.KeyOption,
-) (info thread.Info, err error) {
+func (t *service) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
 	args := &core.KeyOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -271,12 +259,6 @@ func (t *service) AddThread(
 			return
 		}
 	}
-
-	//go func() {
-	//	if err := t.PullThread(t.ctx, id); err != nil {
-	//		log.Errorf("error pulling thread %s: %s", id.String(), err)
-	//	}
-	//}()
 
 	return t.store.ThreadInfo(id)
 }

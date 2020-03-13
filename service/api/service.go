@@ -93,6 +93,11 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		if err := s.ts.PullThread(ctx, info.ID); err != nil {
+			log.Errorf("error pulling thread %s: %s", info.ID.String(), err)
+		}
+	}()
 	return threadInfoToProto(info)
 }
 
