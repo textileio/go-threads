@@ -18,6 +18,16 @@ message NewDBFromAddrRequest {
 
 message NewDBReply {}
 
+message GetDBInfoRequest {
+    string dbID = 1;
+}
+
+message GetDBInfoReply {
+    repeated string addresses = 1;
+    bytes followKey = 2;
+    bytes readKey = 3;
+}
+
 message NewCollectionRequest {
     string dbID = 1;
     string name = 2;
@@ -30,16 +40,6 @@ message NewCollectionRequest {
 }
 
 message NewCollectionReply {}
-
-message GetDBLinkRequest {
-    string dbID = 1;
-}
-
-message GetDBLinkReply {
-    repeated string addresses = 1;
-    bytes followKey = 2;
-    bytes readKey = 3;
-}
 
 message CreateRequest {
     string dbID = 1;
@@ -173,8 +173,8 @@ message ListenReply {
 service API {
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
+    rpc GetDBInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
-    rpc GetDBLink(GetDBLinkRequest) returns (GetDBLinkReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}
     rpc Delete(DeleteRequest) returns (DeleteReply) {}

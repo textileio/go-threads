@@ -12,7 +12,7 @@ import (
 	coredb "github.com/textileio/go-threads/core/db"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc/codes"
@@ -85,11 +85,11 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	rk, err := symmetric.FromBytes(req.ReadKey)
+	rk, err := sym.FromBytes(req.ReadKey)
 	if err != nil {
 		return nil, err
 	}
-	fk, err := symmetric.FromBytes(req.FollowKey)
+	fk, err := sym.FromBytes(req.FollowKey)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +97,32 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
+}
+
+// GetDBInfo returns db addresses and keys.
+func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
+	_, id, err := s.getDB(req.DbID)
+	if err != nil {
+		return nil, err
+	}
+	tinfo, err := s.manager.Service().GetThread(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	host := s.manager.Service().Host()
+	peerID, _ := ma.NewComponent("p2p", host.ID().String())
+	threadID, _ := ma.NewComponent("thread", id.String())
+	addrs := host.Addrs()
+	res := make([]string, len(addrs))
+	for i := range addrs {
+		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).String()
+	}
+	reply := &pb.GetDBInfoReply{
+		Addresses: res,
+		FollowKey: tinfo.FollowKey.Bytes(),
+		ReadKey:   tinfo.ReadKey.Bytes(),
+	}
+	return reply, nil
 }
 
 // NewCollection registers a JSON schema with a db.
@@ -119,31 +145,6 @@ func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest)
 	}
 
 	return &pb.NewCollectionReply{}, nil
-}
-
-func (s *Service) GetDBLink(ctx context.Context, req *pb.GetDBLinkRequest) (*pb.GetDBLinkReply, error) {
-	_, id, err := s.getDB(req.DbID)
-	if err != nil {
-		return nil, err
-	}
-	tinfo, err := s.manager.Service().GetThread(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	host := s.manager.Service().Host()
-	peerID, _ := ma.NewComponent("p2p", host.ID().String())
-	threadID, _ := ma.NewComponent("thread", id.String())
-	addrs := host.Addrs()
-	res := make([]string, len(addrs))
-	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).String()
-	}
-	reply := &pb.GetDBLinkReply{
-		Addresses: res,
-		FollowKey: tinfo.FollowKey.Bytes(),
-		ReadKey:   tinfo.ReadKey.Bytes(),
-	}
-	return reply, nil
 }
 
 // Create adds a new instance of a collection to a db.
