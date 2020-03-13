@@ -38,7 +38,7 @@ func CreateEvent(
 	body format.Node,
 	rkey crypto.EncryptionKey,
 ) (service.Event, error) {
-	key, err := symmetric.CreateKey()
+	key, err := symmetric.NewRandom()
 	if err != nil {
 		return nil, err
 	}
@@ -226,5 +226,5 @@ func (h *EventHeader) Key() (crypto.DecryptionKey, error) {
 	if h.obj == nil {
 		return nil, fmt.Errorf("obj not loaded")
 	}
-	return crypto.ParseDecryptionKey(h.obj.Key)
+	return crypto.DecryptionKeFromBytes(h.obj.Key)
 }

@@ -85,11 +85,11 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	rk, err := symmetric.NewKey(req.ReadKey)
+	rk, err := symmetric.FromBytes(req.ReadKey)
 	if err != nil {
 		return nil, err
 	}
-	fk, err := symmetric.NewKey(req.FollowKey)
+	fk, err := symmetric.FromBytes(req.FollowKey)
 	if err != nil {
 		return nil, err
 	}

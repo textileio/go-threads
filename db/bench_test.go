@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -60,11 +61,12 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	ts, err := DefaultService(dir)
 	checkBenchErr(b, err)
+	id := thread.NewIDV1(thread.Raw, 32)
 	opts = append(opts, WithRepoPath(dir))
 	opts = append(opts, WithJsonMode(true))
-	s, err := NewDB(ts, thread.NewIDV1(thread.Raw, 32), opts...)
+	d, err := NewDB(context.Background(), ts, id, opts...)
 	checkBenchErr(b, err)
-	return s, func() {
+	return d, func() {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}

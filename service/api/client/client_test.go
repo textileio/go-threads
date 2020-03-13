@@ -55,11 +55,11 @@ func TestClient_CreateThread(t *testing.T) {
 
 	t.Run("test create thread", func(t *testing.T) {
 		id := thread.NewIDV1(thread.Raw, 32)
-		fk, err := symmetric.CreateKey()
+		fk, err := symmetric.NewRandom()
 		if err != nil {
 			t.Fatal(err)
 		}
-		rk, err := symmetric.CreateKey()
+		rk, err := symmetric.NewRandom()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,7 +215,7 @@ func TestClient_AddRecord(t *testing.T) {
 
 	// Create a thread, keeping read key and log private key on the client
 	id := thread.NewIDV1(thread.Raw, 32)
-	fk, err := symmetric.CreateKey()
+	fk, err := symmetric.NewRandom()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestClient_AddRecord(t *testing.T) {
 	}
 
 	t.Run("test add record", func(t *testing.T) {
-		rk, err := symmetric.CreateKey()
+		rk, err := symmetric.NewRandom()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -448,11 +448,11 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 
 func createThread(t *testing.T, client *Client) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	fk, err := symmetric.CreateKey()
+	fk, err := symmetric.NewRandom()
 	if err != nil {
 		t.Fatal(err)
 	}
-	rk, err := symmetric.CreateKey()
+	rk, err := symmetric.NewRandom()
 	if err != nil {
 		t.Fatal(err)
 	}

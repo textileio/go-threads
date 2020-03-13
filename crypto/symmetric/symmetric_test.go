@@ -14,8 +14,8 @@ var symmetricTestData = struct {
 	plaintext: []byte("Hello World!!!"),
 }
 
-func TestNewKey(t *testing.T) {
-	key, err := CreateKey()
+func TestNewRandom(t *testing.T) {
+	key, err := NewRandom()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestDecrypt(t *testing.T) {
 	if string(symmetricTestData.plaintext) != string(plaintext) {
 		t.Error("decrypt AES failed")
 	}
-	key, err := CreateKey()
+	key, err := NewRandom()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -186,7 +186,7 @@ func (t *service) CreateThread(_ context.Context, id thread.ID, opts ...core.Key
 		ReadKey:   args.ReadKey,
 	}
 	if info.FollowKey == nil {
-		info.FollowKey, err = sym.CreateKey()
+		info.FollowKey, err = sym.NewRandom()
 		if err != nil {
 			return
 		}
@@ -215,11 +215,7 @@ func (t *service) AddThread(
 		opt(args)
 	}
 
-	idstr, err := addr.ValueForProtocol(thread.Code)
-	if err != nil {
-		return
-	}
-	id, err := thread.Decode(idstr)
+	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return
 	}
@@ -242,12 +238,22 @@ func (t *service) AddThread(
 	}); err != nil {
 		return
 	}
+	if args.ReadKey != nil {
+		var linfo thread.LogInfo
+		linfo, err = createLog(t.host.ID(), args.LogKey)
+		if err != nil {
+			return
+		}
+		if err = t.store.AddLog(id, linfo); err != nil {
+			return
+		}
+	}
 
-	threadMultiaddr, err := ma.NewComponent("thread", idstr)
+	threadComp, err := ma.NewComponent(thread.Name, id.String())
 	if err != nil {
 		return
 	}
-	peerAddr := addr.Decapsulate(threadMultiaddr)
+	peerAddr := addr.Decapsulate(threadComp)
 	addri, err := peer.AddrInfoFromP2pAddr(peerAddr)
 	if err != nil {
 		return
@@ -260,18 +266,17 @@ func (t *service) AddThread(
 		return
 	}
 
-	// @todo: ensure not overwrite with newer info from owner?
 	for _, l := range lgs {
 		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
 			return
 		}
 	}
 
-	go func() {
-		if err := t.PullThread(t.ctx, id); err != nil {
-			log.Errorf("error pulling thread %s: %s", id.String(), err)
-		}
-	}()
+	//go func() {
+	//	if err := t.PullThread(t.ctx, id); err != nil {
+	//		log.Errorf("error pulling thread %s: %s", id.String(), err)
+	//	}
+	//}()
 
 	return t.store.ThreadInfo(id)
 }

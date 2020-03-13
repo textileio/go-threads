@@ -12,7 +12,6 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/db"
-	"github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 )
 
@@ -29,10 +28,7 @@ func TestE2EWithThreads(t *testing.T) {
 	defer ts1.Close()
 
 	id1 := thread.NewIDV1(thread.Raw, 32)
-	t1, err := ts1.CreateThread(context.Background(), id1)
-	checkErr(t, err)
-
-	d1, err := NewDB(ts1, id1, WithRepoPath(tmpDir1))
+	d1, err := NewDB(context.Background(), ts1, id1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollectionFromInstance("dummy", &dummy{})
@@ -42,13 +38,14 @@ func TestE2EWithThreads(t *testing.T) {
 	dummyInstance.Counter += 42
 	checkErr(t, c1.Save(dummyInstance))
 
-	// Boilerplate to generate peer1 thread-addr and get follow/read keys
+	// Boilerplate to generate peer1 thread-addr
+	// @todo: This should be a service method
 	peer1Addr := ts1.Host().Addrs()[0]
 	peer1ID, err := multiaddr.NewComponent("p2p", ts1.Host().ID().String())
 	checkErr(t, err)
 	threadComp, err := multiaddr.NewComponent("thread", id1.String())
 	checkErr(t, err)
-	threadAddr := peer1Addr.Encapsulate(peer1ID).Encapsulate(threadComp)
+	addr := peer1Addr.Encapsulate(peer1ID).Encapsulate(threadComp)
 
 	// Create a completely parallel db, which will sync with the previous one
 	// and should have the same state of dummyInstance.
@@ -59,10 +56,9 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer ts2.Close()
 
-	_, err = ts2.AddThread(context.Background(), threadAddr, service.FollowKey(t1.FollowKey), service.FollowKey(t1.ReadKey))
+	ti, err := ts1.GetThread(context.Background(), id1)
 	checkErr(t, err)
-
-	d2, err := NewDB(ts2, id1, WithRepoPath(tmpDir2))
+	d2, err := NewDBFromAddr(context.Background(), ts2, addr, ti.FollowKey, ti.ReadKey, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer d2.Close()
 	c2, err := d2.NewCollectionFromInstance("dummy", &dummy{})
@@ -88,7 +84,7 @@ func TestOptions(t *testing.T) {
 
 	ec := &mockEventCodec{}
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err := NewDB(context.Background(), ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollectionFromInstance("dummy", &dummy{})
@@ -107,7 +103,7 @@ func TestOptions(t *testing.T) {
 	ts, err = DefaultService(tmpDir)
 	checkErr(t, err)
 	defer ts.Close()
-	d, err = NewDB(ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err = NewDB(context.Background(), ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }
@@ -237,10 +233,10 @@ func TestListeners(t *testing.T) {
 // Actions received with the ...ListenOption provided.
 func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	t.Helper()
-	s, cls := createTestDB(t)
-	c1, err := s.NewCollectionFromInstance("Collection1", &dummy{})
+	d, cls := createTestDB(t)
+	c1, err := d.NewCollectionFromInstance("Collection1", &dummy{})
 	checkErr(t, err)
-	c2, err := s.NewCollectionFromInstance("Collection2", &dummy{})
+	c2, err := d.NewCollectionFromInstance("Collection2", &dummy{})
 	checkErr(t, err)
 
 	// Create some instance *before* any listener, just to test doesn't appear
@@ -248,7 +244,7 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	i1 := &dummy{ID: "id-i1", Name: "Textile1"}
 	checkErr(t, c1.Create(i1))
 
-	l, err := s.Listen(los...)
+	l, err := d.Listen(los...)
 	checkErr(t, err)
 	var actions []Action
 	go func() {

@@ -19,7 +19,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/util"
 )
@@ -241,15 +241,7 @@ func makeService(t *testing.T) core.Service {
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	fk, err := symmetric.CreateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rk, err := symmetric.CreateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	info, err := api.CreateThread(ctx, id, core.FollowKey(fk), core.ReadKey(rk))
+	info, err := api.CreateThread(ctx, id, core.FollowKey(sym.New()), core.ReadKey(sym.New()))
 	if err != nil {
 		t.Fatal(err)
 	}

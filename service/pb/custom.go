@@ -204,7 +204,7 @@ func (k ProtoKey) MarshalJSON() ([]byte, error) {
 }
 
 func (k *ProtoKey) Unmarshal(data []byte) (err error) {
-	k.Key, err = symmetric.NewKey(data)
+	k.Key, err = symmetric.FromBytes(data)
 	return err
 }
 
@@ -334,7 +334,7 @@ func NewPopulatedProtoThreadID(r randyService) *ProtoThreadID {
 // NewPopulatedProtoKey generates a populated instance of the custom gogo type ProtoKey.
 // It is required by gogo-generated tests.
 func NewPopulatedProtoKey(r randyService) *ProtoKey {
-	k, _ := symmetric.CreateKey()
+	k, _ := symmetric.NewRandom()
 	return &ProtoKey{Key: k}
 }
 

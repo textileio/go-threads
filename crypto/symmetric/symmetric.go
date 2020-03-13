@@ -12,8 +12,8 @@ type Key struct {
 	raw []byte
 }
 
-// CreateKey returns 44 random bytes, 32 for the key and 12 for a nonce.
-func CreateKey() (*Key, error) {
+// NewRandom returns 44 random bytes, 32 for the key and 12 for a nonce.
+func NewRandom() (*Key, error) {
 	raw := make([]byte, 44)
 	if _, err := rand.Read(raw); err != nil {
 		return nil, err
@@ -21,8 +21,17 @@ func CreateKey() (*Key, error) {
 	return &Key{raw: raw}, nil
 }
 
-// NewKey returns a key by wrapping k.
-func NewKey(k []byte) (*Key, error) {
+// New returns Key if err is nil and panics otherwise.
+func New() *Key {
+	k, err := NewRandom()
+	if err != nil {
+		panic(err)
+	}
+	return k
+}
+
+// FromBytes returns a key by wrapping k.
+func FromBytes(k []byte) (*Key, error) {
 	if len(k) != 44 {
 		return nil, fmt.Errorf("invalid key")
 	}

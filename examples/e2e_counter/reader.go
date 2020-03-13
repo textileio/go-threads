@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -18,7 +19,8 @@ func runReaderPeer(repo string) {
 	ts, err := db.DefaultService(repo)
 	checkErr(err)
 	defer ts.Close()
-	d, err := db.NewDB(ts, db.WithRepoPath(repo))
+
+	d, err := db.NewDBFromAddr(context.Background(), ts, writerAddr, fkey, rkey, db.WithRepoPath(repo))
 	checkErr(err)
 	defer d.Close()
 
@@ -27,7 +29,6 @@ func runReaderPeer(repo string) {
 
 	l, err := d.Listen()
 	checkErr(err)
-	checkErr(d.StartFromAddr(writerAddr, fkey, rkey))
 	for range l.Channel() {
 		err := c.ReadTxn(func(txn *db.Txn) error {
 			var res []*myCounter
@@ -58,9 +59,9 @@ func getWriterAddr() (ma.Multiaddr, *symmetric.Key, *symmetric.Key) {
 	rkeyBytes, err := base58.Decode(data[2])
 	checkErr(err)
 
-	fkey, err := symmetric.NewKey(fkeyBytes)
+	fkey, err := symmetric.FromBytes(fkeyBytes)
 	checkErr(err)
-	rkey, err := symmetric.NewKey(rkeyBytes)
+	rkey, err := symmetric.FromBytes(rkeyBytes)
 	checkErr(err)
 
 	return addr, fkey, rkey

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
 
@@ -61,10 +63,10 @@ var (
 )
 
 func main() {
-	s, clean := createJsonModeMemDB()
+	d, clean := createJsonModeMemDB()
 	defer clean()
 
-	collection, err := s.NewCollection("Book", jsonSchema)
+	collection, err := d.NewCollection("Book", jsonSchema)
 	checkErr(err)
 
 	// Bootstrap the collection with some books: two from Author1 and one from Author2
@@ -116,9 +118,10 @@ func createJsonModeMemDB() (*db.DB, func()) {
 	checkErr(err)
 	ts, err := db.DefaultService(dir)
 	checkErr(err)
-	s, err := db.NewDB(ts, db.WithRepoPath(dir), db.WithJsonMode(true))
+	id := thread.NewIDV1(thread.Raw, 32)
+	d, err := db.NewDB(context.Background(), ts, id, db.WithRepoPath(dir), db.WithJsonMode(true))
 	checkErr(err)
-	return s, func() {
+	return d, func() {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}

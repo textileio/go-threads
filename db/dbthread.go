@@ -65,10 +65,12 @@ func (a *singleThreadAdapter) Start() {
 	a.started = true
 	li, err := a.api.GetThread(context.Background(), a.threadID)
 	if err != nil {
-		log.Fatalf("error when getting/creating own log for thread %s: %v", a.threadID, err)
+		log.Fatalf("error geting thread %s: %v", a.threadID, err)
 	}
 	if ownLog := li.GetOwnLog(); ownLog != nil {
 		a.ownLogID = ownLog.ID
+	} else {
+		log.Fatalf("error getting own log for thread %s: %v", a.threadID, err)
 	}
 
 	var wg sync.WaitGroup
@@ -91,7 +93,7 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.closeChan:
-			log.Debug("closing thread-to-db flow on thread %s", a.threadID)
+			log.Debugf("closing thread-to-db flow on thread %s", a.threadID)
 			return
 		case rec, ok := <-sub:
 			if !ok {
@@ -146,7 +148,7 @@ func (a *singleThreadAdapter) dbToThread(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.closeChan:
-			log.Infof("closing db-to-thread flow on thread %s", a.threadID)
+			log.Debugf("closing db-to-thread flow on thread %s", a.threadID)
 			return
 		case node, ok := <-l.Channel():
 			if !ok {

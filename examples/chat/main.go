@@ -403,15 +403,7 @@ func addCmd(args []string) (out string, err error) {
 		}
 		id = info.ID
 	} else {
-		fk, err := sym.CreateKey()
-		if err != nil {
-			return "", err
-		}
-		rk, err := sym.CreateKey()
-		if err != nil {
-			return "", err
-		}
-		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(fk), core.ReadKey(rk))
+		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(sym.New()), core.ReadKey(sym.New()))
 		if err != nil {
 			return "", err
 		}

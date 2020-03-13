@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
@@ -68,11 +69,11 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 	}
 	defer results.Close()
 	for res := range results.Next() {
-		key := ds.RawKey(res.Key)
-		if key.BaseNamespace() != "threadid" {
+		parts := strings.Split(ds.RawKey(res.Key).String(), "/")
+		if len(parts) < 3 {
 			continue
 		}
-		id, err := thread.Decode(key.Parent().Parent().Name())
+		id, err := thread.Decode(parts[2])
 		if err != nil {
 			continue
 		}
@@ -85,7 +86,6 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		}
 		m.dbs[id] = s
 	}
-
 	return m, nil
 }
 
@@ -94,15 +94,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	fk, err := sym.CreateKey()
-	if err != nil {
-		return nil, err
-	}
-	rk, err := sym.CreateKey()
-	if err != nil {
-		return nil, err
-	}
-	if _, err = m.service.CreateThread(ctx, id, service.FollowKey(fk), service.ReadKey(rk)); err != nil {
+	if _, err := m.service.CreateThread(ctx, id, service.FollowKey(sym.New()), service.ReadKey(sym.New())); err != nil {
 		return nil, err
 	}
 
@@ -115,11 +107,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 }
 
 func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *sym.Key) (*DB, error) {
-	idstr, err := addr.ValueForProtocol(thread.Code)
-	if err != nil {
-		return nil, err
-	}
-	id, err := thread.Decode(idstr)
+	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +123,13 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKe
 		return nil, err
 	}
 	m.dbs[id] = db
+
+	go func() {
+		if err := m.service.PullThread(ctx, id); err != nil {
+			log.Errorf("error pulling thread %s", id.String())
+		}
+	}()
+
 	return db, nil
 }
 

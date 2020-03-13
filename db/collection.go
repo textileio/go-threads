@@ -358,11 +358,15 @@ func (t *Txn) Commit() error {
 	if err != nil {
 		return err
 	}
-	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
-		return err
+	if len(events) > 0 {
+		if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
+			return err
+		}
 	}
-	if err := t.collection.db.notifyTxnEvents(node); err != nil {
-		return err
+	if node != nil {
+		if err := t.collection.db.notifyTxnEvents(node); err != nil {
+			return err
+		}
 	}
 	return nil
 }

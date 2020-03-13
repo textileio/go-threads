@@ -14,7 +14,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/service/api/pb"
 	"github.com/textileio/go-threads/service/util"
 	tutil "github.com/textileio/go-threads/util"
@@ -273,14 +273,14 @@ func getKeyOptions(keys *pb.ThreadKeys) (opts []core.KeyOption, err error) {
 		return
 	}
 	if keys.FollowKey != nil {
-		fk, err := symmetric.NewKey(keys.FollowKey)
+		fk, err := sym.FromBytes(keys.FollowKey)
 		if err != nil {
 			return nil, fmt.Errorf("invalid follow-key: %v", err)
 		}
 		opts = append(opts, core.FollowKey(fk))
 	}
 	if keys.ReadKey != nil {
-		rk, err := symmetric.NewKey(keys.ReadKey)
+		rk, err := sym.FromBytes(keys.ReadKey)
 		if err != nil {
 			return nil, fmt.Errorf("invalid read-key: %v", err)
 		}
