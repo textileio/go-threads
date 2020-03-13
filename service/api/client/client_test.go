@@ -26,12 +26,8 @@ import (
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/service/api"
-<<<<<<< HEAD
-=======
 	. "github.com/textileio/go-threads/service/api/client"
 	pb "github.com/textileio/go-threads/service/api/pb"
-	"github.com/textileio/go-threads/store"
->>>>>>> api: consolidate servers
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
