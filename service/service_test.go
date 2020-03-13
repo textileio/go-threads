@@ -115,8 +115,8 @@ func TestService_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(info2.Logs) != 1 {
-			t.Fatalf("expected 1 log got %d", len(info2.Logs))
+		if len(info2.Logs) != 2 {
+			t.Fatalf("expected 2 log got %d", len(info2.Logs))
 		}
 
 		body2, err := cbornode.WrapObject(map[string]interface{}{

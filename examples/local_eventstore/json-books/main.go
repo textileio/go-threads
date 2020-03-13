@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
@@ -122,6 +123,7 @@ func createJsonModeMemDB() (*db.DB, func()) {
 	d, err := db.NewDB(context.Background(), ts, id, db.WithRepoPath(dir), db.WithJsonMode(true))
 	checkErr(err)
 	return d, func() {
+		time.Sleep(time.Second) // Give threads a chance to finish work
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
