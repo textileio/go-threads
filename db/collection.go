@@ -358,17 +358,16 @@ func (t *Txn) Commit() error {
 	if err != nil {
 		return err
 	}
-	if len(events) > 0 {
-		if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
-			return err
-		}
+	if len(events) == 0 && node == nil {
+		return nil
 	}
-	if node != nil {
-		if err := t.collection.db.notifyTxnEvents(node); err != nil {
-			return err
-		}
+	if len(events) == 0 || node == nil {
+		return fmt.Errorf("created events and node must both be nil or not-nil")
 	}
-	return nil
+	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
+		return err
+	}
+	return t.collection.db.notifyTxnEvents(node)
 }
 
 // Discard discards all changes done in the current

@@ -65,7 +65,7 @@ func (a *singleThreadAdapter) Start() {
 	a.started = true
 	li, err := a.api.GetThread(context.Background(), a.threadID)
 	if err != nil {
-		log.Fatalf("error geting thread %s: %v", a.threadID, err)
+		log.Fatalf("error getting thread %s: %v", a.threadID, err)
 	}
 	if ownLog := li.GetOwnLog(); ownLog != nil {
 		a.ownLogID = ownLog.ID

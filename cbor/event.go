@@ -226,5 +226,5 @@ func (h *EventHeader) Key() (crypto.DecryptionKey, error) {
 	if h.obj == nil {
 		return nil, fmt.Errorf("obj not loaded")
 	}
-	return crypto.DecryptionKeFromBytes(h.obj.Key)
+	return crypto.DecryptionKeyFromBytes(h.obj.Key)
 }

@@ -43,7 +43,7 @@ func EncryptionKeyFromBytes(k []byte) (EncryptionKey, error) {
 }
 
 // DecryptionKeyFromBytes returns a DecryptionKey from k.
-func DecryptionKeFromBytes(k []byte) (DecryptionKey, error) {
+func DecryptionKeyFromBytes(k []byte) (DecryptionKey, error) {
 	pk, err := ic.UnmarshalPrivateKey(k)
 	if err == nil {
 		adk, err := asymmetric.FromPrivKey(pk)
