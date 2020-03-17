@@ -9,7 +9,7 @@ import (
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/crypto"
 	"github.com/textileio/go-threads/crypto/symmetric"
 )
@@ -32,12 +32,7 @@ type eventHeader struct {
 }
 
 // CreateEvent create a new event by wrapping the body node.
-func CreateEvent(
-	ctx context.Context,
-	dag format.DAGService,
-	body format.Node,
-	rkey crypto.EncryptionKey,
-) (service.Event, error) {
+func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (net.Event, error) {
 	key, err := symmetric.NewRandom()
 	if err != nil {
 		return nil, err
@@ -89,7 +84,7 @@ func CreateEvent(
 }
 
 // GetEvent returns the event node for the given cid.
-func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (service.Event, error) {
+func GetEvent(ctx context.Context, dag format.DAGService, id cid.Cid) (net.Event, error) {
 	node, err := dag.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -110,7 +105,7 @@ func EventFromNode(node format.Node) (*Event, error) {
 }
 
 // EventFromRecord returns the event within the given node.
-func EventFromRecord(ctx context.Context, dag format.DAGService, rec service.Record) (*Event, error) {
+func EventFromRecord(ctx context.Context, dag format.DAGService, rec net.Record) (*Event, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err
@@ -138,11 +133,7 @@ func (e *Event) HeaderID() cid.Cid {
 }
 
 // GetHeader returns the header node.
-func (e *Event) GetHeader(
-	ctx context.Context,
-	dag format.DAGService,
-	key crypto.DecryptionKey,
-) (service.EventHeader, error) {
+func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (net.EventHeader, error) {
 	if e.header == nil {
 		coded, err := dag.Get(ctx, e.obj.Header)
 		if err != nil {

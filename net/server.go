@@ -1,4 +1,4 @@
-package service
+package net
 
 import (
 	"bytes"
@@ -16,21 +16,21 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	pb "github.com/textileio/go-threads/service/pb"
+	pb "github.com/textileio/go-threads/net/pb"
 	"google.golang.org/grpc/codes"
 )
 
-// server implements the service gRPC server.
+// server implements the net gRPC server.
 type server struct {
-	threads *service
-	pubsub  *pubsub.PubSub
+	net    *net
+	pubsub *pubsub.PubSub
 }
 
-// newServer creates a new service network server.
-func newServer(t *service) (*server, error) {
+// newServer creates a new network server.
+func newServer(n *net) (*server, error) {
 	ps, err := pubsub.NewGossipSub(
-		t.ctx,
-		t.host,
+		n.ctx,
+		n.host,
 		pubsub.WithMessageSigning(false),
 		pubsub.WithStrictSignatureVerification(false))
 	if err != nil {
@@ -38,12 +38,12 @@ func newServer(t *service) (*server, error) {
 	}
 
 	s := &server{
-		threads: t,
-		pubsub:  ps,
+		net:    n,
+		pubsub: ps,
 	}
 
 	// @todo: clean up pubsub handling (we need to track the new-style topic handles)
-	//ts, err := t.store.Threads()
+	//ts, err := n.store.Threads()
 	//if err != nil {
 	//	return nil, err
 	//}
@@ -51,7 +51,7 @@ func newServer(t *service) (*server, error) {
 	//	go s.subscribe(id)
 	//}
 
-	// @todo: ts.pubsub.RegisterTopicValidator()
+	// @todo: s.pubsub.RegisterTopicValidator()
 
 	return s, nil
 }
@@ -70,7 +70,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		return pblgs, err
 	}
 
-	info, err := s.threads.store.GetThread(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.net.store.GetThread(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -95,13 +95,13 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	log.Debugf("received push log request from %s", req.Header.From.ID.String())
 
 	// Pick up missing keys
-	info, err := s.threads.store.GetThread(req.ThreadID.ID)
+	info, err := s.net.store.GetThread(req.ThreadID.ID)
 	if err != nil && !errors.Is(err, lstore.ErrThreadNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if info.FollowKey == nil {
 		if req.FollowKey != nil && req.FollowKey.Key != nil {
-			if err = s.threads.store.AddFollowKey(req.ThreadID.ID, req.FollowKey.Key); err != nil {
+			if err = s.net.store.AddFollowKey(req.ThreadID.ID, req.FollowKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else {
@@ -110,19 +110,19 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	}
 	if info.ReadKey == nil {
 		if req.ReadKey != nil && req.ReadKey.Key != nil {
-			if err = s.threads.store.AddReadKey(req.ThreadID.ID, req.ReadKey.Key); err != nil {
+			if err = s.net.store.AddReadKey(req.ThreadID.ID, req.ReadKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
 
 	lg := logFromProto(req.Log)
-	err = s.threads.createExternalLogIfNotExist(req.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
+	err = s.net.createExternalLogIfNotExist(req.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	go s.threads.updateRecordsFromLog(req.ThreadID.ID, lg.ID)
+	go s.net.updateRecordsFromLog(req.ThreadID.ID, lg.ID)
 
 	return &pb.PushLogReply{}, nil
 }
@@ -145,7 +145,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	for _, l := range req.Logs {
 		reqd[l.LogID.ID] = l
 	}
-	info, err := s.threads.store.GetThread(req.ThreadID.ID)
+	info, err := s.net.store.GetThread(req.ThreadID.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			limit = MaxPullLimit
 			pblg = logToProto(lg)
 		}
-		recs, err := s.threads.getLocalRecords(
+		recs, err := s.net.getLocalRecords(
 			ctx,
 			req.ThreadID.ID,
 			lg.ID,
@@ -179,7 +179,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			Log:     pblg,
 		}
 		for j, r := range recs {
-			entry.Records[j], err = cbor.RecordToProto(ctx, s.threads, r)
+			entry.Records[j], err = cbor.RecordToProto(ctx, s.net, r)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -210,7 +210,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	}
 
 	// A log is required to accept new records
-	logpk, err := s.threads.store.PubKey(req.ThreadID.ID, req.LogID.ID)
+	logpk, err := s.net.store.PubKey(req.ThreadID.ID, req.LogID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -218,7 +218,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return nil, status.Error(codes.NotFound, "log not found")
 	}
 
-	key, err := s.threads.store.FollowKey(req.ThreadID.ID)
+	key, err := s.net.store.FollowKey(req.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -226,7 +226,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	knownRecord, err := s.threads.bstore.Has(rec.Cid())
+	knownRecord, err := s.net.bstore.Has(rec.Cid())
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -239,7 +239,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if err = s.threads.PutRecord(ctx, req.ThreadID.ID, req.LogID.ID, rec); err != nil {
+	if err = s.net.PutRecord(ctx, req.ThreadID.ID, req.LogID.ID, rec); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -255,7 +255,7 @@ func (s *server) subscribe(id thread.ID) {
 	}
 
 	for {
-		msg, err := sub.Next(s.threads.ctx)
+		msg, err := sub.Next(s.net.ctx)
 		if err != nil {
 			break
 		}
@@ -265,7 +265,7 @@ func (s *server) subscribe(id thread.ID) {
 			log.Error(err)
 			break
 		}
-		if from.String() == s.threads.host.ID().String() {
+		if from.String() == s.net.host.ID().String() {
 			continue
 		}
 
@@ -278,7 +278,7 @@ func (s *server) subscribe(id thread.ID) {
 
 		log.Debugf("received multicast request from %s", from.String())
 
-		_, err = s.PushRecord(s.threads.ctx, req)
+		_, err = s.PushRecord(s.net.ctx, req)
 		if err != nil {
 			log.Warnf("pubsub: %s", err)
 			continue
@@ -291,7 +291,7 @@ func (s *server) checkFollowKey(id thread.ID, pfk *pb.ProtoKey) error {
 	if pfk == nil || pfk.Key == nil {
 		return status.Error(codes.Unauthenticated, "a follow-key is required to get logs")
 	}
-	fk, err := s.threads.store.FollowKey(id)
+	fk, err := s.net.store.FollowKey(id)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}

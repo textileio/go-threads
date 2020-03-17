@@ -79,7 +79,7 @@ transformation. Currently, the only implementation of `EventCodec` is a
 them as payloads in events. 
 
 These events are also aggregated in a returned `format.Node`, which is the 
-compatible/analogous information to be used by `Threadservice` to add in 
+compatible/analogous information to be used by `net.Net` to add in 
 the peer own log in the thread associated with the `DB`. Likewise, 
 `EventCodec` also do the inverse transformation.  Given a `format.Node`, it 
 transforms its byte payload into actions that will be reduced in the db.
@@ -118,7 +118,7 @@ Reducers will apply those changes for their own interests.
 The implications of this design imply that real `DB` state changes can 
 only happen when the `Dispatcher` broadcast new `db.Event`s. 
 A `Reducer` can't distinguish between `Events` generated locally or externally. 
-External events are the results of `Threadservice` sending new events to the 
+External events are the results of `net.Net` sending new events to the 
 `Dispatcher`, which means that new `Event`s where detected in other peer logs 
 of the same Thread.
 
@@ -165,10 +165,10 @@ Main responsibility: Responsible to be the two-way communication between
 `DB` and `Threads`.
 
 Every time a new local `format.Node` is generated in the `DB` due to a 
-write transaction commit, the `DBThreadAdapter` will notify `Threadservice` 
+write transaction commit, the `DBThreadAdapter` will notify `net.Net` 
 that a new `Record` should be added to the local peer log.
 
-Similarly, when `Threadservice` detects new `Record`s in other peer logs, it 
+Similarly, when `net.Net` detects new `Record`s in other peer logs, it 
 will dispatch them to `SingleThreadAdapter`. Then, it will transform it into a 
 DB `Event`s that will be dispatched to `Dispatcher` and ultimately will 
 be reduced to impact `DB` state.
@@ -179,10 +179,10 @@ more than one thread or any other schema. This is the component that should
 be taking this decisions.
 
 
-### Threadservice
+### net.Net
 This component is part of the public-api so that it can be accessed.
 Main responsibility: Is the `DB` interface with Threads layer.
 
-`Threadservice` is the bidirectional communication interface to the underlying 
+`net.Net` is the bidirectional communication interface to the underlying 
 Thread backing the `DB`. It only interacts with `DBThreadAdapter`
 

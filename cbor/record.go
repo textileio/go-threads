@@ -9,9 +9,9 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/crypto"
-	pb "github.com/textileio/go-threads/service/pb"
+	pb "github.com/textileio/go-threads/net/pb"
 )
 
 func init() {
@@ -33,7 +33,7 @@ func CreateRecord(
 	prev cid.Cid,
 	sk ic.PrivKey,
 	key crypto.EncryptionKey,
-) (service.Record, error) {
+) (net.Record, error) {
 	payload := block.Cid().Bytes()
 	if prev.Defined() {
 		payload = append(payload, prev.Bytes()...)
@@ -70,7 +70,7 @@ func CreateRecord(
 }
 
 // GetRecord returns a record from the given cid.
-func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (service.Record, error) {
+func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypto.DecryptionKey) (net.Record, error) {
 	coded, err := dag.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func GetRecord(ctx context.Context, dag format.DAGService, id cid.Cid, key crypt
 }
 
 // RecordFromNode decodes a record from a node using the given key.
-func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (service.Record, error) {
+func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (net.Record, error) {
 	obj := new(record)
 	node, err := DecodeBlock(coded, key)
 	if err != nil {
@@ -96,7 +96,7 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (service.Record
 
 // RecordToProto returns a proto version of a record for transport.
 // Nodes are sent encrypted.
-func RecordToProto(ctx context.Context, dag format.DAGService, rec service.Record) (*pb.Log_Record, error) {
+func RecordToProto(ctx context.Context, dag format.DAGService, rec net.Record) (*pb.Log_Record, error) {
 	block, err := rec.GetBlock(ctx, dag)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec service.Recor
 }
 
 // Unmarshal returns a node from a serialized version that contains link data.
-func RecordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (service.Record, error) {
+func RecordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (net.Record, error) {
 	if key == nil {
 		return nil, fmt.Errorf("decryption key is required")
 	}

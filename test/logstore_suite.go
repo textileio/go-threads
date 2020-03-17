@@ -42,16 +42,16 @@ func LogstoreTest(t *testing.T, factory LogstoreFactory) {
 	}
 }
 
-func testAddrStream(ts core.Logstore) func(t *testing.T) {
+func testAddrStream(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
 		addrs, pid := getAddrs(t, 100), peer.ID("testlog")
-		err := ts.AddAddrs(tid, pid, addrs[:10], time.Hour)
+		err := ls.AddAddrs(tid, pid, addrs[:10], time.Hour)
 		check(t, err)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		addrch, err := ts.AddrStream(ctx, tid, pid)
+		addrch, err := ls.AddrStream(ctx, tid, pid)
 		if err != nil {
 			t.Fatalf("errro when adding stream: %v", err)
 		}
@@ -59,7 +59,7 @@ func testAddrStream(ts core.Logstore) func(t *testing.T) {
 		// while that subscription is active, publish ten more addrs
 		// this tests that it doesnt hang
 		for i := 10; i < 20; i++ {
-			err = ts.AddAddr(tid, pid, addrs[i], time.Hour)
+			err = ls.AddAddr(tid, pid, addrs[i], time.Hour)
 			check(t, err)
 		}
 
@@ -75,7 +75,7 @@ func testAddrStream(ts core.Logstore) func(t *testing.T) {
 
 		// start a second stream
 		ctx2, cancel2 := context.WithCancel(context.Background())
-		addrch2, err := ts.AddrStream(ctx2, tid, pid)
+		addrch2, err := ls.AddrStream(ctx2, tid, pid)
 		if err != nil {
 			t.Fatalf("error when adding stream: %v", err)
 		}
@@ -85,7 +85,7 @@ func testAddrStream(ts core.Logstore) func(t *testing.T) {
 			defer close(done)
 			// now send the rest of the addresses
 			for _, a := range addrs[20:80] {
-				err := ts.AddAddr(tid, pid, a, time.Hour)
+				err := ls.AddAddr(tid, pid, a, time.Hour)
 				check(t, err)
 			}
 		}()
@@ -122,13 +122,13 @@ func testAddrStream(ts core.Logstore) func(t *testing.T) {
 
 		// and add a few more addresses it doesnt hang afterwards
 		for _, a := range addrs[80:] {
-			err = ts.AddAddr(tid, pid, a, time.Hour)
+			err = ls.AddAddr(tid, pid, a, time.Hour)
 			check(t, err)
 		}
 	}
 }
 
-func testGetStreamBeforeLogAdded(ts core.Logstore) func(t *testing.T) {
+func testGetStreamBeforeLogAdded(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -137,12 +137,12 @@ func testGetStreamBeforeLogAdded(ts core.Logstore) func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach, err := ts.AddrStream(ctx, tid, pid)
+		ach, err := ls.AddrStream(ctx, tid, pid)
 		if err != nil {
 			t.Fatalf("error when adding stream: %v", err)
 		}
 		for i := 0; i < 10; i++ {
-			err = ts.AddAddr(tid, pid, addrs[i], time.Hour)
+			err = ls.AddAddr(tid, pid, addrs[i], time.Hour)
 			check(t, err)
 		}
 
@@ -183,7 +183,7 @@ func testGetStreamBeforeLogAdded(ts core.Logstore) func(t *testing.T) {
 	}
 }
 
-func testAddrStreamDuplicates(ts core.Logstore) func(t *testing.T) {
+func testAddrStreamDuplicates(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -192,15 +192,15 @@ func testAddrStreamDuplicates(ts core.Logstore) func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		ach, err := ts.AddrStream(ctx, tid, pid)
+		ach, err := ls.AddrStream(ctx, tid, pid)
 		if err != nil {
 			t.Fatalf("error when adding stream: %v", err)
 		}
 		go func() {
 			for i := 0; i < 10; i++ {
-				err := ts.AddAddr(tid, pid, addrs[i], time.Hour)
+				err := ls.AddAddr(tid, pid, addrs[i], time.Hour)
 				check(t, err)
-				err = ts.AddAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
+				err = ls.AddAddr(tid, pid, addrs[rand.Intn(10)], time.Hour)
 				check(t, err)
 			}
 
@@ -228,7 +228,7 @@ func testAddrStreamDuplicates(ts core.Logstore) func(t *testing.T) {
 	}
 }
 
-func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
+func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tids := make([]thread.ID, 0)
 		addrs := getAddrs(t, 10)
@@ -236,29 +236,29 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 		for _, a := range addrs {
 			tid := thread.NewIDV1(thread.Raw, 24)
 			tids = append(tids, tid)
-			err := ts.AddFollowKey(tid, sym.New())
+			err := ls.AddFollowKey(tid, sym.New())
 			check(t, err)
-			err = ts.AddReadKey(tid, sym.New())
+			err = ls.AddReadKey(tid, sym.New())
 			check(t, err)
 			priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p, _ := peer.IDFromPrivateKey(priv)
-			err = ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
+			err = ls.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
 			check(t, err)
-			err = ts.AddPubKey(tid, p, pub)
+			err = ls.AddPubKey(tid, p, pub)
 			check(t, err)
-			err = ts.AddPrivKey(tid, p, priv)
+			err = ls.AddPrivKey(tid, p, priv)
 			check(t, err)
 		}
 
-		threads, err := ts.Threads()
+		threads, err := ls.Threads()
 		check(t, err)
 		if len(threads) != 10 {
 			t.Fatal("expected ten threads, got", len(threads))
 		}
 
-		info, err := ts.GetThread(tids[0])
+		info, err := ls.GetThread(tids[0])
 		check(t, err)
-		tsAddrs, err := ts.Addrs(info.ID, info.Logs[0].ID)
+		tsAddrs, err := ls.Addrs(info.ID, info.Logs[0].ID)
 		if err != nil {
 			t.Fatalf("error when getting addresses: %v", err)
 		}
@@ -266,7 +266,7 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 			t.Fatal("stored wrong address")
 		}
 
-		log, err := ts.GetLog(info.ID, info.Logs[0].ID)
+		log, err := ls.GetLog(info.ID, info.Logs[0].ID)
 		check(t, err)
 		if !log.Addrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
@@ -276,22 +276,22 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 	}
 }
 
-func testMetadata(ts core.Logstore) func(t *testing.T) {
+func testMetadata(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tids := make([]thread.ID, 10)
 		for i := range tids {
 			tids[i] = thread.NewIDV1(thread.Raw, 24)
 		}
 		for _, p := range tids {
-			if err := ts.PutString(p, "AgentVersion", "string"); err != nil {
+			if err := ls.PutString(p, "AgentVersion", "string"); err != nil {
 				t.Errorf("failed to put %q: %s", "AgentVersion", err)
 			}
-			if err := ts.PutInt64(p, "bar", 1); err != nil {
+			if err := ls.PutInt64(p, "bar", 1); err != nil {
 				t.Errorf("failed to put %q: %s", "bar", err)
 			}
 		}
 		for _, p := range tids {
-			v, err := ts.GetString(p, "AgentVersion")
+			v, err := ls.GetString(p, "AgentVersion")
 			if err != nil {
 				t.Errorf("failed to find %q: %s", "AgentVersion", err)
 				continue
@@ -301,7 +301,7 @@ func testMetadata(ts core.Logstore) func(t *testing.T) {
 				continue
 			}
 
-			vi, err := ts.GetInt64(p, "bar")
+			vi, err := ls.GetInt64(p, "bar")
 			if err != nil {
 				t.Errorf("failed to find %q: %s", "bar", err)
 				continue

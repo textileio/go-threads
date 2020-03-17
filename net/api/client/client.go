@@ -11,13 +11,13 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
+	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto"
 	"github.com/textileio/go-threads/crypto/symmetric"
-	"github.com/textileio/go-threads/service"
-	pb "github.com/textileio/go-threads/service/api/pb"
-	"github.com/textileio/go-threads/service/util"
+	"github.com/textileio/go-threads/net"
+	pb "github.com/textileio/go-threads/net/api/pb"
+	"github.com/textileio/go-threads/net/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -334,5 +334,5 @@ func threadRecordFromProto(reply *pb.NewRecordReply, key crypto.DecryptionKey) (
 	if err != nil {
 		return nil, err
 	}
-	return service.NewRecord(rec, threadID, logID), nil
+	return net.NewRecord(rec, threadID, logID), nil
 }

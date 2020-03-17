@@ -25,7 +25,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
+	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
@@ -35,7 +35,7 @@ import (
 var (
 	ctx      context.Context
 	ds       datastore.Batching
-	ts       db.ServiceBoostrapper
+	net      db.NetBoostrapper
 	threadID thread.ID
 
 	grey  = color.New(color.FgHiBlack).SprintFunc()
@@ -65,7 +65,7 @@ type msg struct {
 type notifee struct{}
 
 func (n *notifee) HandlePeerFound(p peer.AddrInfo) {
-	ts.Host().Peerstore().AddAddrs(p.ID, p.Addrs, pstore.ConnectedAddrTTL)
+	net.Host().Peerstore().AddAddrs(p.ID, p.Addrs, pstore.ConnectedAddrTTL)
 }
 
 func main() {
@@ -95,19 +95,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ts, err = db.DefaultService(
+	net, err = db.DefaultNetwork(
 		*repo,
-		db.WithServiceHostAddr(hostAddr),
-		db.WithServiceDebug(*debug))
+		db.WithNetHostAddr(hostAddr),
+		db.WithNetDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer ts.Close()
-	ts.Bootstrap(util.DefaultBoostrapPeers())
+	defer net.Close()
+	net.Bootstrap(util.DefaultBoostrapPeers())
 
 	// Build a MDNS service
 	ctx = context.Background()
-	mdns, err := discovery.NewMdnsService(ctx, ts.Host(), time.Second, "")
+	mdns, err := discovery.NewMdnsService(ctx, net.Host(), time.Second, "")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -116,9 +116,9 @@ func main() {
 
 	// Start the prompt
 	fmt.Println(grey("Welcome to Threads!"))
-	fmt.Println(grey("Your peer ID is ") + green(ts.Host().ID().String()))
+	fmt.Println(grey("Your peer ID is ") + green(net.Host().ID().String()))
 
-	sub, err := ts.Subscribe(ctx)
+	sub, err := net.Subscribe(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func main() {
 				logError(err)
 				continue
 			}
-			info, err := ts.GetThread(context.Background(), rec.ThreadID())
+			info, err := net.GetThread(context.Background(), rec.ThreadID())
 			if err != nil {
 				logError(err)
 				continue
@@ -137,12 +137,12 @@ func main() {
 			if info.ReadKey == nil {
 				continue // just following, we don't have the read key
 			}
-			event, err := cbor.EventFromRecord(ctx, ts, rec.Value())
+			event, err := cbor.EventFromRecord(ctx, net, rec.Value())
 			if err != nil {
 				logError(err)
 				continue
 			}
-			node, err := event.GetBody(ctx, ts, info.ReadKey)
+			node, err := event.GetBody(ctx, net, info.ReadKey)
 			if err != nil {
 				continue // Not for us
 			}
@@ -151,7 +151,7 @@ func main() {
 			if err != nil {
 				continue // Not one of our messages
 			}
-			header, err := event.GetHeader(ctx, ts, info.ReadKey)
+			header, err := event.GetHeader(ctx, net, info.ReadKey)
 			if err != nil {
 				logError(err)
 				continue
@@ -304,11 +304,11 @@ func cmdCmd() (out string, err error) {
 
 func addressCmd() (out string, err error) {
 	pro := ma.ProtocolWithCode(ma.P_P2P).Name
-	addr, err := ma.NewMultiaddr("/" + pro + "/" + ts.Host().ID().String())
+	addr, err := ma.NewMultiaddr("/" + pro + "/" + net.Host().ID().String())
 	if err != nil {
 		return
 	}
-	addrs := ts.Host().Addrs()
+	addrs := net.Host().Addrs()
 	for i, a := range addrs {
 		a = a.Encapsulate(addr)
 		out += a.String()
@@ -394,17 +394,17 @@ func addCmd(args []string) (out string, err error) {
 
 	var id thread.ID
 	if addr != nil {
-		if !util.CanDial(addr, ts.Host().Network().(*swarm.Swarm)) {
+		if !util.CanDial(addr, net.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
 		}
-		info, err := ts.AddThread(ctx, addr, core.FollowKey(fk), core.ReadKey(rk))
+		info, err := net.AddThread(ctx, addr, core.FollowKey(fk), core.ReadKey(rk))
 		if err != nil {
 			return "", err
 		}
-		go ts.PullThread(ctx, info.ID)
+		go net.PullThread(ctx, info.ID)
 		id = info.ID
 	} else {
-		th, err := ts.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(sym.New()), core.ReadKey(sym.New()))
+		th, err := net.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(sym.New()), core.ReadKey(sym.New()))
 		if err != nil {
 			return "", err
 		}
@@ -454,7 +454,7 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 }
 
 func threadAddressCmd(id thread.ID) (out string, err error) {
-	info, err := ts.GetThread(context.Background(), id)
+	info, err := net.GetThread(context.Background(), id)
 	if err != nil {
 		return
 	}
@@ -480,10 +480,10 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 		}
 
 		var paddrs []ma.Multiaddr
-		if pid.String() == ts.Host().ID().String() {
-			paddrs = ts.Host().Addrs()
+		if pid.String() == net.Host().ID().String() {
+			paddrs = net.Host().Addrs()
 		} else {
-			paddrs = ts.Host().Peerstore().Addrs(pid)
+			paddrs = net.Host().Peerstore().Addrs(pid)
 		}
 		for _, pa := range paddrs {
 			addrs = append(addrs, pa.Encapsulate(la).Encapsulate(ta))
@@ -506,7 +506,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 }
 
 func threadKeysCmd(id thread.ID) (out string, err error) {
-	info, err := ts.GetThread(context.Background(), id)
+	info, err := net.GetThread(context.Background(), id)
 	if err != nil {
 		return
 	}
@@ -532,7 +532,7 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 	if err != nil {
 		return
 	}
-	pid, err := ts.AddFollower(ctx, id, addr)
+	pid, err := net.AddFollower(ctx, id, addr)
 	if err != nil {
 		return
 	}
@@ -551,7 +551,7 @@ func sendMessage(id thread.ID, txt string) error {
 	go func() {
 		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
 		defer cancel()
-		if _, err = ts.CreateRecord(mctx, id, body); err != nil {
+		if _, err = net.CreateRecord(mctx, id, body); err != nil {
 			log.Errorf("error writing message: %s", err)
 		}
 	}()

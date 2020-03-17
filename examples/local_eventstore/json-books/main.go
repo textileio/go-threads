@@ -117,14 +117,14 @@ func main() {
 func createJsonModeMemDB() (*db.DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	ts, err := db.DefaultService(dir)
+	n, err := db.DefaultNetwork(dir)
 	checkErr(err)
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := db.NewDB(context.Background(), ts, id, db.WithRepoPath(dir), db.WithJsonMode(true))
+	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(dir), db.WithJsonMode(true))
 	checkErr(err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work
-		if err := ts.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			panic(err)
 		}
 		_ = os.RemoveAll(dir)

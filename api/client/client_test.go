@@ -572,14 +572,14 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts, err := db.DefaultService(
+	n, err := db.DefaultNetwork(
 		dir,
-		db.WithServiceDebug(true))
+		db.WithNetDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts.Bootstrap(util.DefaultBoostrapPeers())
-	service, err := api.NewService(ts, api.Config{
+	n.Bootstrap(util.DefaultBoostrapPeers())
+	service, err := api.NewService(n, api.Config{
 		RepoPath: dir,
 		Debug:    true,
 	})
@@ -610,7 +610,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	return addr, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work
 		server.GracefulStop()
-		if err := ts.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			t.Fatal(err)
 		}
 		_ = os.RemoveAll(dir)

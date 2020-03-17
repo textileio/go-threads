@@ -19,7 +19,7 @@ import (
 	"github.com/textileio/go-threads/broadcast"
 	core "github.com/textileio/go-threads/core/db"
 	lstore "github.com/textileio/go-threads/core/logstore"
-	s "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
@@ -65,7 +65,7 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, ts s.Service, id thread.ID, opts ...Option) (*DB, error) {
+func NewDB(ctx context.Context, network net.Net, id thread.ID, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -73,22 +73,22 @@ func NewDB(ctx context.Context, ts s.Service, id thread.ID, opts ...Option) (*DB
 		}
 	}
 
-	if _, err := ts.GetThread(ctx, id); err != nil {
+	if _, err := network.GetThread(ctx, id); err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
-			if _, err = ts.CreateThread(ctx, id, s.FollowKey(sym.New()), s.ReadKey(sym.New())); err != nil {
+			if _, err = network.CreateThread(ctx, id, net.FollowKey(sym.New()), net.ReadKey(sym.New())); err != nil {
 				return nil, err
 			}
 		} else {
 			return nil, err
 		}
 	}
-	return newDB(ts, id, config)
+	return newDB(network, id, config)
 }
 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, ts s.Service, addr ma.Multiaddr, followKey, readKey *sym.Key, opts ...Option) (*DB, error) {
+func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, followKey, readKey *sym.Key, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -96,17 +96,17 @@ func NewDBFromAddr(ctx context.Context, ts s.Service, addr ma.Multiaddr, followK
 		}
 	}
 
-	ti, err := ts.AddThread(ctx, addr, s.FollowKey(followKey), s.ReadKey(readKey))
+	ti, err := network.AddThread(ctx, addr, net.FollowKey(followKey), net.ReadKey(readKey))
 	if err != nil {
 		return nil, err
 	}
-	d, err := newDB(ts, ti.ID, config)
+	d, err := newDB(network, ti.ID, config)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		if err := ts.PullThread(ctx, ti.ID); err != nil {
+		if err := network.PullThread(ctx, ti.ID); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID.String())
 		}
 	}()
@@ -115,7 +115,7 @@ func NewDBFromAddr(ctx context.Context, ts s.Service, addr ma.Multiaddr, followK
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(ts s.Service, id thread.ID, config *Config, collections ...CollectionConfig) (*DB, error) {
+func newDB(n net.Net, id thread.ID, config *Config, collections ...CollectionConfig) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -158,7 +158,7 @@ func newDB(ts s.Service, id thread.ID, config *Config, collections ...Collection
 		}
 	}
 
-	adapter := newSingleThreadAdapter(d, ts, id)
+	adapter := newSingleThreadAdapter(d, n, id)
 	d.adapter = adapter
 	adapter.Start()
 

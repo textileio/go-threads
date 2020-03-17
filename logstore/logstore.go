@@ -29,7 +29,7 @@ func NewLogstore(kb core.KeyBook, ab core.AddrBook, hb core.HeadBook, md core.Th
 }
 
 // Close the logstore.
-func (ts *logstore) Close() (err error) {
+func (ls *logstore) Close() (err error) {
 	var errs []error
 	weakClose := func(name string, c interface{}) {
 		if cl, ok := c.(io.Closer); ok {
@@ -39,10 +39,10 @@ func (ts *logstore) Close() (err error) {
 		}
 	}
 
-	weakClose("keybook", ts.KeyBook)
-	weakClose("addressbook", ts.AddrBook)
-	weakClose("headbook", ts.HeadBook)
-	weakClose("threadmetadata", ts.ThreadMetadata)
+	weakClose("keybook", ls.KeyBook)
+	weakClose("addressbook", ls.AddrBook)
+	weakClose("headbook", ls.HeadBook)
+	weakClose("threadmetadata", ls.ThreadMetadata)
 
 	if len(errs) > 0 {
 		return fmt.Errorf("failed while closing logstore; err(s): %q", errs)
@@ -51,16 +51,16 @@ func (ts *logstore) Close() (err error) {
 }
 
 // Threads returns a list of the thread IDs in the store.
-func (ts *logstore) Threads() (thread.IDSlice, error) {
+func (ls *logstore) Threads() (thread.IDSlice, error) {
 	set := map[thread.ID]struct{}{}
-	threadsFromKeys, err := ts.ThreadsFromKeys()
+	threadsFromKeys, err := ls.ThreadsFromKeys()
 	if err != nil {
 		return nil, err
 	}
 	for _, t := range threadsFromKeys {
 		set[t] = struct{}{}
 	}
-	threadsFromAddrs, err := ts.ThreadsFromAddrs()
+	threadsFromAddrs, err := ls.ThreadsFromAddrs()
 	if err != nil {
 		return nil, err
 	}
@@ -77,15 +77,15 @@ func (ts *logstore) Threads() (thread.IDSlice, error) {
 }
 
 // AddThread adds a thread with keys.
-func (ts *logstore) AddThread(info thread.Info) error {
+func (ls *logstore) AddThread(info thread.Info) error {
 	if info.FollowKey == nil {
 		return fmt.Errorf("a follow-key is required to add a thread")
 	}
-	if err := ts.AddFollowKey(info.ID, info.FollowKey); err != nil {
+	if err := ls.AddFollowKey(info.ID, info.FollowKey); err != nil {
 		return err
 	}
 	if info.ReadKey != nil {
-		if err := ts.AddReadKey(info.ID, info.ReadKey); err != nil {
+		if err := ls.AddReadKey(info.ID, info.ReadKey); err != nil {
 			return err
 		}
 	}
@@ -93,28 +93,28 @@ func (ts *logstore) AddThread(info thread.Info) error {
 }
 
 // GetThread returns thread info of the given id.
-func (ts *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
-	fk, err := ts.FollowKey(id)
+func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
+	fk, err := ls.FollowKey(id)
 	if err != nil {
 		return
 	}
 	if fk == nil {
 		return info, core.ErrThreadNotFound
 	}
-	rk, err := ts.ReadKey(id)
+	rk, err := ls.ReadKey(id)
 	if err != nil {
 		return
 	}
 
 	set := map[peer.ID]struct{}{}
-	logsWithKeys, err := ts.LogsWithKeys(id)
+	logsWithKeys, err := ls.LogsWithKeys(id)
 	if err != nil {
 		return
 	}
 	for _, l := range logsWithKeys {
 		set[l] = struct{}{}
 	}
-	logsWithAddrs, err := ts.LogsWithAddrs(id)
+	logsWithAddrs, err := ls.LogsWithAddrs(id)
 	if err != nil {
 		return
 	}
@@ -124,7 +124,7 @@ func (ts *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 
 	logs := make([]thread.LogInfo, 0, len(set))
 	for l := range set {
-		i, err := ts.GetLog(id, l)
+		i, err := ls.GetLog(id, l)
 		if err != nil {
 			return info, err
 		}
@@ -140,24 +140,24 @@ func (ts *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 }
 
 // AddLog adds a log under the given thread.
-func (ts *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
-	err := ts.AddPubKey(id, lg.ID, lg.PubKey)
+func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
+	err := ls.AddPubKey(id, lg.ID, lg.PubKey)
 	if err != nil {
 		return err
 	}
 
 	if lg.PrivKey != nil {
-		err = ts.AddPrivKey(id, lg.ID, lg.PrivKey)
+		err = ls.AddPrivKey(id, lg.ID, lg.PrivKey)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = ts.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL)
+	err = ls.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL)
 	if err != nil {
 		return err
 	}
-	err = ts.AddHeads(id, lg.ID, lg.Heads)
+	err = ls.AddHeads(id, lg.ID, lg.Heads)
 	if err != nil {
 		return err
 	}
@@ -166,23 +166,23 @@ func (ts *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 }
 
 // GetLog returns info about the given thread.
-func (ts *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	pk, err := ts.PubKey(id, lid)
+func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+	pk, err := ls.PubKey(id, lid)
 	if err != nil {
 		return
 	}
 	if pk == nil {
 		return info, core.ErrLogNotFound
 	}
-	sk, err := ts.PrivKey(id, lid)
+	sk, err := ls.PrivKey(id, lid)
 	if err != nil {
 		return
 	}
-	addrs, err := ts.Addrs(id, lid)
+	addrs, err := ls.Addrs(id, lid)
 	if err != nil {
 		return
 	}
-	heads, err := ts.Heads(id, lid)
+	heads, err := ls.Heads(id, lid)
 	if err != nil {
 		return
 	}

@@ -7,10 +7,9 @@ import (
 	"reflect"
 
 	ma "github.com/multiformats/go-multiaddr"
+	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
-
-	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
