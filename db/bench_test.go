@@ -95,7 +95,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
 	collection, err := db.NewCollection("Dog", testBenchSchema,
-		&IndexConfig{
+		IndexConfig{
 			Path:   "Name",
 			Unique: false,
 		},
@@ -141,7 +141,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
 	collection, err := db.NewCollection("Dog", testBenchSchema,
-		&IndexConfig{
+		IndexConfig{
 			Path:   "Age",
 			Unique: false,
 		},
@@ -203,7 +203,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
 	collection, err := db.NewCollection("Dog", testBenchSchema,
-		&IndexConfig{
+		IndexConfig{
 			Path:   "Name",
 			Unique: false,
 		},

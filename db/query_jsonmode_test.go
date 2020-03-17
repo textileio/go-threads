@@ -340,13 +340,16 @@ func TestQueryJsonMode(t *testing.T) {
 
 func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 	s, clean := createTestDB(t, WithJsonMode(true))
-	c, err := s.NewCollection("Book", testQueryJSONModeSchema,
-		&IndexConfig{
+	c, err := s.NewCollection(CollectionConfig{
+		Name:   "Book",
+		Schema: testQueryJSONModeSchema,
+		Indexes: []IndexConfig{{
 			Path: "Meta.TotalReads",
 		},
-		&IndexConfig{
-			Path: "Title",
-		})
+			{
+				Path: "Title",
+			}},
+	})
 	checkErr(t, err)
 	for i := range jsonSampleData {
 		if err = c.Create(&jsonSampleData[i]); err != nil {

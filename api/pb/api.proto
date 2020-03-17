@@ -10,10 +10,22 @@ message NewDBRequest {
     string dbID = 1;
 }
 
+message CollectionConfig {
+    string name = 1;
+    string schema = 2;
+    repeated IndexConfig indexes = 3;
+
+    message IndexConfig {
+        string path = 1;
+        bool unique = 2;
+    }
+}
+
 message NewDBFromAddrRequest {
-    string dbAddr = 2;
-    bytes followKey = 3;
-    bytes readKey = 4;
+    string dbAddr = 1;
+    bytes followKey = 2;
+    bytes readKey = 3;
+    repeated CollectionConfig collections = 4;
 }
 
 message NewDBReply {}
@@ -30,13 +42,7 @@ message GetDBInfoReply {
 
 message NewCollectionRequest {
     string dbID = 1;
-    string name = 2;
-    string schema = 3;
-    message IndexConfig {
-        string path = 1;
-        bool unique = 2;
-    }
-    repeated IndexConfig indexes = 4;
+    CollectionConfig config = 2;
 }
 
 message NewCollectionReply {}
@@ -144,6 +150,8 @@ message WriteTransactionReply {
 
 message ListenRequest {
     string dbID = 1;
+    repeated Filter filters = 2;
+
     message Filter {
         string collectionName = 1;
         string instanceID = 2;
@@ -155,19 +163,19 @@ message ListenRequest {
         }
         Action action = 3;
     }
-    repeated Filter filters = 2;
 }
 
 message ListenReply {
     string collectionName = 1;
     string instanceID = 2;
+    Action action = 3;
+    bytes instance = 4;
+
     enum Action {
         CREATE = 0;
         SAVE = 1;
         DELETE = 2;
     }
-    Action action = 3;
-    bytes instance = 4;
 }
 
 service API {

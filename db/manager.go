@@ -89,7 +89,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 	return m, nil
 }
 
-// NewDB creates a new db and prefix its datastore with base key.
+// NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
@@ -106,7 +106,10 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	return db, nil
 }
 
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *sym.Key) (*DB, error) {
+// NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
+// Unlike NewDB, this method takes a list of collections added to the original db that
+// should also be added to this host.
+func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *sym.Key, collections ...CollectionConfig) (*DB, error) {
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
@@ -118,7 +121,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKe
 		return nil, err
 	}
 
-	db, err := newDB(m.service, id, getDBConfig(id, m.config))
+	db, err := newDB(m.service, id, getDBConfig(id, m.config), collections...)
 	if err != nil {
 		return nil, err
 	}

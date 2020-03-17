@@ -243,7 +243,7 @@ func TestFindWithIndex(t *testing.T) {
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
 		err = client.NewCollection(context.Background(), dbID, collectionName, schema,
-			&db.IndexConfig{
+			db.IndexConfig{
 				Path:   "lastName",
 				Unique: true,
 			},

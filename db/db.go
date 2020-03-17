@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	lstore "github.com/textileio/go-threads/core/logstore"
-
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
@@ -20,6 +18,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/broadcast"
 	core "github.com/textileio/go-threads/core/db"
+	lstore "github.com/textileio/go-threads/core/logstore"
 	s "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
@@ -116,7 +115,7 @@ func NewDBFromAddr(ctx context.Context, ts s.Service, addr ma.Multiaddr, followK
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(ts s.Service, id thread.ID, config *Config) (*DB, error) {
+func newDB(ts s.Service, id thread.ID, config *Config, collections ...CollectionConfig) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -153,6 +152,12 @@ func newDB(ts s.Service, id thread.ID, config *Config) (*DB, error) {
 	}
 	d.dispatcher.Register(d)
 
+	for _, cc := range collections {
+		if _, err := d.NewCollection(cc); err != nil {
+			return nil, err
+		}
+	}
+
 	adapter := newSingleThreadAdapter(d, ts, id)
 	d.adapter = adapter
 	adapter.Start()
@@ -172,12 +177,16 @@ func (d *DB) reCreateCollections() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-		var indexes []*IndexConfig
+		var indexes []IndexConfig
 		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
 		if err == nil && index != nil {
 			_ = json.Unmarshal(index, &indexes)
 		}
-		if _, err := d.NewCollection(name, string(res.Value), indexes...); err != nil {
+		if _, err := d.NewCollection(CollectionConfig{
+			Name:    name,
+			Schema:  string(res.Value),
+			Indexes: indexes,
+		}); err != nil {
 			return err
 		}
 	}
@@ -208,37 +217,46 @@ func (d *DB) NewCollectionFromInstance(name string, defaultInstance interface{})
 	return c, nil
 }
 
+// CollectionConfig describes a new Collection.
+type CollectionConfig struct {
+	Name    string
+	Schema  string
+	Indexes []IndexConfig
+}
+
 // NewCollection creates a new collection in the db with a JSON schema.
-func (d *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) (*Collection, error) {
+func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if _, ok := d.collectionNames[name]; ok {
+	if _, ok := d.collectionNames[config.Name]; ok {
 		return nil, fmt.Errorf("already registered collection")
 	}
 
-	c := newCollectionFromSchema(name, schema, d)
-	key := dsDBSchemas.ChildString(name)
+	c := newCollectionFromSchema(config.Name, config.Schema, d)
+	key := dsDBSchemas.ChildString(config.Name)
 	exists, err := d.datastore.Has(key)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		if err := d.datastore.Put(key, []byte(schema)); err != nil {
+		if err := d.datastore.Put(key, []byte(config.Schema)); err != nil {
 			return nil, err
 		}
 	}
 
-	for _, config := range indexes {
+	for _, cfg := range config.Indexes {
 		// @todo: Should check to make sure this is a valid field path for this schema
-		_ = c.AddIndex(config.Path, config.Unique)
+		if err := c.AddIndex(cfg.Path, cfg.Unique); err != nil {
+			return nil, err
+		}
 	}
 
-	indexBytes, err := json.Marshal(indexes)
+	indexBytes, err := json.Marshal(config.Indexes)
 	if err != nil {
 		return nil, err
 	}
-	indexKey := dsDBIndexes.ChildString(name)
+	indexKey := dsDBIndexes.ChildString(config.Name)
 	exists, err = d.datastore.Has(indexKey)
 	if err != nil {
 		return nil, err
@@ -249,7 +267,7 @@ func (d *DB) NewCollection(name string, schema string, indexes ...*IndexConfig) 
 		}
 	}
 
-	d.collectionNames[name] = c
+	d.collectionNames[config.Name] = c
 	return c, nil
 }
 

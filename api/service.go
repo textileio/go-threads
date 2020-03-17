@@ -93,10 +93,30 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, addr, fk, rk); err != nil {
+
+	collections := make([]db.CollectionConfig, len(req.Collections))
+	for i, c := range req.Collections {
+		collections[i] = collectionConfigFromPb(c)
+	}
+	if _, err = s.manager.NewDBFromAddr(ctx, addr, fk, rk, collections...); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
+}
+
+func collectionConfigFromPb(pbc *pb.CollectionConfig) db.CollectionConfig {
+	indexes := make([]db.IndexConfig, len(pbc.Indexes))
+	for i, index := range pbc.Indexes {
+		indexes[i] = db.IndexConfig{
+			Path:   index.Path,
+			Unique: index.Unique,
+		}
+	}
+	return db.CollectionConfig{
+		Name:    pbc.Name,
+		Schema:  pbc.Schema,
+		Indexes: indexes,
+	}
 }
 
 // GetDBInfo returns db addresses and keys.
@@ -133,17 +153,9 @@ func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest)
 	if err != nil {
 		return nil, err
 	}
-	indexes := make([]*db.IndexConfig, len(req.Indexes))
-	for i, index := range req.Indexes {
-		indexes[i] = &db.IndexConfig{
-			Path:   index.Path,
-			Unique: index.Unique,
-		}
-	}
-	if _, err = d.NewCollection(req.Name, req.Schema, indexes...); err != nil {
+	if _, err = d.NewCollection(collectionConfigFromPb(req.Config)); err != nil {
 		return nil, err
 	}
-
 	return &pb.NewCollectionReply{}, nil
 }
 

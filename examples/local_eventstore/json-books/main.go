@@ -67,7 +67,7 @@ func main() {
 	d, clean := createJsonModeMemDB()
 	defer clean()
 
-	collection, err := d.NewCollection("Book", jsonSchema)
+	collection, err := d.NewCollection(db.CollectionConfig{Name: "Book", Schema: jsonSchema})
 	checkErr(err)
 
 	// Bootstrap the collection with some books: two from Author1 and one from Author2
