@@ -112,6 +112,9 @@ func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
+	if info.ReadKey == nil && info.FollowKey == nil {
+		return nil, fmt.Errorf("empty thread info")
+	}
 	return threadInfoToProto(info)
 }
 
