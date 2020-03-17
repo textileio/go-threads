@@ -16,8 +16,8 @@ import (
 	"github.com/textileio/go-threads/api"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/db"
-	netapi "github.com/textileio/go-threads/service/api"
-	netpb "github.com/textileio/go-threads/service/api/pb"
+	netapi "github.com/textileio/go-threads/net/api"
+	netpb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -62,24 +62,21 @@ func main() {
 	log.Debugf("apiProxyAddr: %v", *apiProxyAddrStr)
 	log.Debugf("debug: %v", *debug)
 
-	ts, err := db.DefaultService(
-		*repo,
-		db.WithServiceHostAddr(hostAddr),
-		db.WithServiceDebug(*debug))
+	n, err := db.DefaultNetwork(*repo, db.WithNetHostAddr(hostAddr), db.WithNetDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer ts.Close()
-	ts.Bootstrap(util.DefaultBoostrapPeers())
+	defer n.Close()
+	n.Bootstrap(util.DefaultBoostrapPeers())
 
-	service, err := api.NewService(ts, api.Config{
+	service, err := api.NewService(n, api.Config{
 		RepoPath: *repo,
 		Debug:    *debug,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	netService, err := netapi.NewService(ts, netapi.Config{
+	netService, err := netapi.NewService(n, netapi.Config{
 		Debug: *debug,
 	})
 	if err != nil {
@@ -139,13 +136,13 @@ func main() {
 			log.Fatal(err)
 		}
 		server.GracefulStop()
-		if err := ts.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			log.Fatal(err)
 		}
 	}()
 
 	fmt.Println("Welcome to Threads!")
-	fmt.Println("Your peer ID is " + ts.Host().ID().String())
+	fmt.Println("Your peer ID is " + n.Host().ID().String())
 
 	log.Debug("threadsd started")
 

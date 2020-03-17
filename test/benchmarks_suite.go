@@ -65,67 +65,67 @@ func BenchmarkLogstore(b *testing.B, factory LogstoreFactory, variant string) {
 	}
 }
 
-func benchmarkAddAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkAddAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
-			_ = ts.AddAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
+			_ = ls.AddAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
 		}
 	}
 }
 
-func benchmarkSetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkSetAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
-			_ = ts.SetAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
+			_ = ls.SetAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
 		}
 	}
 }
 
-func benchmarkGetAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkGetAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		pp := <-addrs
-		_ = ts.SetAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
+		_ = ls.SetAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = ts.Addrs(tid, pp.ID)
+			_, _ = ls.Addrs(tid, pp.ID)
 		}
 	}
 }
 
-func benchmarkAddGetAndClearAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkAddGetAndClearAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
-			_ = ts.AddAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
-			_, _ = ts.Addrs(tid, pp.ID)
-			_ = ts.ClearAddrs(tid, pp.ID)
+			_ = ls.AddAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
+			_, _ = ls.Addrs(tid, pp.ID)
+			_ = ls.ClearAddrs(tid, pp.ID)
 		}
 	}
 }
 
-func benchmarkGet1000LogsWithAddrs(ts core.Logstore, addrs chan *logpair) func(*testing.B) {
+func benchmarkGet1000LogsWithAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 		var logs = make([]*logpair, 1000)
 		for i := range logs {
 			pp := <-addrs
-			_ = ts.AddAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
+			_ = ls.AddAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
 			logs[i] = pp
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = ts.LogsWithAddrs(tid)
+			_, _ = ls.LogsWithAddrs(tid)
 		}
 	}
 }

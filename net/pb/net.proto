@@ -1,5 +1,5 @@
 syntax = "proto3";
-package service.pb;
+package net.pb;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 

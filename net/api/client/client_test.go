@@ -21,13 +21,13 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
+	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
-	"github.com/textileio/go-threads/service/api"
-	. "github.com/textileio/go-threads/service/api/client"
-	pb "github.com/textileio/go-threads/service/api/pb"
+	"github.com/textileio/go-threads/net/api"
+	. "github.com/textileio/go-threads/net/api/client"
+	pb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -398,15 +398,15 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
-	ts, err := db.DefaultService(
+	n, err := db.DefaultNetwork(
 		dir,
-		db.WithServiceHostAddr(hostAddr),
-		db.WithServiceDebug(true))
+		db.WithNetHostAddr(hostAddr),
+		db.WithNetDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts.Bootstrap(util.DefaultBoostrapPeers())
-	service, err := api.NewService(ts, api.Config{
+	n.Bootstrap(util.DefaultBoostrapPeers())
+	service, err := api.NewService(n, api.Config{
 		Debug: true,
 	})
 	if err != nil {
@@ -435,7 +435,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 
 	return hostAddr, addr, func() {
 		server.GracefulStop()
-		if err := ts.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			t.Fatal(err)
 		}
 		_ = os.RemoveAll(dir)

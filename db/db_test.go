@@ -23,12 +23,12 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
 
-	ts1, err := DefaultService(tmpDir1)
+	n1, err := DefaultNetwork(tmpDir1)
 	checkErr(t, err)
-	defer ts1.Close()
+	defer n1.Close()
 
 	id1 := thread.NewIDV1(thread.Raw, 32)
-	d1, err := NewDB(context.Background(), ts1, id1, WithRepoPath(tmpDir1))
+	d1, err := NewDB(context.Background(), n1, id1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollectionFromInstance("dummy", &dummy{})
@@ -39,9 +39,9 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, c1.Save(dummyInstance))
 
 	// Boilerplate to generate peer1 thread-addr
-	// @todo: This should be a service method
-	peer1Addr := ts1.Host().Addrs()[0]
-	peer1ID, err := multiaddr.NewComponent("p2p", ts1.Host().ID().String())
+	// @todo: This should be a network method
+	peer1Addr := n1.Host().Addrs()[0]
+	peer1ID, err := multiaddr.NewComponent("p2p", n1.Host().ID().String())
 	checkErr(t, err)
 	threadComp, err := multiaddr.NewComponent("thread", id1.String())
 	checkErr(t, err)
@@ -52,13 +52,13 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	ts2, err := DefaultService(tmpDir2)
+	n2, err := DefaultNetwork(tmpDir2)
 	checkErr(t, err)
-	defer ts2.Close()
+	defer n2.Close()
 
-	ti, err := ts1.GetThread(context.Background(), id1)
+	ti, err := n1.GetThread(context.Background(), id1)
 	checkErr(t, err)
-	d2, err := NewDBFromAddr(context.Background(), ts2, addr, ti.FollowKey, ti.ReadKey, WithRepoPath(tmpDir2))
+	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.FollowKey, ti.ReadKey, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer d2.Close()
 	c2, err := d2.NewCollectionFromInstance("dummy", &dummy{})
@@ -79,12 +79,12 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	ts, err := DefaultService(tmpDir)
+	n, err := DefaultNetwork(tmpDir)
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err := NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollectionFromInstance("dummy", &dummy{})
@@ -96,14 +96,14 @@ func TestOptions(t *testing.T) {
 	}
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
-	checkErr(t, ts.Close())
+	checkErr(t, n.Close())
 	checkErr(t, d.Close())
 
 	time.Sleep(time.Second * 3)
-	ts, err = DefaultService(tmpDir)
+	n, err = DefaultNetwork(tmpDir)
 	checkErr(t, err)
-	defer ts.Close()
-	d, err = NewDB(context.Background(), ts, id, WithRepoPath(tmpDir), WithEventCodec(ec))
+	defer n.Close()
+	d, err = NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }

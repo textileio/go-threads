@@ -10,7 +10,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	coredb "github.com/textileio/go-threads/core/db"
-	core "github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
@@ -35,8 +35,8 @@ type Config struct {
 }
 
 // NewService starts and returns a new service with the given threadservice.
-// The threadservice is *not* managed by the server.
-func NewService(ts core.Service, conf Config) (*Service, error) {
+// The threadnet is *not* managed by the server.
+func NewService(network net.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -48,7 +48,7 @@ func NewService(ts core.Service, conf Config) (*Service, error) {
 	}
 
 	manager, err := db.NewManager(
-		ts,
+		network,
 		db.WithJsonMode(true),
 		db.WithRepoPath(conf.RepoPath),
 		db.WithDebug(true))
@@ -125,11 +125,11 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := s.manager.Service().GetThread(ctx, id)
+	tinfo, err := s.manager.Net().GetThread(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	host := s.manager.Service().Host()
+	host := s.manager.Net().Host()
 	peerID, _ := ma.NewComponent("p2p", host.ID().String())
 	threadID, _ := ma.NewComponent("thread", id.String())
 	addrs := host.Addrs()

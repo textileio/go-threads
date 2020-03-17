@@ -16,11 +16,11 @@ func runReaderPeer(repo string) {
 	fmt.Printf("I'm a collection reader.\n")
 	writerAddr, fkey, rkey := getWriterAddr()
 
-	ts, err := db.DefaultService(repo)
+	n, err := db.DefaultNetwork(repo)
 	checkErr(err)
-	defer ts.Close()
+	defer n.Close()
 
-	d, err := db.NewDBFromAddr(context.Background(), ts, writerAddr, fkey, rkey, db.WithRepoPath(repo))
+	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, fkey, rkey, db.WithRepoPath(repo))
 	checkErr(err)
 	defer d.Close()
 

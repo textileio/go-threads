@@ -17,9 +17,9 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
-	coreservice "github.com/textileio/go-threads/core/service"
+	corenet "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/logstore/lstoreds"
-	"github.com/textileio/go-threads/service"
+	"github.com/textileio/go-threads/net"
 	util "github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -29,16 +29,15 @@ const (
 	defaultLogstorePath = "logstore"
 )
 
-// DefaultService is a boostrapable default Service with
-// sane defaults.
-type ServiceBoostrapper interface {
-	coreservice.Service
+// DefaultNetwork is a boostrapable default Net with sane defaults.
+type NetBoostrapper interface {
+	corenet.Net
 	GetIpfsLite() *ipfslite.Peer
 	Bootstrap(addrs []peer.AddrInfo)
 }
 
-func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper, error) {
-	config := &ServiceConfig{}
+func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) {
+	config := &NetConfig{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
 			return nil, err
@@ -112,8 +111,8 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 		return nil, err
 	}
 
-	// Build a service
-	api, err := service.NewService(ctx, h, lite.BlockStore(), lite, tstore, service.Config{
+	// Build a network
+	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, net.Config{
 		Debug: config.Debug,
 	}, config.GRPCOptions...)
 	if err != nil {
@@ -125,9 +124,9 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 		return nil, err
 	}
 
-	return &servBoostrapper{
+	return &netBoostrapper{
 		cancel:    cancel,
-		Service:   api,
+		Net:       api,
 		litepeer:  lite,
 		pstore:    pstore,
 		logstore:  logstore,
@@ -137,38 +136,38 @@ func DefaultService(repoPath string, opts ...ServiceOption) (ServiceBoostrapper,
 	}, nil
 }
 
-type ServiceConfig struct {
+type NetConfig struct {
 	HostAddr    ma.Multiaddr
 	Debug       bool
 	GRPCOptions []grpc.ServerOption
 }
 
-type ServiceOption func(c *ServiceConfig) error
+type NetOption func(c *NetConfig) error
 
-func WithServiceHostAddr(addr ma.Multiaddr) ServiceOption {
-	return func(c *ServiceConfig) error {
+func WithNetHostAddr(addr ma.Multiaddr) NetOption {
+	return func(c *NetConfig) error {
 		c.HostAddr = addr
 		return nil
 	}
 }
 
-func WithServiceDebug(enabled bool) ServiceOption {
-	return func(c *ServiceConfig) error {
+func WithNetDebug(enabled bool) NetOption {
+	return func(c *NetConfig) error {
 		c.Debug = enabled
 		return nil
 	}
 }
 
-func WithServiceGRPCOptions(opts ...grpc.ServerOption) ServiceOption {
-	return func(c *ServiceConfig) error {
+func WithNetGRPCOptions(opts ...grpc.ServerOption) NetOption {
+	return func(c *NetConfig) error {
 		c.GRPCOptions = opts
 		return nil
 	}
 }
 
-type servBoostrapper struct {
+type netBoostrapper struct {
 	cancel context.CancelFunc
-	coreservice.Service
+	corenet.Net
 	litepeer  *ipfslite.Peer
 	pstore    peerstore.Peerstore
 	logstore  datastore.Datastore
@@ -177,18 +176,18 @@ type servBoostrapper struct {
 	dht       *dht.IpfsDHT
 }
 
-var _ ServiceBoostrapper = (*servBoostrapper)(nil)
+var _ NetBoostrapper = (*netBoostrapper)(nil)
 
-func (tsb *servBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
+func (tsb *netBoostrapper) Bootstrap(addrs []peer.AddrInfo) {
 	tsb.litepeer.Bootstrap(addrs)
 }
 
-func (tsb *servBoostrapper) GetIpfsLite() *ipfslite.Peer {
+func (tsb *netBoostrapper) GetIpfsLite() *ipfslite.Peer {
 	return tsb.litepeer
 }
 
-func (tsb *servBoostrapper) Close() error {
-	if err := tsb.Service.Close(); err != nil {
+func (tsb *netBoostrapper) Close() error {
+	if err := tsb.Net.Close(); err != nil {
 		return err
 	}
 	tsb.cancel()
@@ -205,5 +204,5 @@ func (tsb *servBoostrapper) Close() error {
 		return err
 	}
 	return tsb.logstore.Close()
-	// Logstore closed by service
+	// Logstore closed by network
 }

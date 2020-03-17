@@ -44,7 +44,7 @@ jobs:
       - name: Get JS dependencies
         run: |
           cd api/pb/javascript && npm install
-          cd ../../../service/api/pb/javascript && npm install
+          cd ../../../net/api/pb/javascript && npm install
           npm install -g json
           npm install -g yaml-cli
       - name: Get Dart dependencies
@@ -58,7 +58,7 @@ jobs:
           make clean && make
       - name: Protoc generate Service
         run: |
-          cd service/api/pb
+          cd net/api/pb
           make clean && make
       - name: Publish JS API
         env:
@@ -71,7 +71,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
-          cd service/api/pb/javascript
+          cd net/api/pb/javascript
           json -I -f package.json -e 'this.version=("${{ steps.latesttag.outputs.tag }}").replace("v", "")'
           npm publish --access=public
       - name: Publish Dart API

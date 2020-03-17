@@ -1,10 +1,10 @@
 syntax = "proto3";
-package service.api.pb;
+package net.api.pb;
 
 option java_multiple_files = true;
-option java_package = "io.textile.threads_service_grpc";
-option java_outer_classname = "ThreadsService";
-option objc_class_prefix = "THRDSS";
+option java_package = "io.textile.thread_net_grpc";
+option java_outer_classname = "ThreadNet";
+option objc_class_prefix = "TNET";
 
 message GetHostIDRequest {}
 
