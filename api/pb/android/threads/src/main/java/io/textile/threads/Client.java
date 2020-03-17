@@ -71,66 +71,47 @@ public class Client implements LifecycleObserver {
         });
     }
 
-    public String NewDBSync () {
+    public void NewDBSync () {
         NewDBRequest.Builder request = NewDBRequest.newBuilder();
-        NewDBReply reply = blockingStub.newDB(request.build());
-        return reply.getID();
+        blockingStub.newDB(request.build());
     }
-
 
     public void NewDB (StreamObserver<NewDBReply> responseObserver) {
         NewDBRequest.Builder request = NewDBRequest.newBuilder();
         asyncStub.newDB(request.build(), responseObserver);
     }
 
-    public void StartSync (String dbID) {
-        StartRequest.Builder request = StartRequest.newBuilder();
-        request.setDBID(dbID);
-        blockingStub.start(request.build());
-        return;
-    }
-
-    public void Start (String dbID, StreamObserver<StartReply> responseObserver) {
-        StartRequest.Builder request = StartRequest.newBuilder();
-        request.setDBID(dbID);
-        asyncStub.start(request.build(), responseObserver);
-    }
-
-    public void StartFromAddressSync (String dbID, String address, ByteString followKey, ByteString readKey) {
-        StartFromAddressRequest.Builder request = StartFromAddressRequest.newBuilder();
-        request.setDBID(dbID);
-        request.setAddress(address);
+    public void NewDBFromAddrSync (String address, ByteString followKey, ByteString readKey) {
+        NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
+        request.setDbAddr(address);
         request.setFollowKey(followKey);
         request.setReadKey(readKey);
-        blockingStub.startFromAddress(request.build());
-        return;
+        blockingStub.newDBFromAddr(request.build());
     }
 
-    public void StartFromAddress (String dbID, String address, ByteString followKey, ByteString readKey, StreamObserver<StartFromAddressReply> responseObserver) {
-        StartFromAddressRequest.Builder request = StartFromAddressRequest.newBuilder();
-        request.setDBID(dbID);
-        request.setAddress(address);
+    public void NewDBFromAddr (String address, ByteString followKey, ByteString readKey, StreamObserver<NewDBReply> responseObserver) {
+        NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
+        request.setDbAddr(address);
         request.setFollowKey(followKey);
         request.setReadKey(readKey);
-        asyncStub.startFromAddress(request.build(), responseObserver);
+        asyncStub.newDBFromAddr(request.build(), responseObserver);
     }
 
-
-    public GetDBLinkReply GetDBLinkSync (String dbID) {
-        GetDBLinkRequest.Builder request = GetDBLinkRequest.newBuilder();
-        request.setDBID(dbID);
-        return blockingStub.getDBLink(request.build());
+    public GetDBInfoReply GetDBInfoSync (String dbID) {
+        GetDBInfoRequest.Builder request = GetDBInfoRequest.newBuilder();
+        request.setDbID(dbID);
+        return blockingStub.getDBInfo(request.build());
     }
 
-    public void GetDBLink (String dbID, StreamObserver<GetDBLinkReply> responseObserver) {
-        GetDBLinkRequest.Builder request = GetDBLinkRequest.newBuilder();
-        request.setDBID(dbID);
-        asyncStub.getDBLink(request.build(), responseObserver);
+    public void GetDBInfo (String dbID, StreamObserver<GetDBInfoReply> responseObserver) {
+        GetDBInfoRequest.Builder request = GetDBInfoRequest.newBuilder();
+        request.setDbID(dbID);
+        asyncStub.getDBInfo(request.build(), responseObserver);
     }
 
     public CreateReply CreateSync (String dbID, String collectionName, String[] values) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllValues(Arrays.asList(values));
         CreateReply reply = blockingStub.create(request.build());
@@ -139,7 +120,7 @@ public class Client implements LifecycleObserver {
 
     public void Create (String dbID, String collectionName, String[] values, StreamObserver<CreateReply> responseObserver) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllValues(Arrays.asList(values));
         asyncStub.create(request.build(), responseObserver);
@@ -147,7 +128,7 @@ public class Client implements LifecycleObserver {
 
     public SaveReply SaveSync (String dbID, String collectionName, String[] values) {
         SaveRequest.Builder request = SaveRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllValues(Arrays.asList(values));
         SaveReply reply = blockingStub.save(request.build());
@@ -156,7 +137,7 @@ public class Client implements LifecycleObserver {
 
     public void Save (String dbID, String collectionName, String[] values, StreamObserver<SaveReply> responseObserver) {
         SaveRequest.Builder request = SaveRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllValues(Arrays.asList(values));
         SaveReply reply = blockingStub.save(request.build());
@@ -165,7 +146,7 @@ public class Client implements LifecycleObserver {
 
     public boolean HasSync (String dbID, String collectionName, String[] instanceIDs) {
         HasRequest.Builder request = HasRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         for (int i = 1; i < instanceIDs.length; i++) {
             request.setInstanceIDs(i, instanceIDs[i]);
@@ -176,7 +157,7 @@ public class Client implements LifecycleObserver {
 
     public void Has (String dbID, String collectionName, String[] instanceIDs, StreamObserver<HasReply> responseObserver) {
         HasRequest.Builder request = HasRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         for (int i = 1; i < instanceIDs.length; i++) {
             request.setInstanceIDs(i, instanceIDs[i]);
@@ -186,7 +167,7 @@ public class Client implements LifecycleObserver {
 
     public FindByIDReply FindByIDSync (String dbID, String collectionName, String instanceID) {
         FindByIDRequest.Builder request = FindByIDRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setInstanceID(instanceID);
         FindByIDReply reply = blockingStub.findByID(request.build());
@@ -195,7 +176,7 @@ public class Client implements LifecycleObserver {
   
     public void FindByID (String dbID, String collectionName, String instanceID, StreamObserver<FindByIDReply> responseObserver) {
         FindByIDRequest.Builder request = FindByIDRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setInstanceID(instanceID);
         asyncStub.findByID(request.build(), responseObserver);
@@ -203,7 +184,7 @@ public class Client implements LifecycleObserver {
 
     public FindReply FindSync (String dbID, String collectionName, ByteString query) {
         FindRequest.Builder request = FindRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setQueryJSON(query);
         FindReply reply = blockingStub.find(request.build());
@@ -212,7 +193,7 @@ public class Client implements LifecycleObserver {
 
     public void Find (String dbID, String collectionName, ByteString query, StreamObserver<FindReply> responseObserver) {
         FindRequest.Builder request = FindRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setQueryJSON(query);
         asyncStub.find(request.build(), responseObserver);
@@ -220,16 +201,15 @@ public class Client implements LifecycleObserver {
 
     public void NewCollectionSync (String dbID, String name, String schema) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setName(name);
         request.setSchema(schema);
         blockingStub.newCollection(request.build());
-        return;
     }
 
     public void NewCollection (String dbID, String name, String schema, StreamObserver<NewCollectionReply> responseObserver) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
-        request.setDBID(dbID);
+        request.setDbID(dbID);
         request.setName(name);
         request.setSchema(schema);
         asyncStub.newCollection(request.build(), responseObserver);

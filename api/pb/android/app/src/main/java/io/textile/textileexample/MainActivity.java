@@ -23,8 +23,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void onButtonClick(View v) {
         try {
-            String dbId = client.NewDBSync();
-            System.out.println("Thread info: " + dbId);
+            client.NewDBSync();
+            System.out.println("Added DB");
         } catch (Exception e) {
             System.out.println("Error Info: " + e.getMessage());
         }
