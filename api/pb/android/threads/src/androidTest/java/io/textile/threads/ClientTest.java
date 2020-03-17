@@ -21,10 +21,10 @@ public class ClientTest {
 
     static Client client;
 
-    void connect() {
+    void connect() throws Exception {
         // Start
-        client = new Client("localhost", 6006);
-        client.Connect();
+        client = new Client();
+        client.init().get();
     }
 
     @Test
@@ -39,8 +39,6 @@ public class ClientTest {
             connect();
         }
 
-        String dbId = client.NewDBSync();
-
-        assertEquals(36, dbId.length());
+        client.NewDBSync();
     }
 }

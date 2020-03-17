@@ -51,19 +51,12 @@ public class ClientUnitTest {
 
     @Test
     public void t02_NewDB() throws Exception {
-        dbId = client.NewDBSync();
-        assertEquals(36, dbId.length());
+        client.NewDBSync();
     }
 
     @Test
-    public void t03_StartDB() throws Exception {
-        client.StartSync(dbId);
-        assertTrue(true);
-    }
-
-    @Test
-    public void t04_GetDBLink() throws Exception {
-        GetDBLinkReply reply = client.GetDBLinkSync(dbId);
+    public void t04_GetDBInfo() throws Exception {
+        GetDBInfoReply reply = client.GetDBInfoSync(dbId);
         assertNotEquals(0, reply.getAddressesCount());
     }
 
