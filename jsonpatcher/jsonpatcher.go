@@ -57,6 +57,9 @@ func New(jsonMode bool) core.EventCodec {
 }
 
 func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node, error) {
+	if len(actions) == 0 {
+		return nil, nil, nil
+	}
 	revents := recordEvents{Patches: make([]patchEvent, len(actions))}
 	events := make([]core.Event, len(actions))
 	for i := range actions {

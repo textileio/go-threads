@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	lstore "github.com/textileio/go-threads/core/logstore"
+
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
@@ -72,13 +74,12 @@ func NewDB(ctx context.Context, ts s.Service, id thread.ID, opts ...Option) (*DB
 		}
 	}
 
-	ti, err := ts.GetThread(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if len(ti.Logs) == 0 {
-		ti, err = ts.CreateThread(ctx, id, s.FollowKey(sym.New()), s.ReadKey(sym.New()))
-		if err != nil {
+	if _, err := ts.GetThread(ctx, id); err != nil {
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			if _, err = ts.CreateThread(ctx, id, s.FollowKey(sym.New()), s.ReadKey(sym.New())); err != nil {
+				return nil, err
+			}
+		} else {
 			return nil, err
 		}
 	}

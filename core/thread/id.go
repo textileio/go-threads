@@ -320,7 +320,7 @@ func (i Info) GetOwnLog() *LogInfo {
 	return nil
 }
 
-// LogInfo holds log keys, addresses, and heads.
+// GetLog holds log keys, addresses, and heads.
 type LogInfo struct {
 	ID      peer.ID
 	PubKey  crypto.PubKey

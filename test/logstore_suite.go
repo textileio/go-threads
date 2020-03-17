@@ -246,7 +246,7 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 			t.Fatal("expected ten threads, got", len(threads))
 		}
 
-		info, err := ts.ThreadInfo(tids[0])
+		info, err := ts.GetThread(tids[0])
 		check(t, err)
 		tsAddrs, err := ts.Addrs(info.ID, info.Logs[0].ID)
 		if err != nil {
@@ -256,7 +256,7 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 			t.Fatal("stored wrong address")
 		}
 
-		log, err := ts.LogInfo(info.ID, info.Logs[0].ID)
+		log, err := ts.GetLog(info.ID, info.Logs[0].ID)
 		check(t, err)
 		if !log.Addrs[0].Equal(addrs[0]) {
 			t.Fatal("stored wrong address")
