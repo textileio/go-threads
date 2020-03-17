@@ -71,13 +71,15 @@ public class Client implements LifecycleObserver {
         });
     }
 
-    public void NewDBSync () {
+    public void NewDBSync (String dbID) {
         NewDBRequest.Builder request = NewDBRequest.newBuilder();
+        request.setDbID(dbID);
         blockingStub.newDB(request.build());
     }
 
-    public void NewDB (StreamObserver<NewDBReply> responseObserver) {
+    public void NewDB (String dbID, StreamObserver<NewDBReply> responseObserver) {
         NewDBRequest.Builder request = NewDBRequest.newBuilder();
+        request.setDbID(dbID);
         asyncStub.newDB(request.build(), responseObserver);
     }
 

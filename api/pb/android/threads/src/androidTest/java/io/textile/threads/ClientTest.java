@@ -39,6 +39,6 @@ public class ClientTest {
             connect();
         }
 
-        client.NewDBSync();
+        client.NewDBSync("bafkr2ecolcv34sdo2mivzn3spt4ofmgzmaaplqoedm");
     }
 }
