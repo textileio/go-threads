@@ -30,11 +30,11 @@ func parseInviteLink(inviteLink string) (ma.Multiaddr, *symmetric.Key, *symmetri
 	if err != nil {
 		panic("invalid read key")
 	}
-	fkey, err := symmetric.NewKey(fkeyBytes)
+	fkey, err := symmetric.FromBytes(fkeyBytes)
 	if err != nil {
 		panic("can't create follow symkey")
 	}
-	rkey, err := symmetric.NewKey(rkeyBytes)
+	rkey, err := symmetric.FromBytes(rkeyBytes)
 	if err != nil {
 		panic("can't create read symkey")
 	}

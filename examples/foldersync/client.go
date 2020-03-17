@@ -15,21 +15,23 @@ import (
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-cid"
 	"github.com/mr-tron/base58"
+	"github.com/multiformats/go-multiaddr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-foldersync/watcher"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
 
 var (
-	ErrClientAlreadyStarted = errors.New("client already started")
+	errClientAlreadyStarted = errors.New("client already started")
 )
 
-type Client struct {
+type client struct {
 	lock          sync.Mutex
 	closeIpfsLite func() error
 	wg            sync.WaitGroup
-	close         chan struct{}
+	closeCh       chan struct{}
 	started       bool
 	closed        bool
 
@@ -58,13 +60,22 @@ type file struct {
 	Files       []file
 }
 
-func NewClient(name, sharedFolderPath, repoPath string) (*Client, error) {
+func newClient(name, sharedFolderPath, repoPath string) (*client, error) {
 	ts, err := db.DefaultService(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
-	d, err := db.NewDB(ts, db.WithRepoPath(repoPath))
+	service, err := db.DefaultService(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	threadID := thread.NewIDV1(thread.Raw, 32)
+
+	// db.NewDBFromAddr(context.Background(), service, )
+
+	d, err := db.NewDB(context.Background(), service, threadID)
 	if err != nil {
 		return nil, fmt.Errorf("error when creating db: %v", err)
 	}
@@ -80,9 +91,9 @@ func NewClient(name, sharedFolderPath, repoPath string) (*Client, error) {
 		return nil, fmt.Errorf("error when creating ipfs lite peer: %v", err)
 	}
 
-	return &Client{
+	return &client{
 		closeIpfsLite: func() error { return nil },
-		close:         make(chan struct{}),
+		closeCh:       make(chan struct{}),
 		ts:            ts,
 		db:            d,
 		collection:    c,
@@ -92,7 +103,7 @@ func NewClient(name, sharedFolderPath, repoPath string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Close() error {
+func (c *client) close() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.closed {
@@ -100,7 +111,7 @@ func (c *Client) Close() error {
 	}
 	c.closed = true
 
-	close(c.close)
+	close(c.closeCh)
 	c.wg.Wait()
 	if err := c.closeIpfsLite(); err != nil {
 		return err
@@ -113,29 +124,26 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) Start() error {
+func (c *client) start() error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.started {
-		return ErrClientAlreadyStarted
+		return errClientAlreadyStarted
 	}
 
 	log.Info("Starting/resuming a new thread for shared folders")
-	if err := c.db.Start(); err != nil {
-		return err
-	}
-	if err := c.start(); err != nil {
+	if err := c.startInternal(); err != nil {
 		return err
 	}
 	c.started = true
 	return nil
 }
 
-func (c *Client) StartFromInvitation(link string) error {
+func (c *client) startFromInvitation(link string) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.started {
-		return ErrClientAlreadyStarted
+		return errClientAlreadyStarted
 	}
 	addr, fk, rk := parseInviteLink(link)
 	log.Infof("Starting from addr: %s", addr)
@@ -143,14 +151,14 @@ func (c *Client) StartFromInvitation(link string) error {
 		return err
 	}
 
-	if err := c.start(); err != nil {
+	if err := c.startInternal(); err != nil {
 		return err
 	}
 	c.started = true
 	return nil
 }
 
-func (c *Client) GetDirectoryTree() ([]*userFolder, error) {
+func (c *client) getDirectoryTree() ([]*userFolder, error) {
 	var res []*userFolder
 	if err := c.collection.Find(&res, nil); err != nil {
 		return nil, err
@@ -159,7 +167,13 @@ func (c *Client) GetDirectoryTree() ([]*userFolder, error) {
 	return res, nil
 }
 
-func (c *Client) InviteLinks() ([]string, error) {
+func (c *client) inviteLinks() ([]string, error) {
+	peerAddr := c.ts.Host().Addrs()[0]
+	peerID, err := multiaddr.NewComponent("p2p", c.ts.Host().ID().String())
+
+	threadComp, err := multiaddr.NewComponent("thread", id1.String())
+	addr := peerAddr.Encapsulate(peerID).Encapsulate(threadComp)
+
 	host := c.db.Service().Host()
 	tid, _, err := c.db.ThreadID()
 	if err != nil {
@@ -185,11 +199,11 @@ func (c *Client) InviteLinks() ([]string, error) {
 	return res, nil
 }
 
-func (c *Client) FullPath(f file) string {
+func (c *client) fullPath(f file) string {
 	return filepath.Join(c.shrFolderPath, f.FileRelativePath)
 }
 
-func (c *Client) start() error {
+func (c *client) startInternal() error {
 	c.wg.Add(2)
 	c.startFileSystemWatcher()
 	c.startListeningExternalChanges()
@@ -197,7 +211,7 @@ func (c *Client) start() error {
 	return nil
 }
 
-func (c *Client) startListeningExternalChanges() error {
+func (c *client) startListeningExternalChanges() error {
 	l, err := c.db.Listen()
 	if err != nil {
 		return err
@@ -207,7 +221,7 @@ func (c *Client) startListeningExternalChanges() error {
 		defer l.Close()
 		for {
 			select {
-			case <-c.close:
+			case <-c.closeCh:
 				log.Info("shutting down external changes listener")
 				return
 			case a := <-l.Channel():
@@ -218,8 +232,8 @@ func (c *Client) startListeningExternalChanges() error {
 				}
 				log.Infof("%s: detected new file %s of user %s", c.userName, a.ID, uf.Owner)
 				for _, f := range uf.Files {
-					if err := c.ensureCID(c.FullPath(f), f.CID); err != nil {
-						log.Warningf("%s: error ensuring file %s: %v", c.userName, c.FullPath(f), err)
+					if err := c.ensureCID(c.fullPath(f), f.CID); err != nil {
+						log.Warningf("%s: error ensuring file %s: %v", c.userName, c.fullPath(f), err)
 					}
 				}
 			}
@@ -228,7 +242,7 @@ func (c *Client) startListeningExternalChanges() error {
 	return nil
 }
 
-func (c *Client) startFileSystemWatcher() error {
+func (c *client) startFileSystemWatcher() error {
 	myFolderPath := path.Join(c.shrFolderPath, c.userName)
 	myFolder, err := c.getOrCreateMyFolderInstance(myFolderPath)
 	if err != nil {
@@ -258,23 +272,23 @@ func (c *Client) startFileSystemWatcher() error {
 	}
 	watcher.Watch()
 	go func() {
-		<-c.close
+		<-c.closeCh
 		watcher.Close()
 		c.wg.Done()
 	}()
 	return nil
 }
 
-func (c *Client) ensureFiles() error {
-	res, err := c.GetDirectoryTree()
+func (c *client) ensureFiles() error {
+	res, err := c.getDirectoryTree()
 	if err != nil {
 		return err
 	}
 	var wg sync.WaitGroup
 	for _, userFolder := range res {
 		for _, f := range userFolder.Files {
-			if err := c.ensureCID(c.FullPath(f), f.CID); err != nil {
-				log.Errorf("%s: error ensuring file %s: %v", c.userName, c.FullPath(f), err)
+			if err := c.ensureCID(c.fullPath(f), f.CID); err != nil {
+				log.Errorf("%s: error ensuring file %s: %v", c.userName, c.fullPath(f), err)
 			}
 		}
 	}
@@ -282,7 +296,7 @@ func (c *Client) ensureFiles() error {
 	return nil
 }
 
-func (c *Client) ensureCID(fullPath, cidStr string) error {
+func (c *client) ensureCID(fullPath, cidStr string) error {
 	cid, err := cid.Decode(cidStr)
 	if err != nil {
 		return err
@@ -321,7 +335,7 @@ func (c *Client) ensureCID(fullPath, cidStr string) error {
 	return nil
 }
 
-func (c *Client) getOrCreateMyFolderInstance(path string) (*userFolder, error) {
+func (c *client) getOrCreateMyFolderInstance(path string) (*userFolder, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err = os.MkdirAll(path, os.ModePerm); err != nil {
 			return nil, err

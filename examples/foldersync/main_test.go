@@ -27,10 +27,10 @@ func TestSingleUser(t *testing.T) {
 	t.Parallel()
 	c1, clean1 := createClient(t, "user1")
 	defer clean1()
-	defer c1.Close()
-	err := c1.Start()
+	defer c1.close()
+	err := c1.start()
 	checkErr(t, err)
-	invlinks, err := c1.InviteLinks()
+	invlinks, err := c1.inviteLinks()
 	checkErr(t, err)
 	invlink := invlinks[0]
 
@@ -38,7 +38,7 @@ func TestSingleUser(t *testing.T) {
 		t.Fatalf("invite link can't be empty")
 	}
 
-	trees, err := c1.GetDirectoryTree()
+	trees, err := c1.getDirectoryTree()
 	checkErr(t, err)
 	if len(trees) != 1 {
 		t.Fatalf("there should be one user folder")
@@ -57,7 +57,7 @@ func TestSingleUser(t *testing.T) {
 	checkErr(t, f.Close())
 
 	time.Sleep(time.Second)
-	trees, err = c1.GetDirectoryTree()
+	trees, err = c1.getDirectoryTree()
 	checkErr(t, err)
 	if len(trees) != 1 {
 		t.Fatalf("there should be one user folder")
@@ -92,27 +92,27 @@ func TestNUsersBootstrap(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("Total%dCore%d", tt.totalClients, tt.totalCorePeers), func(t *testing.T) {
 			t.Parallel()
-			var clients []*Client
+			var clients []*client
 
 			for i := 0; i < tt.totalClients; i++ {
 				c, clean := createClient(t, fmt.Sprintf("user%d", i))
 				defer clean()
 				clients = append(clients, c)
 			}
-			err := clients[0].Start()
+			err := clients[0].start()
 			checkErr(t, err)
-			invlink0s, err := clients[0].InviteLinks()
+			invlink0s, err := clients[0].inviteLinks()
 			checkErr(t, err)
 			invlink0 := invlink0s[0]
 			for i := 1; i < tt.totalCorePeers; i++ {
-				checkErr(t, clients[i].StartFromInvitation(invlink0))
+				checkErr(t, clients[i].startFromInvitation(invlink0))
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
-				rotatedInvLinks, err := clients[i%tt.totalCorePeers].InviteLinks()
+				rotatedInvLinks, err := clients[i%tt.totalCorePeers].inviteLinks()
 				rotatedInvLink := rotatedInvLinks[0]
 				checkErr(t, err)
-				checkErr(t, clients[i].StartFromInvitation(rotatedInvLink))
+				checkErr(t, clients[i].startFromInvitation(rotatedInvLink))
 			}
 
 			blk := make([]byte, tt.randFileSize)
@@ -134,11 +134,11 @@ func TestNUsersBootstrap(t *testing.T) {
 	}
 }
 
-func assertClientsEqualTrees(t *testing.T, clients []*Client) {
+func assertClientsEqualTrees(t *testing.T, clients []*client) {
 	totalClients := len(clients)
 	dtrees := make([]clientUserFolders, totalClients)
 	for i := range clients {
-		userFolders, err := clients[i].GetDirectoryTree()
+		userFolders, err := clients[i].getDirectoryTree()
 		checkErr(t, err)
 		dtrees[i] = clientUserFolders{client: clients[i], userFolders: userFolders}
 	}
@@ -151,7 +151,7 @@ func assertClientsEqualTrees(t *testing.T, clients []*Client) {
 }
 
 type clientUserFolders struct {
-	client      *Client
+	client      *client
 	userFolders []*userFolder
 }
 
@@ -192,7 +192,7 @@ func EqualTrees(numUsers int, trees ...clientUserFolders) bool {
 	return true
 }
 
-func EqualFileList(c1 *Client, f1s []file, c2 *Client, f2s []file) bool {
+func EqualFileList(c1 *client, f1s []file, c2 *client, f2s []file) bool {
 	if len(f1s) != len(f2s) {
 		return false
 	}
@@ -214,15 +214,15 @@ func EqualFileList(c1 *Client, f1s []file, c2 *Client, f2s []file) bool {
 	return true
 }
 
-func EqualFiles(c1 *Client, f1 file, c2 *Client, f2 file) bool {
+func EqualFiles(c1 *client, f1 file, c2 *client, f2 file) bool {
 	if f1.FileRelativePath != f2.FileRelativePath || f1.IsDirectory != f2.IsDirectory ||
 		f1.CID != f2.CID || len(f1.Files) != len(f2.Files) {
 		return false
 	}
 
 	if !f1.IsDirectory {
-		f1FullPath := c1.FullPath(f1)
-		f2FullPath := c2.FullPath(f2)
+		f1FullPath := c1.fullPath(f1)
+		f2FullPath := c2.fullPath(f2)
 		if _, err := os.Stat(f1FullPath); err != nil {
 			return false
 		}
@@ -270,16 +270,16 @@ func EqualFiles(c1 *Client, f1 file, c2 *Client, f2 file) bool {
 	return true
 }
 
-func createClient(t *testing.T, name string) (*Client, func()) {
+func createClient(t *testing.T, name string) (*client, func()) {
 	shrFolder, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	repoPath, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	client, err := NewClient(name, shrFolder, repoPath)
+	client, err := newClient(name, shrFolder, repoPath)
 	checkErr(t, err)
 	return client, func() {
 		fmt.Println("Closing client")
-		client.Close()
+		client.close()
 		os.RemoveAll(shrFolder)
 		os.RemoveAll(repoPath)
 	}

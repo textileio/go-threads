@@ -307,6 +307,10 @@ func (d *DB) Reduce(events []core.Event) error {
 	return nil
 }
 
+func (d *DB) GetInfo() {
+	d.adapter.api.Host().Addrs()
+}
+
 // Close closes the db.
 func (d *DB) Close() error {
 	d.lock.Lock()

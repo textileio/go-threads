@@ -27,18 +27,18 @@ func main() {
 		logging.SetLogLevel("watcher", "debug")
 	}
 
-	client, err := NewClient(*name, *sharedFolderPath, *repoPath)
+	client, err := newClient(*name, *sharedFolderPath, *repoPath)
 	if err != nil {
 		log.Fatalf("error when creating the client: %v", err)
 	}
 
 	log.Info("Starting client...")
 	if *inviteLink == "" {
-		err := client.Start()
+		err := client.start()
 		if err != nil {
 			log.Fatalf("error when starting peer without invitation: %v", err)
 		}
-		invLinks, err := client.InviteLinks()
+		invLinks, err := client.inviteLinks()
 		if err != nil {
 			log.Fatalf("error when generating invitation link: %v", err)
 		}
@@ -46,7 +46,7 @@ func main() {
 			log.Infof("Invitation link: %s", invLinks[i])
 		}
 	} else {
-		if err := client.StartFromInvitation(*inviteLink); err != nil {
+		if err := client.startFromInvitation(*inviteLink); err != nil {
 			log.Fatalf("error when starting peer from invitation: %v", err)
 		}
 	}
@@ -56,7 +56,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 	log.Info("Closing...")
-	if err = client.Close(); err != nil {
+	if err = client.close(); err != nil {
 		log.Fatalf("error when closing the client: %v", err)
 	}
 }
