@@ -73,7 +73,7 @@ func TestNewCollection(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		if err != nil {
 			t.Fatalf("failed add new collection: %v", err)
 		}
@@ -89,7 +89,7 @@ func TestCreate(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		err = client.Create(context.Background(), dbID, collectionName, createPerson())
@@ -134,7 +134,7 @@ func TestSave(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -159,7 +159,7 @@ func TestDelete(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -183,7 +183,7 @@ func TestHas(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -210,7 +210,7 @@ func TestFind(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -242,12 +242,14 @@ func TestFindWithIndex(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema,
-			db.IndexConfig{
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: schema,
+			Indexes: []db.IndexConfig{{
 				Path:   "lastName",
 				Unique: true,
-			},
-		)
+			}},
+		})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -280,7 +282,7 @@ func TestFindByID(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -308,7 +310,7 @@ func TestReadTransaction(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -373,7 +375,7 @@ func TestWriteTransaction(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		existingPerson := createPerson()
@@ -460,7 +462,7 @@ func TestListen(t *testing.T) {
 		dbID := thread.NewIDV1(thread.Raw, 32)
 		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
