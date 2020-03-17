@@ -1,4 +1,4 @@
-package service
+package net
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
+	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
@@ -26,12 +26,12 @@ import (
 
 func TestService_CreateRecord(t *testing.T) {
 	t.Parallel()
-	s := makeService(t)
-	defer s.Close()
+	n := makeNetwork(t)
+	defer n.Close()
 
 	t.Run("test create record", func(t *testing.T) {
 		ctx := context.Background()
-		info := createThread(t, ctx, s)
+		info := createThread(t, ctx, n)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"foo": "bar",
@@ -41,7 +41,7 @@ func TestService_CreateRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		r1, err := s.CreateRecord(ctx, info.ID, body)
+		r1, err := n.CreateRecord(ctx, info.ID, body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -49,7 +49,7 @@ func TestService_CreateRecord(t *testing.T) {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := s.CreateRecord(ctx, info.ID, body)
+		r2, err := n.CreateRecord(ctx, info.ID, body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,17 +61,17 @@ func TestService_CreateRecord(t *testing.T) {
 			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID().String(), r2.LogID().String())
 		}
 
-		r1b, err := s.GetRecord(ctx, info.ID, r1.Value().Cid())
+		r1b, err := n.GetRecord(ctx, info.ID, r1.Value().Cid())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		event, err := cbor.GetEvent(ctx, s, r1b.BlockID())
+		event, err := cbor.GetEvent(ctx, n, r1b.BlockID())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		back, err := event.GetBody(ctx, s, info.ReadKey)
+		back, err := event.GetBody(ctx, n, info.ReadKey)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,17 +84,17 @@ func TestService_CreateRecord(t *testing.T) {
 
 func TestService_AddThread(t *testing.T) {
 	t.Parallel()
-	s1 := makeService(t)
-	defer s1.Close()
-	s2 := makeService(t)
-	defer s2.Close()
+	n1 := makeNetwork(t)
+	defer n1.Close()
+	n2 := makeNetwork(t)
+	defer n2.Close()
 
-	s1.Host().Peerstore().AddAddrs(s2.Host().ID(), s2.Host().Addrs(), peerstore.PermanentAddrTTL)
-	s2.Host().Peerstore().AddAddrs(s1.Host().ID(), s1.Host().Addrs(), peerstore.PermanentAddrTTL)
+	n1.Host().Peerstore().AddAddrs(n2.Host().ID(), n2.Host().Addrs(), peerstore.PermanentAddrTTL)
+	n2.Host().Peerstore().AddAddrs(n1.Host().ID(), n1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
 	t.Run("test add thread", func(t *testing.T) {
 		ctx := context.Background()
-		info := createThread(t, ctx, s1)
+		info := createThread(t, ctx, n1)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
@@ -102,20 +102,20 @@ func TestService_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s1.CreateRecord(ctx, info.ID, body); err != nil {
+		if _, err = n1.CreateRecord(ctx, info.ID, body); err != nil {
 			t.Fatal(err)
 		}
 
-		addr, err := ma.NewMultiaddr("/p2p/" + s1.Host().ID().String() + "/thread/" + info.ID.String())
+		addr, err := ma.NewMultiaddr("/p2p/" + n1.Host().ID().String() + "/thread/" + info.ID.String())
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		info2, err := s2.AddThread(ctx, addr, core.FollowKey(info.FollowKey), core.ReadKey(info.ReadKey))
+		info2, err := n2.AddThread(ctx, addr, core.FollowKey(info.FollowKey), core.ReadKey(info.ReadKey))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := s2.PullThread(ctx, info2.ID); err != nil {
+		if err := n2.PullThread(ctx, info2.ID); err != nil {
 			t.Fatal(err)
 		}
 		if len(info2.Logs) != 2 {
@@ -128,11 +128,11 @@ func TestService_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s2.CreateRecord(ctx, info2.ID, body2); err != nil {
+		if _, err = n2.CreateRecord(ctx, info2.ID, body2); err != nil {
 			t.Fatal(err)
 		}
 
-		info3, err := s1.GetThread(context.Background(), info.ID)
+		info3, err := n1.GetThread(context.Background(), info.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -144,17 +144,17 @@ func TestService_AddThread(t *testing.T) {
 
 func TestService_AddFollower(t *testing.T) {
 	t.Parallel()
-	s1 := makeService(t)
-	defer s1.Close()
-	s2 := makeService(t)
-	defer s2.Close()
+	n1 := makeNetwork(t)
+	defer n1.Close()
+	n2 := makeNetwork(t)
+	defer n2.Close()
 
-	s1.Host().Peerstore().AddAddrs(s2.Host().ID(), s2.Host().Addrs(), peerstore.PermanentAddrTTL)
-	s2.Host().Peerstore().AddAddrs(s1.Host().ID(), s1.Host().Addrs(), peerstore.PermanentAddrTTL)
+	n1.Host().Peerstore().AddAddrs(n2.Host().ID(), n2.Host().Addrs(), peerstore.PermanentAddrTTL)
+	n2.Host().Peerstore().AddAddrs(n1.Host().ID(), n1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
 	t.Run("test add follower", func(t *testing.T) {
 		ctx := context.Background()
-		info := createThread(t, ctx, s1)
+		info := createThread(t, ctx, n1)
 
 		body, err := cbornode.WrapObject(map[string]interface{}{
 			"msg": "yo!",
@@ -162,19 +162,19 @@ func TestService_AddFollower(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s1.CreateRecord(ctx, info.ID, body); err != nil {
+		if _, err := n1.CreateRecord(ctx, info.ID, body); err != nil {
 			t.Fatal(err)
 		}
 
-		addr, err := ma.NewMultiaddr("/p2p/" + s2.Host().ID().String())
+		addr, err := ma.NewMultiaddr("/p2p/" + n2.Host().ID().String())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s1.AddFollower(ctx, info.ID, addr); err != nil {
+		if _, err = n1.AddFollower(ctx, info.ID, addr); err != nil {
 			t.Fatal(err)
 		}
 
-		info2, err := s1.GetThread(context.Background(), info.ID)
+		info2, err := n1.GetThread(context.Background(), info.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -185,7 +185,7 @@ func TestService_AddFollower(t *testing.T) {
 			t.Fatalf("expected 2 addresses got %d", len(info2.Logs[0].Addrs))
 		}
 
-		info3, err := s2.GetThread(context.Background(), info.ID)
+		info3, err := n2.GetThread(context.Background(), info.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -200,17 +200,17 @@ func TestService_AddFollower(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	t.Parallel()
-	s := makeService(t)
-	defer s.Close()
+	n := makeNetwork(t)
+	defer n.Close()
 
 	t.Run("test close", func(t *testing.T) {
-		if err := s.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			t.Fatal(err)
 		}
 	})
 }
 
-func makeService(t *testing.T) core.Service {
+func makeNetwork(t *testing.T) core.Net {
 	sk, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -227,7 +227,7 @@ func makeService(t *testing.T) core.Service {
 	}
 	bs := bstore.NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
 	bsrv := bserv.New(bs, offline.Exchange(bs))
-	ts, err := NewService(
+	n, err := NewNetwork(
 		context.Background(),
 		host,
 		bsrv.Blockstore(),
@@ -239,7 +239,7 @@ func makeService(t *testing.T) core.Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ts
+	return n
 }
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {

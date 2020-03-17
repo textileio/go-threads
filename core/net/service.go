@@ -1,4 +1,4 @@
-package service
+package net
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 )
 
-// Service is the network interface for thread orchestration.
-type Service interface {
+// Net wraps API with a DAGService and libp2p host.
+type Net interface {
 	API
 
 	// DAGService provides a DAG API to the network.

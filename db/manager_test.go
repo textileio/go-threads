@@ -64,9 +64,9 @@ func TestManager_GetDB(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultService(dir)
+	n, err := DefaultNetwork(dir)
 	checkErr(t, err)
-	man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
+	man, err := NewManager(n, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 	checkErr(t, err)
 	defer func() {
 		_ = os.RemoveAll(dir)
@@ -92,13 +92,13 @@ func TestManager_GetDB(t *testing.T) {
 	// Close it down, restart next
 	err = man.Close()
 	checkErr(t, err)
-	err = ts.Close()
+	err = n.Close()
 	checkErr(t, err)
 
 	t.Run("GetHydrated", func(t *testing.T) {
-		ts, err := DefaultService(dir)
+		n, err := DefaultNetwork(dir)
 		checkErr(t, err)
-		man, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
+		man, err := NewManager(n, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 		checkErr(t, err)
 
 		db := man.GetDB(id)
@@ -120,7 +120,7 @@ func TestManager_GetDB(t *testing.T) {
 
 		err = man.Close()
 		checkErr(t, err)
-		err = ts.Close()
+		err = n.Close()
 		checkErr(t, err)
 	})
 }
@@ -128,12 +128,12 @@ func TestManager_GetDB(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	ts, err := DefaultService(dir)
+	n, err := DefaultNetwork(dir)
 	checkErr(t, err)
-	m, err := NewManager(ts, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
+	m, err := NewManager(n, WithRepoPath(dir), WithJsonMode(true), WithDebug(true))
 	checkErr(t, err)
 	return m, func() {
-		if err := ts.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			panic(err)
 		}
 		if err := m.Close(); err != nil {

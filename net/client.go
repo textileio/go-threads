@@ -1,9 +1,9 @@
-package service
+package net
 
 import (
 	"context"
 	"fmt"
-	"net"
+	nnet "net"
 	"sync"
 	"time"
 
@@ -13,10 +13,10 @@ import (
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
-	core "github.com/textileio/go-threads/core/service"
+	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
-	pb "github.com/textileio/go-threads/service/pb"
+	pb "github.com/textileio/go-threads/net/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -28,7 +28,7 @@ const (
 
 // getLogs in a thread.
 func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thread.LogInfo, error) {
-	fk, err := s.threads.store.FollowKey(id)
+	fk, err := s.net.store.FollowKey(id)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 
 	req := &pb.GetLogsRequest{
 		Header: &pb.GetLogsRequest_Header{
-			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
+			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
 		ThreadID:  &pb.ProtoThreadID{ID: id},
 		FollowKey: &pb.ProtoKey{Key: fk},
@@ -74,7 +74,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, pid peer.ID, fk *sym.Key, rk *sym.Key) error {
 	lreq := &pb.PushLogRequest{
 		Header: &pb.PushLogRequest_Header{
-			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
+			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
 		Log:      logToProto(lg),
@@ -146,14 +146,8 @@ func (r *records) Store(p peer.ID, key cid.Cid, value core.Record) {
 }
 
 // getRecords from log addresses.
-func (s *server) getRecords(
-	ctx context.Context,
-	id thread.ID,
-	lid peer.ID,
-	offsets map[peer.ID]cid.Cid,
-	limit int,
-) (map[peer.ID][]core.Record, error) {
-	fk, err := s.threads.store.FollowKey(id)
+func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offsets map[peer.ID]cid.Cid, limit int) (map[peer.ID][]core.Record, error) {
+	fk, err := s.net.store.FollowKey(id)
 	if err != nil {
 		return nil, err
 	}
@@ -172,14 +166,14 @@ func (s *server) getRecords(
 
 	req := &pb.GetRecordsRequest{
 		Header: &pb.GetRecordsRequest_Header{
-			From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
+			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
 		ThreadID:  &pb.ProtoThreadID{ID: id},
 		FollowKey: &pb.ProtoKey{Key: fk},
 		Logs:      pblgs,
 	}
 
-	lg, err := s.threads.store.GetLog(id, lid)
+	lg, err := s.net.store.GetLog(id, lid)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +198,7 @@ func (s *server) getRecords(
 				log.Error(err)
 				return
 			}
-			if pid.String() == s.threads.host.ID().String() {
+			if pid.String() == s.net.host.ID().String() {
 				return
 			}
 
@@ -226,7 +220,7 @@ func (s *server) getRecords(
 			for _, l := range reply.Logs {
 				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID.String(), p)
 
-				lg, err := s.threads.store.GetLog(id, l.LogID.ID)
+				lg, err := s.net.store.GetLog(id, l.LogID.ID)
 				if err != nil {
 					log.Error(err)
 					return
@@ -235,7 +229,7 @@ func (s *server) getRecords(
 					if l.Log != nil {
 						lg = logFromProto(l.Log)
 						lg.Heads = []cid.Cid{}
-						if err = s.threads.store.AddLog(id, lg); err != nil {
+						if err = s.net.store.AddLog(id, lg); err != nil {
 							log.Error(err)
 							return
 						}
@@ -264,7 +258,7 @@ func (s *server) getRecords(
 func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	// Collect known writers
 	addrs := make([]ma.Multiaddr, 0)
-	info, err := s.threads.store.GetThread(id)
+	info, err := s.net.store.GetThread(id)
 	if err != nil {
 		return err
 	}
@@ -273,7 +267,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	// Serialize and sign the record for transport
-	pbrec, err := cbor.RecordToProto(ctx, s.threads, rec)
+	pbrec, err := cbor.RecordToProto(ctx, s.net, rec)
 	if err != nil {
 		return err
 	}
@@ -281,7 +275,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	if err != nil {
 		return err
 	}
-	sk := s.threads.getPrivKey()
+	sk := s.net.getPrivKey()
 	if sk == nil {
 		return fmt.Errorf("private key for host not found")
 	}
@@ -292,7 +286,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 
 	req := &pb.PushRecordRequest{
 		Header: &pb.PushRecordRequest_Header{
-			From:      &pb.ProtoPeerID{ID: s.threads.host.ID()},
+			From:      &pb.ProtoPeerID{ID: s.net.host.ID()},
 			Signature: sig,
 			Key:       &pb.ProtoPubKey{PubKey: sk.GetPublic()},
 		},
@@ -317,7 +311,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 				log.Error(err)
 				return
 			}
-			if pid.String() == s.threads.host.ID().String() {
+			if pid.String() == s.net.host.ID().String() {
 				return
 			}
 
@@ -336,14 +330,14 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 					log.Debugf("pushing log %s to %s...", lid.String(), p)
 
 					// Send the missing log
-					l, err := s.threads.store.GetLog(id, lid)
+					l, err := s.net.store.GetLog(id, lid)
 					if err != nil {
 						log.Error(err)
 						return
 					}
 					lreq := &pb.PushLogRequest{
 						Header: &pb.PushLogRequest_Header{
-							From: &pb.ProtoPeerID{ID: s.threads.host.ID()},
+							From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 						},
 						ThreadID: &pb.ProtoThreadID{ID: id},
 						Log:      logToProto(l),
@@ -370,23 +364,19 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 }
 
 // dial attempts to open a GRPC connection over libp2p to a peer.
-func (s *server) dial(
-	ctx context.Context,
-	peerID peer.ID,
-	dialOpts ...grpc.DialOption,
-) (*grpc.ClientConn, error) {
+func (s *server) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
 	return grpc.DialContext(ctx, peerID.Pretty(), opts...)
 }
 
 // getDialOption returns the WithDialer option to dial via libp2p.
 func (s *server) getDialOption() grpc.DialOption {
-	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (net.Conn, error) {
+	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (nnet.Conn, error) {
 		id, err := peer.Decode(peerIDStr)
 		if err != nil {
 			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
 		}
-		return gostream.Dial(ctx, s.threads.host, id, thread.Protocol)
+		return gostream.Dial(ctx, s.net.host, id, thread.Protocol)
 	})
 }
 

@@ -31,64 +31,64 @@ func NewThreadMetadata() core.ThreadMetadata {
 	}
 }
 
-func (ts *memoryThreadMetadata) PutInt64(t thread.ID, key string, val int64) error {
-	ts.putValue(t, key, val)
+func (m *memoryThreadMetadata) PutInt64(t thread.ID, key string, val int64) error {
+	m.putValue(t, key, val)
 	return nil
 }
 
-func (ts *memoryThreadMetadata) GetInt64(t thread.ID, key string) (*int64, error) {
-	val, ok := ts.getValue(t, key).(int64)
+func (m *memoryThreadMetadata) GetInt64(t thread.ID, key string) (*int64, error) {
+	val, ok := m.getValue(t, key).(int64)
 	if !ok {
 		return nil, nil
 	}
 	return &val, nil
 }
 
-func (ts *memoryThreadMetadata) PutString(t thread.ID, key string, val string) error {
-	ts.putValue(t, key, val)
+func (m *memoryThreadMetadata) PutString(t thread.ID, key string, val string) error {
+	m.putValue(t, key, val)
 	return nil
 }
 
-func (ts *memoryThreadMetadata) GetString(t thread.ID, key string) (*string, error) {
-	val, ok := ts.getValue(t, key).(string)
+func (m *memoryThreadMetadata) GetString(t thread.ID, key string) (*string, error) {
+	val, ok := m.getValue(t, key).(string)
 	if !ok {
 		return nil, nil
 	}
 	return &val, nil
 }
 
-func (ts *memoryThreadMetadata) PutBytes(t thread.ID, key string, val []byte) error {
+func (m *memoryThreadMetadata) PutBytes(t thread.ID, key string, val []byte) error {
 	b := make([]byte, len(val))
 	copy(b, val)
-	ts.putValue(t, key, b)
+	m.putValue(t, key, b)
 	return nil
 }
 
-func (ts *memoryThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error) {
-	val, ok := ts.getValue(t, key).([]byte)
+func (m *memoryThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error) {
+	val, ok := m.getValue(t, key).([]byte)
 	if !ok {
 		return nil, nil
 	}
 	return &val, nil
 }
 
-func (ts *memoryThreadMetadata) putValue(t thread.ID, key string, val interface{}) {
-	ts.dslock.Lock()
-	defer ts.dslock.Unlock()
+func (m *memoryThreadMetadata) putValue(t thread.ID, key string, val interface{}) {
+	m.dslock.Lock()
+	defer m.dslock.Unlock()
 	if vals, ok := val.(string); ok && internKeys[key] {
-		if interned, ok := ts.interned[vals]; ok {
+		if interned, ok := m.interned[vals]; ok {
 			val = interned
 		} else {
-			ts.interned[vals] = val
+			m.interned[vals] = val
 		}
 	}
-	ts.ds[metakey{t, key}] = val
+	m.ds[metakey{t, key}] = val
 }
 
-func (ts *memoryThreadMetadata) getValue(t thread.ID, key string) interface{} {
-	ts.dslock.RLock()
-	defer ts.dslock.RUnlock()
-	if v, ok := ts.ds[metakey{t, key}]; ok {
+func (m *memoryThreadMetadata) getValue(t thread.ID, key string) interface{} {
+	m.dslock.RLock()
+	defer m.dslock.RUnlock()
+	if v, ok := m.ds[metakey{t, key}]; ok {
 		return v
 	}
 	return nil

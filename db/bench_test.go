@@ -59,15 +59,15 @@ func checkBenchErr(b *testing.B, err error) {
 func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
-	ts, err := DefaultService(dir)
+	n, err := DefaultNetwork(dir)
 	checkBenchErr(b, err)
 	id := thread.NewIDV1(thread.Raw, 32)
 	opts = append(opts, WithRepoPath(dir))
 	opts = append(opts, WithJsonMode(true))
-	d, err := NewDB(context.Background(), ts, id, opts...)
+	d, err := NewDB(context.Background(), n, id, opts...)
 	checkBenchErr(b, err)
 	return d, func() {
-		if err := ts.Close(); err != nil {
+		if err := n.Close(); err != nil {
 			panic(err)
 		}
 		_ = os.RemoveAll(dir)

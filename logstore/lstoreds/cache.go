@@ -17,21 +17,21 @@ type noopCache struct {
 
 var _ cache = (*noopCache)(nil)
 
-func (*noopCache) Get(key interface{}) (value interface{}, ok bool) {
+func (*noopCache) Get(_ interface{}) (value interface{}, ok bool) {
 	return nil, false
 }
 
-func (*noopCache) Add(key, value interface{}) {
+func (*noopCache) Add(_, _ interface{}) {
 }
 
-func (*noopCache) Remove(key interface{}) {
+func (*noopCache) Remove(_ interface{}) {
 }
 
-func (*noopCache) Contains(key interface{}) bool {
+func (*noopCache) Contains(_ interface{}) bool {
 	return false
 }
 
-func (*noopCache) Peek(key interface{}) (value interface{}, ok bool) {
+func (*noopCache) Peek(_ interface{}) (value interface{}, ok bool) {
 	return nil, false
 }
 

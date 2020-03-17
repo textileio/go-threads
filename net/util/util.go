@@ -1,11 +1,11 @@
 package util
 
 import (
-	apipb "github.com/textileio/go-threads/service/api/pb"
-	servicepb "github.com/textileio/go-threads/service/pb"
+	apipb "github.com/textileio/go-threads/net/api/pb"
+	netpb "github.com/textileio/go-threads/net/pb"
 )
 
-func RecFromServiceRec(r *servicepb.Log_Record) *apipb.Record {
+func RecFromServiceRec(r *netpb.Log_Record) *apipb.Record {
 	return &apipb.Record{
 		RecordNode: r.RecordNode,
 		EventNode:  r.EventNode,
@@ -14,8 +14,8 @@ func RecFromServiceRec(r *servicepb.Log_Record) *apipb.Record {
 	}
 }
 
-func RecToServiceRec(r *apipb.Record) *servicepb.Log_Record {
-	return &servicepb.Log_Record{
+func RecToServiceRec(r *apipb.Record) *netpb.Log_Record {
+	return &netpb.Log_Record{
 		RecordNode: r.RecordNode,
 		EventNode:  r.EventNode,
 		HeaderNode: r.HeaderNode,

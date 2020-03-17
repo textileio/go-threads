@@ -4,7 +4,7 @@ package api.pb;
 option java_multiple_files = true;
 option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
-option objc_class_prefix = "THRDS";
+option objc_class_prefix = "THREADS";
 
 message NewDBRequest {
     string dbID = 1;

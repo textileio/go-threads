@@ -6,7 +6,7 @@ import (
 	"time"
 
 	query "github.com/ipfs/go-datastore/query"
-	pb "github.com/textileio/go-threads/service/pb"
+	pb "github.com/textileio/go-threads/net/pb"
 )
 
 var (

@@ -81,11 +81,11 @@ func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key
 	delete bool) error {
 
 	valueKey, err := index.IndexFunc(path, value)
+	if err != nil && !errors.Is(err, ErrNotIndexable) {
+		return err
+	}
 	if valueKey.String() == "" {
 		return nil
-	}
-	if err != nil {
-		return err
 	}
 
 	indexKey := indexPrefix.Child(baseKey).ChildString(path).Instance(valueKey.String()[1:])

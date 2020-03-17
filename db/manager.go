@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-threads/core/service"
+	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
@@ -26,12 +26,12 @@ type Manager struct {
 
 	config *Config
 
-	service service.Service
+	network net.Net
 	dbs     map[thread.ID]*DB
 }
 
 // NewManager hydrates dbs from prefixes and starts them.
-func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
+func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -56,7 +56,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 
 	m := &Manager{
 		config:  config,
-		service: ts,
+		network: network,
 		dbs:     make(map[thread.ID]*DB),
 	}
 
@@ -80,7 +80,7 @@ func NewManager(ts service.Service, opts ...Option) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		s, err := newDB(m.service, id, getDBConfig(id, m.config))
+		s, err := newDB(m.network, id, getDBConfig(id, m.config))
 		if err != nil {
 			return nil, err
 		}
@@ -94,11 +94,11 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	if _, err := m.service.CreateThread(ctx, id, service.FollowKey(sym.New()), service.ReadKey(sym.New())); err != nil {
+	if _, err := m.network.CreateThread(ctx, id, net.FollowKey(sym.New()), net.ReadKey(sym.New())); err != nil {
 		return nil, err
 	}
 
-	db, err := newDB(m.service, id, getDBConfig(id, m.config))
+	db, err := newDB(m.network, id, getDBConfig(id, m.config))
 	if err != nil {
 		return nil, err
 	}
@@ -117,18 +117,18 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKe
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	if _, err = m.service.AddThread(ctx, addr, service.FollowKey(followKey), service.ReadKey(readKey)); err != nil {
+	if _, err = m.network.AddThread(ctx, addr, net.FollowKey(followKey), net.ReadKey(readKey)); err != nil {
 		return nil, err
 	}
 
-	db, err := newDB(m.service, id, getDBConfig(id, m.config), collections...)
+	db, err := newDB(m.network, id, getDBConfig(id, m.config), collections...)
 	if err != nil {
 		return nil, err
 	}
 	m.dbs[id] = db
 
 	go func() {
-		if err := m.service.PullThread(ctx, id); err != nil {
+		if err := m.network.PullThread(ctx, id); err != nil {
 			log.Errorf("error pulling thread %s", id.String())
 		}
 	}()
@@ -141,9 +141,9 @@ func (m *Manager) GetDB(id thread.ID) *DB {
 	return m.dbs[id]
 }
 
-// Service returns the manager's thread service.
-func (m *Manager) Service() service.Service {
-	return m.service
+// Net returns the manager's thread network.
+func (m *Manager) Net() net.Net {
+	return m.network
 }
 
 // Close all the in-mem dbs.
