@@ -21,7 +21,7 @@ func NewTxMapDatastore() *TxMapDatastore {
 	}
 }
 
-func (d *TxMapDatastore) NewTransaction(readOnly bool) (datastore.Txn, error) {
+func (d *TxMapDatastore) NewTransaction(_ bool) (datastore.Txn, error) {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 	return NewSimpleTx(d), nil
@@ -112,7 +112,7 @@ type nullReducer struct{}
 
 var _ Reducer = (*nullReducer)(nil)
 
-func (n *nullReducer) Reduce(event []core.Event) error {
+func (n *nullReducer) Reduce(_ []core.Event) error {
 	return nil
 }
 
@@ -120,7 +120,7 @@ type errorReducer struct{}
 
 var _ Reducer = (*errorReducer)(nil)
 
-func (n *errorReducer) Reduce(event []core.Event) error {
+func (n *errorReducer) Reduce(_ []core.Event) error {
 	return errors.New("error")
 }
 
@@ -128,7 +128,7 @@ type slowReducer struct{}
 
 var _ Reducer = (*slowReducer)(nil)
 
-func (n *slowReducer) Reduce(event []core.Event) error {
+func (n *slowReducer) Reduce(_ []core.Event) error {
 	time.Sleep(2 * time.Second)
 	return nil
 }

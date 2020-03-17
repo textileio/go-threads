@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
+	"time"
 
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
 
@@ -21,10 +24,10 @@ type bookStats struct {
 }
 
 func main() {
-	s, clean := createMemDB()
+	d, clean := createMemDB()
 	defer clean()
 
-	collection, err := s.NewCollectionFromInstance("Book", &book{})
+	collection, err := d.NewCollectionFromInstance("Book", &book{})
 	checkErr(err)
 
 	// Bootstrap the collection with some books: two from Author1 and one from Author2
@@ -154,9 +157,11 @@ func createMemDB() (*db.DB, func()) {
 	checkErr(err)
 	ts, err := db.DefaultService(dir)
 	checkErr(err)
-	s, err := db.NewDB(ts, db.WithRepoPath(dir))
+	id := thread.NewIDV1(thread.Raw, 32)
+	d, err := db.NewDB(context.Background(), ts, id, db.WithRepoPath(dir))
 	checkErr(err)
-	return s, func() {
+	return d, func() {
+		time.Sleep(time.Second) // Give threads a chance to finish work
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -13,6 +14,7 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
+	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/service/pb"
 	"google.golang.org/grpc/codes"
@@ -68,7 +70,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		return pblgs, err
 	}
 
-	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.threads.store.GetThread(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -93,8 +95,8 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	log.Debugf("received push log request from %s", req.Header.From.ID.String())
 
 	// Pick up missing keys
-	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID)
-	if err != nil {
+	info, err := s.threads.store.GetThread(req.ThreadID.ID)
+	if err != nil && !errors.Is(err, lstore.ErrThreadNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if info.FollowKey == nil {
@@ -103,7 +105,7 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else {
-			return nil, status.Error(codes.NotFound, "thread not found")
+			return nil, status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 		}
 	}
 	if info.ReadKey == nil {
@@ -143,7 +145,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	for _, l := range req.Logs {
 		reqd[l.LogID.ID] = l
 	}
-	info, err := s.threads.store.ThreadInfo(req.ThreadID.ID)
+	info, err := s.threads.store.GetThread(req.ThreadID.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +296,7 @@ func (s *server) checkFollowKey(id thread.ID, pfk *pb.ProtoKey) error {
 		return status.Error(codes.Internal, err.Error())
 	}
 	if fk == nil {
-		return status.Error(codes.NotFound, "thread not found")
+		return status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 	}
 	if !bytes.Equal(pfk.Key.Bytes(), fk.Bytes()) {
 		return status.Error(codes.PermissionDenied, "invalid follow-key")

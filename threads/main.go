@@ -13,6 +13,7 @@ import (
 	"github.com/c-bata/go-prompt"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/api/client"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -23,7 +24,7 @@ var (
 	apiTimeout   = time.Second * 5
 	promptPrefix = ">>> "
 	noDBMessage  = "DB required. `use <db id>`"
-	currentDB    string
+	currentDB    thread.ID
 	suggestions  = []prompt.Suggest{
 		{
 			Text:        "use",
@@ -73,7 +74,7 @@ func completer(in prompt.Document) []prompt.Suggest {
 	if w == "" {
 		return []prompt.Suggest{}
 	}
-	if currentDB != "" {
+	if currentDB.Defined() {
 		return prompt.FilterHasPrefix(append(suggestions, dbSuggestions...), w, true)
 	}
 	return prompt.FilterHasPrefix(suggestions, w, true)
@@ -120,18 +121,23 @@ func executor(in string) {
 			fmt.Println("You must provide a db ID.")
 			return
 		}
-		if currentDB == blocks[1] {
+		if currentDB.String() == blocks[1] {
 			fmt.Printf("Already using %s\n", blocks[1])
 			return
 		}
-		currentDB = blocks[1]
-		fmt.Printf("Switched to %s\n", blocks[1])
+		var err error
+		currentDB, err = thread.Decode(blocks[1])
+		if err != nil {
+			fmt.Printf("Please enter a valid db ID")
+		} else {
+			fmt.Printf("Switched to %s\n", blocks[1])
+		}
 		return
 	case "exit":
 		fmt.Println("Bye!")
 		os.Exit(0)
 	default:
-		if currentDB == "" {
+		if currentDB.String() == "" {
 			fmt.Println(noDBMessage)
 			return
 		}
@@ -139,7 +145,7 @@ func executor(in string) {
 	}
 }
 
-func find(id string, collection string) {
+func find(id thread.ID, collection string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
@@ -158,7 +164,7 @@ func find(id string, collection string) {
 	}
 }
 
-func findByID(id string, collection string, instanceID string) {
+func findByID(id thread.ID, collection string, instanceID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
@@ -172,7 +178,7 @@ func findByID(id string, collection string, instanceID string) {
 	prettyPrint(instance)
 }
 
-func backgroundListen(ctx context.Context, id string) {
+func backgroundListen(ctx context.Context, id thread.ID) {
 	channel, err := apiClient.Listen(ctx, id)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -203,7 +209,7 @@ func backgroundListen(ctx context.Context, id string) {
 	}
 }
 
-func listen(id string) {
+func listen(id thread.ID) {
 	ctx, cancel := context.WithCancel(context.Background())
 	listenState.LivePrefix = ""
 	listenState.IsEnable = true
@@ -278,7 +284,7 @@ func prettyPrint(obj interface{}) {
 func trimmedBlocks(in string) []string {
 	trimmed := strings.TrimSpace(in)
 	blocks := strings.Split(trimmed, " ")
-	cleaned := []string{}
+	var cleaned []string
 	for _, n := range blocks {
 		cleaned = append(cleaned, strings.TrimSpace(n))
 	}

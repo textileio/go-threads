@@ -1,8 +1,5 @@
 package io.textile.threads;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-
 import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.FixMethodOrder;
@@ -12,14 +9,8 @@ import org.junit.runners.MethodSorters;
 
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URL;
-
-import java.util.Base64;
-import java.util.concurrent.Future;
 
 import com.google.gson.Gson;
 
@@ -32,7 +23,7 @@ import static org.junit.Assert.*;
 public class ClientUnitTest {
 
     static Client client;
-    static String dbId;
+    static String dbId = "bafk7ayo2xuuafgx6ubbcn2lro3s7oixgujdda6shv4";
     static String instanceId = "";
 
     void connect() throws Exception {
@@ -51,19 +42,12 @@ public class ClientUnitTest {
 
     @Test
     public void t02_NewDB() throws Exception {
-        dbId = client.NewDBSync();
-        assertEquals(36, dbId.length());
+        client.NewDBSync(dbId);
     }
 
     @Test
-    public void t03_StartDB() throws Exception {
-        client.StartSync(dbId);
-        assertTrue(true);
-    }
-
-    @Test
-    public void t04_GetDBLink() throws Exception {
-        GetDBLinkReply reply = client.GetDBLinkSync(dbId);
+    public void t04_GetDBInfo() throws Exception {
+        GetDBInfoReply reply = client.GetDBInfoSync(dbId);
         assertNotEquals(0, reply.getAddressesCount());
     }
 

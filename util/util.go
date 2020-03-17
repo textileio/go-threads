@@ -39,7 +39,7 @@ func DecodeKey(k string) (*sym.Key, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sym.NewKey(b)
+	return sym.FromBytes(b)
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.

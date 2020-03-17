@@ -51,10 +51,6 @@ COPY --from=0 /lib/x86_64-linux-gnu/libdl.so.2 /lib/libdl.so.2
 
 # hostAddr; should be exposed to the public
 EXPOSE 4006
-# serviceApiAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
-EXPOSE 5006
-# serviceApiProxyAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
-EXPOSE 5007
 # apiAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile
 EXPOSE 6006
 # apiProxyAddr; should *not* be exposed to the public unless intercepted by an auth system, e.g., textile

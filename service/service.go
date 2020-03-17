@@ -72,15 +72,7 @@ type Config struct {
 }
 
 // NewService creates an instance of service from the given host and thread store.
-func NewService(
-	ctx context.Context,
-	h host.Host,
-	bstore bs.Blockstore,
-	ds format.DAGService,
-	ls lstore.Logstore,
-	conf Config,
-	opts ...grpc.ServerOption,
-) (core.Service, error) {
+func NewService(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (core.Service, error) {
 	var err error
 	if conf.Debug {
 		if err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -115,7 +107,7 @@ func NewService(
 	go func() {
 		pb.RegisterServiceServer(t.rpc, t.server)
 		if err := t.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Fatalf("unable to start gRPC server: %v", err)
+			log.Fatalf("serve error: %v", err)
 		}
 	}()
 
@@ -175,6 +167,10 @@ func (t *service) GetHostID(context.Context) (peer.ID, error) {
 
 // CreateThread with id.
 func (t *service) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOption) (info thread.Info, err error) {
+	if err = t.ensureUnique(id); err != nil {
+		return
+	}
+
 	args := &core.KeyOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -186,7 +182,7 @@ func (t *service) CreateThread(_ context.Context, id thread.ID, opts ...core.Key
 		ReadKey:   args.ReadKey,
 	}
 	if info.FollowKey == nil {
-		info.FollowKey, err = sym.CreateKey()
+		info.FollowKey, err = sym.NewRandom()
 		if err != nil {
 			return
 		}
@@ -201,38 +197,33 @@ func (t *service) CreateThread(_ context.Context, id thread.ID, opts ...core.Key
 	if err = t.store.AddLog(id, linfo); err != nil {
 		return
 	}
-	return t.store.ThreadInfo(id)
+	return t.store.GetThread(id)
+}
+
+func (t *service) ensureUnique(id thread.ID) error {
+	_, err := t.store.GetThread(id)
+	if err == nil {
+		return fmt.Errorf("thread %s already exists", id.String())
+	}
+	if !errors.Is(err, lstore.ErrThreadNotFound) {
+		return err
+	}
+	return nil
 }
 
 // AddThread from a multiaddress.
-func (t *service) AddThread(
-	ctx context.Context,
-	addr ma.Multiaddr,
-	opts ...core.KeyOption,
-) (info thread.Info, err error) {
+func (t *service) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
+	id, err := thread.FromAddr(addr)
+	if err != nil {
+		return
+	}
+	if err = t.ensureUnique(id); err != nil {
+		return
+	}
+
 	args := &core.KeyOptions{}
 	for _, opt := range opts {
 		opt(args)
-	}
-
-	idstr, err := addr.ValueForProtocol(thread.Code)
-	if err != nil {
-		return
-	}
-	id, err := thread.Decode(idstr)
-	if err != nil {
-		return
-	}
-	p, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		return
-	}
-	pid, err := peer.Decode(p)
-	if err != nil {
-		return
-	}
-	if pid.String() == t.host.ID().String() {
-		return t.store.ThreadInfo(id)
 	}
 
 	if err = t.store.AddThread(thread.Info{
@@ -242,12 +233,22 @@ func (t *service) AddThread(
 	}); err != nil {
 		return
 	}
+	if args.ReadKey != nil {
+		var linfo thread.LogInfo
+		linfo, err = createLog(t.host.ID(), args.LogKey)
+		if err != nil {
+			return
+		}
+		if err = t.store.AddLog(id, linfo); err != nil {
+			return
+		}
+	}
 
-	threadMultiaddr, err := ma.NewComponent("thread", idstr)
+	threadComp, err := ma.NewComponent(thread.Name, id.String())
 	if err != nil {
 		return
 	}
-	peerAddr := addr.Decapsulate(threadMultiaddr)
+	peerAddr := addr.Decapsulate(threadComp)
 	addri, err := peer.AddrInfoFromP2pAddr(peerAddr)
 	if err != nil {
 		return
@@ -255,30 +256,23 @@ func (t *service) AddThread(
 	if err = t.Host().Connect(ctx, *addri); err != nil {
 		return
 	}
-	lgs, err := t.server.getLogs(ctx, id, pid)
+	lgs, err := t.server.getLogs(ctx, id, addri.ID)
 	if err != nil {
 		return
 	}
 
-	// @todo: ensure not overwrite with newer info from owner?
 	for _, l := range lgs {
 		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
 			return
 		}
 	}
 
-	go func() {
-		if err := t.PullThread(t.ctx, id); err != nil {
-			log.Errorf("error pulling thread %s: %s", id.String(), err)
-		}
-	}()
-
-	return t.store.ThreadInfo(id)
+	return t.store.GetThread(id)
 }
 
 // GetThread with id.
 func (t *service) GetThread(_ context.Context, id thread.ID) (thread.Info, error) {
-	return t.store.ThreadInfo(id)
+	return t.store.GetThread(id)
 }
 
 func (t *service) getThreadSemaphore(id thread.ID) chan struct{} {
@@ -317,7 +311,7 @@ func (t *service) PullThread(ctx context.Context, id thread.ID) error {
 // pullThread for new records. It's internal and *not* thread-safe,
 // it assumes we currently own the thread-lock.
 func (t *service) pullThread(ctx context.Context, id thread.ID) error {
-	info, err := t.store.ThreadInfo(id)
+	info, err := t.store.GetThread(id)
 	if err != nil {
 		return err
 	}
@@ -378,12 +372,9 @@ func (t *service) DeleteThread(context.Context, thread.ID) error {
 
 // AddFollower to a thread.
 func (t *service) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
-	info, err := t.store.ThreadInfo(id)
+	info, err := t.store.GetThread(id)
 	if err != nil {
 		return
-	}
-	if info.FollowKey == nil {
-		return pid, fmt.Errorf("thread not found")
 	}
 
 	// Extract peer portion
@@ -408,7 +399,7 @@ func (t *service) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multia
 	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return
 	}
-	info, err = t.store.ThreadInfo(id) // Update info
+	info, err = t.store.GetThread(id) // Update info
 	if err != nil {
 		return
 	}
@@ -748,7 +739,7 @@ func (t *service) getLocalRecords(
 	offset cid.Cid,
 	limit int,
 ) ([]core.Record, error) {
-	lg, err := t.store.LogInfo(id, lid)
+	lg, err := t.store.GetLog(id, lid)
 	if err != nil {
 		return nil, err
 	}
@@ -833,7 +824,7 @@ func (t *service) startPulling() {
 
 // getLog returns the log with the given thread and log id.
 func (t *service) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = t.store.LogInfo(id, lid)
+	info, err = t.store.GetLog(id, lid)
 	if err != nil {
 		return
 	}
@@ -855,7 +846,7 @@ func (t *service) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 			return info, err
 		}
 		if sk != nil {
-			return t.store.LogInfo(id, lid)
+			return t.store.GetLog(id, lid)
 		}
 	}
 	return info, nil

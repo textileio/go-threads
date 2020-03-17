@@ -5,18 +5,20 @@ import (
 	"fmt"
 
 	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
 
 // WriteTransaction encapsulates a write transaction
 type WriteTransaction struct {
-	client               pb.API_WriteTransactionClient
-	dbID, collectionName string
+	client         pb.API_WriteTransactionClient
+	dbID           thread.ID
+	collectionName string
 }
 
 // Start starts the write transaction
 func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
-	innerReq := &pb.StartTransactionRequest{DBID: t.dbID, CollectionName: t.collectionName}
+	innerReq := &pb.StartTransactionRequest{DbID: t.dbID.String(), CollectionName: t.collectionName}
 	option := &pb.WriteTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
 	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
 		return nil, err

@@ -22,7 +22,7 @@ package db
 	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 	SOFTWARE.
 */
-// Code has multiple changes compared to original, but corresponds proper mentioning.
+// Code has multiple changes compared to original, but still merits proper mentioning.
 
 import (
 	"fmt"

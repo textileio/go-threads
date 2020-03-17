@@ -23,6 +23,11 @@ android {
     testOptions {
         unitTests {
             includeAndroidResources = false
+            all {
+                testLogging {
+                    exceptionFormat = 'full'
+                }
+            }
         }
     }
 
@@ -59,9 +64,6 @@ android {
 }
 
 dependencies {
-    // gRPC IPFS Lite
-    api "io.textile:grpc-ipfs-lite:$gRPCIpfsVersion"
-
     implementation "io.grpc:grpc-core:$gRPCVersion"
     implementation "io.grpc:grpc-okhttp:$gRPCVersion"
     implementation "io.grpc:grpc-stub:$gRPCVersion"

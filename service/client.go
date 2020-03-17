@@ -179,7 +179,7 @@ func (s *server) getRecords(
 		Logs:      pblgs,
 	}
 
-	lg, err := s.threads.store.LogInfo(id, lid)
+	lg, err := s.threads.store.GetLog(id, lid)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (s *server) getRecords(
 			for _, l := range reply.Logs {
 				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID.String(), p)
 
-				lg, err := s.threads.store.LogInfo(id, l.LogID.ID)
+				lg, err := s.threads.store.GetLog(id, l.LogID.ID)
 				if err != nil {
 					log.Error(err)
 					return
@@ -264,7 +264,7 @@ func (s *server) getRecords(
 func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	// Collect known writers
 	addrs := make([]ma.Multiaddr, 0)
-	info, err := s.threads.store.ThreadInfo(id)
+	info, err := s.threads.store.GetThread(id)
 	if err != nil {
 		return err
 	}
@@ -336,7 +336,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 					log.Debugf("pushing log %s to %s...", lid.String(), p)
 
 					// Send the missing log
-					l, err := s.threads.store.LogInfo(id, lid)
+					l, err := s.threads.store.GetLog(id, lid)
 					if err != nil {
 						log.Error(err)
 						return

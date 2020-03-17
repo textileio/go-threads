@@ -1,12 +1,14 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/tidwall/sjson"
 )
 
@@ -59,11 +61,12 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	ts, err := DefaultService(dir)
 	checkBenchErr(b, err)
+	id := thread.NewIDV1(thread.Raw, 32)
 	opts = append(opts, WithRepoPath(dir))
 	opts = append(opts, WithJsonMode(true))
-	s, err := NewDB(ts, opts...)
+	d, err := NewDB(context.Background(), ts, id, opts...)
 	checkBenchErr(b, err)
-	return s, func() {
+	return d, func() {
 		if err := ts.Close(); err != nil {
 			panic(err)
 		}
@@ -74,7 +77,7 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 func BenchmarkNoIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection("Dog", testBenchSchema)
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -91,12 +94,14 @@ func BenchmarkNoIndexCreate(b *testing.B) {
 func BenchmarkIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection("Dog", testBenchSchema,
-		&IndexConfig{
+	collection, err := db.NewCollection(CollectionConfig{
+		Name:   "Dog",
+		Schema: testBenchSchema,
+		Indexes: []IndexConfig{{
 			Path:   "Name",
 			Unique: false,
-		},
-	)
+		}},
+	})
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -113,7 +118,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 func BenchmarkNoIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection("Dog", testBenchSchema)
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
@@ -137,12 +142,14 @@ func BenchmarkNoIndexSave(b *testing.B) {
 func BenchmarkIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection("Dog", testBenchSchema,
-		&IndexConfig{
+	collection, err := db.NewCollection(CollectionConfig{
+		Name:   "Dog",
+		Schema: testBenchSchema,
+		Indexes: []IndexConfig{{
 			Path:   "Age",
 			Unique: false,
-		},
-	)
+		}},
+	})
 	checkBenchErr(b, err)
 
 	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
@@ -166,7 +173,7 @@ func BenchmarkIndexSave(b *testing.B) {
 func BenchmarkNoIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection("Dog", testBenchSchema)
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {
@@ -199,12 +206,14 @@ func BenchmarkNoIndexFind(b *testing.B) {
 func BenchmarkIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection("Dog", testBenchSchema,
-		&IndexConfig{
+	collection, err := db.NewCollection(CollectionConfig{
+		Name:   "Dog",
+		Schema: testBenchSchema,
+		Indexes: []IndexConfig{{
 			Path:   "Name",
 			Unique: false,
-		},
-	)
+		}},
+	})
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {

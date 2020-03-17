@@ -1,7 +1,5 @@
 package io.textile.threads;
 
-import java.util.function.Consumer;
-
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 

@@ -33,15 +33,13 @@ type singleThreadAdapter struct {
 
 // NewSingleThreadAdapter returns a new Adapter which maps
 // a DB with a single Thread
-func newSingleThreadAdapter(db *DB, threadID thread.ID) *singleThreadAdapter {
-	a := &singleThreadAdapter{
-		api:       db.Service(),
+func newSingleThreadAdapter(db *DB, ts service.Service, threadID thread.ID) *singleThreadAdapter {
+	return &singleThreadAdapter{
+		api:       ts,
 		threadID:  threadID,
 		db:        db,
 		closeChan: make(chan struct{}),
 	}
-
-	return a
 }
 
 // Close closes the db thread and stops listening both directions
@@ -67,10 +65,12 @@ func (a *singleThreadAdapter) Start() {
 	a.started = true
 	li, err := a.api.GetThread(context.Background(), a.threadID)
 	if err != nil {
-		log.Fatalf("error when getting/creating own log for thread %s: %v", a.threadID, err)
+		log.Fatalf("error getting thread %s: %v", a.threadID, err)
 	}
 	if ownLog := li.GetOwnLog(); ownLog != nil {
 		a.ownLogID = ownLog.ID
+	} else {
+		log.Fatalf("error getting own log for thread %s: %v", a.threadID, err)
 	}
 
 	var wg sync.WaitGroup
@@ -93,11 +93,11 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.closeChan:
-			log.Debug("closing thread-to-db flow on thread %s", a.threadID)
+			log.Debugf("closing thread-to-db flow on thread %s", a.threadID)
 			return
 		case rec, ok := <-sub:
 			if !ok {
-				log.Errorf("notification channel closed, not listening to external changes anymore")
+				log.Debug("notification channel closed, not listening to external changes anymore")
 				return
 			}
 			if rec.LogID() == a.ownLogID {
@@ -148,7 +148,7 @@ func (a *singleThreadAdapter) dbToThread(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.closeChan:
-			log.Infof("closing db-to-thread flow on thread %s", a.threadID)
+			log.Debugf("closing db-to-thread flow on thread %s", a.threadID)
 			return
 		case node, ok := <-l.Channel():
 			if !ok {
