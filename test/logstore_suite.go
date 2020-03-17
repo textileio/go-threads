@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	sym "github.com/textileio/go-threads/crypto/symmetric"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -234,9 +236,17 @@ func testBasicLogstore(ts core.Logstore) func(t *testing.T) {
 		for _, a := range addrs {
 			tid := thread.NewIDV1(thread.Raw, 24)
 			tids = append(tids, tid)
-			priv, _, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+			err := ts.AddFollowKey(tid, sym.New())
+			check(t, err)
+			err = ts.AddReadKey(tid, sym.New())
+			check(t, err)
+			priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			p, _ := peer.IDFromPrivateKey(priv)
-			err := ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
+			err = ts.AddAddr(tid, p, a, pstore.PermanentAddrTTL)
+			check(t, err)
+			err = ts.AddPubKey(tid, p, pub)
+			check(t, err)
+			err = ts.AddPrivKey(tid, p, priv)
 			check(t, err)
 		}
 
