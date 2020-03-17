@@ -60,5 +60,5 @@ jobs:
       - name: Test
         run: |
             cd api/pb/android
-            ./gradlew threads:test
+            ./gradlew testReleaseUnitTest
             
