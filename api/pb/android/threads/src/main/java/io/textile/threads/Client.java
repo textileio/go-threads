@@ -1,6 +1,8 @@
 package io.textile.threads;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -83,19 +85,25 @@ public class Client implements LifecycleObserver {
         asyncStub.newDB(request.build(), responseObserver);
     }
 
-    public void NewDBFromAddrSync (String address, ByteString followKey, ByteString readKey) {
+    public void NewDBFromAddrSync (String address, ByteString followKey, ByteString readKey, List<CollectionConfig> collections) {
         NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
         request.setDbAddr(address);
         request.setFollowKey(followKey);
         request.setReadKey(readKey);
+        for (int i = 0; i < collections.size(); i++) {
+            request.setCollections(i, collections.get(i));
+        }
         blockingStub.newDBFromAddr(request.build());
     }
 
-    public void NewDBFromAddr (String address, ByteString followKey, ByteString readKey, StreamObserver<NewDBReply> responseObserver) {
+    public void NewDBFromAddr (String address, ByteString followKey, ByteString readKey, List<CollectionConfig> collections, StreamObserver<NewDBReply> responseObserver) {
         NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
         request.setDbAddr(address);
         request.setFollowKey(followKey);
         request.setReadKey(readKey);
+        for (int i = 0; i < collections.size(); i++) {
+            request.setCollections(i, collections.get(i));
+        }
         asyncStub.newDBFromAddr(request.build(), responseObserver);
     }
 
@@ -204,16 +212,20 @@ public class Client implements LifecycleObserver {
     public void NewCollectionSync (String dbID, String name, String schema) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDbID(dbID);
-        request.setName(name);
-        request.setSchema(schema);
+        CollectionConfig.Builder config = CollectionConfig.newBuilder();
+        config.setName(name);
+        config.setSchema(schema);
+        request.setConfig(config);
         blockingStub.newCollection(request.build());
     }
 
     public void NewCollection (String dbID, String name, String schema, StreamObserver<NewCollectionReply> responseObserver) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDbID(dbID);
-        request.setName(name);
-        request.setSchema(schema);
+        CollectionConfig.Builder config = CollectionConfig.newBuilder();
+        config.setName(name);
+        config.setSchema(schema);
+        request.setConfig(config);
         asyncStub.newCollection(request.build(), responseObserver);
     }
 
