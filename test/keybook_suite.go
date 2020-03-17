@@ -124,7 +124,7 @@ func testKeyBookReadKey(kb core.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		key, err := symmetric.CreateKey()
+		key, err := symmetric.NewRandom()
 		if err != nil {
 			t.Error(err)
 		}
@@ -148,7 +148,7 @@ func testKeyBookFollowKey(kb core.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		key, err := symmetric.CreateKey()
+		key, err := symmetric.NewRandom()
 		if err != nil {
 			t.Error(err)
 		}

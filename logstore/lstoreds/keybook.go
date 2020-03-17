@@ -126,7 +126,7 @@ func (kb *dsKeyBook) ReadKey(t thread.ID) (*sym.Key, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error when getting read-key from datastore: %v", err)
 	}
-	return sym.NewKey(v)
+	return sym.FromBytes(v)
 }
 
 // AddReadKey adds a read-key for a peer.ID
@@ -153,7 +153,7 @@ func (kb *dsKeyBook) FollowKey(t thread.ID) (*sym.Key, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error when getting follow-key from datastore: %v", err)
 	}
-	return sym.NewKey(v)
+	return sym.FromBytes(v)
 }
 
 // AddFollowKey adds a follow-key for a peer.ID

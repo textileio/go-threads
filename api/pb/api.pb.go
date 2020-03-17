@@ -52,7 +52,7 @@ func (x ListenRequest_Filter_Action) String() string {
 }
 
 func (ListenRequest_Filter_Action) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{27, 0, 0}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{25, 0, 0}
 }
 
 type ListenReply_Action int32
@@ -80,10 +80,11 @@ func (x ListenReply_Action) String() string {
 }
 
 func (ListenReply_Action) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{28, 0}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{26, 0}
 }
 
 type NewDBRequest struct {
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -114,8 +115,179 @@ func (m *NewDBRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_NewDBRequest proto.InternalMessageInfo
 
+func (m *NewDBRequest) GetDbID() string {
+	if m != nil {
+		return m.DbID
+	}
+	return ""
+}
+
+type CollectionConfig struct {
+	Name                 string                          `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Schema               string                          `protobuf:"bytes,2,opt,name=schema,proto3" json:"schema,omitempty"`
+	Indexes              []*CollectionConfig_IndexConfig `protobuf:"bytes,3,rep,name=indexes,proto3" json:"indexes,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
+	XXX_unrecognized     []byte                          `json:"-"`
+	XXX_sizecache        int32                           `json:"-"`
+}
+
+func (m *CollectionConfig) Reset()         { *m = CollectionConfig{} }
+func (m *CollectionConfig) String() string { return proto.CompactTextString(m) }
+func (*CollectionConfig) ProtoMessage()    {}
+func (*CollectionConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{1}
+}
+
+func (m *CollectionConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CollectionConfig.Unmarshal(m, b)
+}
+func (m *CollectionConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CollectionConfig.Marshal(b, m, deterministic)
+}
+func (m *CollectionConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CollectionConfig.Merge(m, src)
+}
+func (m *CollectionConfig) XXX_Size() int {
+	return xxx_messageInfo_CollectionConfig.Size(m)
+}
+func (m *CollectionConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_CollectionConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CollectionConfig proto.InternalMessageInfo
+
+func (m *CollectionConfig) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *CollectionConfig) GetSchema() string {
+	if m != nil {
+		return m.Schema
+	}
+	return ""
+}
+
+func (m *CollectionConfig) GetIndexes() []*CollectionConfig_IndexConfig {
+	if m != nil {
+		return m.Indexes
+	}
+	return nil
+}
+
+type CollectionConfig_IndexConfig struct {
+	Path                 string   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Unique               bool     `protobuf:"varint,2,opt,name=unique,proto3" json:"unique,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CollectionConfig_IndexConfig) Reset()         { *m = CollectionConfig_IndexConfig{} }
+func (m *CollectionConfig_IndexConfig) String() string { return proto.CompactTextString(m) }
+func (*CollectionConfig_IndexConfig) ProtoMessage()    {}
+func (*CollectionConfig_IndexConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{1, 0}
+}
+
+func (m *CollectionConfig_IndexConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CollectionConfig_IndexConfig.Unmarshal(m, b)
+}
+func (m *CollectionConfig_IndexConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CollectionConfig_IndexConfig.Marshal(b, m, deterministic)
+}
+func (m *CollectionConfig_IndexConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CollectionConfig_IndexConfig.Merge(m, src)
+}
+func (m *CollectionConfig_IndexConfig) XXX_Size() int {
+	return xxx_messageInfo_CollectionConfig_IndexConfig.Size(m)
+}
+func (m *CollectionConfig_IndexConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_CollectionConfig_IndexConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CollectionConfig_IndexConfig proto.InternalMessageInfo
+
+func (m *CollectionConfig_IndexConfig) GetPath() string {
+	if m != nil {
+		return m.Path
+	}
+	return ""
+}
+
+func (m *CollectionConfig_IndexConfig) GetUnique() bool {
+	if m != nil {
+		return m.Unique
+	}
+	return false
+}
+
+type NewDBFromAddrRequest struct {
+	DbAddr               string              `protobuf:"bytes,1,opt,name=dbAddr,proto3" json:"dbAddr,omitempty"`
+	FollowKey            []byte              `protobuf:"bytes,2,opt,name=followKey,proto3" json:"followKey,omitempty"`
+	ReadKey              []byte              `protobuf:"bytes,3,opt,name=readKey,proto3" json:"readKey,omitempty"`
+	Collections          []*CollectionConfig `protobuf:"bytes,4,rep,name=collections,proto3" json:"collections,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *NewDBFromAddrRequest) Reset()         { *m = NewDBFromAddrRequest{} }
+func (m *NewDBFromAddrRequest) String() string { return proto.CompactTextString(m) }
+func (*NewDBFromAddrRequest) ProtoMessage()    {}
+func (*NewDBFromAddrRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{2}
+}
+
+func (m *NewDBFromAddrRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NewDBFromAddrRequest.Unmarshal(m, b)
+}
+func (m *NewDBFromAddrRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NewDBFromAddrRequest.Marshal(b, m, deterministic)
+}
+func (m *NewDBFromAddrRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NewDBFromAddrRequest.Merge(m, src)
+}
+func (m *NewDBFromAddrRequest) XXX_Size() int {
+	return xxx_messageInfo_NewDBFromAddrRequest.Size(m)
+}
+func (m *NewDBFromAddrRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_NewDBFromAddrRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NewDBFromAddrRequest proto.InternalMessageInfo
+
+func (m *NewDBFromAddrRequest) GetDbAddr() string {
+	if m != nil {
+		return m.DbAddr
+	}
+	return ""
+}
+
+func (m *NewDBFromAddrRequest) GetFollowKey() []byte {
+	if m != nil {
+		return m.FollowKey
+	}
+	return nil
+}
+
+func (m *NewDBFromAddrRequest) GetReadKey() []byte {
+	if m != nil {
+		return m.ReadKey
+	}
+	return nil
+}
+
+func (m *NewDBFromAddrRequest) GetCollections() []*CollectionConfig {
+	if m != nil {
+		return m.Collections
+	}
+	return nil
+}
+
 type NewDBReply struct {
-	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -125,7 +297,7 @@ func (m *NewDBReply) Reset()         { *m = NewDBReply{} }
 func (m *NewDBReply) String() string { return proto.CompactTextString(m) }
 func (*NewDBReply) ProtoMessage()    {}
 func (*NewDBReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{1}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{3}
 }
 
 func (m *NewDBReply) XXX_Unmarshal(b []byte) error {
@@ -146,28 +318,113 @@ func (m *NewDBReply) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_NewDBReply proto.InternalMessageInfo
 
-func (m *NewDBReply) GetID() string {
+type GetDBInfoRequest struct {
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetDBInfoRequest) Reset()         { *m = GetDBInfoRequest{} }
+func (m *GetDBInfoRequest) String() string { return proto.CompactTextString(m) }
+func (*GetDBInfoRequest) ProtoMessage()    {}
+func (*GetDBInfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{4}
+}
+
+func (m *GetDBInfoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetDBInfoRequest.Unmarshal(m, b)
+}
+func (m *GetDBInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetDBInfoRequest.Marshal(b, m, deterministic)
+}
+func (m *GetDBInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetDBInfoRequest.Merge(m, src)
+}
+func (m *GetDBInfoRequest) XXX_Size() int {
+	return xxx_messageInfo_GetDBInfoRequest.Size(m)
+}
+func (m *GetDBInfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetDBInfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetDBInfoRequest proto.InternalMessageInfo
+
+func (m *GetDBInfoRequest) GetDbID() string {
 	if m != nil {
-		return m.ID
+		return m.DbID
 	}
 	return ""
 }
 
+type GetDBInfoReply struct {
+	Addresses            []string `protobuf:"bytes,1,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	FollowKey            []byte   `protobuf:"bytes,2,opt,name=followKey,proto3" json:"followKey,omitempty"`
+	ReadKey              []byte   `protobuf:"bytes,3,opt,name=readKey,proto3" json:"readKey,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetDBInfoReply) Reset()         { *m = GetDBInfoReply{} }
+func (m *GetDBInfoReply) String() string { return proto.CompactTextString(m) }
+func (*GetDBInfoReply) ProtoMessage()    {}
+func (*GetDBInfoReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_00212fb1f9d3bf1c, []int{5}
+}
+
+func (m *GetDBInfoReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetDBInfoReply.Unmarshal(m, b)
+}
+func (m *GetDBInfoReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetDBInfoReply.Marshal(b, m, deterministic)
+}
+func (m *GetDBInfoReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetDBInfoReply.Merge(m, src)
+}
+func (m *GetDBInfoReply) XXX_Size() int {
+	return xxx_messageInfo_GetDBInfoReply.Size(m)
+}
+func (m *GetDBInfoReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetDBInfoReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetDBInfoReply proto.InternalMessageInfo
+
+func (m *GetDBInfoReply) GetAddresses() []string {
+	if m != nil {
+		return m.Addresses
+	}
+	return nil
+}
+
+func (m *GetDBInfoReply) GetFollowKey() []byte {
+	if m != nil {
+		return m.FollowKey
+	}
+	return nil
+}
+
+func (m *GetDBInfoReply) GetReadKey() []byte {
+	if m != nil {
+		return m.ReadKey
+	}
+	return nil
+}
+
 type NewCollectionRequest struct {
-	DBID                 string                              `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
-	Name                 string                              `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Schema               string                              `protobuf:"bytes,3,opt,name=schema,proto3" json:"schema,omitempty"`
-	Indexes              []*NewCollectionRequest_IndexConfig `protobuf:"bytes,4,rep,name=indexes,proto3" json:"indexes,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                            `json:"-"`
-	XXX_unrecognized     []byte                              `json:"-"`
-	XXX_sizecache        int32                               `json:"-"`
+	DbID                 string            `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
+	Config               *CollectionConfig `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *NewCollectionRequest) Reset()         { *m = NewCollectionRequest{} }
 func (m *NewCollectionRequest) String() string { return proto.CompactTextString(m) }
 func (*NewCollectionRequest) ProtoMessage()    {}
 func (*NewCollectionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{2}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{6}
 }
 
 func (m *NewCollectionRequest) XXX_Unmarshal(b []byte) error {
@@ -188,79 +445,18 @@ func (m *NewCollectionRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_NewCollectionRequest proto.InternalMessageInfo
 
-func (m *NewCollectionRequest) GetDBID() string {
+func (m *NewCollectionRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
 
-func (m *NewCollectionRequest) GetName() string {
+func (m *NewCollectionRequest) GetConfig() *CollectionConfig {
 	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
-func (m *NewCollectionRequest) GetSchema() string {
-	if m != nil {
-		return m.Schema
-	}
-	return ""
-}
-
-func (m *NewCollectionRequest) GetIndexes() []*NewCollectionRequest_IndexConfig {
-	if m != nil {
-		return m.Indexes
+		return m.Config
 	}
 	return nil
-}
-
-type NewCollectionRequest_IndexConfig struct {
-	Path                 string   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Unique               bool     `protobuf:"varint,2,opt,name=unique,proto3" json:"unique,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *NewCollectionRequest_IndexConfig) Reset()         { *m = NewCollectionRequest_IndexConfig{} }
-func (m *NewCollectionRequest_IndexConfig) String() string { return proto.CompactTextString(m) }
-func (*NewCollectionRequest_IndexConfig) ProtoMessage()    {}
-func (*NewCollectionRequest_IndexConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{2, 0}
-}
-
-func (m *NewCollectionRequest_IndexConfig) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NewCollectionRequest_IndexConfig.Unmarshal(m, b)
-}
-func (m *NewCollectionRequest_IndexConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NewCollectionRequest_IndexConfig.Marshal(b, m, deterministic)
-}
-func (m *NewCollectionRequest_IndexConfig) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NewCollectionRequest_IndexConfig.Merge(m, src)
-}
-func (m *NewCollectionRequest_IndexConfig) XXX_Size() int {
-	return xxx_messageInfo_NewCollectionRequest_IndexConfig.Size(m)
-}
-func (m *NewCollectionRequest_IndexConfig) XXX_DiscardUnknown() {
-	xxx_messageInfo_NewCollectionRequest_IndexConfig.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NewCollectionRequest_IndexConfig proto.InternalMessageInfo
-
-func (m *NewCollectionRequest_IndexConfig) GetPath() string {
-	if m != nil {
-		return m.Path
-	}
-	return ""
-}
-
-func (m *NewCollectionRequest_IndexConfig) GetUnique() bool {
-	if m != nil {
-		return m.Unique
-	}
-	return false
 }
 
 type NewCollectionReply struct {
@@ -273,7 +469,7 @@ func (m *NewCollectionReply) Reset()         { *m = NewCollectionReply{} }
 func (m *NewCollectionReply) String() string { return proto.CompactTextString(m) }
 func (*NewCollectionReply) ProtoMessage()    {}
 func (*NewCollectionReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{3}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{7}
 }
 
 func (m *NewCollectionReply) XXX_Unmarshal(b []byte) error {
@@ -294,266 +490,8 @@ func (m *NewCollectionReply) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_NewCollectionReply proto.InternalMessageInfo
 
-type StartRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StartRequest) Reset()         { *m = StartRequest{} }
-func (m *StartRequest) String() string { return proto.CompactTextString(m) }
-func (*StartRequest) ProtoMessage()    {}
-func (*StartRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{4}
-}
-
-func (m *StartRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StartRequest.Unmarshal(m, b)
-}
-func (m *StartRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StartRequest.Marshal(b, m, deterministic)
-}
-func (m *StartRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartRequest.Merge(m, src)
-}
-func (m *StartRequest) XXX_Size() int {
-	return xxx_messageInfo_StartRequest.Size(m)
-}
-func (m *StartRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_StartRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StartRequest proto.InternalMessageInfo
-
-func (m *StartRequest) GetDBID() string {
-	if m != nil {
-		return m.DBID
-	}
-	return ""
-}
-
-type StartReply struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StartReply) Reset()         { *m = StartReply{} }
-func (m *StartReply) String() string { return proto.CompactTextString(m) }
-func (*StartReply) ProtoMessage()    {}
-func (*StartReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{5}
-}
-
-func (m *StartReply) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StartReply.Unmarshal(m, b)
-}
-func (m *StartReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StartReply.Marshal(b, m, deterministic)
-}
-func (m *StartReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartReply.Merge(m, src)
-}
-func (m *StartReply) XXX_Size() int {
-	return xxx_messageInfo_StartReply.Size(m)
-}
-func (m *StartReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_StartReply.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StartReply proto.InternalMessageInfo
-
-type StartFromAddressRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
-	Address              string   `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	FollowKey            []byte   `protobuf:"bytes,3,opt,name=followKey,proto3" json:"followKey,omitempty"`
-	ReadKey              []byte   `protobuf:"bytes,4,opt,name=readKey,proto3" json:"readKey,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StartFromAddressRequest) Reset()         { *m = StartFromAddressRequest{} }
-func (m *StartFromAddressRequest) String() string { return proto.CompactTextString(m) }
-func (*StartFromAddressRequest) ProtoMessage()    {}
-func (*StartFromAddressRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{6}
-}
-
-func (m *StartFromAddressRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StartFromAddressRequest.Unmarshal(m, b)
-}
-func (m *StartFromAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StartFromAddressRequest.Marshal(b, m, deterministic)
-}
-func (m *StartFromAddressRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartFromAddressRequest.Merge(m, src)
-}
-func (m *StartFromAddressRequest) XXX_Size() int {
-	return xxx_messageInfo_StartFromAddressRequest.Size(m)
-}
-func (m *StartFromAddressRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_StartFromAddressRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StartFromAddressRequest proto.InternalMessageInfo
-
-func (m *StartFromAddressRequest) GetDBID() string {
-	if m != nil {
-		return m.DBID
-	}
-	return ""
-}
-
-func (m *StartFromAddressRequest) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-func (m *StartFromAddressRequest) GetFollowKey() []byte {
-	if m != nil {
-		return m.FollowKey
-	}
-	return nil
-}
-
-func (m *StartFromAddressRequest) GetReadKey() []byte {
-	if m != nil {
-		return m.ReadKey
-	}
-	return nil
-}
-
-type StartFromAddressReply struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StartFromAddressReply) Reset()         { *m = StartFromAddressReply{} }
-func (m *StartFromAddressReply) String() string { return proto.CompactTextString(m) }
-func (*StartFromAddressReply) ProtoMessage()    {}
-func (*StartFromAddressReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{7}
-}
-
-func (m *StartFromAddressReply) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StartFromAddressReply.Unmarshal(m, b)
-}
-func (m *StartFromAddressReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StartFromAddressReply.Marshal(b, m, deterministic)
-}
-func (m *StartFromAddressReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StartFromAddressReply.Merge(m, src)
-}
-func (m *StartFromAddressReply) XXX_Size() int {
-	return xxx_messageInfo_StartFromAddressReply.Size(m)
-}
-func (m *StartFromAddressReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_StartFromAddressReply.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StartFromAddressReply proto.InternalMessageInfo
-
-type GetDBLinkRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetDBLinkRequest) Reset()         { *m = GetDBLinkRequest{} }
-func (m *GetDBLinkRequest) String() string { return proto.CompactTextString(m) }
-func (*GetDBLinkRequest) ProtoMessage()    {}
-func (*GetDBLinkRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
-}
-
-func (m *GetDBLinkRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetDBLinkRequest.Unmarshal(m, b)
-}
-func (m *GetDBLinkRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetDBLinkRequest.Marshal(b, m, deterministic)
-}
-func (m *GetDBLinkRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetDBLinkRequest.Merge(m, src)
-}
-func (m *GetDBLinkRequest) XXX_Size() int {
-	return xxx_messageInfo_GetDBLinkRequest.Size(m)
-}
-func (m *GetDBLinkRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetDBLinkRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetDBLinkRequest proto.InternalMessageInfo
-
-func (m *GetDBLinkRequest) GetDBID() string {
-	if m != nil {
-		return m.DBID
-	}
-	return ""
-}
-
-type GetDBLinkReply struct {
-	Addresses            []string `protobuf:"bytes,1,rep,name=addresses,proto3" json:"addresses,omitempty"`
-	FollowKey            []byte   `protobuf:"bytes,2,opt,name=followKey,proto3" json:"followKey,omitempty"`
-	ReadKey              []byte   `protobuf:"bytes,3,opt,name=readKey,proto3" json:"readKey,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetDBLinkReply) Reset()         { *m = GetDBLinkReply{} }
-func (m *GetDBLinkReply) String() string { return proto.CompactTextString(m) }
-func (*GetDBLinkReply) ProtoMessage()    {}
-func (*GetDBLinkReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
-}
-
-func (m *GetDBLinkReply) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetDBLinkReply.Unmarshal(m, b)
-}
-func (m *GetDBLinkReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetDBLinkReply.Marshal(b, m, deterministic)
-}
-func (m *GetDBLinkReply) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetDBLinkReply.Merge(m, src)
-}
-func (m *GetDBLinkReply) XXX_Size() int {
-	return xxx_messageInfo_GetDBLinkReply.Size(m)
-}
-func (m *GetDBLinkReply) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetDBLinkReply.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetDBLinkReply proto.InternalMessageInfo
-
-func (m *GetDBLinkReply) GetAddresses() []string {
-	if m != nil {
-		return m.Addresses
-	}
-	return nil
-}
-
-func (m *GetDBLinkReply) GetFollowKey() []byte {
-	if m != nil {
-		return m.FollowKey
-	}
-	return nil
-}
-
-func (m *GetDBLinkReply) GetReadKey() []byte {
-	if m != nil {
-		return m.ReadKey
-	}
-	return nil
-}
-
 type CreateRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	Values               []string `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -565,7 +503,7 @@ func (m *CreateRequest) Reset()         { *m = CreateRequest{} }
 func (m *CreateRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateRequest) ProtoMessage()    {}
 func (*CreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{10}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{8}
 }
 
 func (m *CreateRequest) XXX_Unmarshal(b []byte) error {
@@ -586,9 +524,9 @@ func (m *CreateRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_CreateRequest proto.InternalMessageInfo
 
-func (m *CreateRequest) GetDBID() string {
+func (m *CreateRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -618,7 +556,7 @@ func (m *CreateReply) Reset()         { *m = CreateReply{} }
 func (m *CreateReply) String() string { return proto.CompactTextString(m) }
 func (*CreateReply) ProtoMessage()    {}
 func (*CreateReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{11}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{9}
 }
 
 func (m *CreateReply) XXX_Unmarshal(b []byte) error {
@@ -647,7 +585,7 @@ func (m *CreateReply) GetInstances() []string {
 }
 
 type SaveRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	Values               []string `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -659,7 +597,7 @@ func (m *SaveRequest) Reset()         { *m = SaveRequest{} }
 func (m *SaveRequest) String() string { return proto.CompactTextString(m) }
 func (*SaveRequest) ProtoMessage()    {}
 func (*SaveRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{12}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{10}
 }
 
 func (m *SaveRequest) XXX_Unmarshal(b []byte) error {
@@ -680,9 +618,9 @@ func (m *SaveRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SaveRequest proto.InternalMessageInfo
 
-func (m *SaveRequest) GetDBID() string {
+func (m *SaveRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -711,7 +649,7 @@ func (m *SaveReply) Reset()         { *m = SaveReply{} }
 func (m *SaveReply) String() string { return proto.CompactTextString(m) }
 func (*SaveReply) ProtoMessage()    {}
 func (*SaveReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{13}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{11}
 }
 
 func (m *SaveReply) XXX_Unmarshal(b []byte) error {
@@ -733,7 +671,7 @@ func (m *SaveReply) XXX_DiscardUnknown() {
 var xxx_messageInfo_SaveReply proto.InternalMessageInfo
 
 type DeleteRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	InstanceIDs          []string `protobuf:"bytes,3,rep,name=instanceIDs,proto3" json:"instanceIDs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -745,7 +683,7 @@ func (m *DeleteRequest) Reset()         { *m = DeleteRequest{} }
 func (m *DeleteRequest) String() string { return proto.CompactTextString(m) }
 func (*DeleteRequest) ProtoMessage()    {}
 func (*DeleteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{14}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{12}
 }
 
 func (m *DeleteRequest) XXX_Unmarshal(b []byte) error {
@@ -766,9 +704,9 @@ func (m *DeleteRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_DeleteRequest proto.InternalMessageInfo
 
-func (m *DeleteRequest) GetDBID() string {
+func (m *DeleteRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -797,7 +735,7 @@ func (m *DeleteReply) Reset()         { *m = DeleteReply{} }
 func (m *DeleteReply) String() string { return proto.CompactTextString(m) }
 func (*DeleteReply) ProtoMessage()    {}
 func (*DeleteReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{15}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{13}
 }
 
 func (m *DeleteReply) XXX_Unmarshal(b []byte) error {
@@ -819,7 +757,7 @@ func (m *DeleteReply) XXX_DiscardUnknown() {
 var xxx_messageInfo_DeleteReply proto.InternalMessageInfo
 
 type HasRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	InstanceIDs          []string `protobuf:"bytes,3,rep,name=instanceIDs,proto3" json:"instanceIDs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -831,7 +769,7 @@ func (m *HasRequest) Reset()         { *m = HasRequest{} }
 func (m *HasRequest) String() string { return proto.CompactTextString(m) }
 func (*HasRequest) ProtoMessage()    {}
 func (*HasRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{16}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{14}
 }
 
 func (m *HasRequest) XXX_Unmarshal(b []byte) error {
@@ -852,9 +790,9 @@ func (m *HasRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_HasRequest proto.InternalMessageInfo
 
-func (m *HasRequest) GetDBID() string {
+func (m *HasRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -884,7 +822,7 @@ func (m *HasReply) Reset()         { *m = HasReply{} }
 func (m *HasReply) String() string { return proto.CompactTextString(m) }
 func (*HasReply) ProtoMessage()    {}
 func (*HasReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{17}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{15}
 }
 
 func (m *HasReply) XXX_Unmarshal(b []byte) error {
@@ -913,7 +851,7 @@ func (m *HasReply) GetExists() bool {
 }
 
 type FindRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	QueryJSON            []byte   `protobuf:"bytes,3,opt,name=queryJSON,proto3" json:"queryJSON,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -925,7 +863,7 @@ func (m *FindRequest) Reset()         { *m = FindRequest{} }
 func (m *FindRequest) String() string { return proto.CompactTextString(m) }
 func (*FindRequest) ProtoMessage()    {}
 func (*FindRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{18}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{16}
 }
 
 func (m *FindRequest) XXX_Unmarshal(b []byte) error {
@@ -946,9 +884,9 @@ func (m *FindRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_FindRequest proto.InternalMessageInfo
 
-func (m *FindRequest) GetDBID() string {
+func (m *FindRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -978,7 +916,7 @@ func (m *FindReply) Reset()         { *m = FindReply{} }
 func (m *FindReply) String() string { return proto.CompactTextString(m) }
 func (*FindReply) ProtoMessage()    {}
 func (*FindReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{19}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{17}
 }
 
 func (m *FindReply) XXX_Unmarshal(b []byte) error {
@@ -1007,7 +945,7 @@ func (m *FindReply) GetInstances() [][]byte {
 }
 
 type FindByIDRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	InstanceID           string   `protobuf:"bytes,3,opt,name=instanceID,proto3" json:"instanceID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -1019,7 +957,7 @@ func (m *FindByIDRequest) Reset()         { *m = FindByIDRequest{} }
 func (m *FindByIDRequest) String() string { return proto.CompactTextString(m) }
 func (*FindByIDRequest) ProtoMessage()    {}
 func (*FindByIDRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{20}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{18}
 }
 
 func (m *FindByIDRequest) XXX_Unmarshal(b []byte) error {
@@ -1040,9 +978,9 @@ func (m *FindByIDRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_FindByIDRequest proto.InternalMessageInfo
 
-func (m *FindByIDRequest) GetDBID() string {
+func (m *FindByIDRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -1072,7 +1010,7 @@ func (m *FindByIDReply) Reset()         { *m = FindByIDReply{} }
 func (m *FindByIDReply) String() string { return proto.CompactTextString(m) }
 func (*FindByIDReply) ProtoMessage()    {}
 func (*FindByIDReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{21}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{19}
 }
 
 func (m *FindByIDReply) XXX_Unmarshal(b []byte) error {
@@ -1101,7 +1039,7 @@ func (m *FindByIDReply) GetInstance() string {
 }
 
 type StartTransactionRequest struct {
-	DBID                 string   `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string   `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	CollectionName       string   `protobuf:"bytes,2,opt,name=collectionName,proto3" json:"collectionName,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -1112,7 +1050,7 @@ func (m *StartTransactionRequest) Reset()         { *m = StartTransactionRequest
 func (m *StartTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*StartTransactionRequest) ProtoMessage()    {}
 func (*StartTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{22}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{20}
 }
 
 func (m *StartTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -1133,9 +1071,9 @@ func (m *StartTransactionRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StartTransactionRequest proto.InternalMessageInfo
 
-func (m *StartTransactionRequest) GetDBID() string {
+func (m *StartTransactionRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -1163,7 +1101,7 @@ func (m *ReadTransactionRequest) Reset()         { *m = ReadTransactionRequest{}
 func (m *ReadTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*ReadTransactionRequest) ProtoMessage()    {}
 func (*ReadTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{23}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{21}
 }
 
 func (m *ReadTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -1272,7 +1210,7 @@ func (m *ReadTransactionReply) Reset()         { *m = ReadTransactionReply{} }
 func (m *ReadTransactionReply) String() string { return proto.CompactTextString(m) }
 func (*ReadTransactionReply) ProtoMessage()    {}
 func (*ReadTransactionReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{24}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{22}
 }
 
 func (m *ReadTransactionReply) XXX_Unmarshal(b []byte) error {
@@ -1371,7 +1309,7 @@ func (m *WriteTransactionRequest) Reset()         { *m = WriteTransactionRequest
 func (m *WriteTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*WriteTransactionRequest) ProtoMessage()    {}
 func (*WriteTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{25}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{23}
 }
 
 func (m *WriteTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -1525,7 +1463,7 @@ func (m *WriteTransactionReply) Reset()         { *m = WriteTransactionReply{} }
 func (m *WriteTransactionReply) String() string { return proto.CompactTextString(m) }
 func (*WriteTransactionReply) ProtoMessage()    {}
 func (*WriteTransactionReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{26}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{24}
 }
 
 func (m *WriteTransactionReply) XXX_Unmarshal(b []byte) error {
@@ -1648,7 +1586,7 @@ func (*WriteTransactionReply) XXX_OneofWrappers() []interface{} {
 }
 
 type ListenRequest struct {
-	DBID                 string                  `protobuf:"bytes,1,opt,name=DBID,proto3" json:"DBID,omitempty"`
+	DbID                 string                  `protobuf:"bytes,1,opt,name=dbID,proto3" json:"dbID,omitempty"`
 	Filters              []*ListenRequest_Filter `protobuf:"bytes,2,rep,name=filters,proto3" json:"filters,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
 	XXX_unrecognized     []byte                  `json:"-"`
@@ -1659,7 +1597,7 @@ func (m *ListenRequest) Reset()         { *m = ListenRequest{} }
 func (m *ListenRequest) String() string { return proto.CompactTextString(m) }
 func (*ListenRequest) ProtoMessage()    {}
 func (*ListenRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{27}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{25}
 }
 
 func (m *ListenRequest) XXX_Unmarshal(b []byte) error {
@@ -1680,9 +1618,9 @@ func (m *ListenRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ListenRequest proto.InternalMessageInfo
 
-func (m *ListenRequest) GetDBID() string {
+func (m *ListenRequest) GetDbID() string {
 	if m != nil {
-		return m.DBID
+		return m.DbID
 	}
 	return ""
 }
@@ -1707,7 +1645,7 @@ func (m *ListenRequest_Filter) Reset()         { *m = ListenRequest_Filter{} }
 func (m *ListenRequest_Filter) String() string { return proto.CompactTextString(m) }
 func (*ListenRequest_Filter) ProtoMessage()    {}
 func (*ListenRequest_Filter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{27, 0}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{25, 0}
 }
 
 func (m *ListenRequest_Filter) XXX_Unmarshal(b []byte) error {
@@ -1763,7 +1701,7 @@ func (m *ListenReply) Reset()         { *m = ListenReply{} }
 func (m *ListenReply) String() string { return proto.CompactTextString(m) }
 func (*ListenReply) ProtoMessage()    {}
 func (*ListenReply) Descriptor() ([]byte, []int) {
-	return fileDescriptor_00212fb1f9d3bf1c, []int{28}
+	return fileDescriptor_00212fb1f9d3bf1c, []int{26}
 }
 
 func (m *ListenReply) XXX_Unmarshal(b []byte) error {
@@ -1816,16 +1754,14 @@ func init() {
 	proto.RegisterEnum("api.pb.ListenRequest_Filter_Action", ListenRequest_Filter_Action_name, ListenRequest_Filter_Action_value)
 	proto.RegisterEnum("api.pb.ListenReply_Action", ListenReply_Action_name, ListenReply_Action_value)
 	proto.RegisterType((*NewDBRequest)(nil), "api.pb.NewDBRequest")
+	proto.RegisterType((*CollectionConfig)(nil), "api.pb.CollectionConfig")
+	proto.RegisterType((*CollectionConfig_IndexConfig)(nil), "api.pb.CollectionConfig.IndexConfig")
+	proto.RegisterType((*NewDBFromAddrRequest)(nil), "api.pb.NewDBFromAddrRequest")
 	proto.RegisterType((*NewDBReply)(nil), "api.pb.NewDBReply")
+	proto.RegisterType((*GetDBInfoRequest)(nil), "api.pb.GetDBInfoRequest")
+	proto.RegisterType((*GetDBInfoReply)(nil), "api.pb.GetDBInfoReply")
 	proto.RegisterType((*NewCollectionRequest)(nil), "api.pb.NewCollectionRequest")
-	proto.RegisterType((*NewCollectionRequest_IndexConfig)(nil), "api.pb.NewCollectionRequest.IndexConfig")
 	proto.RegisterType((*NewCollectionReply)(nil), "api.pb.NewCollectionReply")
-	proto.RegisterType((*StartRequest)(nil), "api.pb.StartRequest")
-	proto.RegisterType((*StartReply)(nil), "api.pb.StartReply")
-	proto.RegisterType((*StartFromAddressRequest)(nil), "api.pb.StartFromAddressRequest")
-	proto.RegisterType((*StartFromAddressReply)(nil), "api.pb.StartFromAddressReply")
-	proto.RegisterType((*GetDBLinkRequest)(nil), "api.pb.GetDBLinkRequest")
-	proto.RegisterType((*GetDBLinkReply)(nil), "api.pb.GetDBLinkReply")
 	proto.RegisterType((*CreateRequest)(nil), "api.pb.CreateRequest")
 	proto.RegisterType((*CreateReply)(nil), "api.pb.CreateReply")
 	proto.RegisterType((*SaveRequest)(nil), "api.pb.SaveRequest")
@@ -1851,86 +1787,85 @@ func init() {
 func init() { proto.RegisterFile("api.proto", fileDescriptor_00212fb1f9d3bf1c) }
 
 var fileDescriptor_00212fb1f9d3bf1c = []byte{
-	// 1260 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0xe1, 0x6e, 0xe3, 0x44,
-	0x10, 0xb6, 0x9d, 0xd4, 0x49, 0xc6, 0x4d, 0x2f, 0xec, 0xb5, 0x4d, 0x64, 0x85, 0xa3, 0x5a, 0xa4,
-	0x53, 0xe1, 0x20, 0x2a, 0x29, 0xba, 0x03, 0xc1, 0x09, 0x25, 0x4d, 0x4a, 0xc2, 0x55, 0xe5, 0xe4,
-	0xe6, 0x00, 0x89, 0x1f, 0xc8, 0x97, 0x6c, 0x5a, 0x83, 0x9b, 0xa4, 0xb6, 0x7b, 0x6d, 0x7e, 0xf1,
-	0x2a, 0x88, 0x57, 0xe0, 0x0d, 0xee, 0x0d, 0xf8, 0xc1, 0x3b, 0x20, 0xf1, 0x10, 0xa0, 0xf5, 0xee,
-	0xda, 0x6b, 0xc7, 0x09, 0x47, 0xaf, 0xdc, 0xbf, 0xec, 0x78, 0x76, 0xbf, 0x99, 0x9d, 0x6f, 0xbf,
-	0xd9, 0x0d, 0x94, 0xec, 0x99, 0xd3, 0x98, 0x79, 0xd3, 0x60, 0x8a, 0xf4, 0xf0, 0xe7, 0x73, 0xbc,
-	0x01, 0xeb, 0xc7, 0xe4, 0xaa, 0xd3, 0xb6, 0xc8, 0xc5, 0x25, 0xf1, 0x03, 0x5c, 0x07, 0xe0, 0xe3,
-	0x99, 0x3b, 0x47, 0x1b, 0xa0, 0xf5, 0x3b, 0x35, 0x75, 0x47, 0xdd, 0x2d, 0x59, 0x5a, 0xbf, 0x83,
-	0xff, 0x50, 0x61, 0xf3, 0x98, 0x5c, 0x1d, 0x4c, 0x5d, 0x97, 0x0c, 0x03, 0x67, 0x3a, 0xe1, 0xd3,
-	0x10, 0x82, 0x7c, 0xa7, 0x1d, 0xb9, 0x86, 0xbf, 0xa9, 0x6d, 0x62, 0x9f, 0x93, 0x9a, 0xc6, 0x6c,
-	0xf4, 0x37, 0xda, 0x06, 0xdd, 0x1f, 0x9e, 0x91, 0x73, 0xbb, 0x96, 0x0b, 0xad, 0x7c, 0x84, 0xda,
-	0x50, 0x70, 0x26, 0x23, 0x72, 0x4d, 0xfc, 0x5a, 0x7e, 0x27, 0xb7, 0x6b, 0x34, 0x77, 0x1b, 0x2c,
-	0xc0, 0x46, 0x16, 0x5c, 0xa3, 0x4f, 0x7d, 0x0f, 0xa6, 0x93, 0xb1, 0x73, 0x6a, 0x89, 0x89, 0xe6,
-	0xa7, 0x60, 0x48, 0x76, 0x0a, 0x3f, 0xb3, 0x83, 0x33, 0x11, 0x12, 0xfd, 0x4d, 0xe1, 0x2f, 0x27,
-	0xce, 0xc5, 0x25, 0x0b, 0xaa, 0x68, 0xf1, 0x11, 0xde, 0x04, 0x94, 0xc2, 0x99, 0xb9, 0x73, 0x8c,
-	0x61, 0xfd, 0x24, 0xb0, 0xbd, 0x60, 0x45, 0x92, 0x78, 0x1d, 0x80, 0xfb, 0xd0, 0x19, 0x3f, 0x43,
-	0x35, 0x1c, 0x1d, 0x7a, 0xd3, 0xf3, 0xd6, 0x68, 0xe4, 0x11, 0xdf, 0x5f, 0xb5, 0x43, 0x35, 0x28,
-	0xd8, 0xcc, 0x8b, 0x6f, 0x92, 0x18, 0xa2, 0x3a, 0x94, 0xc6, 0x53, 0xd7, 0x9d, 0x5e, 0x3d, 0x21,
-	0xf3, 0x70, 0xab, 0xd6, 0xad, 0xd8, 0x40, 0xe7, 0x79, 0xc4, 0x1e, 0xd1, 0x6f, 0xf9, 0xf0, 0x9b,
-	0x18, 0xe2, 0x2a, 0x6c, 0x2d, 0x06, 0x40, 0x23, 0xbb, 0x0f, 0x95, 0x2f, 0x49, 0xd0, 0x69, 0x1f,
-	0x39, 0x93, 0x9f, 0x56, 0xe5, 0x33, 0x86, 0x0d, 0xc9, 0x8f, 0x72, 0xa0, 0x0e, 0x25, 0x1e, 0x15,
-	0xf1, 0x6b, 0xea, 0x4e, 0x6e, 0xb7, 0x64, 0xc5, 0x86, 0x64, 0xa0, 0xda, 0x8a, 0x40, 0x73, 0xc9,
-	0x40, 0x87, 0x50, 0x3e, 0xf0, 0x88, 0x1d, 0x90, 0x55, 0xfb, 0x73, 0x1f, 0x36, 0x86, 0x51, 0x4d,
-	0x8e, 0x63, 0x2e, 0xa5, 0xac, 0xb4, 0xac, 0x2f, 0x6c, 0xf7, 0x92, 0xf8, 0xb5, 0x5c, 0x18, 0x1f,
-	0x1f, 0xe1, 0x07, 0x60, 0x08, 0x10, 0x9e, 0x89, 0x33, 0xf1, 0x03, 0x7b, 0x32, 0x8c, 0x33, 0x89,
-	0x0c, 0xd8, 0x06, 0xe3, 0xc4, 0x7e, 0xf1, 0xbf, 0xc6, 0x63, 0x40, 0x89, 0x41, 0xd0, 0x8a, 0x9c,
-	0x43, 0xb9, 0x43, 0x5c, 0x72, 0x3b, 0x3b, 0xb0, 0x03, 0x86, 0xc8, 0xa4, 0xdf, 0x11, 0xb0, 0xb2,
-	0x09, 0x97, 0xc1, 0x10, 0x70, 0x14, 0xfd, 0x47, 0x80, 0x9e, 0xed, 0xbf, 0x19, 0x68, 0x0c, 0xc5,
-	0x10, 0x8b, 0xd6, 0x60, 0x1b, 0x74, 0x72, 0xed, 0xf8, 0x81, 0x1f, 0x62, 0x15, 0x2d, 0x3e, 0xc2,
-	0xa7, 0x60, 0x1c, 0x3a, 0x93, 0xd1, 0x6d, 0x04, 0x54, 0x87, 0xd2, 0xc5, 0x25, 0xf1, 0xe6, 0x5f,
-	0x9d, 0x7c, 0x7d, 0x2c, 0xce, 0x4e, 0x64, 0xc0, 0xef, 0x41, 0x89, 0x01, 0x65, 0x32, 0x62, 0x5d,
-	0x66, 0xc4, 0x39, 0xdc, 0xa1, 0xae, 0xed, 0x79, 0xbf, 0x73, 0x1b, 0x71, 0xdd, 0x03, 0x88, 0x77,
-	0x85, 0xeb, 0x9f, 0x64, 0xc1, 0x0f, 0xa0, 0x1c, 0xc3, 0xd1, 0xe8, 0x4c, 0x28, 0x8a, 0xcf, 0x1c,
-	0x30, 0x1a, 0xe3, 0x67, 0x5c, 0x69, 0x06, 0x9e, 0x3d, 0xf1, 0xed, 0x7f, 0xd5, 0xe2, 0x57, 0x8c,
-	0x11, 0xff, 0xa6, 0xc1, 0xb6, 0x45, 0xec, 0x51, 0xc6, 0xb2, 0xdf, 0x43, 0xd5, 0xcf, 0x46, 0x0c,
-	0x91, 0x8c, 0xe6, 0x3b, 0x42, 0xb2, 0x97, 0x04, 0xd6, 0x53, 0xac, 0x65, 0x2b, 0xa0, 0x8f, 0x01,
-	0xce, 0x22, 0x3a, 0x86, 0xb1, 0x19, 0x4d, 0x24, 0xd6, 0x8b, 0x89, 0xda, 0x53, 0x2c, 0xc9, 0x0f,
-	0x3d, 0x02, 0x63, 0x1c, 0x93, 0x26, 0xdc, 0x52, 0xa3, 0x79, 0x57, 0x4c, 0x93, 0xf8, 0xd4, 0x53,
-	0x2c, 0xd9, 0x13, 0x1d, 0xc0, 0x9d, 0x71, 0xb2, 0xb2, 0xa1, 0x90, 0x1a, 0xcd, 0xaa, 0x3c, 0x59,
-	0xfa, 0xdc, 0x53, 0xac, 0xf4, 0x8c, 0x76, 0x11, 0xf4, 0xe9, 0x8c, 0x26, 0x81, 0x5f, 0xaa, 0xb0,
-	0xb9, 0xb0, 0x6b, 0xb4, 0x82, 0x0d, 0x28, 0x9e, 0x71, 0xe6, 0xf3, 0x4d, 0xaa, 0x24, 0x92, 0x9a,
-	0xb9, 0xf3, 0x9e, 0x62, 0x45, 0x3e, 0xe8, 0x23, 0x28, 0x8d, 0x05, 0x39, 0xf9, 0x2e, 0xbc, 0x95,
-	0x4c, 0x87, 0xcd, 0x88, 0xbd, 0xd0, 0x63, 0x28, 0x8f, 0x65, 0xd6, 0xf0, 0x5d, 0xd8, 0x5a, 0x4c,
-	0x84, 0x4d, 0x4d, 0x7a, 0x4b, 0x49, 0xfc, 0x95, 0x83, 0xea, 0xb7, 0x9e, 0x13, 0x90, 0x37, 0x5d,
-	0xfb, 0xc7, 0x50, 0x1e, 0xca, 0xad, 0x80, 0x27, 0x1e, 0x65, 0x90, 0xe8, 0x13, 0x34, 0x83, 0x84,
-	0x37, 0x25, 0x81, 0x1f, 0xeb, 0x76, 0x9a, 0x04, 0x92, 0xa4, 0x53, 0x12, 0x48, 0x9e, 0x14, 0x77,
-	0x24, 0x0b, 0x30, 0xa7, 0x40, 0x84, 0x9b, 0x50, 0x67, 0x8a, 0x9b, 0xf0, 0x4e, 0x51, 0x76, 0xed,
-	0x66, 0x94, 0xd5, 0x5f, 0x87, 0xb2, 0x85, 0xd7, 0xa0, 0xec, 0x9f, 0x1a, 0x6c, 0x2d, 0x56, 0x9b,
-	0x12, 0xea, 0x11, 0x18, 0xc3, 0xb8, 0x69, 0xf2, 0xfa, 0xde, 0x4d, 0x17, 0x83, 0x91, 0x49, 0xf6,
-	0xa4, 0xe4, 0xf5, 0x45, 0x77, 0x4b, 0x93, 0x37, 0x6a, 0x7b, 0x94, 0xbc, 0x91, 0x17, 0xc5, 0x1a,
-	0xc5, 0x4d, 0x29, 0x5d, 0x3b, 0xa9, 0x5f, 0x51, 0x2c, 0xc9, 0x33, 0x71, 0xb0, 0xf2, 0xff, 0xf5,
-	0x60, 0xad, 0xdd, 0xec, 0x60, 0xe9, 0x37, 0x3c, 0x58, 0xbf, 0x68, 0x50, 0x3e, 0x72, 0xfc, 0x80,
-	0xac, 0x54, 0xe8, 0x87, 0x50, 0x18, 0x3b, 0x6e, 0x40, 0x3c, 0x7a, 0x17, 0xa4, 0x37, 0xe0, 0xba,
-	0x00, 0x4a, 0xcc, 0x6d, 0x1c, 0x86, 0x4e, 0x96, 0x70, 0x36, 0x5f, 0xaa, 0xa0, 0x33, 0x5b, 0x86,
-	0xc8, 0xab, 0xaf, 0xd0, 0x88, 0xb4, 0x74, 0x23, 0x42, 0x9f, 0x81, 0xce, 0x08, 0x11, 0x16, 0x64,
-	0xa3, 0xf9, 0xee, 0xaa, 0x48, 0x1a, 0x2d, 0xc6, 0x1d, 0x3e, 0x05, 0xef, 0x83, 0xce, 0x2c, 0xa8,
-	0x00, 0xb9, 0xd6, 0xd1, 0x51, 0x45, 0x41, 0x00, 0xfa, 0x81, 0xd5, 0x6d, 0x0d, 0xba, 0x15, 0x15,
-	0x15, 0x21, 0x7f, 0xd2, 0xfa, 0xa6, 0x5b, 0xd1, 0xa8, 0xb5, 0xd3, 0x3d, 0xea, 0x0e, 0xba, 0x95,
-	0x1c, 0xfe, 0x5d, 0x05, 0x43, 0x2c, 0x4e, 0xf7, 0xfe, 0xb6, 0x32, 0x69, 0xa6, 0x32, 0x31, 0xd3,
-	0x99, 0xcc, 0xdc, 0x79, 0x2a, 0x81, 0x44, 0xd7, 0x65, 0xb7, 0xeb, 0xb8, 0xeb, 0xbe, 0x1f, 0x25,
-	0x17, 0xe7, 0xa4, 0x44, 0x39, 0xa9, 0x52, 0x4e, 0x5a, 0xf3, 0x6f, 0x1d, 0x72, 0xad, 0xa7, 0x7d,
-	0xb4, 0x0f, 0x6b, 0xe1, 0x8b, 0x0a, 0x6d, 0x4a, 0x4f, 0x9a, 0xe8, 0xc1, 0x65, 0xa2, 0x94, 0x95,
-	0x5e, 0xce, 0x14, 0xf4, 0x04, 0xca, 0x89, 0x07, 0x09, 0xaa, 0xaf, 0x7a, 0x0f, 0x99, 0xe6, 0x92,
-	0xaf, 0x6c, 0xb1, 0x7d, 0x58, 0x0b, 0x65, 0x39, 0x8e, 0x40, 0x7e, 0xd6, 0xc4, 0x11, 0x48, 0x0f,
-	0x19, 0x05, 0x0d, 0xa0, 0x92, 0x7e, 0x49, 0xa0, 0xa4, 0xca, 0x2f, 0x3e, 0x72, 0xcc, 0xb7, 0x97,
-	0x3b, 0xb0, 0x55, 0xbf, 0x80, 0x52, 0xf4, 0xbc, 0x40, 0x35, 0xe1, 0x9d, 0x7e, 0x99, 0x98, 0xdb,
-	0x19, 0x5f, 0xd8, 0x02, 0x0f, 0x41, 0x67, 0x12, 0x84, 0xb2, 0xfb, 0x83, 0x99, 0xa5, 0x54, 0x58,
-	0x41, 0x7b, 0x90, 0xa7, 0x1a, 0x84, 0xb2, 0x1a, 0x83, 0xb9, 0x28, 0x53, 0x0c, 0x89, 0x09, 0x10,
-	0xca, 0xee, 0x08, 0x66, 0x96, 0x4e, 0x61, 0x05, 0x7d, 0x08, 0xb9, 0x9e, 0xed, 0xa3, 0x8c, 0x56,
-	0x60, 0x2e, 0x68, 0x14, 0x0b, 0x8c, 0x2a, 0x09, 0xca, 0xea, 0x01, 0xe6, 0xa2, 0x46, 0x61, 0x05,
-	0x7d, 0x0e, 0x45, 0xa1, 0x3d, 0x68, 0x99, 0xf8, 0x9b, 0xd9, 0x32, 0x85, 0x15, 0xf4, 0x0c, 0xee,
-	0xa4, 0xae, 0x2a, 0xe8, 0x9e, 0xf0, 0xcd, 0xbe, 0xf9, 0x99, 0xf5, 0xa5, 0xdf, 0xc3, 0x25, 0x77,
-	0xd5, 0x3d, 0x15, 0x7d, 0x07, 0x95, 0x74, 0x3b, 0x89, 0xe9, 0xb2, 0xe4, 0x5a, 0x11, 0xd3, 0x25,
-	0xb3, 0x13, 0xf1, 0x95, 0x3f, 0x01, 0x9d, 0x9d, 0xd6, 0xb8, 0x0e, 0x09, 0x1d, 0x8a, 0xeb, 0x20,
-	0x1d, 0x6a, 0xac, 0xec, 0xa9, 0xed, 0x0f, 0xa0, 0xea, 0x4c, 0x1b, 0x01, 0xb9, 0x0e, 0x1c, 0x97,
-	0x34, 0x82, 0x33, 0xfa, 0xf6, 0xf4, 0x7f, 0x38, 0xf5, 0x66, 0xc3, 0x76, 0x61, 0xc0, 0x46, 0x4f,
-	0xd5, 0x5f, 0xb5, 0xb5, 0x41, 0xcf, 0xea, 0x9c, 0x3c, 0xd7, 0xc3, 0x3f, 0x46, 0xf6, 0xff, 0x09,
-	0x00, 0x00, 0xff, 0xff, 0xc3, 0x51, 0xc8, 0x96, 0x25, 0x11, 0x00, 0x00,
+	// 1244 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x58, 0xdd, 0x6e, 0xdb, 0x36,
+	0x14, 0x96, 0x6c, 0x47, 0xb6, 0x8e, 0xe2, 0xc4, 0x63, 0xd3, 0xc4, 0x10, 0xb2, 0x2e, 0xe0, 0x86,
+	0x22, 0x5b, 0x37, 0x23, 0x73, 0x86, 0x76, 0x7f, 0xdd, 0xe0, 0xbf, 0xcc, 0x5e, 0x83, 0xac, 0x50,
+	0xd2, 0x6d, 0xc0, 0x06, 0x0c, 0x8a, 0x45, 0x27, 0x1a, 0x14, 0xcb, 0x91, 0xe4, 0x36, 0x7e, 0x9b,
+	0xa1, 0xaf, 0xb0, 0xab, 0xde, 0xf6, 0x0d, 0xf6, 0x16, 0x03, 0xf6, 0x12, 0x03, 0x29, 0x51, 0xa2,
+	0x64, 0xd9, 0xeb, 0xd2, 0xb4, 0x77, 0xe6, 0xd1, 0x21, 0x3f, 0x9e, 0x73, 0x3e, 0x7e, 0x87, 0x34,
+	0xa8, 0xe6, 0xc4, 0x6e, 0x4c, 0x3c, 0x37, 0x70, 0x91, 0xc2, 0x7e, 0x9e, 0x62, 0x0c, 0xab, 0x47,
+	0xe4, 0x59, 0xb7, 0x6d, 0x90, 0xcb, 0x29, 0xf1, 0x03, 0x84, 0xa0, 0x64, 0x9d, 0x0e, 0xba, 0x75,
+	0x79, 0x47, 0xde, 0x55, 0x0d, 0xf6, 0x1b, 0xbf, 0x90, 0xa1, 0xd6, 0x71, 0x1d, 0x87, 0x0c, 0x03,
+	0xdb, 0x1d, 0x77, 0xdc, 0xf1, 0xc8, 0x3e, 0xa3, 0x8e, 0x63, 0xf3, 0x82, 0x70, 0x47, 0xfa, 0x1b,
+	0x6d, 0x82, 0xe2, 0x0f, 0xcf, 0xc9, 0x85, 0x59, 0x2f, 0x30, 0x6b, 0x34, 0x42, 0xdf, 0x40, 0xd9,
+	0x1e, 0x5b, 0xe4, 0x8a, 0xf8, 0xf5, 0xe2, 0x4e, 0x71, 0x57, 0x6b, 0x7e, 0xd0, 0x08, 0xe1, 0x1b,
+	0xd9, 0x65, 0x1b, 0x03, 0xea, 0x17, 0xfe, 0x36, 0xf8, 0x24, 0xfd, 0x0b, 0xd0, 0x04, 0x3b, 0x85,
+	0x9e, 0x98, 0xc1, 0x39, 0x87, 0xa6, 0xbf, 0x29, 0xf4, 0x74, 0x6c, 0x5f, 0x4e, 0x09, 0x83, 0xae,
+	0x18, 0xd1, 0x08, 0x3f, 0x97, 0x61, 0x83, 0x05, 0x78, 0xe0, 0xb9, 0x17, 0x2d, 0xcb, 0xf2, 0x78,
+	0xa0, 0x9b, 0xa0, 0x58, 0xa7, 0xd4, 0x10, 0x2d, 0x13, 0x8d, 0xd0, 0x36, 0xa8, 0x23, 0xd7, 0x71,
+	0xdc, 0x67, 0x8f, 0xc8, 0x8c, 0xad, 0xb5, 0x6a, 0x24, 0x06, 0x54, 0x87, 0xb2, 0x47, 0x4c, 0x8b,
+	0x7e, 0x2b, 0xb2, 0x6f, 0x7c, 0x88, 0xbe, 0x04, 0x6d, 0x18, 0x07, 0xe3, 0xd7, 0x4b, 0x2c, 0xce,
+	0xfa, 0xa2, 0x38, 0x0d, 0xd1, 0x19, 0xaf, 0x02, 0x44, 0x45, 0x98, 0x38, 0x33, 0x7c, 0x17, 0x6a,
+	0xdf, 0x91, 0xa0, 0xdb, 0x1e, 0x8c, 0x47, 0xee, 0xb2, 0xb2, 0x8c, 0x60, 0x4d, 0xf0, 0x9b, 0x38,
+	0x33, 0xba, 0x77, 0xd3, 0xb2, 0x3c, 0xe2, 0xfb, 0xc4, 0xaf, 0xcb, 0x3b, 0xc5, 0x5d, 0xd5, 0x48,
+	0x0c, 0xd7, 0x8d, 0x0c, 0xff, 0xca, 0x32, 0x98, 0x44, 0xb0, 0x64, 0x4f, 0x68, 0x0f, 0x94, 0x21,
+	0x0b, 0x90, 0x01, 0x2c, 0x4b, 0x40, 0xe4, 0x87, 0x37, 0x00, 0x65, 0x56, 0xa7, 0x39, 0x18, 0x42,
+	0xb5, 0xe3, 0x11, 0x33, 0x20, 0xcb, 0xc0, 0xee, 0xc2, 0x5a, 0x92, 0xc5, 0x23, 0x4a, 0xc6, 0x90,
+	0x76, 0x19, 0x2b, 0x2d, 0xf5, 0x53, 0xd3, 0x99, 0x46, 0xec, 0x53, 0x8d, 0x68, 0x84, 0xef, 0x81,
+	0xc6, 0x41, 0xa2, 0xec, 0xd9, 0x63, 0x3f, 0x30, 0xc7, 0xc3, 0x24, 0x7b, 0xb1, 0x01, 0x9b, 0xa0,
+	0x1d, 0x9b, 0x4f, 0xdf, 0xe8, 0x7e, 0x34, 0x50, 0x43, 0x08, 0x9a, 0x81, 0x0b, 0xa8, 0x76, 0x89,
+	0x43, 0x6e, 0x26, 0x03, 0x3b, 0xa0, 0xf1, 0x48, 0x06, 0x5d, 0x0e, 0x2b, 0x9a, 0x70, 0x15, 0x34,
+	0x0e, 0x47, 0xd1, 0x7f, 0x07, 0xe8, 0x9b, 0xfe, 0xdb, 0x81, 0xc6, 0x50, 0x61, 0x58, 0xb4, 0x06,
+	0x9b, 0xa0, 0x90, 0x2b, 0xdb, 0x0f, 0x7c, 0x86, 0x55, 0x31, 0xa2, 0x11, 0x3e, 0x03, 0xed, 0xc0,
+	0x1e, 0x5b, 0x37, 0xb1, 0xa1, 0x6d, 0x50, 0x2f, 0xa7, 0xc4, 0x9b, 0x7d, 0x7f, 0xfc, 0xc3, 0x51,
+	0x44, 0xf5, 0xc4, 0x80, 0x3f, 0x04, 0x35, 0x04, 0xca, 0x65, 0xc4, 0xaa, 0xc8, 0x88, 0x0b, 0x58,
+	0xa7, 0xae, 0xed, 0xd9, 0xa0, 0x7b, 0x13, 0xfb, 0xba, 0x03, 0x90, 0x64, 0x85, 0x6d, 0x4c, 0x35,
+	0x04, 0x0b, 0xbe, 0x07, 0xd5, 0x04, 0x8e, 0xee, 0x4e, 0x87, 0x0a, 0xff, 0x1c, 0x01, 0xc6, 0x63,
+	0xfc, 0x04, 0xb6, 0x8e, 0x03, 0xd3, 0x0b, 0x4e, 0x3c, 0x73, 0xec, 0x9b, 0xff, 0x79, 0x6c, 0x5f,
+	0x71, 0x8f, 0xf8, 0xcf, 0x02, 0x6c, 0x1a, 0xc4, 0xb4, 0x72, 0x96, 0xfd, 0x05, 0xb6, 0xfc, 0x7c,
+	0x44, 0x86, 0xa4, 0x35, 0xdf, 0xe3, 0x52, 0xb0, 0x60, 0x63, 0x7d, 0xc9, 0x58, 0xb4, 0x02, 0xfa,
+	0x0c, 0xe0, 0x3c, 0xa6, 0x63, 0x24, 0x2d, 0x88, 0xaf, 0x97, 0x10, 0xb5, 0x2f, 0x19, 0x82, 0x1f,
+	0x7a, 0x00, 0xda, 0x28, 0x21, 0x0d, 0x4b, 0xa9, 0xd6, 0xbc, 0xc5, 0xa7, 0x09, 0x7c, 0xea, 0x4b,
+	0x86, 0xe8, 0x89, 0x3a, 0xb0, 0x3e, 0x4a, 0x57, 0xb6, 0x5e, 0x62, 0x93, 0xb7, 0xc4, 0xc9, 0xc2,
+	0xe7, 0xbe, 0x64, 0x64, 0x67, 0xb4, 0x2b, 0xa0, 0xb8, 0x13, 0x1a, 0x04, 0x7e, 0x29, 0xc3, 0xc6,
+	0x5c, 0xd6, 0x68, 0x05, 0x1b, 0x50, 0x39, 0x8f, 0x98, 0x1f, 0x25, 0xa9, 0x96, 0x0a, 0x6a, 0xe2,
+	0xcc, 0xfa, 0x92, 0x11, 0xfb, 0xa0, 0x4f, 0x41, 0x1d, 0x71, 0x72, 0x46, 0x59, 0x78, 0x27, 0x1d,
+	0x4e, 0x38, 0x23, 0xf1, 0x42, 0x0f, 0xa1, 0x3a, 0x12, 0x59, 0x13, 0x65, 0xe1, 0xf6, 0x7c, 0x20,
+	0xe1, 0xd4, 0xb4, 0xb7, 0x10, 0xc4, 0x3f, 0x45, 0xd8, 0xfa, 0xc9, 0xb3, 0x03, 0xf2, 0xb6, 0x6b,
+	0xff, 0x10, 0xaa, 0x43, 0xb1, 0x15, 0x44, 0x81, 0xc7, 0x11, 0xa4, 0xfa, 0x04, 0x8d, 0x20, 0xe5,
+	0x4d, 0x49, 0xe0, 0x27, 0xba, 0x9d, 0x25, 0x81, 0x20, 0xe9, 0x94, 0x04, 0x82, 0x27, 0xc5, 0xb5,
+	0x44, 0x01, 0x8e, 0x28, 0x10, 0xe3, 0xa6, 0xd4, 0x99, 0xe2, 0xa6, 0xbc, 0x33, 0x94, 0x5d, 0xb9,
+	0x1e, 0x65, 0x95, 0xd7, 0xa1, 0x6c, 0xf9, 0x35, 0x28, 0xfb, 0x77, 0x01, 0x6e, 0xcf, 0x57, 0x9b,
+	0x12, 0xea, 0x01, 0x68, 0xc3, 0xa4, 0x69, 0x46, 0xf5, 0xbd, 0x95, 0x2d, 0x46, 0x48, 0x26, 0xd1,
+	0x93, 0x92, 0xd7, 0xe7, 0xdd, 0x2d, 0x4b, 0xde, 0xb8, 0xed, 0x51, 0xf2, 0xc6, 0x5e, 0x14, 0xcb,
+	0x4a, 0x9a, 0x52, 0xb6, 0x76, 0x42, 0xbf, 0xa2, 0x58, 0x82, 0x67, 0xea, 0x60, 0x95, 0xfe, 0xef,
+	0xc1, 0x5a, 0xb9, 0xde, 0xc1, 0x52, 0xae, 0x79, 0xb0, 0xfe, 0x28, 0x40, 0xf5, 0xd0, 0xf6, 0x03,
+	0xb2, 0x54, 0xa1, 0xef, 0x43, 0x79, 0x64, 0x3b, 0x01, 0xf1, 0xfc, 0x7a, 0x81, 0x5d, 0x2d, 0xb7,
+	0x39, 0x50, 0x6a, 0x6e, 0xe3, 0x80, 0x39, 0x19, 0xdc, 0x59, 0x7f, 0x29, 0x83, 0x12, 0xda, 0x72,
+	0x44, 0x5e, 0x7e, 0x85, 0x46, 0x54, 0xc8, 0x36, 0x22, 0xf4, 0x15, 0x28, 0x21, 0x21, 0x58, 0x41,
+	0xd6, 0x9a, 0xef, 0x2f, 0xdb, 0x49, 0xa3, 0x15, 0x72, 0x27, 0x9a, 0x82, 0xf7, 0x41, 0x09, 0x2d,
+	0xa8, 0x0c, 0xc5, 0xd6, 0xe1, 0x61, 0x4d, 0x42, 0x00, 0x4a, 0xc7, 0xe8, 0xb5, 0x4e, 0x7a, 0x35,
+	0x19, 0x55, 0xa0, 0x74, 0xdc, 0xfa, 0xb1, 0x57, 0x2b, 0x50, 0x6b, 0xb7, 0x77, 0xd8, 0x3b, 0xe9,
+	0xd5, 0x8a, 0xf8, 0x2f, 0x19, 0x34, 0xbe, 0x38, 0xcd, 0xfd, 0x4d, 0x45, 0xd2, 0xcc, 0x44, 0xa2,
+	0x67, 0x23, 0x99, 0x38, 0xb3, 0x4c, 0x00, 0xa9, 0xae, 0x5b, 0x62, 0xb7, 0x87, 0xa4, 0xeb, 0x7e,
+	0x14, 0x07, 0x97, 0xc4, 0x24, 0xc5, 0x31, 0xc9, 0x42, 0x4c, 0x85, 0xe6, 0x0b, 0x05, 0x8a, 0xad,
+	0xc7, 0x03, 0xb4, 0x0f, 0x2b, 0xec, 0xee, 0x8f, 0x36, 0x38, 0xb8, 0xf8, 0x1e, 0xd3, 0x51, 0xc6,
+	0x4a, 0x2f, 0x67, 0x12, 0xea, 0x40, 0x35, 0xf5, 0xa8, 0x41, 0xdb, 0x29, 0xb7, 0xcc, 0x5b, 0x67,
+	0xc1, 0x22, 0xdf, 0x82, 0x1a, 0xbf, 0x1f, 0x50, 0x7c, 0x51, 0xcf, 0x3e, 0x3d, 0xf4, 0xcd, 0x9c,
+	0x2f, 0xe1, 0x02, 0x8f, 0xd8, 0x2e, 0x92, 0xab, 0x7b, 0x6a, 0x17, 0x73, 0xef, 0x05, 0x5d, 0x5f,
+	0xf0, 0x35, 0x5c, 0xec, 0x3e, 0x28, 0xa1, 0x78, 0xa0, 0x7c, 0x65, 0xd7, 0xf3, 0x34, 0x06, 0x4b,
+	0x68, 0x0f, 0x4a, 0x54, 0x3d, 0x50, 0x9e, 0xa4, 0xeb, 0xf3, 0x02, 0x13, 0x22, 0x85, 0xd2, 0x81,
+	0xf2, 0xb5, 0x5c, 0xcf, 0x53, 0x18, 0x2c, 0xa1, 0x4f, 0xa0, 0xd8, 0x37, 0x7d, 0x94, 0x23, 0xe2,
+	0xfa, 0x9c, 0xba, 0x84, 0x1b, 0xa3, 0x1a, 0x80, 0xf2, 0xd4, 0x5b, 0x9f, 0x57, 0x17, 0x2c, 0xa1,
+	0xaf, 0xa1, 0xc2, 0x55, 0x03, 0x2d, 0x92, 0x6d, 0x3d, 0x5f, 0x60, 0xb0, 0x84, 0x9e, 0xc0, 0x7a,
+	0xe6, 0x92, 0x81, 0xee, 0x70, 0xdf, 0xfc, 0x3b, 0x9b, 0xbe, 0xbd, 0xf0, 0x3b, 0x5b, 0x72, 0x57,
+	0xde, 0x93, 0xd1, 0xcf, 0x50, 0xcb, 0x36, 0x02, 0x14, 0xb7, 0xf3, 0x05, 0x17, 0x02, 0xfd, 0xdd,
+	0xc5, 0x0e, 0xc9, 0xca, 0x9f, 0x83, 0x12, 0x9e, 0xb3, 0xa4, 0x0e, 0x29, 0x05, 0x49, 0xea, 0x20,
+	0x1c, 0x47, 0x2c, 0xed, 0xc9, 0xed, 0x8f, 0x61, 0xcb, 0x76, 0x1b, 0x01, 0xb9, 0x0a, 0x6c, 0x87,
+	0x34, 0x82, 0x73, 0xfa, 0x52, 0xf5, 0x7f, 0x3b, 0xf3, 0x26, 0xc3, 0x76, 0xf9, 0x24, 0x1c, 0x3d,
+	0x96, 0x9f, 0x17, 0x56, 0x4e, 0xfa, 0x46, 0xf7, 0xf8, 0x54, 0x61, 0xff, 0x78, 0xec, 0xff, 0x1b,
+	0x00, 0x00, 0xff, 0xff, 0x9c, 0xd2, 0xa9, 0x88, 0xfe, 0x10, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1946,10 +1881,9 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type APIClient interface {
 	NewDB(ctx context.Context, in *NewDBRequest, opts ...grpc.CallOption) (*NewDBReply, error)
+	NewDBFromAddr(ctx context.Context, in *NewDBFromAddrRequest, opts ...grpc.CallOption) (*NewDBReply, error)
+	GetDBInfo(ctx context.Context, in *GetDBInfoRequest, opts ...grpc.CallOption) (*GetDBInfoReply, error)
 	NewCollection(ctx context.Context, in *NewCollectionRequest, opts ...grpc.CallOption) (*NewCollectionReply, error)
-	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error)
-	StartFromAddress(ctx context.Context, in *StartFromAddressRequest, opts ...grpc.CallOption) (*StartFromAddressReply, error)
-	GetDBLink(ctx context.Context, in *GetDBLinkRequest, opts ...grpc.CallOption) (*GetDBLinkReply, error)
 	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateReply, error)
 	Save(ctx context.Context, in *SaveRequest, opts ...grpc.CallOption) (*SaveReply, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteReply, error)
@@ -1978,36 +1912,27 @@ func (c *aPIClient) NewDB(ctx context.Context, in *NewDBRequest, opts ...grpc.Ca
 	return out, nil
 }
 
+func (c *aPIClient) NewDBFromAddr(ctx context.Context, in *NewDBFromAddrRequest, opts ...grpc.CallOption) (*NewDBReply, error) {
+	out := new(NewDBReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/NewDBFromAddr", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) GetDBInfo(ctx context.Context, in *GetDBInfoRequest, opts ...grpc.CallOption) (*GetDBInfoReply, error) {
+	out := new(GetDBInfoReply)
+	err := c.cc.Invoke(ctx, "/api.pb.API/GetDBInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aPIClient) NewCollection(ctx context.Context, in *NewCollectionRequest, opts ...grpc.CallOption) (*NewCollectionReply, error) {
 	out := new(NewCollectionReply)
 	err := c.cc.Invoke(ctx, "/api.pb.API/NewCollection", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *aPIClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartReply, error) {
-	out := new(StartReply)
-	err := c.cc.Invoke(ctx, "/api.pb.API/Start", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *aPIClient) StartFromAddress(ctx context.Context, in *StartFromAddressRequest, opts ...grpc.CallOption) (*StartFromAddressReply, error) {
-	out := new(StartFromAddressReply)
-	err := c.cc.Invoke(ctx, "/api.pb.API/StartFromAddress", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *aPIClient) GetDBLink(ctx context.Context, in *GetDBLinkRequest, opts ...grpc.CallOption) (*GetDBLinkReply, error) {
-	out := new(GetDBLinkReply)
-	err := c.cc.Invoke(ctx, "/api.pb.API/GetDBLink", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2165,10 +2090,9 @@ func (x *aPIListenClient) Recv() (*ListenReply, error) {
 // APIServer is the server API for API service.
 type APIServer interface {
 	NewDB(context.Context, *NewDBRequest) (*NewDBReply, error)
+	NewDBFromAddr(context.Context, *NewDBFromAddrRequest) (*NewDBReply, error)
+	GetDBInfo(context.Context, *GetDBInfoRequest) (*GetDBInfoReply, error)
 	NewCollection(context.Context, *NewCollectionRequest) (*NewCollectionReply, error)
-	Start(context.Context, *StartRequest) (*StartReply, error)
-	StartFromAddress(context.Context, *StartFromAddressRequest) (*StartFromAddressReply, error)
-	GetDBLink(context.Context, *GetDBLinkRequest) (*GetDBLinkReply, error)
 	Create(context.Context, *CreateRequest) (*CreateReply, error)
 	Save(context.Context, *SaveRequest) (*SaveReply, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteReply, error)
@@ -2187,17 +2111,14 @@ type UnimplementedAPIServer struct {
 func (*UnimplementedAPIServer) NewDB(ctx context.Context, req *NewDBRequest) (*NewDBReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewDB not implemented")
 }
+func (*UnimplementedAPIServer) NewDBFromAddr(ctx context.Context, req *NewDBFromAddrRequest) (*NewDBReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NewDBFromAddr not implemented")
+}
+func (*UnimplementedAPIServer) GetDBInfo(ctx context.Context, req *GetDBInfoRequest) (*GetDBInfoReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDBInfo not implemented")
+}
 func (*UnimplementedAPIServer) NewCollection(ctx context.Context, req *NewCollectionRequest) (*NewCollectionReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewCollection not implemented")
-}
-func (*UnimplementedAPIServer) Start(ctx context.Context, req *StartRequest) (*StartReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
-}
-func (*UnimplementedAPIServer) StartFromAddress(ctx context.Context, req *StartFromAddressRequest) (*StartFromAddressReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StartFromAddress not implemented")
-}
-func (*UnimplementedAPIServer) GetDBLink(ctx context.Context, req *GetDBLinkRequest) (*GetDBLinkReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetDBLink not implemented")
 }
 func (*UnimplementedAPIServer) Create(ctx context.Context, req *CreateRequest) (*CreateReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
@@ -2249,6 +2170,42 @@ func _API_NewDB_Handler(srv interface{}, ctx context.Context, dec func(interface
 	return interceptor(ctx, in, info, handler)
 }
 
+func _API_NewDBFromAddr_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NewDBFromAddrRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).NewDBFromAddr(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/NewDBFromAddr",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).NewDBFromAddr(ctx, req.(*NewDBFromAddrRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_GetDBInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDBInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).GetDBInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.pb.API/GetDBInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).GetDBInfo(ctx, req.(*GetDBInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _API_NewCollection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(NewCollectionRequest)
 	if err := dec(in); err != nil {
@@ -2263,60 +2220,6 @@ func _API_NewCollection_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServer).NewCollection(ctx, req.(*NewCollectionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _API_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(APIServer).Start(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.pb.API/Start",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServer).Start(ctx, req.(*StartRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _API_StartFromAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartFromAddressRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(APIServer).StartFromAddress(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.pb.API/StartFromAddress",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServer).StartFromAddress(ctx, req.(*StartFromAddressRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _API_GetDBLink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDBLinkRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(APIServer).GetDBLink(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.pb.API/GetDBLink",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServer).GetDBLink(ctx, req.(*GetDBLinkRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2511,20 +2414,16 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			Handler:    _API_NewDB_Handler,
 		},
 		{
+			MethodName: "NewDBFromAddr",
+			Handler:    _API_NewDBFromAddr_Handler,
+		},
+		{
+			MethodName: "GetDBInfo",
+			Handler:    _API_GetDBInfo_Handler,
+		},
+		{
 			MethodName: "NewCollection",
 			Handler:    _API_NewCollection_Handler,
-		},
-		{
-			MethodName: "Start",
-			Handler:    _API_Start_Handler,
-		},
-		{
-			MethodName: "StartFromAddress",
-			Handler:    _API_StartFromAddress_Handler,
-		},
-		{
-			MethodName: "GetDBLink",
-			Handler:    _API_GetDBLink_Handler,
 		},
 		{
 			MethodName: "Create",

@@ -5,13 +5,15 @@ import (
 	"fmt"
 
 	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
 
 // ReadTransaction encapsulates a read transaction
 type ReadTransaction struct {
-	client               pb.API_ReadTransactionClient
-	dbID, collectionName string
+	client         pb.API_ReadTransactionClient
+	dbID           thread.ID
+	collectionName string
 }
 
 // EndTransactionFunc must be called to end a transaction after it has been started
@@ -19,7 +21,7 @@ type EndTransactionFunc = func() error
 
 // Start starts the read transaction
 func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
-	innerReq := &pb.StartTransactionRequest{DBID: t.dbID, CollectionName: t.collectionName}
+	innerReq := &pb.StartTransactionRequest{DbID: t.dbID.String(), CollectionName: t.collectionName}
 	option := &pb.ReadTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
 	if err := t.client.Send(&pb.ReadTransactionRequest{Option: option}); err != nil {
 		return nil, err

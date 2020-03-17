@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto/symmetric"
+
+	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -86,66 +87,72 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// NewDB cereates a new DB
-func (c *Client) NewDB(ctx context.Context) (string, error) {
-	resp, err := c.c.NewDB(ctx, &pb.NewDBRequest{})
-	if err != nil {
-		return "", err
-	}
-	return resp.GetID(), nil
+// NewDB creates a new DB with ID
+func (c *Client) NewDB(ctx context.Context, id thread.ID) error {
+	_, err := c.c.NewDB(ctx, &pb.NewDBRequest{
+		DbID: id.String(),
+	})
+	return err
 }
 
-// NewCollection creates a new collection
-func (c *Client) NewCollection(ctx context.Context, dbID, name, schema string, indexes ...*db.IndexConfig) error {
-	idx := make([]*pb.NewCollectionRequest_IndexConfig, len(indexes))
-	for i, index := range indexes {
-		idx[i] = &pb.NewCollectionRequest_IndexConfig{
+// NewDBFromAddr creates a new DB with address and keys.
+func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *symmetric.Key, collections ...db.CollectionConfig) error {
+	pbcollections := make([]*pb.CollectionConfig, len(collections))
+	for i, c := range collections {
+		pbcollections[i] = collectionConfigToPb(c)
+	}
+	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
+		DbAddr:      addr.String(),
+		FollowKey:   followKey.Bytes(),
+		ReadKey:     readKey.Bytes(),
+		Collections: pbcollections,
+	})
+	return err
+}
+
+func collectionConfigToPb(c db.CollectionConfig) *pb.CollectionConfig {
+	idx := make([]*pb.CollectionConfig_IndexConfig, len(c.Indexes))
+	for i, index := range c.Indexes {
+		idx[i] = &pb.CollectionConfig_IndexConfig{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
 	}
-	req := &pb.NewCollectionRequest{
-		DBID:    dbID,
-		Name:    name,
-		Schema:  schema,
+	return &pb.CollectionConfig{
+		Name:    c.Name,
+		Schema:  c.Schema,
 		Indexes: idx,
 	}
-	_, err := c.c.NewCollection(ctx, req)
-	return err
 }
 
-// Start starts the specified DB
-func (c *Client) Start(ctx context.Context, dbID string) error {
-	_, err := c.c.Start(ctx, &pb.StartRequest{DBID: dbID})
-	return err
+// GetDBInfo retrives db addresses and keys.
+func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID) (*pb.GetDBInfoReply, error) {
+	return c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
+		DbID: dbID.String(),
+	})
 }
 
-// StartFromAddress starts the specified DB with the provided address and keys
-func (c *Client) StartFromAddress(ctx context.Context, dbID string, addr ma.Multiaddr, followKey, readKey *symmetric.Key) error {
-	req := &pb.StartFromAddressRequest{
-		DBID:      dbID,
-		Address:   addr.String(),
-		FollowKey: followKey.Bytes(),
-		ReadKey:   readKey.Bytes(),
-	}
-	_, err := c.c.StartFromAddress(ctx, req)
+// NewCollection creates a new collection
+func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig) error {
+	_, err := c.c.NewCollection(ctx, &pb.NewCollectionRequest{
+		DbID:   dbID.String(),
+		Config: collectionConfigToPb(config),
+	})
 	return err
 }
 
 // Create creates new instances of objects
-func (c *Client) Create(ctx context.Context, dbID, collectionName string, items ...interface{}) error {
+func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName string, items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
 	}
 
-	req := &pb.CreateRequest{
-		DBID:           dbID,
+	resp, err := c.c.Create(ctx, &pb.CreateRequest{
+		DbID:           dbID.String(),
 		CollectionName: collectionName,
 		Values:         values,
-	}
-
-	resp, err := c.c.Create(ctx, req)
+	})
 	if err != nil {
 		return err
 	}
@@ -161,60 +168,37 @@ func (c *Client) Create(ctx context.Context, dbID, collectionName string, items 
 }
 
 // Save saves existing instances
-func (c *Client) Save(ctx context.Context, dbID, collectionName string, items ...interface{}) error {
+func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string, items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
 	}
 
-	req := &pb.SaveRequest{
-		DBID:           dbID,
+	_, err = c.c.Save(ctx, &pb.SaveRequest{
+		DbID:           dbID.String(),
 		CollectionName: collectionName,
 		Values:         values,
-	}
-	_, err = c.c.Save(ctx, req)
+	})
 	return err
 }
 
 // Delete deletes data
-func (c *Client) Delete(ctx context.Context, dbID, collectionName string, instanceIDs ...string) error {
-	req := &pb.DeleteRequest{
-		DBID:           dbID,
+func (c *Client) Delete(ctx context.Context, dbID thread.ID, collectionName string, instanceIDs ...string) error {
+	_, err := c.c.Delete(ctx, &pb.DeleteRequest{
+		DbID:           dbID.String(),
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
-	}
-	_, err := c.c.Delete(ctx, req)
+	})
 	return err
 }
 
-// GetDBLink retrives the components required to create a Thread/db invite.
-func (c *Client) GetDBLink(ctx context.Context, dbID string) ([]string, error) {
-	req := &pb.GetDBLinkRequest{
-		DBID: dbID,
-	}
-	resp, err := c.c.GetDBLink(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	addrs := resp.GetAddresses()
-	res := make([]string, len(addrs))
-	for i := range addrs {
-		addr := addrs[i]
-		fKey := base58.Encode(resp.GetFollowKey())
-		rKey := base58.Encode(resp.GetReadKey())
-		res[i] = addr + "?" + fKey + "&" + rKey
-	}
-	return res, nil
-}
-
 // Has checks if the specified instances exist
-func (c *Client) Has(ctx context.Context, dbID, collectionName string, instanceIDs ...string) (bool, error) {
-	req := &pb.HasRequest{
-		DBID:           dbID,
+func (c *Client) Has(ctx context.Context, dbID thread.ID, collectionName string, instanceIDs ...string) (bool, error) {
+	resp, err := c.c.Has(ctx, &pb.HasRequest{
+		DbID:           dbID.String(),
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
-	}
-	resp, err := c.c.Has(ctx, req)
+	})
 	if err != nil {
 		return false, err
 	}
@@ -222,17 +206,16 @@ func (c *Client) Has(ctx context.Context, dbID, collectionName string, instanceI
 }
 
 // Find finds instances by query
-func (c *Client) Find(ctx context.Context, dbID, collectionName string, query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string, query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
-	req := &pb.FindRequest{
-		DBID:           dbID,
+	resp, err := c.c.Find(ctx, &pb.FindRequest{
+		DbID:           dbID.String(),
 		CollectionName: collectionName,
 		QueryJSON:      queryBytes,
-	}
-	resp, err := c.c.Find(ctx, req)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -240,31 +223,33 @@ func (c *Client) Find(ctx context.Context, dbID, collectionName string, query *d
 }
 
 // FindByID finds an instance by id
-func (c *Client) FindByID(ctx context.Context, dbID, collectionName, instanceID string, instance interface{}) error {
-	req := &pb.FindByIDRequest{
-		DBID:           dbID,
+func (c *Client) FindByID(ctx context.Context, dbID thread.ID, collectionName, instanceID string, instance interface{}) error {
+	resp, err := c.c.FindByID(ctx, &pb.FindByIDRequest{
+		DbID:           dbID.String(),
 		CollectionName: collectionName,
 		InstanceID:     instanceID,
-	}
-	resp, err := c.c.FindByID(ctx, req)
+	})
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal([]byte(resp.GetInstance()), instance)
-	return err
+	return json.Unmarshal([]byte(resp.GetInstance()), instance)
 }
 
 // ReadTransaction returns a read transaction that can be started and used and ended
-func (c *Client) ReadTransaction(ctx context.Context, dbID, collectionName string) (*ReadTransaction, error) {
+func (c *Client) ReadTransaction(ctx context.Context, dbID thread.ID, collectionName string) (*ReadTransaction, error) {
 	client, err := c.c.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &ReadTransaction{client: client, dbID: dbID, collectionName: collectionName}, nil
+	return &ReadTransaction{
+		client:         client,
+		dbID:           dbID,
+		collectionName: collectionName,
+	}, nil
 }
 
 // WriteTransaction returns a read transaction that can be started and used and ended
-func (c *Client) WriteTransaction(ctx context.Context, dbID, collectionName string) (*WriteTransaction, error) {
+func (c *Client) WriteTransaction(ctx context.Context, dbID thread.ID, collectionName string) (*WriteTransaction, error) {
 	client, err := c.c.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -273,7 +258,7 @@ func (c *Client) WriteTransaction(ctx context.Context, dbID, collectionName stri
 }
 
 // Listen provides an update whenever the specified db, collection, or instance is updated
-func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
+func (c *Client) Listen(ctx context.Context, dbID thread.ID, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
 	channel := make(chan ListenEvent)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
 	for i, listenOption := range listenOptions {
@@ -296,11 +281,10 @@ func (c *Client) Listen(ctx context.Context, dbID string, listenOptions ...Liste
 			Action:         action,
 		}
 	}
-	req := &pb.ListenRequest{
-		DBID:    dbID,
+	stream, err := c.c.Listen(ctx, &pb.ListenRequest{
+		DbID:    dbID.String(),
 		Filters: filters,
-	}
-	stream, err := c.c.Listen(ctx, req)
+	})
 	if err != nil {
 		return nil, err
 	}

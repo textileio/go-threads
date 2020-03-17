@@ -19,7 +19,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/util"
 )
@@ -115,8 +115,11 @@ func TestService_AddThread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(info2.Logs) != 1 {
-			t.Fatalf("expected 1 log got %d", len(info2.Logs))
+		if err := s2.PullThread(ctx, info2.ID); err != nil {
+			t.Fatal(err)
+		}
+		if len(info2.Logs) != 2 {
+			t.Fatalf("expected 2 log got %d", len(info2.Logs))
 		}
 
 		body2, err := cbornode.WrapObject(map[string]interface{}{
@@ -241,15 +244,7 @@ func makeService(t *testing.T) core.Service {
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	fk, err := symmetric.CreateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rk, err := symmetric.CreateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	info, err := api.CreateThread(ctx, id, core.FollowKey(fk), core.ReadKey(rk))
+	info, err := api.CreateThread(ctx, id, core.FollowKey(sym.New()), core.ReadKey(sym.New()))
 	if err != nil {
 		t.Fatal(err)
 	}

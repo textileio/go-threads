@@ -1,10 +1,13 @@
 package db
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/textileio/go-threads/core/thread"
 )
 
 var (
@@ -42,16 +45,16 @@ func TestManager_NewDB(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, _, err := man.NewDB()
+		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, _, err := man.NewDB()
+		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
-		_, _, err = man.NewDB()
+		_, err = man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
 	})
 }
@@ -69,17 +72,16 @@ func TestManager_GetDB(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	id, _, err := man.NewDB()
+	id := thread.NewIDV1(thread.Raw, 32)
+	_, err = man.NewDB(context.Background(), id)
 	checkErr(t, err)
 	db := man.GetDB(id)
 	if db == nil {
 		t.Fatal("db not found")
 	}
 
-	// Register a schema, start, and create an instance
-	collection, err := db.NewCollection("Person", jsonSchema)
-	checkErr(t, err)
-	err = db.Start()
+	// Register a schema and create an instance
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: jsonSchema})
 	checkErr(t, err)
 	person1 := `{"ID": "", "Name": "Foo", "Age": 21}`
 	err = collection.Create(&person1)

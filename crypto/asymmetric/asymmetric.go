@@ -27,8 +27,8 @@ type EncryptionKey struct {
 	pk ic.PubKey
 }
 
-// NewEncryptionKey returns a key by parsing k into a public key.
-func NewEncryptionKey(pk ic.PubKey) (*EncryptionKey, error) {
+// FromPubKey returns a key by parsing k into a public key.
+func FromPubKey(pk ic.PubKey) (*EncryptionKey, error) {
 	if _, ok := pk.(*ic.Ed25519PublicKey); !ok {
 		return nil, fmt.Errorf("could not determine key type")
 	}
@@ -50,8 +50,8 @@ type DecryptionKey struct {
 	sk ic.PrivKey
 }
 
-// NewDecryptionKey returns a key by parsing k into a private key.
-func NewDecryptionKey(sk ic.PrivKey) (*DecryptionKey, error) {
+// FromPrivKey returns a key by parsing k into a private key.
+func FromPrivKey(sk ic.PrivKey) (*DecryptionKey, error) {
 	if _, ok := sk.(*ic.Ed25519PrivateKey); !ok {
 		return nil, fmt.Errorf("could not determine key type")
 	}

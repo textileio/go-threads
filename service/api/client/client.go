@@ -265,12 +265,12 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 	}
 	var rk *symmetric.Key
 	if reply.ReadKey != nil {
-		rk, err = symmetric.NewKey(reply.ReadKey)
+		rk, err = symmetric.FromBytes(reply.ReadKey)
 		if err != nil {
 			return
 		}
 	}
-	fk, err := symmetric.NewKey(reply.FollowKey)
+	fk, err := symmetric.FromBytes(reply.FollowKey)
 	if err != nil {
 		return
 	}

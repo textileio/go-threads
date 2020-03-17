@@ -13,8 +13,11 @@ import (
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
-// ErrNotFound is and error used to indicate an item is not found.
-var ErrNotFound = fmt.Errorf("item not found")
+// ErrThreadNotFound indicates a requested thread was not found.
+var ErrThreadNotFound = fmt.Errorf("thread not found")
+
+// ErrLogNotFound indicates a requested log was not found.
+var ErrLogNotFound = fmt.Errorf("log not found")
 
 // Logstore stores log keys, addresses, heads and thread meta data.
 type Logstore interface {
@@ -31,14 +34,14 @@ type Logstore interface {
 	// AddThread adds a thread.
 	AddThread(thread.Info) error
 
-	// ThreadInfo returns info about a thread.
-	ThreadInfo(thread.ID) (thread.Info, error)
+	// GetThread returns info about a thread.
+	GetThread(thread.ID) (thread.Info, error)
 
 	// AddLog adds a log to a thread.
 	AddLog(thread.ID, thread.LogInfo) error
 
-	// LogInfo returns info about a log.
-	LogInfo(thread.ID, peer.ID) (thread.LogInfo, error)
+	// GetLog returns info about a log.
+	GetLog(thread.ID, peer.ID) (thread.LogInfo, error)
 }
 
 // ThreadMetadata stores local thread metadata like name.

@@ -1,11 +1,14 @@
-package client
+package client_test
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
+	"net"
 	"os"
 	"reflect"
 	"testing"
@@ -14,6 +17,10 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/api"
+	. "github.com/textileio/go-threads/api/client"
+	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -25,8 +32,34 @@ func TestNewDB(t *testing.T) {
 	defer done()
 
 	t.Run("test new db", func(t *testing.T) {
-		if _, err := client.NewDB(context.Background()); err != nil {
+		if err := client.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32)); err != nil {
 			t.Fatalf("failed to create new db: %v", err)
+		}
+	})
+}
+
+func TestNewDBFromAddr(t *testing.T) {
+	t.Parallel()
+	client1, done1 := setup(t)
+	defer done1()
+	client2, done2 := setup(t)
+	defer done2()
+
+	dbID := thread.NewIDV1(thread.Raw, 32)
+	err := client1.NewDB(context.Background(), dbID)
+	checkErr(t, err)
+	info, err := client1.GetDBInfo(context.Background(), dbID)
+	checkErr(t, err)
+
+	t.Run("test new db from address", func(t *testing.T) {
+		addr, err := ma.NewMultiaddr(info.Addresses[0])
+		checkErr(t, err)
+		fk, err := sym.FromBytes(info.FollowKey)
+		checkErr(t, err)
+		rk, err := sym.FromBytes(info.FollowKey)
+		checkErr(t, err)
+		if err := client2.NewDBFromAddr(context.Background(), addr, fk, rk); err != nil {
+			t.Fatalf("failed to create new db from address: %v", err)
 		}
 	})
 }
@@ -36,46 +69,14 @@ func TestNewCollection(t *testing.T) {
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test register schema", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+	t.Run("test new collection", func(t *testing.T) {
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		if err != nil {
-			t.Fatalf("failed to register schema: %v", err)
+			t.Fatalf("failed add new collection: %v", err)
 		}
-	})
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	client, done := setup(t)
-	defer done()
-
-	t.Run("test start", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
-		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
-		if err != nil {
-			t.Fatalf("failed to start: %v", err)
-		}
-	})
-}
-
-func TestStartFromAddress(t *testing.T) {
-	t.Parallel()
-	client, done := setup(t)
-	defer done()
-
-	t.Run("test start from address", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
-		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-
-		// @todo: figure out how to test this
-		// client.StartFromAddress(dbId, <multiaddress>, <read key>, <follow key>)
 	})
 }
 
@@ -85,11 +86,10 @@ func TestCreate(t *testing.T) {
 	defer done()
 
 	t.Run("test collection create", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		err = client.Create(context.Background(), dbID, collectionName, createPerson())
@@ -99,22 +99,29 @@ func TestCreate(t *testing.T) {
 	})
 }
 
-func TestGetDBLink(t *testing.T) {
+func TestGetDBInfo(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
 
-	t.Run("test get db link", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+	t.Run("test get db info", func(t *testing.T) {
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
 
-		_, err = client.GetDBLink(context.Background(), dbID)
+		info, err := client.GetDBInfo(context.Background(), dbID)
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
-		//@todo: Do proper parsing of the invites
+		if info.FollowKey == nil {
+			t.Fatal("got nil follow key")
+		}
+		if info.ReadKey == nil {
+			t.Fatal("got nil read key")
+		}
+		if len(info.Addresses) == 0 {
+			t.Fatal("got empty addresses")
+		}
 	})
 }
 
@@ -124,11 +131,10 @@ func TestSave(t *testing.T) {
 	defer done()
 
 	t.Run("test collection save", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -150,11 +156,10 @@ func TestDelete(t *testing.T) {
 	defer done()
 
 	t.Run("test collection delete", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -175,11 +180,10 @@ func TestHas(t *testing.T) {
 	defer done()
 
 	t.Run("test collection has", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -203,11 +207,10 @@ func TestFind(t *testing.T) {
 	defer done()
 
 	t.Run("test collection find", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -236,16 +239,17 @@ func TestFindWithIndex(t *testing.T) {
 	client, done := setup(t)
 	defer done()
 	t.Run("test collection find", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema,
-			&db.IndexConfig{
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: schema,
+			Indexes: []db.IndexConfig{{
 				Path:   "lastName",
 				Unique: true,
-			},
-		)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+			}},
+		})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -275,11 +279,10 @@ func TestFindByID(t *testing.T) {
 	defer done()
 
 	t.Run("test collection find by ID", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -304,12 +307,12 @@ func TestReadTransaction(t *testing.T) {
 	defer done()
 
 	t.Run("test read transaction", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
-		checkErr(t, err)
+
 		person := createPerson()
 		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
@@ -369,13 +372,14 @@ func TestWriteTransaction(t *testing.T) {
 	defer done()
 
 	t.Run("test write transaction", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
-		checkErr(t, err)
+
 		existingPerson := createPerson()
+
 		err = client.Create(context.Background(), dbID, collectionName, existingPerson)
 		checkErr(t, err)
 
@@ -455,11 +459,10 @@ func TestListen(t *testing.T) {
 	defer done()
 
 	t.Run("test listen", func(t *testing.T) {
-		dbID, err := client.NewDB(context.Background())
+		dbID := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), dbID)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, collectionName, schema)
-		checkErr(t, err)
-		err = client.Start(context.Background(), dbID)
+		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: schema})
 		checkErr(t, err)
 
 		person := createPerson()
@@ -563,7 +566,7 @@ func setup(t *testing.T) (*Client, func()) {
 	}
 }
 
-func makeServer(t *testing.T) (addr ma.Multiaddr, shutdown func()) {
+func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	time.Sleep(time.Second * time.Duration(rand.Intn(5)))
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -576,24 +579,40 @@ func makeServer(t *testing.T) (addr ma.Multiaddr, shutdown func()) {
 		t.Fatal(err)
 	}
 	ts.Bootstrap(util.DefaultBoostrapPeers())
-	port, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	apiAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
-	apiProxyAddr := util.MustParseAddr("/ip4/127.0.0.1/tcp/0")
-	server, err := api.NewServer(context.Background(), ts, api.Config{
-		RepoPath:  dir,
-		Addr:      apiAddr,
-		ProxyAddr: apiProxyAddr,
-		Debug:     true,
+	service, err := api.NewService(ts, api.Config{
+		RepoPath: dir,
+		Debug:    true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return apiAddr, func() {
-		server.Close()
-		ts.Close()
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
+	target, err := util.TCPAddrFromMultiAddr(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := grpc.NewServer()
+	listener, err := net.Listen("tcp", target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		pb.RegisterAPIServer(server, service)
+		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Fatalf("serve error: %v", err)
+		}
+	}()
+
+	return addr, func() {
+		time.Sleep(time.Second) // Give threads a chance to finish work
+		server.GracefulStop()
+		if err := ts.Close(); err != nil {
+			t.Fatal(err)
+		}
 		_ = os.RemoveAll(dir)
 	}
 }

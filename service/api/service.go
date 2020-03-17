@@ -6,6 +6,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
+	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -13,28 +14,53 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/service"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/service/api/pb"
 	"github.com/textileio/go-threads/service/util"
+	tutil "github.com/textileio/go-threads/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// service is a gRPC service for a thread service.
-type service struct {
-	s core.Service
+var (
+	log = logging.Logger("threadserviceapi")
+)
+
+// Service is a gRPC service for a thread service.
+type Service struct {
+	ts core.Service
+}
+
+// Config specifies server settings.
+type Config struct {
+	Debug bool
+}
+
+// NewService starts and returns a new service.
+func NewService(ts core.Service, conf Config) (*Service, error) {
+	var err error
+	if conf.Debug {
+		err = tutil.SetLogLevels(map[string]logging.LogLevel{
+			"threadserviceapi": logging.LevelDebug,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Service{ts: ts}, nil
 }
 
 // NewStore adds a new store into the manager.
-func (s *service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetHostIDReply, error) {
+func (s *Service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetHostIDReply, error) {
 	log.Debugf("received get host ID request")
 
 	return &pb.GetHostIDReply{
-		PeerID: marshalPeerID(s.s.Host().ID()),
+		PeerID: marshalPeerID(s.ts.Host().ID()),
 	}, nil
 }
 
-func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
+func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received create thread request")
 
 	threadID, err := thread.Cast(req.ThreadID)
@@ -45,14 +71,14 @@ func (s *service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	info, err := s.s.CreateThread(ctx, threadID, opts...)
+	info, err := s.ts.CreateThread(ctx, threadID, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return threadInfoToProto(info)
 }
 
-func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadInfoReply, error) {
+func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received add thread request")
 
 	addr, err := ma.NewMultiaddrBytes(req.Addr)
@@ -63,54 +89,59 @@ func (s *service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	info, err := s.s.AddThread(ctx, addr, opts...)
+	info, err := s.ts.AddThread(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		if err := s.ts.PullThread(ctx, info.ID); err != nil {
+			log.Errorf("error pulling thread %s: %s", info.ID.String(), err)
+		}
+	}()
 	return threadInfoToProto(info)
 }
 
-func (s *service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadInfoReply, error) {
+func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received get thread request")
 
 	threadID, err := thread.Cast(req.ThreadID)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.s.GetThread(ctx, threadID)
+	info, err := s.ts.GetThread(ctx, threadID)
 	if err != nil {
 		return nil, err
 	}
 	return threadInfoToProto(info)
 }
 
-func (s *service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
+func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
 	log.Debugf("received pull thread request")
 
 	threadID, err := thread.Cast(req.ThreadID)
 	if err != nil {
 		return nil, err
 	}
-	if err = s.s.PullThread(ctx, threadID); err != nil {
+	if err = s.ts.PullThread(ctx, threadID); err != nil {
 		return nil, err
 	}
 	return &pb.PullThreadReply{}, nil
 }
 
-func (s *service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest) (*pb.DeleteThreadReply, error) {
+func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest) (*pb.DeleteThreadReply, error) {
 	log.Debugf("received delete thread request")
 
 	threadID, err := thread.Cast(req.ThreadID)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.s.DeleteThread(ctx, threadID); err != nil {
+	if err := s.ts.DeleteThread(ctx, threadID); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteThreadReply{}, nil
 }
 
-func (s *service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (*pb.AddFollowerReply, error) {
+func (s *Service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (*pb.AddFollowerReply, error) {
 	log.Debugf("received add follower request")
 
 	threadID, err := thread.Cast(req.ThreadID)
@@ -121,7 +152,7 @@ func (s *service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (
 	if err != nil {
 		return nil, err
 	}
-	pid, err := s.s.AddFollower(ctx, threadID, addr)
+	pid, err := s.ts.AddFollower(ctx, threadID, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +161,7 @@ func (s *service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (
 	}, nil
 }
 
-func (s *service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest) (*pb.NewRecordReply, error) {
+func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest) (*pb.NewRecordReply, error) {
 	log.Debugf("received create record request")
 
 	threadID, err := thread.Cast(req.ThreadID)
@@ -141,11 +172,11 @@ func (s *service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest)
 	if err != nil {
 		return nil, err
 	}
-	rec, err := s.s.CreateRecord(ctx, threadID, body)
+	rec, err := s.ts.CreateRecord(ctx, threadID, body)
 	if err != nil {
 		return nil, err
 	}
-	prec, err := cbor.RecordToProto(ctx, s.s, rec.Value())
+	prec, err := cbor.RecordToProto(ctx, s.ts, rec.Value())
 	if err != nil {
 		return nil, err
 	}
@@ -156,14 +187,14 @@ func (s *service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest)
 	}, nil
 }
 
-func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
+func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
 	log.Debugf("received add record request")
 
 	threadID, err := thread.Cast(req.ThreadID)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.s.GetThread(ctx, threadID)
+	info, err := s.ts.GetThread(ctx, threadID)
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +206,13 @@ func (s *service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	if err = s.s.AddRecord(ctx, threadID, logID, rec); err != nil {
+	if err = s.ts.AddRecord(ctx, threadID, logID, rec); err != nil {
 		return nil, err
 	}
 	return &pb.AddRecordReply{}, nil
 }
 
-func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
+func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
 	log.Debugf("received get record request")
 
 	threadID, err := thread.Cast(req.ThreadID)
@@ -192,11 +223,11 @@ func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	rec, err := s.s.GetRecord(ctx, threadID, id)
+	rec, err := s.ts.GetRecord(ctx, threadID, id)
 	if err != nil {
 		return nil, err
 	}
-	prec, err := cbor.RecordToProto(ctx, s.s, rec)
+	prec, err := cbor.RecordToProto(ctx, s.ts, rec)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +236,7 @@ func (s *service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 	}, nil
 }
 
-func (s *service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeServer) error {
+func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeServer) error {
 	log.Debugf("received subscribe request")
 
 	opts := make([]core.SubOption, len(req.ThreadIDs))
@@ -217,12 +248,12 @@ func (s *service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 		opts[i] = core.ThreadID(threadID)
 	}
 
-	sub, err := s.s.Subscribe(server.Context(), opts...)
+	sub, err := s.ts.Subscribe(server.Context(), opts...)
 	if err != nil {
 		return err
 	}
 	for rec := range sub {
-		prec, err := cbor.RecordToProto(server.Context(), s.s, rec.Value())
+		prec, err := cbor.RecordToProto(server.Context(), s.ts, rec.Value())
 		if err != nil {
 			return err
 		}
@@ -247,14 +278,14 @@ func getKeyOptions(keys *pb.ThreadKeys) (opts []core.KeyOption, err error) {
 		return
 	}
 	if keys.FollowKey != nil {
-		fk, err := symmetric.NewKey(keys.FollowKey)
+		fk, err := sym.FromBytes(keys.FollowKey)
 		if err != nil {
 			return nil, fmt.Errorf("invalid follow-key: %v", err)
 		}
 		opts = append(opts, core.FollowKey(fk))
 	}
 	if keys.ReadKey != nil {
-		rk, err := symmetric.NewKey(keys.ReadKey)
+		rk, err := sym.FromBytes(keys.ReadKey)
 		if err != nil {
 			return nil, fmt.Errorf("invalid read-key: %v", err)
 		}

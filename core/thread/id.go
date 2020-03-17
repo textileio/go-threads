@@ -156,6 +156,24 @@ func Cast(data []byte) (ID, error) {
 	return ID{string(data[0 : n+cn+len(id)])}, nil
 }
 
+// FromAddr returns ID from a multiaddress if present.
+func FromAddr(addr ma.Multiaddr) (ID, error) {
+	idstr, err := addr.ValueForProtocol(Code)
+	if err != nil {
+		return Undef, err
+	}
+	return Decode(idstr)
+}
+
+// ToAddr returns ID wrapped as a multiaddress.
+func ToAddr(id ID) ma.Multiaddr {
+	addr, err := ma.NewMultiaddr("/" + Name + "/ " + id.str)
+	if err != nil {
+		panic(err) // This should not happen
+	}
+	return addr
+}
+
 func uvError(read int) error {
 	switch {
 	case read == 0:
@@ -302,7 +320,7 @@ func (i Info) GetOwnLog() *LogInfo {
 	return nil
 }
 
-// LogInfo holds log keys, addresses, and heads.
+// GetLog holds log keys, addresses, and heads.
 type LogInfo struct {
 	ID      peer.ID
 	PubKey  crypto.PubKey

@@ -139,7 +139,7 @@ func (mkb *memoryKeyBook) ReadKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
 	b := mkb.rks[t]
 	if b != nil {
-		key, err = sym.NewKey(b)
+		key, err = sym.FromBytes(b)
 	}
 	mkb.RUnlock()
 	return key, err
@@ -160,7 +160,7 @@ func (mkb *memoryKeyBook) FollowKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
 	b := mkb.fks[t]
 	if b != nil {
-		key, err = sym.NewKey(b)
+		key, err = sym.FromBytes(b)
 	}
 	mkb.RUnlock()
 	return

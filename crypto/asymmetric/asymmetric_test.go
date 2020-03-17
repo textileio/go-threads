@@ -14,7 +14,7 @@ func TestEncrypt(t *testing.T) {
 		t.Error(err)
 	}
 
-	ek, err := NewEncryptionKey(pub)
+	ek, err := FromPubKey(pub)
 	if err != nil {
 		t.Error(err)
 	}
@@ -26,7 +26,7 @@ func TestEncrypt(t *testing.T) {
 		return
 	}
 
-	dk, err := NewDecryptionKey(priv)
+	dk, err := FromPrivKey(priv)
 	if err != nil {
 		t.Error(err)
 	}
@@ -55,7 +55,7 @@ func TestDecrypt(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	dk, err := NewDecryptionKey(sk)
+	dk, err := FromPrivKey(sk)
 	if err != nil {
 		t.Error(err)
 		return
