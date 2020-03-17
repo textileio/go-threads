@@ -23,6 +23,11 @@ android {
     testOptions {
         unitTests {
             includeAndroidResources = false
+            all {
+                testLogging {
+                    exceptionFormat = 'full'
+                }
+            }
         }
     }
 
