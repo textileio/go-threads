@@ -115,7 +115,7 @@ func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, foll
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(n net.Net, id thread.ID, config *Config, collections ...CollectionConfig) (*DB, error) {
+func newDB(n net.Net, id thread.ID, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -152,7 +152,7 @@ func newDB(n net.Net, id thread.ID, config *Config, collections ...CollectionCon
 	}
 	d.dispatcher.Register(d)
 
-	for _, cc := range collections {
+	for _, cc := range config.Collections {
 		if _, err := d.NewCollection(cc); err != nil {
 			return nil, err
 		}
@@ -307,8 +307,22 @@ func (d *DB) Reduce(events []core.Event) error {
 	return nil
 }
 
-func (d *DB) GetInfo() {
-	d.adapter.api.Host().Addrs()
+// GetInfo returns addresses, thread id, follow key, and read key information for the DB
+func (d *DB) GetInfo() (addresses []ma.Multiaddr, threadID thread.ID, followKey *sym.Key, readKey *sym.Key, err error) {
+	// ToDo: move this to net package
+	threadInfo, err := d.adapter.net.GetThread(context.Background(), d.adapter.threadID)
+	if err != nil {
+		return make([]ma.Multiaddr, 0), thread.ID{}, nil, nil, err
+	}
+	host := d.adapter.net.Host()
+	peerIDComponent, _ := ma.NewComponent("p2p", host.ID().String())
+	threadIDComponent, _ := ma.NewComponent("thread", threadInfo.ID.String())
+	addrs := host.Addrs()
+	res := make([]ma.Multiaddr, len(addrs))
+	for i := range addrs {
+		res[i] = addrs[i].Encapsulate(peerIDComponent).Encapsulate(threadIDComponent)
+	}
+	return res, threadInfo.ID, threadInfo.FollowKey, threadInfo.ReadKey, nil
 }
 
 // Close closes the db.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,11 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alecthomas/jsonschema"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-cid"
 	"github.com/mr-tron/base58"
-	"github.com/multiformats/go-multiaddr"
-	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-foldersync/watcher"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
@@ -25,6 +25,8 @@ import (
 
 var (
 	errClientAlreadyStarted = errors.New("client already started")
+	collectionName          = "sharedFolder"
+	collectionDummyInstance = &userFolder{}
 )
 
 type client struct {
@@ -39,7 +41,7 @@ type client struct {
 	userName       string
 	folderInstance *userFolder
 
-	ts         db.ServiceBoostrapper
+	net        db.NetBoostrapper
 	db         *db.DB
 	collection *db.Collection
 	peer       *ipfslite.Peer
@@ -60,46 +62,65 @@ type file struct {
 	Files       []file
 }
 
-func newClient(name, sharedFolderPath, repoPath string) (*client, error) {
-	ts, err := db.DefaultService(repoPath)
+func newClient(name, sharedFolderPath, repoPath string, inviteLink string) (*client, error) {
+	net, err := db.DefaultNetwork(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := db.DefaultService(repoPath)
+	ipfspeer := net.GetIpfsLite()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error when creating ipfs lite peer: %v", err)
 	}
 
 	threadID := thread.NewIDV1(thread.Raw, 32)
+	var d *db.DB
+	var collection *db.Collection
 
-	// db.NewDBFromAddr(context.Background(), service, )
+	if inviteLink == "" {
+		log.Infof("Creating a new DB with thread id: %v", threadID.String())
+		d, err = db.NewDB(context.Background(), net, threadID)
+		if err != nil {
+			return nil, fmt.Errorf("error when creating db: %v", err)
+		}
 
-	d, err := db.NewDB(context.Background(), service, threadID)
-	if err != nil {
-		return nil, fmt.Errorf("error when creating db: %v", err)
-	}
+		log.Infof("Creating sharedFolder collection")
+		collection, err = d.NewCollectionFromInstance(collectionName, collectionDummyInstance)
+		if err != nil {
+			return nil, fmt.Errorf("error when creating new collection from instance: %v", err)
+		}
+	} else {
+		log.Infof("Creating a DB from invite: %v", inviteLink)
+		addr, fk, rk := parseInviteLink(inviteLink)
 
-	c, err := d.NewCollectionFromInstance("shardFolder", &userFolder{})
-	if err != nil {
-		return nil, fmt.Errorf("error when creating new collection from instance: %v", err)
-	}
+		schema := jsonschema.Reflect(collectionDummyInstance)
+		schemaBytes, err := json.Marshal(schema)
+		if err != nil {
+			return nil, fmt.Errorf("error when creating json schema from instance: %v", err)
+		}
 
-	//ipfspeer, closeIpfsLite, err := createIPFSLite(ts.Host())
-	ipfspeer := ts.GetIpfsLite()
-	if err != nil {
-		return nil, fmt.Errorf("error when creating ipfs lite peer: %v", err)
+		collecitonConf := db.CollectionConfig{
+			Name:   collectionName,
+			Schema: string(schemaBytes),
+		}
+
+		d, err = db.NewDBFromAddr(context.Background(), net, addr, fk, rk, db.WithCollections(collecitonConf))
+		if err != nil {
+			return nil, fmt.Errorf("error when creating db from addr: %v", err)
+		}
+
+		collection = d.GetCollection(collectionName)
 	}
 
 	return &client{
 		closeIpfsLite: func() error { return nil },
 		closeCh:       make(chan struct{}),
-		ts:            ts,
-		db:            d,
-		collection:    c,
+		net:           net,
 		peer:          ipfspeer,
 		shrFolderPath: sharedFolderPath,
 		userName:      name,
+		db:            d,
+		collection:    collection,
 	}, nil
 }
 
@@ -117,7 +138,7 @@ func (c *client) close() error {
 		return err
 	}
 	c.db.Close()
-	if err := c.ts.Close(); err != nil {
+	if err := c.net.Close(); err != nil {
 		return err
 	}
 
@@ -131,30 +152,15 @@ func (c *client) start() error {
 		return errClientAlreadyStarted
 	}
 
-	log.Info("Starting/resuming a new thread for shared folders")
-	if err := c.startInternal(); err != nil {
+	c.wg.Add(2)
+	if err := c.startFileSystemWatcher(); err != nil {
+		return err
+	}
+	if err := c.startListeningExternalChanges(); err != nil {
 		return err
 	}
 	c.started = true
-	return nil
-}
 
-func (c *client) startFromInvitation(link string) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if c.started {
-		return errClientAlreadyStarted
-	}
-	addr, fk, rk := parseInviteLink(link)
-	log.Infof("Starting from addr: %s", addr)
-	if err := c.db.StartFromAddr(addr, fk, rk); err != nil {
-		return err
-	}
-
-	if err := c.startInternal(); err != nil {
-		return err
-	}
-	c.started = true
 	return nil
 }
 
@@ -168,31 +174,15 @@ func (c *client) getDirectoryTree() ([]*userFolder, error) {
 }
 
 func (c *client) inviteLinks() ([]string, error) {
-	peerAddr := c.ts.Host().Addrs()[0]
-	peerID, err := multiaddr.NewComponent("p2p", c.ts.Host().ID().String())
-
-	threadComp, err := multiaddr.NewComponent("thread", id1.String())
-	addr := peerAddr.Encapsulate(peerID).Encapsulate(threadComp)
-
-	host := c.db.Service().Host()
-	tid, _, err := c.db.ThreadID()
+	addrs, _, followKey, readKey, err := c.db.GetInfo()
 	if err != nil {
-		return nil, err
+		return make([]string, 0), err
 	}
-	tinfo, err := c.db.Service().GetThread(context.Background(), tid)
-	if err != nil {
-		return nil, err
-	}
-
-	id, _ := ma.NewComponent("p2p", host.ID().String())
-	thread, _ := ma.NewComponent("thread", tid.String())
-
-	addrs := host.Addrs()
 	res := make([]string, len(addrs))
 	for i := range addrs {
-		addr := addrs[i].Encapsulate(id).Encapsulate(thread).String()
-		fKey := base58.Encode(tinfo.FollowKey.Bytes())
-		rKey := base58.Encode(tinfo.ReadKey.Bytes())
+		addr := addrs[i].String()
+		fKey := base58.Encode(followKey.Bytes())
+		rKey := base58.Encode(readKey.Bytes())
 
 		res[i] = addr + "?" + fKey + "&" + rKey
 	}
@@ -201,14 +191,6 @@ func (c *client) inviteLinks() ([]string, error) {
 
 func (c *client) fullPath(f file) string {
 	return filepath.Join(c.shrFolderPath, f.FileRelativePath)
-}
-
-func (c *client) startInternal() error {
-	c.wg.Add(2)
-	c.startFileSystemWatcher()
-	c.startListeningExternalChanges()
-
-	return nil
 }
 
 func (c *client) startListeningExternalChanges() error {

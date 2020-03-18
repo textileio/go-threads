@@ -121,7 +121,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKe
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config), collections...)
+	db, err := newDB(m.network, id, getDBConfig(id, m.config, collections...))
 	if err != nil {
 		return nil, err
 	}
@@ -156,16 +156,18 @@ func (m *Manager) Close() error {
 	return m.config.Datastore.Close()
 }
 
-// getDBConfig copies the manager's base config and
-// wraps the datastore with an id prefix.
-func getDBConfig(id thread.ID, base *Config) *Config {
+// getDBConfig copies the manager's base config,
+// wraps the datastore with an id prefix and
+// merges the base collections with any specified collecitons
+func getDBConfig(id thread.ID, base *Config, collections ...CollectionConfig) *Config {
 	return &Config{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
 			Prefix: dsDBManagerBaseKey.ChildString(id.String()),
 		}),
-		EventCodec: base.EventCodec,
-		JsonMode:   base.JsonMode,
-		Debug:      base.Debug,
+		EventCodec:  base.EventCodec,
+		JsonMode:    base.JsonMode,
+		Debug:       base.Debug,
+		Collections: append(base.Collections, collections...),
 	}
 }
