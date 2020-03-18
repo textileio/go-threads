@@ -79,7 +79,7 @@ func newClient(name, sharedFolderPath, repoPath string, inviteLink string) (*cli
 
 	if inviteLink == "" {
 		log.Infof("Creating a new DB with thread id: %v", threadID.String())
-		d, err = db.NewDB(context.Background(), net, threadID)
+		d, err = db.NewDB(context.Background(), net, threadID, db.WithRepoPath(repoPath))
 		if err != nil {
 			return nil, fmt.Errorf("error when creating db: %v", err)
 		}
@@ -104,7 +104,7 @@ func newClient(name, sharedFolderPath, repoPath string, inviteLink string) (*cli
 			Schema: string(schemaBytes),
 		}
 
-		d, err = db.NewDBFromAddr(context.Background(), net, addr, fk, rk, db.WithCollections(collecitonConf))
+		d, err = db.NewDBFromAddr(context.Background(), net, addr, fk, rk, db.WithCollections(collecitonConf), db.WithRepoPath(repoPath))
 		if err != nil {
 			return nil, fmt.Errorf("error when creating db from addr: %v", err)
 		}
