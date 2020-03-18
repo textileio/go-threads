@@ -285,7 +285,9 @@ func createClient(t *testing.T, name, inviteLink string) (*client, func()) {
 	checkErr(t, err)
 	return client, func() {
 		fmt.Println("Closing client")
-		client.close()
+		err := client.close()
+		checkErr(t, err)
+		fmt.Println("Client closed")
 		os.RemoveAll(shrFolder)
 		os.RemoveAll(repoPath)
 	}
