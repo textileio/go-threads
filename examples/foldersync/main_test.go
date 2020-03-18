@@ -284,10 +284,10 @@ func createClient(t *testing.T, name, inviteLink string) (*client, func()) {
 	client, err := newClient(name, shrFolder, repoPath, inviteLink)
 	checkErr(t, err)
 	return client, func() {
-		fmt.Println("Closing client")
+		fmt.Printf("Closing client %v\n", name)
 		err := client.close()
 		checkErr(t, err)
-		fmt.Println("Client closed")
+		fmt.Printf("Client closed %v\n", name)
 		os.RemoveAll(shrFolder)
 		os.RemoveAll(repoPath)
 	}
