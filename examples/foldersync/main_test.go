@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 
 func TestSingleUser(t *testing.T) {
 	t.Parallel()
-	c1, clean1 := createClient(t, "user1")
+	c1, clean1 := createClient(t, "user1", "")
 	defer clean1()
 	defer c1.close()
 	err := c1.start()
@@ -92,27 +92,33 @@ func TestNUsersBootstrap(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("Total%dCore%d", tt.totalClients, tt.totalCorePeers), func(t *testing.T) {
 			t.Parallel()
-			var clients []*client
+			clients := make([]*client, tt.totalClients)
 
-			for i := 0; i < tt.totalClients; i++ {
-				c, clean := createClient(t, fmt.Sprintf("user%d", i))
-				defer clean()
-				clients = append(clients, c)
-			}
-			err := clients[0].start()
-			checkErr(t, err)
+			client0, clean0 := createClient(t, "user0", "")
+			defer clean0()
+			clients[0] = client0
 			invlink0s, err := clients[0].inviteLinks()
 			checkErr(t, err)
 			invlink0 := invlink0s[0]
+
 			for i := 1; i < tt.totalCorePeers; i++ {
-				checkErr(t, clients[i].startFromInvitation(invlink0))
+				client, clean := createClient(t, fmt.Sprintf("user%d", i), invlink0)
+				defer clean()
+				clients[i] = client
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
 				rotatedInvLinks, err := clients[i%tt.totalCorePeers].inviteLinks()
-				rotatedInvLink := rotatedInvLinks[0]
 				checkErr(t, err)
-				checkErr(t, clients[i].startFromInvitation(rotatedInvLink))
+				rotatedInvLink := rotatedInvLinks[0]
+				client, clean := createClient(t, fmt.Sprintf("user%d", i), rotatedInvLink)
+				defer clean()
+				clients[i] = client
+			}
+
+			// start them all
+			for i := 0; i < tt.totalClients; i++ {
+				checkErr(t, clients[i].start())
 			}
 
 			blk := make([]byte, tt.randFileSize)
@@ -270,12 +276,12 @@ func EqualFiles(c1 *client, f1 file, c2 *client, f2 file) bool {
 	return true
 }
 
-func createClient(t *testing.T, name string) (*client, func()) {
+func createClient(t *testing.T, name, inviteLink string) (*client, func()) {
 	shrFolder, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	repoPath, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	client, err := newClient(name, shrFolder, repoPath)
+	client, err := newClient(name, shrFolder, repoPath, inviteLink)
 	checkErr(t, err)
 	return client, func() {
 		fmt.Println("Closing client")
