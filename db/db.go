@@ -74,7 +74,7 @@ func NewDB(ctx context.Context, network net.Net, id thread.ID, opts ...Option) (
 
 	if _, err := network.GetThread(ctx, id); err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
-			if _, err = network.CreateThread(ctx, id, net.ThreadKey(thread.NewRandomKey())); err != nil {
+			if _, err = network.CreateThread(ctx, id); err != nil {
 				return nil, err
 			}
 		} else {

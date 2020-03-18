@@ -175,7 +175,7 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 		Key: args.ThreadKey,
 	}
 	if !info.Key.Defined() {
-		info.Key = thread.NewRandomServiceKey()
+		info.Key = thread.NewRandomKey()
 	}
 	if err = t.store.AddThread(info); err != nil {
 		return

@@ -243,7 +243,7 @@ func makeNetwork(t *testing.T) core.Net {
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := api.CreateThread(ctx, id, core.ThreadKey(thread.NewRandomKey()))
+	info, err := api.CreateThread(ctx, id)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -93,7 +93,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	if _, err := m.network.CreateThread(ctx, id, net.ThreadKey(thread.NewRandomKey())); err != nil {
+	if _, err := m.network.CreateThread(ctx, id); err != nil {
 		return nil, err
 	}
 

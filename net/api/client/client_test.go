@@ -51,7 +51,7 @@ func TestClient_CreateThread(t *testing.T) {
 
 	t.Run("test create thread", func(t *testing.T) {
 		id := thread.NewIDV1(thread.Raw, 32)
-		info, err := client.CreateThread(context.Background(), id, core.ThreadKey(thread.NewRandomKey()))
+		info, err := client.CreateThread(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}

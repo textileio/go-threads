@@ -81,7 +81,9 @@ func (k Key) Read() *sym.Key {
 	return k.rk
 }
 
-// Defined returns whether or not key has any components.
+// Defined returns whether or not key has any defined components.
+// Since it's not possible to have a read key w/o a service key,
+// we just need to check service key.
 func (k Key) Defined() bool {
 	return k.sk != nil
 }
@@ -100,8 +102,10 @@ func (k Key) Marshal() ([]byte, error) {
 func (k Key) Bytes() []byte {
 	if k.rk != nil {
 		return append(k.sk.Bytes(), k.rk.Bytes()...)
-	} else {
+	} else if k.sk != nil {
 		return k.sk.Bytes()
+	} else {
+		return nil
 	}
 }
 
