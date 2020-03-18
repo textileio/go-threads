@@ -156,7 +156,7 @@ func (mkb *memoryKeyBook) AddReadKey(t thread.ID, key *sym.Key) error {
 	return nil
 }
 
-func (mkb *memoryKeyBook) FollowKey(t thread.ID) (key *sym.Key, err error) {
+func (mkb *memoryKeyBook) ServiceKey(t thread.ID) (key *sym.Key, err error) {
 	mkb.RLock()
 	b := mkb.fks[t]
 	if b != nil {
@@ -166,9 +166,9 @@ func (mkb *memoryKeyBook) FollowKey(t thread.ID) (key *sym.Key, err error) {
 	return
 }
 
-func (mkb *memoryKeyBook) AddFollowKey(t thread.ID, key *sym.Key) error {
+func (mkb *memoryKeyBook) AddServiceKey(t thread.ID, key *sym.Key) error {
 	if key == nil {
-		return errors.New("key is nil (FollowKey)")
+		return errors.New("key is nil (ServiceKey)")
 	}
 
 	mkb.Lock()

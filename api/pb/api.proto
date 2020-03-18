@@ -23,8 +23,7 @@ message CollectionConfig {
 
 message NewDBFromAddrRequest {
     string dbAddr = 1;
-    bytes followKey = 2;
-    bytes readKey = 3;
+    bytes dbKey = 2;
     repeated CollectionConfig collections = 4;
 }
 
@@ -36,8 +35,7 @@ message GetDBInfoRequest {
 
 message GetDBInfoReply {
     repeated string addresses = 1;
-    bytes followKey = 2;
-    bytes readKey = 3;
+    bytes dbKey = 2;
 }
 
 message NewCollectionRequest {

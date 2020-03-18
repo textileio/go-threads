@@ -40,13 +40,16 @@ type API interface {
 	GetThread(ctx context.Context, id thread.ID) (thread.Info, error)
 
 	// PullThread for new records.
+	// Logs owned by this host are traversed locally.
+	// Remotely addressed logs are pulled from the network.
+	// Is thread-safe.
 	PullThread(ctx context.Context, id thread.ID) error
 
 	// DeleteThread with id.
 	DeleteThread(ctx context.Context, id thread.ID) error
 
-	// AddFollower to a thread.
-	AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error)
+	// AddReplicator sends the service key and all logs to another peer.
+	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error)
 
 	// CreateRecord with body.
 	CreateRecord(ctx context.Context, id thread.ID, body format.Node) (ThreadRecord, error)

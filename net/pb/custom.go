@@ -12,7 +12,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	varint "github.com/multiformats/go-varint"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 // customGogoType aggregates the interfaces that custom Gogo types need to implement.
@@ -184,7 +184,7 @@ func (id ProtoThreadID) Size() int {
 
 // ProtoKey is a custom type used by gogo to serde raw keys into the symmetric.Key type, and back.
 type ProtoKey struct {
-	*symmetric.Key
+	*sym.Key
 }
 
 var _ customGogoType = (*ProtoKey)(nil)
@@ -204,7 +204,7 @@ func (k ProtoKey) MarshalJSON() ([]byte, error) {
 }
 
 func (k *ProtoKey) Unmarshal(data []byte) (err error) {
-	k.Key, err = symmetric.FromBytes(data)
+	k.Key, err = sym.FromBytes(data)
 	return err
 }
 
@@ -334,7 +334,7 @@ func NewPopulatedProtoThreadID(_ randyNet) *ProtoThreadID {
 // NewPopulatedProtoKey generates a populated instance of the custom gogo type ProtoKey.
 // It is required by gogo-generated tests.
 func NewPopulatedProtoKey(_ randyNet) *ProtoKey {
-	k, _ := symmetric.NewRandom()
+	k, _ := sym.NewRandom()
 	return &ProtoKey{Key: k}
 }
 

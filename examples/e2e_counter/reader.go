@@ -6,21 +6,20 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
 
 func runReaderPeer(repo string) {
 	fmt.Printf("I'm a collection reader.\n")
-	writerAddr, fkey, rkey := getWriterAddr()
+	writerAddr, key := getWriterAddr()
 
 	n, err := db.DefaultNetwork(repo)
 	checkErr(err)
 	defer n.Close()
 
-	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, fkey, rkey, db.WithRepoPath(repo))
+	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, key, db.WithRepoPath(repo))
 	checkErr(err)
 	defer d.Close()
 
@@ -44,7 +43,7 @@ func runReaderPeer(repo string) {
 	}
 }
 
-func getWriterAddr() (ma.Multiaddr, *symmetric.Key, *symmetric.Key) {
+func getWriterAddr() (ma.Multiaddr, *thread.Key) {
 	// Read the multiaddr of the writer which saved it in .full_simple file.
 	mb, err := ioutil.ReadFile(".e2e_counter_writeraddr")
 	checkErr(err)
@@ -54,15 +53,8 @@ func getWriterAddr() (ma.Multiaddr, *symmetric.Key, *symmetric.Key) {
 	addr, err := ma.NewMultiaddr(data[0])
 	checkErr(err)
 
-	fkeyBytes, err := base58.Decode(data[1])
-	checkErr(err)
-	rkeyBytes, err := base58.Decode(data[2])
+	key, err := thread.KeyFromString(data[1])
 	checkErr(err)
 
-	fkey, err := symmetric.FromBytes(fkeyBytes)
-	checkErr(err)
-	rkey, err := symmetric.FromBytes(rkeyBytes)
-	checkErr(err)
-
-	return addr, fkey, rkey
+	return addr, key
 }

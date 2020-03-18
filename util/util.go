@@ -11,9 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
-	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -31,15 +29,6 @@ func CanDial(addr ma.Multiaddr, s *swarm.Swarm) bool {
 	addr, _ = ma.NewMultiaddr(parts[0])
 	tr := s.TransportForDialing(addr)
 	return tr != nil && tr.CanDial(addr)
-}
-
-// DecodeKey from a string into a symmetric key.
-func DecodeKey(k string) (*sym.Key, error) {
-	b, err := base58.Decode(k)
-	if err != nil {
-		return nil, err
-	}
-	return sym.FromBytes(b)
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.

@@ -12,15 +12,14 @@ message GetHostIDReply {
     bytes peerID = 1;
 }
 
-message ThreadKeys {
-    bytes readKey = 1;
-    bytes followKey = 2;
-    bytes logKey = 3;
+message Keys {
+    bytes threadKey = 1;
+    bytes logKey = 2;
 }
 
 message CreateThreadRequest {
     bytes threadID = 1;
-    ThreadKeys keys = 2;
+    Keys keys = 2;
 }
 
 message LogInfo {
@@ -34,13 +33,12 @@ message LogInfo {
 message ThreadInfoReply {
     bytes ID = 1;
     repeated LogInfo logs = 2;
-    bytes readKey = 3;
-    bytes followKey = 4;
+    bytes threadKey = 3;
 }
 
 message AddThreadRequest {
     bytes addr = 1;
-    ThreadKeys keys = 2;
+    Keys keys = 2;
 }
 
 message GetThreadRequest {
@@ -59,12 +57,12 @@ message DeleteThreadRequest {
 
 message DeleteThreadReply {}
 
-message AddFollowerRequest {
+message AddReplicatorRequest {
     bytes threadID = 1;
     bytes addr = 2;
 }
 
-message AddFollowerReply {
+message AddReplicatorReply {
     bytes peerID = 1;
 }
 
@@ -114,7 +112,7 @@ service API {
     rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}
     rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
     rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
-    rpc AddFollower(AddFollowerRequest) returns (AddFollowerReply) {}
+    rpc AddReplicator(AddReplicatorRequest) returns (AddReplicatorReply) {}
     rpc CreateRecord(CreateRecordRequest) returns (NewRecordReply) {}
     rpc AddRecord(AddRecordRequest) returns (AddRecordReply) {}
     rpc GetRecord(GetRecordRequest) returns (GetRecordReply) {}

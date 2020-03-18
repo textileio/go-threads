@@ -79,17 +79,17 @@ type KeyBook interface {
 	// AddPrivKey adds a private key under a log.
 	AddPrivKey(thread.ID, peer.ID, ic.PrivKey) error
 
-	// ReadKey retrieves the read key of a log.
+	// ReadKey retrieves the read key of a thread.
 	ReadKey(thread.ID) (*sym.Key, error)
 
-	// AddReadKey adds a read key under a log.
+	// AddReadKey adds a read key under a thread.
 	AddReadKey(thread.ID, *sym.Key) error
 
-	// FollowKey retrieves the follow key of a log.
-	FollowKey(thread.ID) (*sym.Key, error)
+	// ServiceKey retrieves the service key of a thread.
+	ServiceKey(thread.ID) (*sym.Key, error)
 
-	// AddFollowKey adds a follow key under a log.
-	AddFollowKey(thread.ID, *sym.Key) error
+	// AddServiceKey adds a service key under a thread.
+	AddServiceKey(thread.ID, *sym.Key) error
 
 	// LogsWithKeys returns a list of log IDs for a service.
 	LogsWithKeys(thread.ID) (peer.IDSlice, error)

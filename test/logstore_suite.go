@@ -236,7 +236,7 @@ func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 		for _, a := range addrs {
 			tid := thread.NewIDV1(thread.Raw, 24)
 			tids = append(tids, tid)
-			err := ls.AddFollowKey(tid, sym.New())
+			err := ls.AddServiceKey(tid, sym.New())
 			check(t, err)
 			err = ls.AddReadKey(tid, sym.New())
 			check(t, err)

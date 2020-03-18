@@ -66,7 +66,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 
 	pblgs := &pb.GetLogsReply{}
 
-	if err := s.checkFollowKey(req.ThreadID.ID, req.FollowKey); err != nil {
+	if err := s.checkServiceKey(req.ThreadID.ID, req.ServiceKey); err != nil {
 		return pblgs, err
 	}
 
@@ -99,16 +99,16 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	if err != nil && !errors.Is(err, lstore.ErrThreadNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if info.FollowKey == nil {
-		if req.FollowKey != nil && req.FollowKey.Key != nil {
-			if err = s.net.store.AddFollowKey(req.ThreadID.ID, req.FollowKey.Key); err != nil {
+	if info.Key == nil {
+		if req.ServiceKey != nil && req.ServiceKey.Key != nil {
+			if err = s.net.store.AddServiceKey(req.ThreadID.ID, req.ServiceKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else {
 			return nil, status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 		}
 	}
-	if info.ReadKey == nil {
+	if !info.Key.CanRead() {
 		if req.ReadKey != nil && req.ReadKey.Key != nil {
 			if err = s.net.store.AddReadKey(req.ThreadID.ID, req.ReadKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -137,7 +137,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 
 	pbrecs := &pb.GetRecordsReply{}
 
-	if err := s.checkFollowKey(req.ThreadID.ID, req.FollowKey); err != nil {
+	if err := s.checkServiceKey(req.ThreadID.ID, req.ServiceKey); err != nil {
 		return pbrecs, err
 	}
 
@@ -218,7 +218,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return nil, status.Error(codes.NotFound, "log not found")
 	}
 
-	key, err := s.net.store.FollowKey(req.ThreadID.ID)
+	key, err := s.net.store.ServiceKey(req.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -286,20 +286,20 @@ func (s *server) subscribe(id thread.ID) {
 	}
 }
 
-// checkFollowKey compares a key with the one stored under thread.
-func (s *server) checkFollowKey(id thread.ID, pfk *pb.ProtoKey) error {
-	if pfk == nil || pfk.Key == nil {
-		return status.Error(codes.Unauthenticated, "a follow-key is required to get logs")
+// checkServiceKey compares a key with the one stored under thread.
+func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
+	if k == nil || k.Key == nil {
+		return status.Error(codes.Unauthenticated, "a service-key is required to get logs")
 	}
-	fk, err := s.net.store.FollowKey(id)
+	sk, err := s.net.store.ServiceKey(id)
 	if err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
-	if fk == nil {
+	if sk == nil {
 		return status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 	}
-	if !bytes.Equal(pfk.Key.Bytes(), fk.Bytes()) {
-		return status.Error(codes.PermissionDenied, "invalid follow-key")
+	if !bytes.Equal(k.Key.Bytes(), sk.Bytes()) {
+		return status.Error(codes.PermissionDenied, "invalid service-key")
 	}
 	return nil
 }

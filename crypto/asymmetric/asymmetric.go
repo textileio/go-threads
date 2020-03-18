@@ -10,15 +10,15 @@ import (
 )
 
 const (
-	// Length of nacl nonce
+	// Length of nacl nonce.
 	NonceBytes = 24
 
-	// Length of nacl ephemeral public key
+	// Length of nacl ephemeral public key.
 	EphemeralPublicKeyBytes = 32
 )
 
 var (
-	// Nacl box decryption failed
+	// Nacl box decryption failed.
 	BoxDecryptionError = fmt.Errorf("failed to decrypt curve25519")
 )
 
@@ -89,9 +89,9 @@ func decrypt(ciphertext []byte, sk ic.PrivKey) ([]byte, error) {
 	return nil, fmt.Errorf("could not determine key type")
 }
 
-func publicToCurve25519(k *ic.Ed25519PublicKey) (*[32]byte, error) {
-	var cp [32]byte
-	var pk [32]byte
+func publicToCurve25519(k *ic.Ed25519PublicKey) (*[EphemeralPublicKeyBytes]byte, error) {
+	var cp [EphemeralPublicKeyBytes]byte
+	var pk [EphemeralPublicKeyBytes]byte
 	r, err := k.Raw()
 	if err != nil {
 		return nil, err
@@ -119,13 +119,12 @@ func encryptCurve25519(pubKey *ic.Ed25519PublicKey, bytes []byte) ([]byte, error
 
 	// encrypt with nacl
 	var ciphertext []byte
-	var nonce [24]byte
-	n := make([]byte, 24)
-	_, err = rand.Read(n)
-	if err != nil {
+	var nonce [NonceBytes]byte
+	n := make([]byte, NonceBytes)
+	if _, err = rand.Read(n); err != nil {
 		return nil, err
 	}
-	for i := 0; i < 24; i++ {
+	for i := 0; i < NonceBytes; i++ {
 		nonce[i] = n[i]
 	}
 	ciphertext = box.Seal(ciphertext, bytes, &nonce, pk, ephemPriv)
@@ -150,13 +149,13 @@ func decryptCurve25519(privKey *ic.Ed25519PrivateKey, ciphertext []byte) ([]byte
 	ephemPubkeyBytes := ciphertext[NonceBytes : NonceBytes+EphemeralPublicKeyBytes]
 	ct := ciphertext[NonceBytes+EphemeralPublicKeyBytes:]
 
-	var ephemPubkey [32]byte
-	for i := 0; i < 32; i++ {
+	var ephemPubkey [EphemeralPublicKeyBytes]byte
+	for i := 0; i < EphemeralPublicKeyBytes; i++ {
 		ephemPubkey[i] = ephemPubkeyBytes[i]
 	}
 
-	var nonce [24]byte
-	for i := 0; i < 24; i++ {
+	var nonce [NonceBytes]byte
+	for i := 0; i < NonceBytes; i++ {
 		nonce[i] = n[i]
 	}
 
@@ -167,8 +166,8 @@ func decryptCurve25519(privKey *ic.Ed25519PrivateKey, ciphertext []byte) ([]byte
 	return plaintext, nil
 }
 
-func privateToCurve25519(k *ic.Ed25519PrivateKey) (*[32]byte, error) {
-	var cs [32]byte
+func privateToCurve25519(k *ic.Ed25519PrivateKey) (*[EphemeralPublicKeyBytes]byte, error) {
+	var cs [EphemeralPublicKeyBytes]byte
 	r, err := k.Raw()
 	if err != nil {
 		return nil, err

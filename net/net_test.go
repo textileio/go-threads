@@ -19,7 +19,6 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/util"
 )
@@ -71,7 +70,7 @@ func TestService_CreateRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		back, err := event.GetBody(ctx, n, info.ReadKey)
+		back, err := event.GetBody(ctx, n, info.Key.Read())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +110,7 @@ func TestService_AddThread(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		info2, err := n2.AddThread(ctx, addr, core.FollowKey(info.FollowKey), core.ReadKey(info.ReadKey))
+		info2, err := n2.AddThread(ctx, addr, core.ThreadKey(info.Key))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -170,7 +169,7 @@ func TestService_AddFollower(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = n1.AddFollower(ctx, info.ID, addr); err != nil {
+		if _, err = n1.AddReplicator(ctx, info.ID, addr); err != nil {
 			t.Fatal(err)
 		}
 
@@ -244,7 +243,7 @@ func makeNetwork(t *testing.T) core.Net {
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := api.CreateThread(ctx, id, core.FollowKey(sym.New()), core.ReadKey(sym.New()))
+	info, err := api.CreateThread(ctx, id, core.ThreadKey(thread.NewFullKey()))
 	if err != nil {
 		t.Fatal(err)
 	}

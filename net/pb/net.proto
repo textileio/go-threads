@@ -44,8 +44,8 @@ message GetLogsRequest {
     // threadID is the target thread's ID.
     bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
-    // followKey for the thread.
-    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+    // serviceKey for the thread.
+    bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
 
     // Header holds sender information.
     message Header {
@@ -67,8 +67,8 @@ message PushLogRequest {
     // threadID is the target thread's ID.
     bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
-    // followKey for the thread.
-    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+    // serviceKey for the thread.
+    bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
 
     // readKey for the thread.
     bytes readKey = 4 [(gogoproto.customtype) = "ProtoKey"];
@@ -93,8 +93,8 @@ message GetRecordsRequest {
     // threadID is the target thread's ID.
     bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
 
-    // followKey for the thread.
-    bytes followKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+    // serviceKey for the thread.
+    bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
 
     // List of requested logs.
     repeated LogEntry logs = 4;

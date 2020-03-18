@@ -14,7 +14,6 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/net/util"
 	tutil "github.com/textileio/go-threads/util"
@@ -141,8 +140,8 @@ func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest)
 	return &pb.DeleteThreadReply{}, nil
 }
 
-func (s *Service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (*pb.AddFollowerReply, error) {
-	log.Debugf("received add follower request")
+func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorRequest) (*pb.AddReplicatorReply, error) {
+	log.Debugf("received add replicator request")
 
 	threadID, err := thread.Cast(req.ThreadID)
 	if err != nil {
@@ -152,11 +151,11 @@ func (s *Service) AddFollower(ctx context.Context, req *pb.AddFollowerRequest) (
 	if err != nil {
 		return nil, err
 	}
-	pid, err := s.net.AddFollower(ctx, threadID, addr)
+	pid, err := s.net.AddReplicator(ctx, threadID, addr)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.AddFollowerReply{
+	return &pb.AddReplicatorReply{
 		PeerID: marshalPeerID(pid),
 	}, nil
 }
@@ -202,7 +201,7 @@ func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	rec, err := cbor.RecordFromProto(util.RecToServiceRec(req.Record), info.FollowKey)
+	rec, err := cbor.RecordFromProto(util.RecToServiceRec(req.Record), info.Key.Service())
 	if err != nil {
 		return nil, err
 	}
@@ -273,23 +272,16 @@ func marshalPeerID(id peer.ID) []byte {
 	return b
 }
 
-func getKeyOptions(keys *pb.ThreadKeys) (opts []net.KeyOption, err error) {
+func getKeyOptions(keys *pb.Keys) (opts []net.KeyOption, err error) {
 	if keys == nil {
 		return
 	}
-	if keys.FollowKey != nil {
-		fk, err := sym.FromBytes(keys.FollowKey)
+	if keys.ThreadKey != nil {
+		k, err := thread.KeyFromBytes(keys.ThreadKey)
 		if err != nil {
-			return nil, fmt.Errorf("invalid follow-key: %v", err)
+			return nil, fmt.Errorf("invalid thread-key: %v", err)
 		}
-		opts = append(opts, net.FollowKey(fk))
-	}
-	if keys.ReadKey != nil {
-		rk, err := sym.FromBytes(keys.ReadKey)
-		if err != nil {
-			return nil, fmt.Errorf("invalid read-key: %v", err)
-		}
-		opts = append(opts, net.ReadKey(rk))
+		opts = append(opts, net.ThreadKey(k))
 	}
 	var lk crypto.Key
 	if keys.LogKey != nil {
@@ -335,14 +327,9 @@ func threadInfoToProto(info thread.Info) (*pb.ThreadInfoReply, error) {
 			Heads:   heads,
 		}
 	}
-	var rk []byte
-	if info.ReadKey != nil {
-		rk = info.ReadKey.Bytes()
-	}
 	return &pb.ThreadInfoReply{
 		ID:        info.ID.Bytes(),
+		ThreadKey: info.Key.Bytes(),
 		Logs:      logs,
-		ReadKey:   rk,
-		FollowKey: info.FollowKey.Bytes(),
 	}, nil
 }

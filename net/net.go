@@ -25,7 +25,6 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -116,7 +115,6 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 	return t, nil
 }
 
-// Close the net instance.
 func (t *net) Close() (err error) {
 	t.rpc.GracefulStop()
 
@@ -150,22 +148,18 @@ func (t *net) Close() (err error) {
 	return nil
 }
 
-// Host returns the underlying libp2p host.
 func (t *net) Host() host.Host {
 	return t.host
 }
 
-// Store returns the threadstore.
 func (t *net) Store() lstore.Logstore {
 	return t.store
 }
 
-// GetHostID returns the host's peer id.
 func (t *net) GetHostID(context.Context) (peer.ID, error) {
 	return t.host.ID(), nil
 }
 
-// CreateThread with id.
 func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOption) (info thread.Info, err error) {
 	if err = t.ensureUnique(id); err != nil {
 		return
@@ -177,15 +171,11 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 	}
 
 	info = thread.Info{
-		ID:        id,
-		FollowKey: args.FollowKey,
-		ReadKey:   args.ReadKey,
+		ID:  id,
+		Key: args.ThreadKey,
 	}
-	if info.FollowKey == nil {
-		info.FollowKey, err = sym.NewRandom()
-		if err != nil {
-			return
-		}
+	if info.Key == nil {
+		info.Key = thread.NewServiceKey()
 	}
 	if err = t.store.AddThread(info); err != nil {
 		return
@@ -211,7 +201,6 @@ func (t *net) ensureUnique(id thread.ID) error {
 	return nil
 }
 
-// AddThread from a multiaddress.
 func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
 	id, err := thread.FromAddr(addr)
 	if err != nil {
@@ -227,21 +216,17 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 	}
 
 	if err = t.store.AddThread(thread.Info{
-		ID:        id,
-		FollowKey: args.FollowKey,
-		ReadKey:   args.ReadKey,
+		ID:  id,
+		Key: args.ThreadKey,
 	}); err != nil {
 		return
 	}
-	if args.ReadKey != nil {
-		var linfo thread.LogInfo
-		linfo, err = createLog(t.host.ID(), args.LogKey)
-		if err != nil {
-			return
-		}
-		if err = t.store.AddLog(id, linfo); err != nil {
-			return
-		}
+	linfo, err := createLog(t.host.ID(), args.LogKey)
+	if err != nil {
+		return
+	}
+	if err = t.store.AddLog(id, linfo); err != nil {
+		return
 	}
 
 	threadComp, err := ma.NewComponent(thread.Name, id.String())
@@ -270,7 +255,6 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 	return t.store.GetThread(id)
 }
 
-// GetThread with id.
 func (t *net) GetThread(_ context.Context, id thread.ID) (thread.Info, error) {
 	return t.store.GetThread(id)
 }
@@ -287,10 +271,6 @@ func (t *net) getThreadSemaphore(id thread.ID) chan struct{} {
 	return ptl
 }
 
-// PullThread for new records.
-// Logs owned by this host are traversed locally.
-// Remotely addressed logs are pulled from the network.
-// Is thread-safe.
 func (t *net) PullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id.String())
 	ptl := t.getThreadSemaphore(id)
@@ -365,13 +345,12 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// Delete a thread (@todo).
+// @todo
 func (t *net) DeleteThread(context.Context, thread.ID) error {
 	panic("implement me")
 }
 
-// AddFollower to a thread.
-func (t *net) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
+func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
 	info, err := t.store.GetThread(id)
 	if err != nil {
 		return
@@ -412,9 +391,9 @@ func (t *net) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr)
 		log.Warnf("peer %s address requires a DHT lookup", pid.String())
 	}
 
-	// Send all logs to the new follower
+	// Send all logs to the new replicator
 	for _, l := range info.Logs {
-		if err = t.server.pushLog(ctx, id, l, pid, info.FollowKey, nil); err != nil {
+		if err = t.server.pushLog(ctx, id, l, pid, info.Key.Service(), nil); err != nil {
 			if err := t.store.SetAddrs(id, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
 				log.Errorf("error rolling back log address change: %s", err)
 			}
@@ -462,7 +441,6 @@ func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return ma.NewMultiaddr(parts[0])
 }
 
-// CreateRecord with body.
 func (t *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node) (r core.ThreadRecord, err error) {
 	// Get or create a log for the new node
 	lg, err := t.getOrCreateOwnLog(id)
@@ -497,7 +475,6 @@ func (t *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node) 
 	return r, nil
 }
 
-// AddRecord with record.
 func (t *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	logpk, err := t.store.PubKey(id, lid)
 	if err != nil {
@@ -523,16 +500,15 @@ func (t *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	return t.PutRecord(ctx, id, lid, rec)
 }
 
-// GetRecord returns the record at cid.
 func (t *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
-	fk, err := t.store.FollowKey(id)
+	sk, err := t.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
-	if fk == nil {
-		return nil, fmt.Errorf("a follow-key is required to get records")
+	if sk == nil {
+		return nil, fmt.Errorf("a service-key is required to get records")
 	}
-	return cbor.GetRecord(ctx, t, rid, fk)
+	return cbor.GetRecord(ctx, t, rid, sk)
 }
 
 // Record wraps a core.Record within a thread and log context.
@@ -562,7 +538,6 @@ func (r *Record) LogID() peer.ID {
 	return r.logID
 }
 
-// Subscribe returns a read-only channel of records.
 func (t *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan core.ThreadRecord, error) {
 	args := &core.SubOptions{}
 	for _, opt := range opts {
@@ -697,12 +672,12 @@ func (t *net) createRecord(ctx context.Context, id thread.ID, lg thread.LogInfo,
 	if lg.PrivKey == nil {
 		return nil, fmt.Errorf("a private-key is required to create records")
 	}
-	fk, err := t.store.FollowKey(id)
+	sk, err := t.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
-	if fk == nil {
-		return nil, fmt.Errorf("a follow-key is required to create records")
+	if sk == nil {
+		return nil, fmt.Errorf("a service-key is required to create records")
 	}
 	rk, err := t.store.ReadKey(id)
 	if err != nil {
@@ -720,7 +695,7 @@ func (t *net) createRecord(ctx context.Context, id thread.ID, lg thread.LogInfo,
 	if len(lg.Heads) != 0 {
 		prev = lg.Heads[0]
 	}
-	return cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, fk)
+	return cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, sk)
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of
@@ -735,12 +710,12 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
 	}
-	fk, err := t.store.FollowKey(id)
+	sk, err := t.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
-	if fk == nil {
-		return nil, fmt.Errorf("a follow-key is required to get records")
+	if sk == nil {
+		return nil, fmt.Errorf("a service-key is required to get records")
 	}
 
 	var recs []core.Record
@@ -760,7 +735,7 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
-		r, err := cbor.GetRecord(ctx, t, cursor, fk) // Important invariant: heads are always in blockstore
+		r, err := cbor.GetRecord(ctx, t, cursor, sk) // Important invariant: heads are always in blockstore
 		if err != nil {
 			return nil, err
 		}
