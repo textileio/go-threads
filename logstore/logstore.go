@@ -78,7 +78,7 @@ func (ls *logstore) Threads() (thread.IDSlice, error) {
 
 // AddThread adds a thread with keys.
 func (ls *logstore) AddThread(info thread.Info) error {
-	if info.Key == nil {
+	if info.Key.Service() == nil {
 		return fmt.Errorf("a service-key is required to add a thread")
 	}
 	if err := ls.AddServiceKey(info.ID, info.Key.Service()); err != nil {

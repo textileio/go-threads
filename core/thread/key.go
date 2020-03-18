@@ -21,100 +21,83 @@ type Key struct {
 }
 
 // NewKey wraps service and read keys.
-func NewKey(sk, rk *sym.Key) *Key {
-	return &Key{sk: sk, rk: rk}
+func NewKey(sk, rk *sym.Key) Key {
+	if sk == nil {
+		panic("service-key must not be nil")
+	}
+	return Key{sk: sk, rk: rk}
 }
 
-// NewRandomFullKey returns a random full key, which includes a service and read key.
-func NewRandomFullKey() (*Key, error) {
-	sk, err := sym.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-	rk, err := sym.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-	return &Key{sk: sk, rk: rk}, nil
+// NewServiceKey wraps a service-only key.
+func NewServiceKey(sk *sym.Key) Key {
+	return Key{sk: sk}
 }
 
-// NewFullKey returns a full Key if err is nil and panics otherwise.
-func NewFullKey() *Key {
-	k, err := NewRandomFullKey()
-	if err != nil {
-		panic(err)
-	}
-	return k
+// NewRandomKey returns a random key, which includes a service and read key.
+func NewRandomKey() Key {
+	return Key{sk: sym.New(), rk: sym.New()}
 }
 
-// NewRandomServiceKey returns a random service-only key, which does not include a read key.
-func NewRandomServiceKey() (*Key, error) {
-	sk, err := sym.NewRandom()
-	if err != nil {
-		return nil, err
-	}
-	return &Key{sk: sk}, nil
-}
-
-// NewServiceKey returns a service-only Key if err is nil and panics otherwise.
-func NewServiceKey() *Key {
-	k, err := NewRandomServiceKey()
-	if err != nil {
-		panic(err)
-	}
-	return k
+// NewRandomServiceKey returns a random service-only key.
+func NewRandomServiceKey() Key {
+	return Key{sk: sym.New()}
 }
 
 // KeyFromBytes returns a key by wrapping k.
-func KeyFromBytes(k []byte) (*Key, error) {
-	if len(k) != sym.KeyBytes && len(k) != sym.KeyBytes*2 {
-		return nil, ErrInvalidKey
+func KeyFromBytes(b []byte) (k Key, err error) {
+	if len(b) != sym.KeyBytes && len(b) != sym.KeyBytes*2 {
+		return k, ErrInvalidKey
 	}
-	sk, err := sym.FromBytes(k[:sym.KeyBytes])
+	sk, err := sym.FromBytes(b[:sym.KeyBytes])
 	if err != nil {
-		return nil, err
+		return k, err
 	}
 	var rk *sym.Key
-	if len(k) == sym.KeyBytes*2 {
-		rk, err = sym.FromBytes(k[sym.KeyBytes:])
+	if len(b) == sym.KeyBytes*2 {
+		rk, err = sym.FromBytes(b[sym.KeyBytes:])
 		if err != nil {
-			return nil, err
+			return k, err
 		}
 	}
-	return &Key{sk: sk, rk: rk}, nil
+	return Key{sk: sk, rk: rk}, nil
 }
 
 // KeyFromString returns a key by decoding a base58-encoded string.
-func KeyFromString(k string) (*Key, error) {
-	_, b, err := mbase.Decode(k)
+func KeyFromString(s string) (k Key, err error) {
+	_, b, err := mbase.Decode(s)
 	if err != nil {
-		return nil, err
+		return k, err
 	}
 	return KeyFromBytes(b)
 }
 
 // Service returns the service key.
-func (k *Key) Service() *sym.Key {
+func (k Key) Service() *sym.Key {
 	return k.sk
 }
 
 // Read returns the read key.
-func (k *Key) Read() *sym.Key {
+func (k Key) Read() *sym.Key {
 	return k.rk
 }
 
+// Defined returns whether or not key has any components.
+func (k Key) Defined() bool {
+	return k.sk != nil
+}
+
 // CanRead returns whether or not read key is available.
-func (k *Key) CanRead() bool {
+func (k Key) CanRead() bool {
 	return k.rk != nil
 }
 
 // Marshal returns raw key bytes while conforming to Marshaler.
-func (k *Key) Marshal() ([]byte, error) {
+func (k Key) Marshal() ([]byte, error) {
 	return k.Bytes(), nil
 }
 
 // Bytes returns raw key bytes.
-func (k *Key) Bytes() []byte {
+func (k Key) Bytes() []byte {
 	if k.rk != nil {
 		return append(k.sk.Bytes(), k.rk.Bytes()...)
 	} else {
@@ -126,7 +109,7 @@ func (k *Key) Bytes() []byte {
 // For example,
 // Full: "brv7t5l2h55uklz5qwpntcat26csaasfchzof3emmdy6povabcd3a2to2qdkqdkto2prfhizerqqudqsdvwherbiy4nazqxjejgdr4oy"
 // Service: "bp2vvqody5zm6yqycsnazb4kpqvycbdosos352zvpsorxce5koh7q"
-func (k *Key) String() string {
+func (k Key) String() string {
 	str, err := mbase.Encode(mbase.Base32, k.Bytes())
 	if err != nil {
 		panic("should not error with hardcoded mbase: " + err.Error())

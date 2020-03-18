@@ -13,7 +13,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -94,7 +93,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	if _, err := m.network.CreateThread(ctx, id, net.FollowKey(sym.New()), net.ReadKey(sym.New())); err != nil {
+	if _, err := m.network.CreateThread(ctx, id, net.ThreadKey(thread.NewRandomKey())); err != nil {
 		return nil, err
 	}
 
@@ -109,7 +108,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 // NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
 // Unlike NewDB, this method takes a list of collections added to the original db that
 // should also be added to this host.
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *sym.Key, collections ...CollectionConfig) (*DB, error) {
+func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, collections ...CollectionConfig) (*DB, error) {
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
@@ -117,7 +116,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKe
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id.String())
 	}
-	if _, err = m.network.AddThread(ctx, addr, net.FollowKey(followKey), net.ReadKey(readKey)); err != nil {
+	if _, err = m.network.AddThread(ctx, addr, net.ThreadKey(key)); err != nil {
 		return nil, err
 	}
 

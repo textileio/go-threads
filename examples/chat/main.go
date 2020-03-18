@@ -367,7 +367,7 @@ func addCmd(args []string) (out string, err error) {
 		}
 	}
 
-	var k *thread.Key
+	var k thread.Key
 	if len(args) > 2 {
 		k, err = thread.KeyFromString(args[2])
 		if err != nil {
@@ -396,7 +396,7 @@ func addCmd(args []string) (out string, err error) {
 		go net.PullThread(ctx, info.ID)
 		id = info.ID
 	} else {
-		th, err := net.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.ThreadKey(thread.NewFullKey()))
+		th, err := net.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.ThreadKey(thread.NewRandomKey()))
 		if err != nil {
 			return "", err
 		}
@@ -503,7 +503,7 @@ func threadKeysCmd(id thread.ID) (out string, err error) {
 		return
 	}
 
-	if info.Key != nil {
+	if info.Key.Defined() {
 		out += grey(info.Key.String()) + cyan(" (key)")
 	}
 	return

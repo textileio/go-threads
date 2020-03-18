@@ -43,7 +43,7 @@ func runReaderPeer(repo string) {
 	}
 }
 
-func getWriterAddr() (ma.Multiaddr, *thread.Key) {
+func getWriterAddr() (ma.Multiaddr, thread.Key) {
 	// Read the multiaddr of the writer which saved it in .full_simple file.
 	mb, err := ioutil.ReadFile(".e2e_counter_writeraddr")
 	checkErr(err)

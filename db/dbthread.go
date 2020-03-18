@@ -119,10 +119,10 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 			if err != nil {
 				log.Fatalf("error when getting info for thread %s: %v", a.threadID, err)
 			}
-			if info.ReadKey == nil {
+			if !info.Key.CanRead() {
 				log.Fatalf("read key not found for thread %s/%s", a.threadID, rec.LogID())
 			}
-			node, err := event.GetBody(ctx, a.net, info.ReadKey)
+			node, err := event.GetBody(ctx, a.net, info.Key.Read())
 			if err != nil {
 				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadID, rec.LogID(), err)
 			}

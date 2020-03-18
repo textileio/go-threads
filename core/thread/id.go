@@ -304,7 +304,7 @@ func (s IDSlice) Less(i, j int) bool { return s[i].str < s[j].str }
 // Info holds thread logs and keys.
 type Info struct {
 	ID   ID
-	Key  *Key
+	Key  Key
 	Logs []LogInfo
 }
 

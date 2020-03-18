@@ -9,7 +9,6 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -95,15 +94,14 @@ func (c *Client) NewDB(ctx context.Context, id thread.ID) error {
 }
 
 // NewDBFromAddr creates a new DB with address and keys.
-func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, followKey, readKey *symmetric.Key, collections ...db.CollectionConfig) error {
+func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
 	pbcollections := make([]*pb.CollectionConfig, len(collections))
 	for i, c := range collections {
 		pbcollections[i] = collectionConfigToPb(c)
 	}
 	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
 		DbAddr:      addr.String(),
-		FollowKey:   followKey.Bytes(),
-		ReadKey:     readKey.Bytes(),
+		DbKey:       key.Bytes(),
 		Collections: pbcollections,
 	})
 	return err

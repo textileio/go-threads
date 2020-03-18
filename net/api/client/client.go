@@ -241,9 +241,8 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 }
 
 func getThreadKeys(args *core.KeyOptions) (*pb.Keys, error) {
-	keys := &pb.Keys{}
-	if args.ThreadKey != nil {
-		keys.ThreadKey = args.ThreadKey.Bytes()
+	keys := &pb.Keys{
+		ThreadKey: args.ThreadKey.Bytes(),
 	}
 	if args.LogKey != nil {
 		var err error

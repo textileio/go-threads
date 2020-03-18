@@ -174,8 +174,8 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 		ID:  id,
 		Key: args.ThreadKey,
 	}
-	if info.Key == nil {
-		info.Key = thread.NewServiceKey()
+	if !info.Key.Defined() {
+		info.Key = thread.NewRandomServiceKey()
 	}
 	if err = t.store.AddThread(info); err != nil {
 		return
@@ -221,12 +221,15 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 	}); err != nil {
 		return
 	}
-	linfo, err := createLog(t.host.ID(), args.LogKey)
-	if err != nil {
-		return
-	}
-	if err = t.store.AddLog(id, linfo); err != nil {
-		return
+	if args.ThreadKey.CanRead() {
+		var linfo thread.LogInfo
+		linfo, err = createLog(t.host.ID(), args.LogKey)
+		if err != nil {
+			return
+		}
+		if err = t.store.AddLog(id, linfo); err != nil {
+			return
+		}
 	}
 
 	threadComp, err := ma.NewComponent(thread.Name, id.String())

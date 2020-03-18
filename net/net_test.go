@@ -141,7 +141,7 @@ func TestService_AddThread(t *testing.T) {
 	})
 }
 
-func TestService_AddFollower(t *testing.T) {
+func TestService_AddReplicator(t *testing.T) {
 	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
@@ -151,7 +151,7 @@ func TestService_AddFollower(t *testing.T) {
 	n1.Host().Peerstore().AddAddrs(n2.Host().ID(), n2.Host().Addrs(), peerstore.PermanentAddrTTL)
 	n2.Host().Peerstore().AddAddrs(n1.Host().ID(), n1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
-	t.Run("test add follower", func(t *testing.T) {
+	t.Run("test add replicator", func(t *testing.T) {
 		ctx := context.Background()
 		info := createThread(t, ctx, n1)
 
@@ -243,7 +243,7 @@ func makeNetwork(t *testing.T) core.Net {
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := api.CreateThread(ctx, id, core.ThreadKey(thread.NewFullKey()))
+	info, err := api.CreateThread(ctx, id, core.ThreadKey(thread.NewRandomKey()))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -74,7 +74,7 @@ func NewDB(ctx context.Context, network net.Net, id thread.ID, opts ...Option) (
 
 	if _, err := network.GetThread(ctx, id); err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
-			if _, err = network.CreateThread(ctx, id, net.ThreadKey(thread.NewFullKey())); err != nil {
+			if _, err = network.CreateThread(ctx, id, net.ThreadKey(thread.NewRandomKey())); err != nil {
 				return nil, err
 			}
 		} else {
@@ -87,7 +87,7 @@ func NewDB(ctx context.Context, network net.Net, id thread.ID, opts ...Option) (
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key *thread.Key, opts ...Option) (*DB, error) {
+func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {

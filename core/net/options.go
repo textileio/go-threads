@@ -7,7 +7,7 @@ import (
 
 // KeyOptions defines options for keys when creating / adding a thread.
 type KeyOptions struct {
-	ThreadKey *thread.Key
+	ThreadKey thread.Key
 	LogKey    crypto.Key
 }
 
@@ -15,7 +15,7 @@ type KeyOptions struct {
 type KeyOption func(*KeyOptions)
 
 // ThreadKey handles log encryption.
-func ThreadKey(key *thread.Key) KeyOption {
+func ThreadKey(key thread.Key) KeyOption {
 	return func(args *KeyOptions) {
 		args.ThreadKey = key
 	}

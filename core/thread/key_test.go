@@ -5,11 +5,8 @@ import (
 	"testing"
 )
 
-func TestNewRandomFullKey(t *testing.T) {
-	k, err := NewRandomFullKey()
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestNewRandomKey(t *testing.T) {
+	k := NewRandomKey()
 	if k.sk == nil {
 		t.Fatal("service key should not be nil")
 	}
@@ -19,10 +16,7 @@ func TestNewRandomFullKey(t *testing.T) {
 }
 
 func TestNewRandomServiceKey(t *testing.T) {
-	k, err := NewRandomServiceKey()
-	if err != nil {
-		t.Fatal(err)
-	}
+	k := NewRandomServiceKey()
 	if k.sk == nil {
 		t.Fatal("service key should not be nil")
 	}
@@ -33,7 +27,7 @@ func TestNewRandomServiceKey(t *testing.T) {
 
 func TestKey_FromBytes(t *testing.T) {
 	t.Run("full", func(t *testing.T) {
-		k1 := NewFullKey()
+		k1 := NewRandomKey()
 		b := k1.Bytes()
 		k2, err := KeyFromBytes(b)
 		if err != nil {
@@ -47,7 +41,7 @@ func TestKey_FromBytes(t *testing.T) {
 		}
 	})
 	t.Run("service", func(t *testing.T) {
-		k1 := NewServiceKey()
+		k1 := NewRandomServiceKey()
 		b := k1.Bytes()
 		k2, err := KeyFromBytes(b)
 		if err != nil {
@@ -64,7 +58,7 @@ func TestKey_FromBytes(t *testing.T) {
 
 func TestKey_FromString(t *testing.T) {
 	t.Run("full", func(t *testing.T) {
-		k1 := NewFullKey()
+		k1 := NewRandomKey()
 		s := k1.String()
 		k2, err := KeyFromString(s)
 		if err != nil {
@@ -78,7 +72,7 @@ func TestKey_FromString(t *testing.T) {
 		}
 	})
 	t.Run("service", func(t *testing.T) {
-		k1 := NewServiceKey()
+		k1 := NewRandomServiceKey()
 		s := k1.String()
 		k2, err := KeyFromString(s)
 		if err != nil {

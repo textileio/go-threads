@@ -99,7 +99,7 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	if err != nil && !errors.Is(err, lstore.ErrThreadNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if info.Key == nil {
+	if !info.Key.Defined() {
 		if req.ServiceKey != nil && req.ServiceKey.Key != nil {
 			if err = s.net.store.AddServiceKey(req.ThreadID.ID, req.ServiceKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -107,8 +107,7 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 		} else {
 			return nil, status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 		}
-	}
-	if !info.Key.CanRead() {
+	} else if !info.Key.CanRead() {
 		if req.ReadKey != nil && req.ReadKey.Key != nil {
 			if err = s.net.store.AddReadKey(req.ThreadID.ID, req.ReadKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
