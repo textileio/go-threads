@@ -15,6 +15,8 @@ import (
 	logging "github.com/ipfs/go-log"
 )
 
+const singleUserName = "userSingle"
+
 func TestMain(m *testing.M) {
 	logging.SetLogLevel("main", "info")
 	// logging.SetLogLevel("store", "debug")
@@ -25,7 +27,7 @@ func TestMain(m *testing.M) {
 
 func TestSingleUser(t *testing.T) {
 	t.Parallel()
-	c1, clean1 := createClient(t, "user1", "")
+	c1, clean1 := createClient(t, singleUserName, "")
 	defer clean1()
 	defer c1.close()
 	err := c1.start()
@@ -44,11 +46,11 @@ func TestSingleUser(t *testing.T) {
 		t.Fatalf("there should be one user folder")
 	}
 	tree := trees[0]
-	if tree.Owner != "user1" || tree.ID == "" || len(tree.Files) != 0 {
+	if tree.Owner != singleUserName || tree.ID == "" || len(tree.Files) != 0 {
 		t.Fatalf("invalid initial tree")
 	}
 
-	tmpFilePath := path.Join(c1.shrFolderPath, "user1", "test.txt")
+	tmpFilePath := path.Join(c1.shrFolderPath, singleUserName, "test.txt")
 	f, err := os.OpenFile(tmpFilePath, os.O_RDWR|os.O_CREATE, 0660)
 	checkErr(t, err)
 	defer os.Remove(tmpFilePath)
@@ -63,7 +65,7 @@ func TestSingleUser(t *testing.T) {
 		t.Fatalf("there should be one user folder")
 	}
 	tree = trees[0]
-	if len(tree.Files) != 1 || tree.Files[0].FileRelativePath != "user1/test.txt" {
+	if len(tree.Files) != 1 || tree.Files[0].FileRelativePath != path.Join(singleUserName, "test.txt") {
 		t.Fatalf("invalid tree state")
 	}
 }
