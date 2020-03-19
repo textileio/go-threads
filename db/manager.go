@@ -135,9 +135,41 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	return db, nil
 }
 
-// GetDB returns a db by id from the in-mem map.
+// GetDB returns a db by id.
 func (m *Manager) GetDB(id thread.ID) *DB {
 	return m.dbs[id]
+}
+
+// DeleteDB deletes a db by id.
+func (m *Manager) DeleteDB(ctx context.Context, id thread.ID) error {
+	db := m.dbs[id]
+	if db == nil {
+		return nil
+	}
+
+	if err := db.Close(); err != nil {
+		return err
+	}
+	if err := m.network.DeleteThread(ctx, id); err != nil {
+		return err
+	}
+
+	// Cleanup keys used by the db
+	pre := dsDBManagerBaseKey.ChildString(id.String())
+	q := query.Query{Prefix: pre.String(), KeysOnly: true}
+	results, err := m.config.Datastore.Query(q)
+	if err != nil {
+		return err
+	}
+	defer results.Close()
+	for result := range results.Next() {
+		if err := m.config.Datastore.Delete(ds.NewKey(result.Key)); err != nil {
+			return err
+		}
+	}
+
+	delete(m.dbs, id)
+	return nil
 }
 
 // Net returns the manager's thread network.
@@ -145,7 +177,7 @@ func (m *Manager) Net() net.Net {
 	return m.network
 }
 
-// Close all the in-mem dbs.
+// Close all dbs.
 func (m *Manager) Close() error {
 	for _, s := range m.dbs {
 		if err := s.Close(); err != nil {
