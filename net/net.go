@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	sym "github.com/textileio/go-threads/crypto/symmetric"
-
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -27,6 +25,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -354,15 +353,13 @@ func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("deleting thread %s...", id.String())
 	ptl := t.getThreadSemaphore(id)
 	select {
-	case ptl <- struct{}{}:
+	case ptl <- struct{}{}: // Must block in case the thread is being pulled
 		err := t.deleteThread(ctx, id)
 		if err != nil {
 			<-ptl
 			return err
 		}
 		<-ptl
-	default:
-		log.Warnf("delete thread %s ignored since already being deleted", id)
 	}
 	return nil
 }
