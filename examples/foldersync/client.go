@@ -17,10 +17,10 @@ import (
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	"github.com/ipfs/go-cid"
 	"github.com/mr-tron/base58"
-	"github.com/textileio/go-foldersync/watcher"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/examples/foldersync/watcher"
 )
 
 var (
@@ -53,6 +53,14 @@ type userFolder struct {
 	Files []file
 }
 
+func (u *userFolder) toJSONString() (string, error) {
+	bytes, err := json.Marshal(u)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
 type file struct {
 	ID               core.InstanceID
 	FileRelativePath string
@@ -79,13 +87,22 @@ func newClient(name, sharedFolderPath, repoPath string, inviteLink string) (*cli
 
 	if inviteLink == "" {
 		log.Infof("Creating a new DB with thread id: %v", threadID.String())
-		d, err = db.NewDB(context.Background(), net, threadID, db.WithRepoPath(repoPath))
+		d, err = db.NewDB(context.Background(), net, threadID, db.WithRepoPath(repoPath), db.WithJsonMode(true))
 		if err != nil {
 			return nil, fmt.Errorf("error when creating db: %v", err)
 		}
 
+		schema, err := getSchema()
+		if err != nil {
+			return nil, err
+		}
+
 		log.Infof("Creating sharedFolder collection")
-		collection, err = d.NewCollectionFromInstance(collectionName, collectionDummyInstance)
+		collecitonConf := db.CollectionConfig{
+			Name:   collectionName,
+			Schema: schema,
+		}
+		collection, err = d.NewCollection(collecitonConf)
 		if err != nil {
 			return nil, fmt.Errorf("error when creating new collection from instance: %v", err)
 		}
@@ -93,18 +110,17 @@ func newClient(name, sharedFolderPath, repoPath string, inviteLink string) (*cli
 		log.Infof("Creating a DB from invite: %v", inviteLink)
 		addr, fk, rk := parseInviteLink(inviteLink)
 
-		schema := jsonschema.Reflect(collectionDummyInstance)
-		schemaBytes, err := json.Marshal(schema)
+		schema, err := getSchema()
 		if err != nil {
-			return nil, fmt.Errorf("error when creating json schema from instance: %v", err)
+			return nil, err
 		}
 
 		collecitonConf := db.CollectionConfig{
 			Name:   collectionName,
-			Schema: string(schemaBytes),
+			Schema: schema,
 		}
 
-		d, err = db.NewDBFromAddr(context.Background(), net, addr, fk, rk, db.WithCollections(collecitonConf), db.WithRepoPath(repoPath))
+		d, err = db.NewDBFromAddr(context.Background(), net, addr, fk, rk, db.WithCollections(collecitonConf), db.WithRepoPath(repoPath), db.WithJsonMode(true))
 		if err != nil {
 			return nil, fmt.Errorf("error when creating db from addr: %v", err)
 		}
@@ -122,6 +138,15 @@ func newClient(name, sharedFolderPath, repoPath string, inviteLink string) (*cli
 		db:            d,
 		collection:    collection,
 	}, nil
+}
+
+func getSchema() (string, error) {
+	schema := jsonschema.Reflect(collectionDummyInstance)
+	schemaBytes, err := json.Marshal(schema)
+	if err != nil {
+		return "", fmt.Errorf("error when creating json schema from instance: %v", err)
+	}
+	return string(schemaBytes), nil
 }
 
 func (c *client) close() error {
@@ -165,10 +190,18 @@ func (c *client) start() error {
 }
 
 func (c *client) getDirectoryTree() ([]*userFolder, error) {
-	var res []*userFolder
-	if err := c.collection.Find(&res, nil); err != nil {
+	ret, err := c.collection.FindJSON(&db.JSONQuery{})
+	log.Infof("got tree: %v", ret)
+	if err != nil {
 		return nil, err
-
+	}
+	res := make([]*userFolder, len(ret))
+	for i, jsonString := range ret {
+		folder := &userFolder{}
+		if err := json.Unmarshal([]byte(jsonString), folder); err != nil {
+			return nil, err
+		}
+		res[i] = folder
 	}
 	return res, nil
 }
@@ -207,9 +240,14 @@ func (c *client) startListeningExternalChanges() error {
 				log.Info("shutting down external changes listener")
 				return
 			case a := <-l.Channel():
-				var uf userFolder
-				if err := c.collection.FindByID(a.ID, &uf); err != nil {
+				var ufString string
+				if err := c.collection.FindByID(a.ID, &ufString); err != nil {
 					log.Errorf("error when getting changed user folder with ID %s", a.ID)
+					continue
+				}
+				var uf userFolder
+				if err := json.Unmarshal([]byte(ufString), &uf); err != nil {
+					log.Errorf("error unmarshalling userFolder string for id %v", a.ID)
 					continue
 				}
 				log.Infof("%s: detected new file %s of user %s", c.userName, a.ID, uf.Owner)
@@ -246,7 +284,11 @@ func (c *client) startFileSystemWatcher() error {
 		fileRelPath = strings.TrimLeft(fileRelPath, "/")
 		newFile := file{ID: core.NewInstanceID(), FileRelativePath: fileRelPath, CID: n.Cid().String(), Files: []file{}}
 		c.folderInstance.Files = append(c.folderInstance.Files, newFile)
-		return c.collection.Save(c.folderInstance)
+		folderInstanceString, err := c.folderInstance.toJSONString()
+		if err != nil {
+			return err
+		}
+		return c.collection.Save(&folderInstanceString)
 	})
 
 	if err != nil {
@@ -324,21 +366,30 @@ func (c *client) getOrCreateMyFolderInstance(path string) (*userFolder, error) {
 		}
 	}
 
-	var res []*userFolder
-	if err := c.collection.Find(&res, db.Where("Owner").Eq(c.userName)); err != nil {
+	ret, err := c.collection.FindJSON(db.JSONWhere("Owner").Eq(c.userName))
+	if err != nil {
 		return nil, err
 	}
+	log.Infof("got folder instances: %v", ret)
 
-	var myFolder *userFolder
-	if len(res) == 0 {
+	var myFolder = userFolder{}
+	if len(ret) == 0 {
 		ownFolder := &userFolder{Owner: c.userName, Files: []file{}}
-		if err := c.collection.Create(ownFolder); err != nil {
+		ownFolderJSON, err := ownFolder.toJSONString()
+		if err != nil {
 			return nil, err
 		}
-		myFolder = ownFolder
+		if err := c.collection.Create(&ownFolderJSON); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(ownFolderJSON), &myFolder); err != nil {
+			return nil, err
+		}
 	} else {
-		myFolder = res[0]
+		if err := json.Unmarshal([]byte(ret[0]), &myFolder); err != nil {
+			return nil, err
+		}
 	}
 
-	return myFolder, nil
+	return &myFolder, nil
 }

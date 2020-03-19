@@ -79,7 +79,7 @@ func (fw *FolderWatcher) Watch() {
 					log.Debug("created file:", event.Name)
 
 					if err := fw.onCreate(event.Name); err != nil {
-						log.Errorf("error when calling onCreate for %s", event.Name)
+						log.Errorf("error when calling onCreate for %s: %v", event.Name, err)
 					}
 				}
 			case err, ok := <-fw.w.Errors:
