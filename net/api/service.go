@@ -315,16 +315,16 @@ func threadInfoToProto(info thread.Info) (*pb.ThreadInfoReply, error) {
 		for j, addr := range lg.Addrs {
 			addrs[j] = addr.Bytes()
 		}
-		heads := make([][]byte, len(lg.Heads))
-		for k, head := range lg.Heads {
-			heads[k] = head.Bytes()
+		var head []byte
+		if lg.Head.Defined() {
+			head = lg.Head.Bytes()
 		}
 		logs[i] = &pb.LogInfo{
 			ID:      marshalPeerID(lg.ID),
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Heads:   heads,
+			Head:    head,
 		}
 	}
 	return &pb.ThreadInfoReply{

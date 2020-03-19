@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipld-format"
@@ -30,9 +29,6 @@ type Event interface {
 // EventHeader is the format of the event's header object
 type EventHeader interface {
 	format.Node
-
-	// Time returns the wall-clock time at which this event was created.
-	Time() (*time.Time, error)
 
 	// Key returns a single-use decryption key for the event body.
 	Key() (crypto.DecryptionKey, error)

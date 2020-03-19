@@ -228,7 +228,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				if lg.PubKey == nil {
 					if l.Log != nil {
 						lg = logFromProto(l.Log)
-						lg.Heads = []cid.Cid{}
+						lg.Head = cid.Undef
 						if err = s.net.store.AddLog(id, lg); err != nil {
 							log.Error(err)
 							return
@@ -355,8 +355,8 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	// Finally, publish to the thread's topic
-	if err = s.publish(id, req); err != nil {
-		log.Error(err)
+	if err = s.publish(ctx, id, req); err != nil {
+		return err
 	}
 
 	wg.Wait()
@@ -381,10 +381,15 @@ func (s *server) getDialOption() grpc.DialOption {
 }
 
 // publish a request to a thread.
-func (s *server) publish(id thread.ID, req *pb.PushRecordRequest) error {
+func (s *server) publish(ctx context.Context, id thread.ID, req *pb.PushRecordRequest) error {
 	data, err := req.Marshal()
 	if err != nil {
 		return err
 	}
-	return s.pubsub.Publish(id.String(), data)
+
+	topic, ok := s.topics.Load(id)
+	if !ok {
+		return fmt.Errorf("thread topic not found")
+	}
+	return topic.t.Publish(ctx, data)
 }

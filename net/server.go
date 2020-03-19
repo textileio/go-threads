@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
@@ -24,6 +23,7 @@ import (
 type server struct {
 	net    *net
 	pubsub *pubsub.PubSub
+	topics *topics
 }
 
 // newServer creates a new network server.
@@ -40,19 +40,19 @@ func newServer(n *net) (*server, error) {
 	s := &server{
 		net:    n,
 		pubsub: ps,
+		topics: newTopics(),
 	}
 
-	// @todo: clean up pubsub handling (we need to track the new-style topic handles)
-	//ts, err := n.store.Threads()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//for _, id := range ts {
-	//	go s.subscribe(id)
-	//}
-
-	// @todo: s.pubsub.RegisterTopicValidator()
-
+	// Setup pubsub topics
+	ts, err := n.store.Threads()
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ts {
+		if err := s.addTopic(id); err != nil {
+			return nil, err
+		}
+	}
 	return s, nil
 }
 
@@ -245,46 +245,6 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	return &pb.PushRecordReply{}, nil
 }
 
-// subscribe to a thread for updates.
-func (s *server) subscribe(id thread.ID) {
-	sub, err := s.pubsub.Subscribe(id.String())
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	for {
-		msg, err := sub.Next(s.net.ctx)
-		if err != nil {
-			break
-		}
-
-		from, err := peer.IDFromBytes(msg.From)
-		if err != nil {
-			log.Error(err)
-			break
-		}
-		if from.String() == s.net.host.ID().String() {
-			continue
-		}
-
-		req := new(pb.PushRecordRequest)
-		err = proto.Unmarshal(msg.Data, req)
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-
-		log.Debugf("received multicast request from %s", from.String())
-
-		_, err = s.PushRecord(s.net.ctx, req)
-		if err != nil {
-			log.Warnf("pubsub: %s", err)
-			continue
-		}
-	}
-}
-
 // checkServiceKey compares a key with the one stored under thread.
 func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 	if k == nil || k.Key == nil {
@@ -347,15 +307,11 @@ func logToProto(l thread.LogInfo) *pb.Log {
 	for j, a := range l.Addrs {
 		pbaddrs[j] = pb.ProtoAddr{Multiaddr: a}
 	}
-	pbheads := make([]pb.ProtoCid, len(l.Heads))
-	for k, h := range l.Heads {
-		pbheads[k] = pb.ProtoCid{Cid: h}
-	}
 	return &pb.Log{
 		ID:     &pb.ProtoPeerID{ID: l.ID},
 		PubKey: &pb.ProtoPubKey{PubKey: l.PubKey},
 		Addrs:  pbaddrs,
-		Heads:  pbheads,
+		Head:   &pb.ProtoCid{Cid: l.Head},
 	}
 }
 
@@ -365,14 +321,10 @@ func logFromProto(l *pb.Log) thread.LogInfo {
 	for j, a := range l.Addrs {
 		addrs[j] = a.Multiaddr
 	}
-	heads := make([]cid.Cid, len(l.Heads))
-	for k, h := range l.Heads {
-		heads[k] = h.Cid
-	}
 	return thread.LogInfo{
 		ID:     l.ID.ID,
 		PubKey: l.PubKey.PubKey,
 		Addrs:  addrs,
-		Heads:  heads,
+		Head:   l.Head.Cid,
 	}
 }

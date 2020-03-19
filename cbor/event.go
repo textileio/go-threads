@@ -3,7 +3,6 @@ package cbor
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
@@ -27,8 +26,7 @@ type event struct {
 
 // eventHeader defines the node structure of an event header.
 type eventHeader struct {
-	Time int64
-	Key  []byte `refmt:",omitempty"`
+	Key []byte `refmt:",omitempty"`
 }
 
 // CreateEvent create a new event by wrapping the body node.
@@ -46,8 +44,7 @@ func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, r
 		return nil, err
 	}
 	eventHeader := &eventHeader{
-		Time: time.Now().Unix(),
-		Key:  keyb,
+		Key: keyb,
 	}
 	header, err := cbornode.WrapObject(eventHeader, mh.SHA2_256, -1)
 	if err != nil {
@@ -206,15 +203,6 @@ type EventHeader struct {
 	format.Node
 
 	obj *eventHeader
-}
-
-// Time returns the wall-clock time when the event was created if it has been decoded.
-func (h *EventHeader) Time() (*time.Time, error) {
-	if h.obj == nil {
-		return nil, fmt.Errorf("obj not loaded")
-	}
-	t := time.Unix(h.obj.Time, 0)
-	return &t, nil
 }
 
 // Key returns the key needed to decrypt the event body if it has been decoded.

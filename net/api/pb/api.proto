@@ -27,7 +27,7 @@ message LogInfo {
     bytes pubKey = 2;
 	bytes privKey = 3;
 	repeated bytes addrs = 4;
-	repeated bytes heads = 5;
+	bytes head = 5;
 }
 
 message ThreadInfoReply {

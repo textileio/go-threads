@@ -198,8 +198,10 @@ func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 	if err = ls.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 		return err
 	}
-	if err = ls.AddHeads(id, lg.ID, lg.Heads); err != nil {
-		return err
+	if lg.Head.Defined() {
+		if err = ls.SetHead(id, lg.ID, lg.Head); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -233,7 +235,9 @@ func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	info.PubKey = pk
 	info.PrivKey = sk
 	info.Addrs = addrs
-	info.Heads = heads
+	if len(heads) > 0 {
+		info.Head = heads[0]
+	}
 	return
 }
 

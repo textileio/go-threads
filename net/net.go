@@ -188,6 +188,11 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 	if err = t.store.AddLog(id, linfo); err != nil {
 		return
 	}
+
+	if err = t.server.addTopic(id); err != nil {
+		return
+	}
+
 	return t.store.GetThread(id)
 }
 
@@ -256,6 +261,10 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 		}
 	}
 
+	if err = t.server.addTopic(id); err != nil {
+		return
+	}
+
 	return t.store.GetThread(id)
 }
 
@@ -303,15 +312,14 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	// Gather offsets for each log
 	offsets := make(map[peer.ID]cid.Cid)
 	for _, lg := range info.Logs {
-		offsets[lg.ID] = cid.Undef
-		if len(lg.Heads) > 0 {
-			has, err := t.bstore.Has(lg.Heads[0])
-			if err != nil {
-				return err
-			}
-			if has {
-				offsets[lg.ID] = lg.Heads[0]
-			}
+		has, err := t.bstore.Has(lg.Head)
+		if err != nil {
+			return err
+		}
+		if has {
+			offsets[lg.ID] = lg.Head
+		} else {
+			offsets[lg.ID] = cid.Undef
 		}
 	}
 	var fetchedRcs []map[peer.ID][]core.Record
@@ -367,19 +375,20 @@ func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
 // deleteThread cleans up all the persistent and in-memory bits of a thread. This includes:
 // - Removing all record and event nodes.
 // - Deleting all logstore keys, addresses, and heads.
-// - Deleting the thread semaphore.
-// Local and pubsub subscriptions will not be cancelled and will simply stop reporting.
+// - Canceling the pubsub subscription and topic.
+// Local subscriptions will not be cancelled and will simply stop reporting.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
+	if err := t.server.removeTopic(id); err != nil {
+		return err
+	}
+
 	info, err := t.store.GetThread(id)
 	if err != nil {
 		return err
 	}
 	for _, lg := range info.Logs { // Walk logs, removing record and event nodes
-		if len(lg.Heads) == 0 {
-			continue
-		}
-		head := lg.Heads[0]
+		head := lg.Head
 		for head.Defined() {
 			head, err = t.deleteRecord(ctx, head, info.Key.Service())
 			if err != nil {
@@ -387,6 +396,7 @@ func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
 			}
 		}
 	}
+
 	return t.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
@@ -499,7 +509,7 @@ func (t *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node) 
 		return nil, err
 	}
 
-	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
+	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id.String(), lg.ID.String())
 
 	// Notify local listeners
 	r = NewRecord(rec, id, lg.ID)
@@ -688,7 +698,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 			return err
 		}
 
-		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid().String(), id, lg.ID)
+		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid().String(), id.String(), lg.ID.String())
 
 		// Notify local listeners
 		if err = t.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
@@ -731,11 +741,7 @@ func (t *net) createRecord(ctx context.Context, id thread.ID, lg thread.LogInfo,
 		return nil, err
 	}
 
-	prev := cid.Undef
-	if len(lg.Heads) != 0 {
-		prev = lg.Heads[0]
-	}
-	return cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, sk)
+	return cbor.CreateRecord(ctx, t, event, lg.Head, lg.PrivKey, sk)
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of
@@ -763,14 +769,7 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 		return recs, nil
 	}
 
-	if len(lg.Heads) == 0 {
-		return []core.Record{}, nil
-	}
-
-	if len(lg.Heads) != 1 {
-		return nil, fmt.Errorf("log head must reference exactly one node")
-	}
-	cursor := lg.Heads[0]
+	cursor := lg.Head
 	for {
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
@@ -910,7 +909,7 @@ func (t *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 			PubKey:  pubKey,
 			PrivKey: privKey,
 			Addrs:   addrs,
-			Heads:   []cid.Cid{},
+			Head:    cid.Undef,
 		}
 		if err := t.store.AddLog(tid, lginfo); err != nil {
 			return err
