@@ -425,7 +425,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 
 func createThread(t *testing.T, client *Client) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := client.CreateThread(context.Background(), id, core.ThreadKey(thread.NewRandomKey()))
+	info, err := client.CreateThread(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
 	}
