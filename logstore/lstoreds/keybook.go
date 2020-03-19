@@ -168,6 +168,39 @@ func (kb *dsKeyBook) AddServiceKey(t thread.ID, fk *sym.Key) error {
 	return nil
 }
 
+// ClearKeys deletes all keys under a thread.
+func (kb *dsKeyBook) ClearKeys(t thread.ID) error {
+	return kb.clearKeys(dsThreadKey(t, kbBase))
+}
+
+// ClearLogKeys deletes all keys under a log.
+func (kb *dsKeyBook) ClearLogKeys(t thread.ID, p peer.ID) error {
+	if err := kb.clearKeys(dsLogKey(t, p, kbBase).Child(privSuffix)); err != nil {
+		return err
+	}
+	if err := kb.clearKeys(dsLogKey(t, p, kbBase).Child(pubSuffix)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (kb *dsKeyBook) clearKeys(prefix ds.Key) error {
+	q := query.Query{Prefix: prefix.String(), KeysOnly: true}
+
+	results, err := kb.ds.Query(q)
+	if err != nil {
+		return err
+	}
+	defer results.Close()
+
+	for result := range results.Next() {
+		if err := kb.ds.Delete(ds.NewKey(result.Key)); err != nil {
+			return fmt.Errorf("error when clearing key: %w", err)
+		}
+	}
+	return nil
+}
+
 // LogsWithKeys returns a list of log IDs for a thread.
 func (kb *dsKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
 	ids, err := uniqueLogIds(kb.ds, kbBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())),

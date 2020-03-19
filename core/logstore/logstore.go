@@ -37,11 +37,17 @@ type Logstore interface {
 	// GetThread returns info about a thread.
 	GetThread(thread.ID) (thread.Info, error)
 
+	// DeleteThread deletes a thread.
+	DeleteThread(thread.ID) error
+
 	// AddLog adds a log to a thread.
 	AddLog(thread.ID, thread.LogInfo) error
 
 	// GetLog returns info about a log.
 	GetLog(thread.ID, peer.ID) (thread.LogInfo, error)
+
+	// DeleteLog deletes a log.
+	DeleteLog(thread.ID, peer.ID) error
 }
 
 // ThreadMetadata stores local thread metadata like name.
@@ -90,6 +96,12 @@ type KeyBook interface {
 
 	// AddServiceKey adds a service key under a thread.
 	AddServiceKey(thread.ID, *sym.Key) error
+
+	// ClearKeys deletes all keys under a thread.
+	ClearKeys(thread.ID) error
+
+	// ClearLogKeys deletes all keys under a log.
+	ClearLogKeys(thread.ID, peer.ID) error
 
 	// LogsWithKeys returns a list of log IDs for a service.
 	LogsWithKeys(thread.ID) (peer.IDSlice, error)

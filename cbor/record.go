@@ -87,6 +87,11 @@ func RecordFromNode(coded format.Node, key crypto.DecryptionKey) (net.Record, er
 	}, nil
 }
 
+// RemoveRecord removes a record from the dag service.
+func RemoveRecord(ctx context.Context, dag format.DAGService, rec net.Record) error {
+	return dag.Remove(ctx, rec.Cid())
+}
+
 // RecordToProto returns a proto version of a record for transport.
 // Nodes are sent encrypted.
 func RecordToProto(ctx context.Context, dag format.DAGService, rec net.Record) (*pb.Log_Record, error) {

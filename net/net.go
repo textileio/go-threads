@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	sym "github.com/textileio/go-threads/crypto/symmetric"
+
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -291,8 +293,8 @@ func (t *net) PullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// pullThread for new records. It's internal and *not* thread-safe,
-// it assumes we currently own the thread-lock.
+// pullThread for new records.
+// This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	info, err := t.store.GetThread(id)
 	if err != nil {
@@ -348,9 +350,47 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// @todo
-func (t *net) DeleteThread(context.Context, thread.ID) error {
-	panic("implement me")
+func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
+	log.Debugf("deleting thread %s...", id.String())
+	ptl := t.getThreadSemaphore(id)
+	select {
+	case ptl <- struct{}{}:
+		err := t.deleteThread(ctx, id)
+		if err != nil {
+			<-ptl
+			return err
+		}
+		<-ptl
+	default:
+		log.Warnf("delete thread %s ignored since already being deleted", id)
+	}
+	return nil
+}
+
+// deleteThread cleans up all the persistent and in-memory bits of a thread. This includes:
+// - Removing all record and event nodes.
+// - Deleting all logstore keys, addresses, and heads.
+// - Deleting the thread semaphore.
+// Local and pubsub subscriptions will not be cancelled and will simply stop reporting.
+// This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
+func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
+	info, err := t.store.GetThread(id)
+	if err != nil {
+		return err
+	}
+	for _, lg := range info.Logs { // Walk logs, removing record and event nodes
+		if len(lg.Heads) == 0 {
+			continue
+		}
+		head := lg.Heads[0]
+		for head.Defined() {
+			head, err = t.deleteRecord(ctx, head, info.Key.Service())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return t.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
 func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
@@ -750,6 +790,25 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 	}
 
 	return recs, nil
+}
+
+// deleteRecord remove a record from the dag service.
+func (t *net) deleteRecord(ctx context.Context, rid cid.Cid, sk *sym.Key) (prev cid.Cid, err error) {
+	rec, err := cbor.GetRecord(ctx, t, rid, sk)
+	if err != nil {
+		return
+	}
+	if err = cbor.RemoveRecord(ctx, t, rec); err != nil {
+		return
+	}
+	event, err := cbor.EventFromRecord(ctx, t, rec)
+	if err != nil {
+		return
+	}
+	if err = cbor.RemoveEvent(ctx, t, event); err != nil {
+		return
+	}
+	return rec.PrevID(), nil
 }
 
 // startPulling periodically pulls on all threads.
