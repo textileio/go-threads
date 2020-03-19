@@ -190,11 +190,11 @@ type ProtoKey struct {
 var _ customGogoType = (*ProtoKey)(nil)
 
 func (k ProtoKey) Marshal() ([]byte, error) {
-	return k.Key.Marshal()
+	return k.Key.MarshalBinary()
 }
 
 func (k ProtoKey) MarshalTo(data []byte) (n int, err error) {
-	b, err := k.Key.Marshal()
+	b, err := k.Key.MarshalBinary()
 	return copy(data, b), err
 }
 

@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	// Length of nacl nonce.
+	// NonceBytes is the length of nacl nonce.
 	NonceBytes = 24
 
-	// Length of nacl ephemeral public key.
+	// EphemeralPublicKeyBytes is the length of nacl ephemeral public key.
 	EphemeralPublicKeyBytes = 32
 )
 
@@ -40,8 +40,8 @@ func (k *EncryptionKey) Encrypt(plaintext []byte) ([]byte, error) {
 	return encrypt(plaintext, k.pk)
 }
 
-// Marshal returns raw key bytes.
-func (k *EncryptionKey) Marshal() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (k *EncryptionKey) MarshalBinary() ([]byte, error) {
 	return ic.MarshalPublicKey(k.pk)
 }
 
@@ -68,8 +68,8 @@ func (k *DecryptionKey) Decrypt(ciphertext []byte) ([]byte, error) {
 	return decrypt(ciphertext, k.sk)
 }
 
-// Marshal returns raw key bytes.
-func (k *DecryptionKey) Marshal() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (k *DecryptionKey) MarshalBinary() ([]byte, error) {
 	return ic.MarshalPrivateKey(k.sk)
 }
 

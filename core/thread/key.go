@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	// Indicates an invalid byte slice was given to KeyFromBytes.
+	// ErrInvalidKey indicates an invalid byte slice was given to KeyFromBytes.
 	ErrInvalidKey = fmt.Errorf("invalid key")
 )
 
@@ -62,7 +62,7 @@ func KeyFromBytes(b []byte) (k Key, err error) {
 	return Key{sk: sk, rk: rk}, nil
 }
 
-// KeyFromString returns a key by decoding a base58-encoded string.
+// KeyFromString returns a key by decoding a base32-encoded string.
 func KeyFromString(s string) (k Key, err error) {
 	_, b, err := mbase.Decode(s)
 	if err != nil {
@@ -93,8 +93,8 @@ func (k Key) CanRead() bool {
 	return k.rk != nil
 }
 
-// Marshal returns raw key bytes while conforming to Marshaler.
-func (k Key) Marshal() ([]byte, error) {
+// MarshalBinary implements BinaryMarshaler.
+func (k Key) MarshalBinary() ([]byte, error) {
 	return k.Bytes(), nil
 }
 

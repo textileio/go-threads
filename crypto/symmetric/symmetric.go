@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	// Length of GCM nonce.
+	// NonceBytes is the length of GCM nonce.
 	NonceBytes = 12
 
-	// Length of GCM key.
+	// KeyBytes is the length of GCM key.
 	KeyBytes = 32
 )
 
@@ -57,15 +57,14 @@ func FromString(k string) (*Key, error) {
 	return FromBytes(b)
 }
 
-// Marshal returns raw key bytes.
-func (k *Key) Marshal() ([]byte, error) {
-	return k.raw, nil
-}
-
 // Bytes returns raw key bytes.
-// This is cleaner than marshal when your not dealing with an interface type.
 func (k *Key) Bytes() []byte {
 	return k.raw
+}
+
+// MarshalBinary implements BinaryMarshaler.
+func (k *Key) MarshalBinary() ([]byte, error) {
+	return k.raw, nil
 }
 
 // String returns the base32-encoded string representation of raw key bytes.
