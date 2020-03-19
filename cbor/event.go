@@ -41,7 +41,7 @@ func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, r
 	if err != nil {
 		return nil, err
 	}
-	keyb, err := key.Marshal()
+	keyb, err := key.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}

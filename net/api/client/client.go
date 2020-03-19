@@ -123,8 +123,8 @@ func (c *Client) DeleteThread(ctx context.Context, id thread.ID) error {
 	return err
 }
 
-func (c *Client) AddFollower(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error) {
-	resp, err := c.c.AddFollower(ctx, &pb.AddFollowerRequest{
+func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error) {
+	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
 		ThreadID: id.Bytes(),
 		Addr:     paddr.Bytes(),
 	})
@@ -146,7 +146,7 @@ func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Nod
 	if err != nil {
 		return nil, err
 	}
-	return threadRecordFromProto(resp, info.FollowKey)
+	return threadRecordFromProto(resp, info.Key.Service())
 }
 
 func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
@@ -175,7 +175,7 @@ func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core
 	if err != nil {
 		return nil, err
 	}
-	return cbor.RecordFromProto(util.RecToServiceRec(resp.Record), info.FollowKey)
+	return cbor.RecordFromProto(util.RecToServiceRec(resp.Record), info.Key.Service())
 }
 
 func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan core.ThreadRecord, error) {
@@ -193,7 +193,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	if err != nil {
 		return nil, err
 	}
-	threads := make(map[thread.ID]*symmetric.Key) // Follow-key cache
+	threads := make(map[thread.ID]*symmetric.Key) // Service-key cache
 	channel := make(chan core.ThreadRecord)
 	go func() {
 		defer close(channel)
@@ -214,22 +214,22 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 				log.Errorf("error casting thread ID: %v", err)
 				continue
 			}
-			var fk *symmetric.Key
+			var sk *symmetric.Key
 			var ok bool
-			if fk, ok = threads[threadID]; !ok {
+			if sk, ok = threads[threadID]; !ok {
 				info, err := c.GetThread(ctx, threadID)
 				if err != nil {
 					log.Errorf("error getting thread: %v", err)
 					continue
 				}
-				if info.FollowKey == nil {
-					log.Error("follow-key not found")
+				if info.Key.Service() == nil {
+					log.Error("service-key not found")
 					continue
 				}
-				fk = info.FollowKey
-				threads[threadID] = fk
+				sk = info.Key.Service()
+				threads[threadID] = sk
 			}
-			rec, err := threadRecordFromProto(resp, fk)
+			rec, err := threadRecordFromProto(resp, sk)
 			if err != nil {
 				log.Errorf("error unpacking record: %v", err)
 				continue
@@ -240,13 +240,9 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	return channel, nil
 }
 
-func getThreadKeys(args *core.KeyOptions) (*pb.ThreadKeys, error) {
-	keys := &pb.ThreadKeys{}
-	if args.FollowKey != nil {
-		keys.FollowKey = args.FollowKey.Bytes()
-	}
-	if args.ReadKey != nil {
-		keys.ReadKey = args.ReadKey.Bytes()
+func getThreadKeys(args *core.KeyOptions) (*pb.Keys, error) {
+	keys := &pb.Keys{
+		ThreadKey: args.ThreadKey.Bytes(),
 	}
 	if args.LogKey != nil {
 		var err error
@@ -263,14 +259,7 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 	if err != nil {
 		return
 	}
-	var rk *symmetric.Key
-	if reply.ReadKey != nil {
-		rk, err = symmetric.FromBytes(reply.ReadKey)
-		if err != nil {
-			return
-		}
-	}
-	fk, err := symmetric.FromBytes(reply.FollowKey)
+	k, err := thread.KeyFromBytes(reply.ThreadKey)
 	if err != nil {
 		return
 	}
@@ -314,10 +303,9 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 		}
 	}
 	return thread.Info{
-		ID:        threadID,
-		Logs:      logs,
-		FollowKey: fk,
-		ReadKey:   rk,
+		ID:   threadID,
+		Key:  k,
+		Logs: logs,
 	}, nil
 }
 

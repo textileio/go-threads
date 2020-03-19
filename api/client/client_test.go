@@ -20,7 +20,6 @@ import (
 	. "github.com/textileio/go-threads/api/client"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -54,11 +53,8 @@ func TestNewDBFromAddr(t *testing.T) {
 	t.Run("test new db from address", func(t *testing.T) {
 		addr, err := ma.NewMultiaddr(info.Addresses[0])
 		checkErr(t, err)
-		fk, err := sym.FromBytes(info.FollowKey)
-		checkErr(t, err)
-		rk, err := sym.FromBytes(info.FollowKey)
-		checkErr(t, err)
-		if err := client2.NewDBFromAddr(context.Background(), addr, fk, rk); err != nil {
+		key, err := thread.KeyFromBytes(info.DbKey)
+		if err := client2.NewDBFromAddr(context.Background(), addr, key); err != nil {
 			t.Fatalf("failed to create new db from address: %v", err)
 		}
 	})
@@ -113,11 +109,8 @@ func TestGetDBInfo(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
-		if info.FollowKey == nil {
-			t.Fatal("got nil follow key")
-		}
-		if info.ReadKey == nil {
-			t.Fatal("got nil read key")
+		if info.DbKey == nil {
+			t.Fatal("got nil db key")
 		}
 		if len(info.Addresses) == 0 {
 			t.Fatal("got empty addresses")

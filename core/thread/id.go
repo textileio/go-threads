@@ -10,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 var (
@@ -304,10 +303,9 @@ func (s IDSlice) Less(i, j int) bool { return s[i].str < s[j].str }
 
 // Info holds thread logs and keys.
 type Info struct {
-	ID        ID
-	Logs      []LogInfo
-	FollowKey *sym.Key
-	ReadKey   *sym.Key
+	ID   ID
+	Key  Key
+	Logs []LogInfo
 }
 
 // GetOwnLog returns the first log found with a private key.

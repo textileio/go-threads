@@ -21,13 +21,11 @@ import (
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/discovery"
-	"github.com/mr-tron/base58"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	util "github.com/textileio/go-threads/util"
 )
@@ -134,15 +132,15 @@ func main() {
 				logError(err)
 				continue
 			}
-			if info.ReadKey == nil {
-				continue // just following, we don't have the read key
+			if !info.Key.CanRead() {
+				continue // just servicing, we don't have the read key
 			}
 			event, err := cbor.EventFromRecord(ctx, net, rec.Value())
 			if err != nil {
 				logError(err)
 				continue
 			}
-			node, err := event.GetBody(ctx, net, info.ReadKey)
+			node, err := event.GetBody(ctx, net, info.Key.Read())
 			if err != nil {
 				continue // Not for us
 			}
@@ -151,7 +149,7 @@ func main() {
 			if err != nil {
 				continue // Not one of our messages
 			}
-			header, err := event.GetHeader(ctx, net, info.ReadKey)
+			header, err := event.GetHeader(ctx, net, info.Key.Read())
 			if err != nil {
 				logError(err)
 				continue
@@ -253,7 +251,7 @@ func handleLine(line string) (out string, err error) {
 			}
 			args := strings.Split(parts[1], " ")
 			return addCmd(args)
-		case "add-follower":
+		case "add-replicator":
 			if !threadID.Defined() {
 				err = fmt.Errorf("enter a thread with `:enter` or specify thread name with :<name>")
 				return
@@ -262,7 +260,7 @@ func handleLine(line string) (out string, err error) {
 				err = fmt.Errorf("missing peer address")
 				return
 			}
-			return addFollowerCmd(threadID, parts[1])
+			return addReplicatorCmd(threadID, parts[1])
 		case "":
 			err = fmt.Errorf("missing command")
 			return
@@ -288,16 +286,16 @@ func cmdCmd() (out string, err error) {
 	out += pink(":address  ") + grey("Show the host or active thread addresses.\n")
 	out += pink(":threads  ") + grey("Show threads.\n")
 	out += pink(":add <name>  ") + grey("Add a new thread with name.\n")
-	out += pink(":add <name> <address> <follow-key> <read-key>  ") +
-		grey("Add an existing thread with name at address using a base58-encoded follow and read key.\n")
+	out += pink(":add <name> <address> <thread-key>  ") +
+		grey("Add an existing thread with name at address using a base32-encoded thread key.\n")
 	out += pink(":<name> <message>  ") + grey("Send a message to thread with name.\n")
 	out += pink(":<name>:address  ") + grey("Show thread address.\n")
 	out += pink(":<name>:keys  ") + grey("Show thread keys.\n")
-	out += pink(":<name>:add-follower <address>  ") + grey("Add a follower at address.\n")
+	out += pink(":<name>:add-replicator <address>  ") + grey("Add a replicator at address.\n")
 	out += pink(":enter <name>  ") + grey("Enter thread with name.\n")
 	out += pink(":exit  ") + grey("Exit the active thread.\n")
 	out += pink(":keys  ") + grey("Show the active thread's keys.\n")
-	out += pink(":add-follower <address>  ") + grey("Add a follower at address to active thread.\n")
+	out += pink(":add-replicator <address>  ") + grey("Add a replicator at address to active thread.\n")
 	out += pink("<message>  ") + grey("Send a message to the active thread.")
 	return
 }
@@ -369,15 +367,9 @@ func addCmd(args []string) (out string, err error) {
 		}
 	}
 
-	var fk, rk *sym.Key
+	var k thread.Key
 	if len(args) > 2 {
-		fk, err = util.DecodeKey(args[2])
-		if err != nil {
-			return "", err
-		}
-	}
-	if len(args) > 3 {
-		rk, err = util.DecodeKey(args[3])
+		k, err = thread.KeyFromString(args[2])
 		if err != nil {
 			return "", err
 		}
@@ -397,14 +389,14 @@ func addCmd(args []string) (out string, err error) {
 		if !util.CanDial(addr, net.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
 		}
-		info, err := net.AddThread(ctx, addr, core.FollowKey(fk), core.ReadKey(rk))
+		info, err := net.AddThread(ctx, addr, core.ThreadKey(k))
 		if err != nil {
 			return "", err
 		}
 		go net.PullThread(ctx, info.ID)
 		id = info.ID
 	} else {
-		th, err := net.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32), core.FollowKey(sym.New()), core.ReadKey(sym.New()))
+		th, err := net.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 		if err != nil {
 			return "", err
 		}
@@ -441,8 +433,8 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 			return threadAddressCmd(id)
 		case "keys":
 			return threadKeysCmd(id)
-		case "add-follower":
-			return addFollowerCmd(id, input)
+		case "add-replicator":
+			return addReplicatorCmd(id, input)
 		default:
 			err = fmt.Errorf("unknown command: %s", cmds[1])
 			return
@@ -511,18 +503,13 @@ func threadKeysCmd(id thread.ID) (out string, err error) {
 		return
 	}
 
-	if info.FollowKey != nil {
-		out += grey(base58.Encode(info.FollowKey.Bytes())) + cyan(" (follow-key)")
+	if info.Key.Defined() {
+		out += grey(info.Key.String()) + cyan(" (key)")
 	}
-	if info.ReadKey != nil {
-		out += "\n"
-		out += grey(base58.Encode(info.ReadKey.Bytes())) + red(" (read-key)")
-	}
-
 	return
 }
 
-func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
+func addReplicatorCmd(id thread.ID, addrStr string) (out string, err error) {
 	if addrStr == "" {
 		err = fmt.Errorf("enter a peer address")
 		return
@@ -532,11 +519,11 @@ func addFollowerCmd(id thread.ID, addrStr string) (out string, err error) {
 	if err != nil {
 		return
 	}
-	pid, err := net.AddFollower(ctx, id, addr)
+	pid, err := net.AddReplicator(ctx, id, addr)
 	if err != nil {
 		return
 	}
-	return "Added follower " + pid.String(), nil
+	return "Added replicator " + pid.String(), nil
 }
 
 func sendMessage(id thread.ID, txt string) error {

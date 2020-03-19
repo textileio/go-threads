@@ -58,7 +58,7 @@ func TestE2EWithThreads(t *testing.T) {
 
 	ti, err := n1.GetThread(context.Background(), id1)
 	checkErr(t, err)
-	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.FollowKey, ti.ReadKey, WithRepoPath(tmpDir2))
+	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithRepoPath(tmpDir2))
 	checkErr(t, err)
 	defer d2.Close()
 	c2, err := d2.NewCollectionFromInstance("dummy", &dummy{})

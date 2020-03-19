@@ -23,7 +23,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/net/api"
 	. "github.com/textileio/go-threads/net/api/client"
@@ -51,26 +51,18 @@ func TestClient_CreateThread(t *testing.T) {
 
 	t.Run("test create thread", func(t *testing.T) {
 		id := thread.NewIDV1(thread.Raw, 32)
-		fk, err := symmetric.NewRandom()
-		if err != nil {
-			t.Fatal(err)
-		}
-		rk, err := symmetric.NewRandom()
-		if err != nil {
-			t.Fatal(err)
-		}
-		info, err := client.CreateThread(context.Background(), id, core.FollowKey(fk), core.ReadKey(rk))
+		info, err := client.CreateThread(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
 		if !info.ID.Equals(id) {
 			t.Fatal("got bad ID from create thread")
 		}
-		if info.ReadKey == nil {
+		if info.Key.Read() == nil {
 			t.Fatal("read key should not be nil")
 		}
-		if info.FollowKey == nil {
-			t.Fatal("follow key should not be nil")
+		if info.Key.Service() == nil {
+			t.Fatal("service key should not be nil")
 		}
 	})
 }
@@ -90,11 +82,7 @@ func TestClient_AddThread(t *testing.T) {
 	addr := threadAddr(t, hostAddr1, hostID1, info1)
 
 	t.Run("test add thread", func(t *testing.T) {
-		info2, err := client2.AddThread(
-			context.Background(),
-			addr,
-			core.ReadKey(info1.ReadKey),
-			core.FollowKey(info1.FollowKey))
+		info2, err := client2.AddThread(context.Background(), addr, core.ThreadKey(info1.Key))
 		if err != nil {
 			t.Fatalf("failed to add thread: %v", err)
 		}
@@ -151,7 +139,7 @@ func TestClient_DeleteThread(t *testing.T) {
 	})
 }
 
-func TestClient_AddFollower(t *testing.T) {
+func TestClient_AddReplicator(t *testing.T) {
 	t.Parallel()
 	_, client1, done1 := setup(t)
 	defer done1()
@@ -164,14 +152,14 @@ func TestClient_AddFollower(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("test add follower", func(t *testing.T) {
+	t.Run("test add replicator", func(t *testing.T) {
 		addr := peerAddr(t, hostAddr2, hostID2)
-		pid, err := client1.AddFollower(context.Background(), info.ID, addr)
+		pid, err := client1.AddReplicator(context.Background(), info.ID, addr)
 		if err != nil {
-			t.Fatalf("failed to add follower: %v", err)
+			t.Fatalf("failed to add replicator: %v", err)
 		}
 		if pid.String() == "" {
-			log.Fatal("got bad ID from add follower")
+			log.Fatal("got bad ID from add replicator")
 		}
 	})
 }
@@ -211,15 +199,12 @@ func TestClient_AddRecord(t *testing.T) {
 
 	// Create a thread, keeping read key and log private key on the client
 	id := thread.NewIDV1(thread.Raw, 32)
-	fk, err := symmetric.NewRandom()
-	if err != nil {
-		t.Fatal(err)
-	}
+	tk := thread.NewRandomServiceKey()
 	sk, pk, err := crypto.GenerateEd25519Key(crand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := client.CreateThread(context.Background(), id, core.FollowKey(fk), core.LogKey(pk))
+	info, err := client.CreateThread(context.Background(), id, core.ThreadKey(tk), core.LogKey(pk))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,15 +218,11 @@ func TestClient_AddRecord(t *testing.T) {
 	}
 
 	t.Run("test add record", func(t *testing.T) {
-		rk, err := symmetric.NewRandom()
+		event, err := cbor.CreateEvent(context.Background(), nil, body, sym.New())
 		if err != nil {
 			t.Fatal(err)
 		}
-		event, err := cbor.CreateEvent(context.Background(), nil, body, rk)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rec, err := cbor.CreateRecord(context.Background(), nil, event, cid.Undef, sk, fk)
+		rec, err := cbor.CreateRecord(context.Background(), nil, event, cid.Undef, sk, tk.Service())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -308,7 +289,7 @@ func TestClient_Subscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 	addr := peerAddr(t, hostAddr2, hostID2)
-	if _, err := client1.AddFollower(context.Background(), info.ID, addr); err != nil {
+	if _, err := client1.AddReplicator(context.Background(), info.ID, addr); err != nil {
 		t.Fatal(err)
 	}
 
@@ -444,15 +425,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 
 func createThread(t *testing.T, client *Client) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	fk, err := symmetric.NewRandom()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rk, err := symmetric.NewRandom()
-	if err != nil {
-		t.Fatal(err)
-	}
-	info, err := client.CreateThread(context.Background(), id, core.FollowKey(fk), core.ReadKey(rk))
+	info, err := client.CreateThread(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
 	}

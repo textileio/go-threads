@@ -78,14 +78,14 @@ func (ls *logstore) Threads() (thread.IDSlice, error) {
 
 // AddThread adds a thread with keys.
 func (ls *logstore) AddThread(info thread.Info) error {
-	if info.FollowKey == nil {
-		return fmt.Errorf("a follow-key is required to add a thread")
+	if info.Key.Service() == nil {
+		return fmt.Errorf("a service-key is required to add a thread")
 	}
-	if err := ls.AddFollowKey(info.ID, info.FollowKey); err != nil {
+	if err := ls.AddServiceKey(info.ID, info.Key.Service()); err != nil {
 		return err
 	}
-	if info.ReadKey != nil {
-		if err := ls.AddReadKey(info.ID, info.ReadKey); err != nil {
+	if info.Key.CanRead() {
+		if err := ls.AddReadKey(info.ID, info.Key.Read()); err != nil {
 			return err
 		}
 	}
@@ -94,11 +94,11 @@ func (ls *logstore) AddThread(info thread.Info) error {
 
 // GetThread returns thread info of the given id.
 func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
-	fk, err := ls.FollowKey(id)
+	sk, err := ls.ServiceKey(id)
 	if err != nil {
 		return
 	}
-	if fk == nil {
+	if sk == nil {
 		return info, core.ErrThreadNotFound
 	}
 	rk, err := ls.ReadKey(id)
@@ -132,10 +132,9 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 	}
 
 	return thread.Info{
-		ID:        id,
-		Logs:      logs,
-		FollowKey: fk,
-		ReadKey:   rk,
+		ID:   id,
+		Logs: logs,
+		Key:  thread.NewKey(sk, rk),
 	}, nil
 }
 

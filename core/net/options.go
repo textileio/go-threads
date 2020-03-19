@@ -3,30 +3,21 @@ package net
 import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
 )
 
 // KeyOptions defines options for keys when creating / adding a thread.
 type KeyOptions struct {
-	FollowKey *symmetric.Key
-	ReadKey   *symmetric.Key
+	ThreadKey thread.Key
 	LogKey    crypto.Key
 }
 
 // KeyOption specifies encryption keys.
 type KeyOption func(*KeyOptions)
 
-// FollowKey allows thread record traversal.
-func FollowKey(key *symmetric.Key) KeyOption {
+// ThreadKey handles log encryption.
+func ThreadKey(key thread.Key) KeyOption {
 	return func(args *KeyOptions) {
-		args.FollowKey = key
-	}
-}
-
-// ReadKey allows for thread record decryption.
-func ReadKey(key *symmetric.Key) KeyOption {
-	return func(args *KeyOptions) {
-		args.ReadKey = key
+		args.ThreadKey = key
 	}
 }
 

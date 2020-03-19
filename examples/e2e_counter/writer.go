@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
@@ -70,10 +69,9 @@ func saveThreadMultiaddrForOtherPeer(n net.Net, threadID thread.ID) {
 	threadComp, _ := multiaddr.NewComponent("thread", threadID.String())
 
 	listenAddr := n.Host().Addrs()[0].Encapsulate(id).Encapsulate(threadComp).String()
-	followKey := base58.Encode(tinfo.FollowKey.Bytes())
-	readKey := base58.Encode(tinfo.ReadKey.Bytes())
+	key := tinfo.Key.String()
 
-	data := fmt.Sprintf("%s %s %s", listenAddr, followKey, readKey)
+	data := fmt.Sprintf("%s %s", listenAddr, key)
 	if err := ioutil.WriteFile(".e2e_counter_writeraddr", []byte(data), 0644); err != nil {
 		panic(err)
 	}

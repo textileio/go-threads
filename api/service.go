@@ -12,7 +12,6 @@ import (
 	coredb "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc/codes"
@@ -51,7 +50,7 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 		network,
 		db.WithJsonMode(true),
 		db.WithRepoPath(conf.RepoPath),
-		db.WithDebug(true))
+		db.WithDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +84,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	rk, err := sym.FromBytes(req.ReadKey)
-	if err != nil {
-		return nil, err
-	}
-	fk, err := sym.FromBytes(req.FollowKey)
+	key, err := thread.KeyFromBytes(req.DbKey)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +93,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	for i, c := range req.Collections {
 		collections[i] = collectionConfigFromPb(c)
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, addr, fk, rk, collections...); err != nil {
+	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, collections...); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -139,8 +134,7 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	}
 	reply := &pb.GetDBInfoReply{
 		Addresses: res,
-		FollowKey: tinfo.FollowKey.Bytes(),
-		ReadKey:   tinfo.ReadKey.Bytes(),
+		DbKey:     tinfo.Key.Bytes(),
 	}
 	return reply, nil
 }

@@ -28,20 +28,20 @@ const (
 
 // getLogs in a thread.
 func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thread.LogInfo, error) {
-	fk, err := s.net.store.FollowKey(id)
+	sk, err := s.net.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
-	if fk == nil {
-		return nil, fmt.Errorf("a follow-key is required to request logs")
+	if sk == nil {
+		return nil, fmt.Errorf("a service-key is required to request logs")
 	}
 
 	req := &pb.GetLogsRequest{
 		Header: &pb.GetLogsRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
-		ThreadID:  &pb.ProtoThreadID{ID: id},
-		FollowKey: &pb.ProtoKey{Key: fk},
+		ThreadID:   &pb.ProtoThreadID{ID: id},
+		ServiceKey: &pb.ProtoKey{Key: sk},
 	}
 
 	log.Debugf("getting %s logs from %s...", id.String(), pid.String())
@@ -71,7 +71,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 }
 
 // pushLog to a peer.
-func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, pid peer.ID, fk *sym.Key, rk *sym.Key) error {
+func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, pid peer.ID, sk *sym.Key, rk *sym.Key) error {
 	lreq := &pb.PushLogRequest{
 		Header: &pb.PushLogRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
@@ -79,8 +79,8 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 		ThreadID: &pb.ProtoThreadID{ID: id},
 		Log:      logToProto(lg),
 	}
-	if fk != nil {
-		lreq.FollowKey = &pb.ProtoKey{Key: fk}
+	if sk != nil {
+		lreq.ServiceKey = &pb.ProtoKey{Key: sk}
 	}
 	if rk != nil {
 		lreq.ReadKey = &pb.ProtoKey{Key: rk}
@@ -147,12 +147,12 @@ func (r *records) Store(p peer.ID, key cid.Cid, value core.Record) {
 
 // getRecords from log addresses.
 func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offsets map[peer.ID]cid.Cid, limit int) (map[peer.ID][]core.Record, error) {
-	fk, err := s.net.store.FollowKey(id)
+	sk, err := s.net.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
-	if fk == nil {
-		return nil, fmt.Errorf("a follow-key is required to request records")
+	if sk == nil {
+		return nil, fmt.Errorf("a service-key is required to request records")
 	}
 
 	pblgs := make([]*pb.GetRecordsRequest_LogEntry, 0, len(offsets))
@@ -168,9 +168,9 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 		Header: &pb.GetRecordsRequest_Header{
 			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
-		ThreadID:  &pb.ProtoThreadID{ID: id},
-		FollowKey: &pb.ProtoKey{Key: fk},
-		Logs:      pblgs,
+		ThreadID:   &pb.ProtoThreadID{ID: id},
+		ServiceKey: &pb.ProtoKey{Key: sk},
+		Logs:       pblgs,
 	}
 
 	lg, err := s.net.store.GetLog(id, lid)
@@ -239,7 +239,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				}
 
 				for _, r := range l.Records {
-					rec, err := cbor.RecordFromProto(r, fk)
+					rec, err := cbor.RecordFromProto(r, sk)
 					if err != nil {
 						log.Error(err)
 						return

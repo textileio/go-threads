@@ -85,22 +85,20 @@ public class Client implements LifecycleObserver {
         asyncStub.newDB(request.build(), responseObserver);
     }
 
-    public void NewDBFromAddrSync (String address, ByteString followKey, ByteString readKey, List<CollectionConfig> collections) {
+    public void NewDBFromAddrSync (String address, ByteString key, List<CollectionConfig> collections) {
         NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
         request.setDbAddr(address);
-        request.setFollowKey(followKey);
-        request.setReadKey(readKey);
+        request.setDbKey(key);
         for (int i = 0; i < collections.size(); i++) {
             request.setCollections(i, collections.get(i));
         }
         blockingStub.newDBFromAddr(request.build());
     }
 
-    public void NewDBFromAddr (String address, ByteString followKey, ByteString readKey, List<CollectionConfig> collections, StreamObserver<NewDBReply> responseObserver) {
+    public void NewDBFromAddr (String address, ByteString key, List<CollectionConfig> collections, StreamObserver<NewDBReply> responseObserver) {
         NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
         request.setDbAddr(address);
-        request.setFollowKey(followKey);
-        request.setReadKey(readKey);
+        request.setDbKey(key);
         for (int i = 0; i < collections.size(); i++) {
             request.setCollections(i, collections.get(i));
         }

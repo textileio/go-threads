@@ -14,7 +14,7 @@ type EncryptionKey interface {
 	Encrypt([]byte) ([]byte, error)
 
 	// Marshal to bytes.
-	Marshal() ([]byte, error)
+	MarshalBinary() ([]byte, error)
 }
 
 // EncryptionKey represents a key that can be used for decryption.

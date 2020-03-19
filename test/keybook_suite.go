@@ -153,12 +153,12 @@ func testKeyBookFollowKey(kb core.KeyBook) func(t *testing.T) {
 			t.Error(err)
 		}
 
-		err = kb.AddFollowKey(tid, key)
+		err = kb.AddServiceKey(tid, key)
 		if err != nil {
 			t.Error(err)
 		}
 
-		if res, err := kb.FollowKey(tid); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
+		if res, err := kb.ServiceKey(tid); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key without errors")
 		}
 	}
