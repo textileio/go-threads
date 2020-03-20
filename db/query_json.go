@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -52,6 +53,12 @@ const (
 	Ge = JSONOperation(ge)
 	// Le is "less than or equal to"
 	Le = JSONOperation(le)
+)
+
+var (
+	// ErrInvalidSortingField is returned when a query sorts a result by a
+	// non-existent field in the collection schema.
+	ErrInvalidSortingField = errors.New("sorting field doesn't correspond to instance type")
 )
 
 type marshaledValue struct {

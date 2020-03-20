@@ -48,7 +48,6 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 
 	manager, err := db.NewManager(
 		network,
-		db.WithJsonMode(true),
 		db.WithRepoPath(conf.RepoPath),
 		db.WithDebug(conf.Debug))
 	if err != nil {

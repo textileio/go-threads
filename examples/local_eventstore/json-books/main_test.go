@@ -2,6 +2,6 @@ package main
 
 import "testing"
 
-func TestBookE2EJsonMode(test *testing.T) {
+func TestBookE2E(test *testing.T) {
 	main()
 }

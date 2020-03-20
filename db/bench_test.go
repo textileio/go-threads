@@ -63,7 +63,6 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	id := thread.NewIDV1(thread.Raw, 32)
 	opts = append(opts, WithRepoPath(dir))
-	opts = append(opts, WithJsonMode(true))
 	d, err := NewDB(context.Background(), n, id, opts...)
 	checkBenchErr(b, err)
 	return d, func() {

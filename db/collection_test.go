@@ -8,6 +8,7 @@ import (
 
 	logging "github.com/ipfs/go-log"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/util"
 )
 
 const (
@@ -34,22 +35,31 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestNewCollectionFromInstance(t *testing.T) {
+func TestNewCollection(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		_, err := db.NewCollectionFromInstance("Dog", &Dog{})
+		_, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}),
+		})
 		checkErr(t, err)
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		_, err := db.NewCollectionFromInstance("Dog", &Dog{})
+		_, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}),
+		})
 		checkErr(t, err)
-		_, err = db.NewCollectionFromInstance("Person", &Person{})
+		_, err = db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 	})
 	t.Run("Fail/WithoutInstanceID", func(t *testing.T) {
@@ -59,7 +69,11 @@ func TestNewCollectionFromInstance(t *testing.T) {
 		}
 		db, clean := createTestDB(t)
 		defer clean()
-		if _, err := db.NewCollectionFromInstance("FailingType", &FailingType{}); err != ErrInvalidCollectionType {
+		cc := CollectionConfig{
+			Name:   "FailingType",
+			Schema: util.SchemaFromInstance(&FailingType{}),
+		}
+		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionType {
 			t.Fatal("the collection should be invalid")
 		}
 	})
@@ -71,19 +85,22 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollectionFromInstance("Person", &Person{})
+		collection, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 
 		t.Run("WithImplicitTx", func(t *testing.T) {
 			newPerson := &Person{Name: "Foo", Age: 42}
-			err = collection.Create(newPerson)
+			err = collection.Create(util.JSONStringFromInstance(newPerson))
 			checkErr(t, err)
 			assertPersonInCollection(t, collection, newPerson)
 		})
 		t.Run("WithTx", func(t *testing.T) {
 			newPerson := &Person{Name: "Foo", Age: 42}
 			err = collection.WriteTxn(func(txn *Txn) error {
-				return txn.Create(newPerson)
+				return txn.Create(util.JSONStringFromInstance(newPerson))
 			})
 			checkErr(t, err)
 			assertPersonInCollection(t, collection, newPerson)
@@ -93,17 +110,20 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollectionFromInstance("Person", &Person{})
+		collection, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 
 		newPerson1 := &Person{Name: "Foo1", Age: 42}
 		newPerson2 := &Person{Name: "Foo2", Age: 43}
 		err = collection.WriteTxn(func(txn *Txn) error {
-			err := txn.Create(newPerson1)
+			err := txn.Create(util.JSONStringFromInstance(newPerson1))
 			if err != nil {
 				return err
 			}
-			return txn.Create(newPerson2)
+			return txn.Create(util.JSONStringFromInstance(newPerson2))
 		})
 		checkErr(t, err)
 		assertPersonInCollection(t, collection, newPerson1)
@@ -114,12 +134,15 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollectionFromInstance("Person", &Person{})
+		collection, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 
 		definedID := core.NewInstanceID()
 		newPerson := &Person{ID: definedID, Name: "Foo1", Age: 42}
-		checkErr(t, collection.Create(newPerson))
+		checkErr(t, collection.Create(util.JSONStringFromInstance(newPerson)))
 
 		exists, err := collection.Has(definedID)
 		checkErr(t, err)
@@ -133,13 +156,16 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.NewCollectionFromInstance("Person", &Person{})
+		m, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 
 		p := &Person{Name: "Foo1", Age: 42}
-		checkErr(t, m.Create(p))
+		checkErr(t, m.Create(util.JSONStringFromInstance(p)))
 		p2 := &Person{ID: p.ID, Name: "Fool2", Age: 43}
-		if err = m.Create(p2); !errors.Is(err, errCantCreateExistingInstance) {
+		if err = m.Create(util.JSONStringFromInstance(p2)); !errors.Is(err, errCantCreateExistingInstance) {
 			t.Fatal("shouldn't create already existing instance")
 		}
 	})
@@ -152,11 +178,14 @@ func TestReadTxnValidation(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.NewCollectionFromInstance("Person", &Person{})
+		m, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
 		err = m.ReadTxn(func(txn *Txn) error {
-			return txn.Create(p)
+			return txn.Create(util.JSONStringFromInstance(p))
 		})
 		if !errors.Is(err, ErrReadonlyTx) {
 			t.Fatal("shouldn't write on read-only transaction")
@@ -166,12 +195,15 @@ func TestReadTxnValidation(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.NewCollectionFromInstance("Person", &Person{})
+		m, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
-		checkErr(t, m.Create(p))
+		checkErr(t, m.Create(util.JSONStringFromInstance(p)))
 		err = m.ReadTxn(func(txn *Txn) error {
-			return txn.Save(p)
+			return txn.Save(util.JSONStringFromInstance(p))
 		})
 		if !errors.Is(err, ErrReadonlyTx) {
 			t.Fatal("shouldn't write on read-only transaction")
@@ -181,10 +213,13 @@ func TestReadTxnValidation(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.NewCollectionFromInstance("Person", &Person{})
+		m, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 		p := &Person{Name: "Foo1", Age: 42}
-		checkErr(t, m.Create(p))
+		checkErr(t, m.Create(util.JSONStringFromInstance(p)))
 		err = m.ReadTxn(func(txn *Txn) error {
 			return txn.Delete(p.ID)
 		})
@@ -199,19 +234,22 @@ func TestVariadic(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	m, err := db.NewCollectionFromInstance("Person", &Person{})
+	m, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: util.SchemaFromInstance(&Person{}),
+	})
 	checkErr(t, err)
 
 	p1 := &Person{Name: "Foo1", Age: 42}
 	p2 := &Person{Name: "Foo2", Age: 43}
 	p3 := &Person{Name: "Foo3", Age: 44}
-	checkErr(t, m.Create(p1, p2, p3))
+	checkErr(t, m.Create(util.JSONStringFromInstance(p1), util.JSONStringFromInstance(p2), util.JSONStringFromInstance(p3)))
 	assertPersonInCollection(t, m, p1)
 	assertPersonInCollection(t, m, p2)
 	assertPersonInCollection(t, m, p3)
 
 	p1.Age, p2.Age, p3.Age = 51, 52, 53
-	checkErr(t, m.Save(p1, p2, p3))
+	checkErr(t, m.Save(util.JSONStringFromInstance(p1), util.JSONStringFromInstance(p2), util.JSONStringFromInstance(p3)))
 	assertPersonInCollection(t, m, p1)
 	assertPersonInCollection(t, m, p2)
 	assertPersonInCollection(t, m, p3)
@@ -233,29 +271,33 @@ func TestGetInstance(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	collection, err := db.NewCollectionFromInstance("Person", &Person{})
+	collection, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: util.SchemaFromInstance(&Person{}),
+	})
 	checkErr(t, err)
 
 	newPerson := &Person{Name: "Foo", Age: 42}
+	newPersonString := util.JSONStringFromInstance(newPerson)
 	err = collection.WriteTxn(func(txn *Txn) error {
-		return txn.Create(newPerson)
+		return txn.Create(newPersonString)
 	})
 	checkErr(t, err)
 
 	t.Run("WithImplicitTx", func(t *testing.T) {
-		person := &Person{}
-		err = collection.FindByID(newPerson.ID, person)
+		var personString *string
+		err = collection.FindByID(newPerson.ID, personString)
 		checkErr(t, err)
-		if !reflect.DeepEqual(newPerson, person) {
+		if newPersonString != personString {
 			t.Fatalf(errInvalidInstanceState)
 		}
 	})
 	t.Run("WithReadTx", func(t *testing.T) {
-		person := &Person{}
+		var personString *string
 		err = collection.ReadTxn(func(txn *Txn) error {
-			err := txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, personString)
 			checkErr(t, err)
-			if !reflect.DeepEqual(newPerson, person) {
+			if newPersonString != personString {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
@@ -263,11 +305,11 @@ func TestGetInstance(t *testing.T) {
 		checkErr(t, err)
 	})
 	t.Run("WithUpdateTx", func(t *testing.T) {
-		person := &Person{}
+		var personString *string
 		err = collection.WriteTxn(func(txn *Txn) error {
-			err := txn.FindByID(newPerson.ID, person)
+			err := txn.FindByID(newPerson.ID, personString)
 			checkErr(t, err)
-			if !reflect.DeepEqual(newPerson, person) {
+			if newPersonString != personString {
 				t.Fatalf(errInvalidInstanceState)
 			}
 			return nil
@@ -283,28 +325,37 @@ func TestSaveInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollectionFromInstance("Person", &Person{})
+		collection, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 
 		newPerson := &Person{Name: "Alice", Age: 42}
+		newPersonString := util.JSONStringFromInstance(newPerson)
 		err = collection.WriteTxn(func(txn *Txn) error {
-			return txn.Create(newPerson)
+			return txn.Create(newPersonString)
 		})
 		checkErr(t, err)
 
 		err = collection.WriteTxn(func(txn *Txn) error {
-			p := &Person{}
-			err := txn.FindByID(newPerson.ID, p)
+			var personString *string
+			err := txn.FindByID(newPerson.ID, personString)
 			checkErr(t, err)
 
+			p := &Person{}
+			util.InstanceFromJSONString(personString, p)
+
 			p.Name = "Bob"
-			return txn.Save(p)
+			return txn.Save(util.JSONStringFromInstance(p))
 		})
 		checkErr(t, err)
 
-		person := &Person{}
-		err = collection.FindByID(newPerson.ID, person)
+		var personString *string
+		err = collection.FindByID(newPerson.ID, personString)
 		checkErr(t, err)
+		person := &Person{}
+		util.InstanceFromJSONString(personString, person)
 		if person.ID != newPerson.ID || person.Age != 42 || person.Name != "Bob" {
 			t.Fatalf(errInvalidInstanceState)
 		}
@@ -313,11 +364,14 @@ func TestSaveInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		m, err := db.NewCollectionFromInstance("Person", &Person{})
+		m, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}),
+		})
 		checkErr(t, err)
 
 		p := &Person{Name: "Alice", Age: 42}
-		if err := m.Save(p); !errors.Is(err, errCantSaveNonExistentInstance) {
+		if err := m.Save(util.JSONStringFromInstance(p)); !errors.Is(err, errCantSaveNonExistentInstance) {
 			t.Fatal("shouldn't save non-existent instasnce")
 		}
 	})
@@ -328,27 +382,35 @@ func TestDeleteInstance(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	collection, err := db.NewCollectionFromInstance("Person", &Person{})
-	checkErr(t, err)
-
-	newPerson := &Person{Name: "Alice", Age: 42}
-	err = collection.WriteTxn(func(txn *Txn) error {
-		return txn.Create(newPerson)
+	collection, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: util.SchemaFromInstance(&Person{}),
 	})
 	checkErr(t, err)
 
-	err = collection.Delete(newPerson.ID)
+	newPerson := &Person{Name: "Alice", Age: 42}
+	newPersonString := util.JSONStringFromInstance(newPerson)
+	err = collection.WriteTxn(func(txn *Txn) error {
+		return txn.Create(newPersonString)
+	})
 	checkErr(t, err)
 
-	if err = collection.FindByID(newPerson.ID, &Person{}); err != ErrNotFound {
+	createdPerson := &Person{}
+	util.InstanceFromJSONString(newPersonString, createdPerson)
+
+	err = collection.Delete(createdPerson.ID)
+	checkErr(t, err)
+
+	var personString *string
+	if err = collection.FindByID(createdPerson.ID, personString); err != ErrNotFound {
 		t.Fatalf("FindByID: instance shouldn't exist")
 	}
-	if exist, err := collection.Has(newPerson.ID); exist || err != nil {
+	if exist, err := collection.Has(createdPerson.ID); exist || err != nil {
 		t.Fatalf("Has: instance shouldn't exist")
 	}
 
 	// Try to delete again
-	if err = collection.Delete(newPerson.ID); err != ErrNotFound {
+	if err = collection.Delete(createdPerson.ID); err != ErrNotFound {
 		t.Fatalf("cant't delete non-existent instance")
 	}
 }
@@ -363,20 +425,23 @@ func TestInvalidActions(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	collection, err := db.NewCollectionFromInstance("Person", &Person{})
+	collection, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: util.SchemaFromInstance(&Person{}),
+	})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
 		f := &PersonFake{Name: "fake"}
-		if err := collection.Create(f); !errors.Is(err, ErrInvalidSchemaInstance) {
+		if err := collection.Create(util.JSONStringFromInstance(f)); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
 	t.Run("Save", func(t *testing.T) {
 		r := &Person{Name: "real"}
-		err := collection.Create(r)
+		err := collection.Create(util.JSONStringFromInstance(r))
 		checkErr(t, err)
 		f := &PersonFake{Name: "fake"}
-		if err := collection.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
+		if err := collection.Save(util.JSONStringFromInstance(f)); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
@@ -384,9 +449,11 @@ func TestInvalidActions(t *testing.T) {
 
 func assertPersonInCollection(t *testing.T, collection *Collection, person *Person) {
 	t.Helper()
-	p := &Person{}
-	err := collection.FindByID(person.ID, p)
+	var personString *string
+	err := collection.FindByID(person.ID, personString)
 	checkErr(t, err)
+	p := &Person{}
+	util.InstanceFromJSONString(personString, p)
 	if !reflect.DeepEqual(person, p) {
 		t.Fatalf(errInvalidInstanceState)
 	}

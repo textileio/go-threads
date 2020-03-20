@@ -11,6 +11,7 @@ import (
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/util"
 )
 
 type myCounter struct {
@@ -30,17 +31,26 @@ func runWriterPeer(repo string) {
 	checkErr(err)
 	defer d.Close()
 
-	m, err := d.NewCollectionFromInstance("counter", &myCounter{})
+	m, err := d.NewCollection(db.CollectionConfig{
+		Name:   "counter",
+		Schema: util.SchemaFromInstance(&myCounter{}),
+	})
 	checkErr(err)
 
 	var counter *myCounter
-	var counters []*myCounter
-	checkErr(m.Find(&counters, db.Where("Name").Eq("TestCounter")))
+	res, err := m.Find(db.JSONWhere("Name").Eq("TestCounter"))
+	checkErr(err)
+	counters := make([]*myCounter, len(res))
+	for i, counterJSON := range res {
+		counter := &myCounter{}
+		util.InstanceFromJSONString(&counterJSON, counter)
+		counters[i] = counter
+	}
 	if len(counters) > 0 {
 		counter = counters[0]
 	} else {
 		counter = &myCounter{Name: "TestCounter", Count: 0}
-		checkErr(m.Create(counter))
+		checkErr(m.Create(util.JSONStringFromInstance(counter)))
 	}
 
 	saveThreadMultiaddrForOtherPeer(n, id)
@@ -48,13 +58,15 @@ func runWriterPeer(repo string) {
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
 		err = m.WriteTxn(func(txn *db.Txn) error {
-			c := &myCounter{}
-			if err = txn.FindByID(counter.ID, c); err != nil {
+			var counterJSON *string
+			if err = txn.FindByID(counter.ID, counterJSON); err != nil {
 				return err
 			}
+			c := &myCounter{}
+			util.InstanceFromJSONString(counterJSON, c)
 			c.Count++
 			fmt.Printf("%d ,", c.Count)
-			return txn.Save(c)
+			return txn.Save(util.JSONStringFromInstance(c))
 		})
 		checkErr(err)
 	}

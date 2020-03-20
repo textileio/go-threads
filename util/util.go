@@ -1,12 +1,14 @@
 package util
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/alecthomas/jsonschema"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -129,4 +131,28 @@ func MustParseAddr(str string) ma.Multiaddr {
 		panic(err)
 	}
 	return addr
+}
+
+func SchemaFromInstance(i interface{}) string {
+	schema := jsonschema.Reflect(i)
+	JSON, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(JSON)
+}
+
+func JSONStringFromInstance(i interface{}) *string {
+	JSON, err := json.MarshalIndent(i, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	val := string(JSON)
+	return &val
+}
+
+func InstanceFromJSONString(s *string, i interface{}) {
+	if err := json.Unmarshal([]byte(s), i); err != nil {
+		panic(err)
+	}
 }

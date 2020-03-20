@@ -55,7 +55,6 @@ type DB struct {
 
 	lock            sync.RWMutex
 	collectionNames map[string]*Collection
-	jsonMode        bool
 	closed          bool
 
 	localEventsBus      *localEventsBus
@@ -114,7 +113,7 @@ func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key 
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(n net.Net, id thread.ID, config *Config, collections ...CollectionConfig) (*DB, error) {
+func newDB(n net.Net, id thread.ID, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -123,7 +122,7 @@ func newDB(n net.Net, id thread.ID, config *Config, collections ...CollectionCon
 		config.Datastore = datastore
 	}
 	if config.EventCodec == nil {
-		config.EventCodec = newDefaultEventCodec(config.JsonMode)
+		config.EventCodec = newDefaultEventCodec()
 	}
 	if !managedDatastore(config.Datastore) {
 		if config.Debug {
@@ -140,18 +139,15 @@ func newDB(n net.Net, id thread.ID, config *Config, collections ...CollectionCon
 		dispatcher:          newDispatcher(config.Datastore),
 		eventcodec:          config.EventCodec,
 		collectionNames:     make(map[string]*Collection),
-		jsonMode:            config.JsonMode,
 		localEventsBus:      &localEventsBus{bus: broadcast.NewBroadcaster(0)},
 		stateChangedNotifee: &stateChangedNotifee{},
 	}
-	if d.jsonMode {
-		if err := d.reCreateCollections(); err != nil {
-			return nil, err
-		}
+	if err := d.reCreateCollections(); err != nil {
+		return nil, err
 	}
 	d.dispatcher.Register(d)
 
-	for _, cc := range collections {
+	for _, cc := range config.Collections {
 		if _, err := d.NewCollection(cc); err != nil {
 			return nil, err
 		}
@@ -190,30 +186,6 @@ func (d *DB) reCreateCollections() error {
 		}
 	}
 	return nil
-}
-
-// NewCollectionFromInstance creates a new collection in the db
-// by infering type from a defaultInstance.
-func (d *DB) NewCollectionFromInstance(name string, defaultInstance interface{}) (*Collection, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
-	diType := reflect.TypeOf(defaultInstance)
-	if reflect.ValueOf(defaultInstance).IsNil() || diType.Kind() != reflect.Ptr || diType.Elem().Kind() != reflect.Struct {
-		return nil, ErrInvalidCollectionType
-	}
-
-	if _, ok := d.collectionNames[name]; ok {
-		return nil, fmt.Errorf("already registered collection")
-	}
-
-	if !isValidCollection(defaultInstance) {
-		return nil, ErrInvalidCollectionType
-	}
-
-	c := newCollection(name, defaultInstance, d)
-	d.collectionNames[name] = c
-	return c, nil
 }
 
 // CollectionConfig describes a new Collection.

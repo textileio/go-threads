@@ -64,7 +64,7 @@ var (
 )
 
 func main() {
-	d, clean := createJsonModeMemDB()
+	d, clean := createMemDB()
 	defer clean()
 
 	collection, err := d.NewCollection(db.CollectionConfig{Name: "Book", Schema: jsonSchema})
@@ -114,13 +114,13 @@ func main() {
 	}
 }
 
-func createJsonModeMemDB() (*db.DB, func()) {
+func createMemDB() (*db.DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
 	n, err := db.DefaultNetwork(dir)
 	checkErr(err)
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(dir), db.WithJsonMode(true))
+	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(dir))
 	checkErr(err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work

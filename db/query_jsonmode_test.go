@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	testQueryJSONModeSchema = `{
+	testQuerySchema = `{
 		"$schema": "http://json-schema.org/draft-04/schema#",
 		"$ref": "#/definitions/book",
 		"definitions": {
@@ -304,7 +304,7 @@ var (
 	}
 )
 
-func TestQueryJsonMode(t *testing.T) {
+func TestQuery(t *testing.T) {
 	c, clean := createCollectionWithJSONData(t)
 	defer clean()
 
@@ -339,10 +339,10 @@ func TestQueryJsonMode(t *testing.T) {
 }
 
 func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
-	s, clean := createTestDB(t, WithJsonMode(true))
+	s, clean := createTestDB(t)
 	c, err := s.NewCollection(CollectionConfig{
 		Name:   "Book",
-		Schema: testQueryJSONModeSchema,
+		Schema: testQuerySchema,
 		Indexes: []IndexConfig{{
 			Path: "Meta.TotalReads",
 		},
