@@ -7,8 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
@@ -37,7 +39,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 	}
 
 	req := &pb.GetLogsRequest{
-		Header: &pb.GetLogsRequest_Header{
+		Header: &pb.Header{
 			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
 		ThreadID:   &pb.ProtoThreadID{ID: id},
@@ -71,12 +73,20 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 
 // pushLog to a peer.
 func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, pid peer.ID, sk *sym.Key, rk *sym.Key) error {
+	// Serialize and sign the record for transport
+	pblog := logToProto(lg)
+	sig, key, err := s.signRequest(pblog)
+	if err != nil {
+		return err
+	}
 	lreq := &pb.PushLogRequest{
-		Header: &pb.PushLogRequest_Header{
+		Header: &pb.Header{
 			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
+			Sig:  sig,
+			Key:  &pb.ProtoPubKey{PubKey: key.GetPublic()},
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
-		Log:      logToProto(lg),
+		Log:      pblog,
 	}
 	if sk != nil {
 		lreq.ServiceKey = &pb.ProtoKey{Key: sk}
@@ -164,7 +174,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 	}
 
 	req := &pb.GetRecordsRequest{
-		Header: &pb.GetRecordsRequest_Header{
+		Header: &pb.Header{
 			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
 		},
 		ThreadID:   &pb.ProtoThreadID{ID: id},
@@ -270,24 +280,15 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	if err != nil {
 		return err
 	}
-	payload, err := pbrec.Marshal()
+	sig, key, err := s.signRequest(pbrec)
 	if err != nil {
 		return err
 	}
-	sk := s.net.getPrivKey()
-	if sk == nil {
-		return fmt.Errorf("private key for host not found")
-	}
-	sig, err := sk.Sign(payload)
-	if err != nil {
-		return err
-	}
-
 	req := &pb.PushRecordRequest{
-		Header: &pb.PushRecordRequest_Header{
-			From:      &pb.ProtoPeerID{ID: s.net.host.ID()},
-			Signature: sig,
-			Key:       &pb.ProtoPubKey{PubKey: sk.GetPublic()},
+		Header: &pb.Header{
+			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
+			Sig:  sig,
+			Key:  &pb.ProtoPubKey{PubKey: key.GetPublic()},
 		},
 		ThreadID: &pb.ProtoThreadID{ID: id},
 		LogID:    &pb.ProtoPeerID{ID: lid},
@@ -325,21 +326,29 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 			}
 			client := pb.NewServiceClient(conn)
 			if _, err = client.PushRecord(cctx, req); err != nil {
-				if status.Convert(err).Code() == codes.NotFound {
+				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
 					log.Debugf("pushing log %s to %s...", lid, p)
 
-					// Send the missing log
+					// Serialize and sign the record for transport
 					l, err := s.net.store.GetLog(id, lid)
 					if err != nil {
 						log.Error(err)
 						return
 					}
+					pblog := logToProto(l)
+					sig, key, err := s.signRequest(pblog)
+					if err != nil {
+						log.Error(err)
+						return
+					}
 					lreq := &pb.PushLogRequest{
-						Header: &pb.PushLogRequest_Header{
+						Header: &pb.Header{
 							From: &pb.ProtoPeerID{ID: s.net.host.ID()},
+							Sig:  sig,
+							Key:  &pb.ProtoPubKey{PubKey: key.GetPublic()},
 						},
 						ThreadID: &pb.ProtoThreadID{ID: id},
-						Log:      logToProto(l),
+						Log:      pblog,
 					}
 					if _, err = client.PushLog(cctx, lreq); err != nil {
 						log.Warnf("push log to %s failed: %s", p, err)
@@ -377,4 +386,22 @@ func (s *server) getDialOption() grpc.DialOption {
 		}
 		return gostream.Dial(ctx, s.net.host, id, thread.Protocol)
 	})
+}
+
+// signRequest signs an outbound proto message with the host's private key.
+func (s *server) signRequest(msg proto.Marshaler) (sig []byte, key crypto.PrivKey, err error) {
+	payload, err := msg.Marshal()
+	if err != nil {
+		return
+	}
+	key = s.net.getPrivKey()
+	if key == nil {
+		err = fmt.Errorf("private key for host not found")
+		return
+	}
+	sig, err = key.Sign(payload)
+	if err != nil {
+		return
+	}
+	return sig, key, nil
 }

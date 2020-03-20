@@ -165,6 +165,10 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 			log.Errorf("error unmarshaling published record", err)
 			continue
 		}
+		if from.String() != req.Header.From.ID.String() {
+			log.Warnf("multicast sender does not match record header (%s != %s)", from, req.Header.From.ID)
+			continue
+		}
 
 		log.Debugf("received multicast record from %s", from)
 

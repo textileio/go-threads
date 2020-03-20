@@ -6,9 +6,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
@@ -63,7 +64,6 @@ func (s *server) pubsubHandler(ctx context.Context, req *pb.PushRecordRequest) {
 }
 
 // GetLogs receives a get logs request.
-// @todo: Verification
 func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
@@ -71,7 +71,6 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 	log.Debugf("received get logs request from %s", req.Header.From.ID)
 
 	pblgs := &pb.GetLogsReply{}
-
 	if err := s.checkServiceKey(req.ThreadID.ID, req.ServiceKey); err != nil {
 		return pblgs, err
 	}
@@ -92,13 +91,21 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 }
 
 // PushLog receives a push log request.
-// @todo: Verification
 // @todo: Don't overwrite info from non-owners
 func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
 	log.Debugf("received push log request from %s", req.Header.From.ID)
+
+	// Verify the request
+	reqpk, err := getHeaderKey(req.Header)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if err = verifyRequest(req.Log, reqpk, req.Header.Sig); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	// Pick up missing keys
 	info, err := s.net.store.GetThread(req.ThreadID.ID)
@@ -133,7 +140,6 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 }
 
 // GetRecords receives a get records request.
-// @todo: Verification
 func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
@@ -141,7 +147,6 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	log.Debugf("received get records request from %s", req.Header.From.ID)
 
 	pbrecs := &pb.GetRecordsReply{}
-
 	if err := s.checkServiceKey(req.ThreadID.ID, req.ServiceKey); err != nil {
 		return pbrecs, err
 	}
@@ -205,12 +210,11 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	log.Debugf("received push record request from %s", req.Header.From.ID)
 
 	// Verify the request
-	reqpk, err := requestPubKey(req)
+	reqpk, err := getHeaderKey(req.Header)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = verifyRequestSignature(req.Record, reqpk, req.Header.Signature)
-	if err != nil {
+	if err = verifyRequest(req.Record, reqpk, req.Header.Sig); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -269,13 +273,13 @@ func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 	return nil
 }
 
-// requestPubKey returns the key associated with a request.
-func requestPubKey(r *pb.PushRecordRequest) (ic.PubKey, error) {
-	var pubk ic.PubKey
+// getHeaderKey returns the key associated with a request header.
+func getHeaderKey(h *pb.Header) (crypto.PubKey, error) {
+	var pubk crypto.PubKey
 	var err error
-	if r.Header.Key == nil {
+	if h.Key == nil {
 		// No attached key, it must be extractable from the source ID
-		pubk, err = r.Header.From.ID.ExtractPublicKey()
+		pubk, err = h.From.ID.ExtractPublicKey()
 		if err != nil {
 			return nil, fmt.Errorf("cannot extract signing key: %s", err)
 		}
@@ -283,20 +287,18 @@ func requestPubKey(r *pb.PushRecordRequest) (ic.PubKey, error) {
 			return nil, fmt.Errorf("cannot extract signing key")
 		}
 	} else {
-		pubk = r.Header.Key.PubKey
+		pubk = h.Key.PubKey
 		// Verify that the source ID matches the attached key
-		if !r.Header.From.ID.MatchesPublicKey(r.Header.Key.PubKey) {
-			return nil, fmt.Errorf(
-				"bad signing key; source ID %s doesn't match key",
-				r.Header.From.ID)
+		if !h.From.ID.MatchesPublicKey(h.Key.PubKey) {
+			return nil, fmt.Errorf("bad signing key; source ID %s doesn't match key", h.From.ID)
 		}
 	}
 	return pubk, nil
 }
 
-// verifyRequestSignature verifies that the signature assocated with a request is valid.
-func verifyRequestSignature(rec *pb.Log_Record, pk ic.PubKey, sig []byte) error {
-	payload, err := rec.Marshal()
+// verifyRequest verifies that the signature associated with a request is valid.
+func verifyRequest(msg proto.Marshaler, pk crypto.PubKey, sig []byte) error {
+	payload, err := msg.Marshal()
 	if err != nil {
 		return err
 	}

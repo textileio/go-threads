@@ -1,10 +1,22 @@
-syntax = "proto3";
+ syntax = "proto3";
 package net.pb;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
+
+// Header holds sender and key information.
+message Header {
+    // from is the sender's peerID.
+    bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+
+    // sig is the signature of the payload.
+    bytes sig = 2;
+
+    // key is the sender's public key used to verify sig.
+    bytes key = 3 [(gogoproto.customtype) = "ProtoPubKey"];
+}
 
 // Log represents a thread log.
 message Log {
@@ -46,11 +58,6 @@ message GetLogsRequest {
 
     // serviceKey for the thread.
     bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-    }
 }
 
 // GetLogsReply is the response from a GetLogsRequest.
@@ -75,11 +82,6 @@ message PushLogRequest {
 
     // log is the actual log payload.
     Log log = 5;
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-    }
 }
 
 // PushLogReply is the response from a PushLogRequest.
@@ -109,11 +111,6 @@ message GetRecordsRequest {
 
         // limit indicates the max number of records to return.
         int32 limit = 3;
-    }
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
     }
 }
 
@@ -148,18 +145,6 @@ message PushRecordRequest {
 
     // record is the actual record payload.
     Log.Record record = 4;
-
-    // Header holds sender and key information.
-    message Header {
-        // from is the sender's peerID.
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-
-        // signature is the signature of the payload.
-        bytes signature = 2;
-
-        // key is the sender's public key used to sign the payload.
-        bytes key = 3 [(gogoproto.customtype) = "ProtoPubKey"];
-    }
 }
 
 // PushRecordReply is the response from a PushRecordRequest.
