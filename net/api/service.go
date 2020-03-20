@@ -94,7 +94,7 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	}
 	go func() {
 		if err := s.net.PullThread(ctx, info.ID); err != nil {
-			log.Errorf("error pulling thread %s: %s", info.ID.String(), err)
+			log.Errorf("error pulling thread %s: %s", info.ID, err)
 		}
 	}()
 	return threadInfoToProto(info)
@@ -315,16 +315,12 @@ func threadInfoToProto(info thread.Info) (*pb.ThreadInfoReply, error) {
 		for j, addr := range lg.Addrs {
 			addrs[j] = addr.Bytes()
 		}
-		var head []byte
-		if lg.Head.Defined() {
-			head = lg.Head.Bytes()
-		}
 		logs[i] = &pb.LogInfo{
 			ID:      marshalPeerID(lg.ID),
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Head:    head,
+			Head:    lg.Head.Bytes(),
 		}
 	}
 	return &pb.ThreadInfoReply{

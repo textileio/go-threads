@@ -189,7 +189,7 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 		return
 	}
 
-	if err = t.server.topics.Add(id); err != nil {
+	if err = t.server.ps.Add(id); err != nil {
 		return
 	}
 
@@ -199,7 +199,7 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 func (t *net) ensureUnique(id thread.ID) error {
 	_, err := t.store.GetThread(id)
 	if err == nil {
-		return fmt.Errorf("thread %s already exists", id.String())
+		return fmt.Errorf("thread %s already exists", id)
 	}
 	if !errors.Is(err, lstore.ErrThreadNotFound) {
 		return err
@@ -261,7 +261,7 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 		}
 	}
 
-	if err = t.server.topics.Add(id); err != nil {
+	if err = t.server.ps.Add(id); err != nil {
 		return
 	}
 
@@ -285,7 +285,7 @@ func (t *net) getThreadSemaphore(id thread.ID) chan struct{} {
 }
 
 func (t *net) PullThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("pulling thread %s...", id.String())
+	log.Debugf("pulling thread %s...", id)
 	ptl := t.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}:
@@ -358,7 +358,7 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 }
 
 func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("deleting thread %s...", id.String())
+	log.Debugf("deleting thread %s...", id)
 	ptl := t.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}: // Must block in case the thread is being pulled
@@ -379,7 +379,7 @@ func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
 // Local subscriptions will not be cancelled and will simply stop reporting.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
-	if err := t.server.topics.Remove(id); err != nil {
+	if err := t.server.ps.Remove(id); err != nil {
 		return err
 	}
 
@@ -438,7 +438,7 @@ func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err == nil {
 		t.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
 	} else {
-		log.Warnf("peer %s address requires a DHT lookup", pid.String())
+		log.Warnf("peer %s address requires a DHT lookup", pid)
 	}
 
 	// Send all logs to the new replicator
@@ -509,7 +509,7 @@ func (t *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node) 
 		return nil, err
 	}
 
-	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id.String(), lg.ID.String())
+	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid(), id, lg.ID)
 
 	// Notify local listeners
 	r = NewRecord(rec, id, lg.ID)
@@ -698,7 +698,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 			return err
 		}
 
-		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid().String(), id.String(), lg.ID.String())
+		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
 		// Notify local listeners
 		if err = t.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
@@ -818,7 +818,7 @@ func (t *net) startPulling() {
 		for _, id := range ts {
 			go func(id thread.ID) {
 				if err := t.PullThread(t.ctx, id); err != nil {
-					log.Errorf("error pulling thread %s: %s", id.String(), err)
+					log.Errorf("error pulling thread %s: %s", id, err)
 				}
 			}(id)
 		}

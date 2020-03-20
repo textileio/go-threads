@@ -61,7 +61,7 @@ func TestService_CreateThreadAndRecords(t *testing.T) {
 		}
 
 		if r1.LogID().String() != r2.LogID().String() {
-			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID().String(), r2.LogID().String())
+			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID(), r2.LogID())
 		}
 
 		r1b, err := n.GetRecord(ctx, info.ID, r1.Value().Cid())

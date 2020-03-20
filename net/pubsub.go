@@ -12,18 +12,18 @@ import (
 	pb "github.com/textileio/go-threads/net/pb"
 )
 
-// TopicHandler receives all pushed thread records.
-type TopicHandler func(*pb.PushRecordRequest)
+// Handler receives all pushed thread records.
+type Handler func(*pb.PushRecordRequest)
 
-// TopicManager manages thread pubsub topics.
-type TopicManager struct {
+// PubSub manages thread pubsub topics.
+type PubSub struct {
 	sync.RWMutex
 
-	ctx    context.Context
-	host   peer.ID
-	ps     *pubsub.PubSub
-	handle TopicHandler
-	m      map[thread.ID]*topic
+	ctx     context.Context
+	host    peer.ID
+	ps      *pubsub.PubSub
+	handler Handler
+	m       map[thread.ID]*topic
 }
 
 type topic struct {
@@ -32,26 +32,26 @@ type topic struct {
 	s *pubsub.Subscription
 }
 
-// NewTopicManager returns a new thread topic manager.
-func NewTopicManager(ctx context.Context, host peer.ID, ps *pubsub.PubSub, handler TopicHandler) *TopicManager {
-	return &TopicManager{
-		ctx:    ctx,
-		host:   host,
-		ps:     ps,
-		handle: handler,
-		m:      make(map[thread.ID]*topic),
+// NewPubSub returns a new thread topic manager.
+func NewPubSub(ctx context.Context, host peer.ID, ps *pubsub.PubSub, handler Handler) *PubSub {
+	return &PubSub{
+		ctx:     ctx,
+		host:    host,
+		ps:      ps,
+		handler: handler,
+		m:       make(map[thread.ID]*topic),
 	}
 }
 
 // Add a new thread topic. This may be called repeatedly for the same thread.
-func (m *TopicManager) Add(id thread.ID) error {
-	m.Lock()
-	defer m.Unlock()
-	if _, ok := m.m[id]; ok {
+func (s *PubSub) Add(id thread.ID) error {
+	s.Lock()
+	defer s.Unlock()
+	if _, ok := s.m[id]; ok {
 		return nil
 	}
 
-	pt, err := m.ps.Join(id.String())
+	pt, err := s.ps.Join(id.String())
 	if err != nil {
 		return err
 	}
@@ -59,47 +59,47 @@ func (m *TopicManager) Add(id thread.ID) error {
 	if err != nil {
 		return err
 	}
-	if err = m.ps.RegisterTopicValidator(id.String(), m.topicValidator); err != nil {
+	if err = s.ps.RegisterTopicValidator(id.String(), s.topicValidator); err != nil {
 		return err
 	}
 
 	topic := &topic{t: pt, h: h}
-	m.m[id] = topic
-	go m.watch(m.ctx, id, topic)
-	go m.subscribe(m.ctx, id, topic)
+	s.m[id] = topic
+	go s.watch(s.ctx, id, topic)
+	go s.subscribe(s.ctx, id, topic)
 	return nil
 }
 
 // Remove a thread topic. This may be called repeatedly for the same thread.
-func (m *TopicManager) Remove(id thread.ID) error {
-	m.Lock()
-	defer m.Unlock()
-	topic, ok := m.m[id]
+func (s *PubSub) Remove(id thread.ID) error {
+	s.Lock()
+	defer s.Unlock()
+	topic, ok := s.m[id]
 	if !ok {
 		return nil
 	}
 	topic.s.Cancel()
 	topic.h.Cancel()
-	if err := m.ps.UnregisterTopicValidator(id.String()); err != nil {
+	if err := s.ps.UnregisterTopicValidator(id.String()); err != nil {
 		return err
 	}
 	if err := topic.t.Close(); err != nil {
 		return err
 	}
-	delete(m.m, id)
+	delete(s.m, id)
 	return nil
 }
 
-func (m *TopicManager) topicValidator(context.Context, peer.ID, *pubsub.Message) bool {
+func (s *PubSub) topicValidator(context.Context, peer.ID, *pubsub.Message) bool {
 	// @todo: determine if this is needed (related to host signatures)
 	return true
 }
 
 // Publish a record request to a thread.
-func (m *TopicManager) Publish(ctx context.Context, id thread.ID, req *pb.PushRecordRequest) error {
-	m.RLock()
-	defer m.RUnlock()
-	topic, ok := m.m[id]
+func (s *PubSub) Publish(ctx context.Context, id thread.ID, req *pb.PushRecordRequest) error {
+	s.RLock()
+	defer s.RUnlock()
+	topic, ok := s.m[id]
 	if !ok {
 		return fmt.Errorf("thread topic not found")
 	}
@@ -112,7 +112,7 @@ func (m *TopicManager) Publish(ctx context.Context, id thread.ID, req *pb.PushRe
 }
 
 // watch peer events from a pubsub topic.
-func (m *TopicManager) watch(ctx context.Context, id thread.ID, topic *topic) {
+func (s *PubSub) watch(ctx context.Context, id thread.ID, topic *topic) {
 	for {
 		pe, err := topic.h.NextPeerEvent(ctx)
 		if err != nil {
@@ -125,16 +125,16 @@ func (m *TopicManager) watch(ctx context.Context, id thread.ID, topic *topic) {
 		case pubsub.PeerLeave:
 			msg = "LEFT"
 		}
-		log.Infof("pubsub peer event: %s %s %s", pe.Peer.String(), msg, id.String())
+		log.Infof("pubsub peer event: %s %s %s", pe.Peer, msg, id)
 	}
 }
 
 // subscribe to a topic for thread updates.
-func (m *TopicManager) subscribe(ctx context.Context, id thread.ID, topic *topic) {
+func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 	var err error
 	topic.s, err = topic.t.Subscribe()
 	if err != nil {
-		log.Errorf("error subscribing to topic %s: %s", id.String(), err)
+		log.Errorf("error subscribing to topic %s: %s", id, err)
 		return
 	}
 
@@ -148,7 +148,7 @@ func (m *TopicManager) subscribe(ctx context.Context, id thread.ID, topic *topic
 			log.Errorf("error decoding publisher ID: %s", err)
 			continue
 		}
-		if from.String() == m.host.String() {
+		if from.String() == s.host.String() {
 			continue
 		}
 
@@ -158,8 +158,8 @@ func (m *TopicManager) subscribe(ctx context.Context, id thread.ID, topic *topic
 			continue
 		}
 
-		log.Debugf("received multicast record from %s", from.String())
+		log.Debugf("received multicast record from %s", from)
 
-		m.handle(req)
+		s.handler(req)
 	}
 }

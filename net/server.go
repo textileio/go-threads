@@ -21,8 +21,8 @@ import (
 
 // server implements the net gRPC server.
 type server struct {
-	net    *net
-	topics *TopicManager
+	net *net
+	ps  *PubSub
 }
 
 // newServer creates a new network server.
@@ -37,27 +37,27 @@ func newServer(n *net) (*server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.topics = NewTopicManager(n.ctx, n.host.ID(), ps, s.topicsHandler)
+	s.ps = NewPubSub(n.ctx, n.host.ID(), ps, s.pubsubHandler)
 
 	ts, err := n.store.Threads()
 	if err != nil {
 		return nil, err
 	}
 	for _, id := range ts {
-		if err := s.topics.Add(id); err != nil {
+		if err := s.ps.Add(id); err != nil {
 			return nil, err
 		}
 	}
 	return s, nil
 }
 
-func (s *server) topicsHandler(req *pb.PushRecordRequest) {
+func (s *server) pubsubHandler(req *pb.PushRecordRequest) {
 	if _, err := s.PushRecord(s.net.ctx, req); err != nil {
 		// This error will be "log not found" if the record sent over pubsub
 		// beat the log, which has to be sent directly via the normal API.
 		// In this case, the record will arrive directly after the log via
 		// the normal API.
-		log.Debugf("error handling topics record: %s", err)
+		log.Debugf("error handling pubsub record: %s", err)
 	}
 }
 
@@ -67,7 +67,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
-	log.Debugf("received get logs request from %s", req.Header.From.ID.String())
+	log.Debugf("received get logs request from %s", req.Header.From.ID)
 
 	pblgs := &pb.GetLogsReply{}
 
@@ -85,7 +85,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		pblgs.Logs[i] = logToProto(l)
 	}
 
-	log.Debugf("sending %d logs to %s", len(info.Logs), req.Header.From.ID.String())
+	log.Debugf("sending %d logs to %s", len(info.Logs), req.Header.From.ID)
 
 	return pblgs, nil
 }
@@ -97,7 +97,7 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
-	log.Debugf("received push log request from %s", req.Header.From.ID.String())
+	log.Debugf("received push log request from %s", req.Header.From.ID)
 
 	// Pick up missing keys
 	info, err := s.net.store.GetThread(req.ThreadID.ID)
@@ -137,7 +137,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
-	log.Debugf("received get records request from %s", req.Header.From.ID.String())
+	log.Debugf("received get records request from %s", req.Header.From.ID)
 
 	pbrecs := &pb.GetRecordsReply{}
 
@@ -190,7 +190,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 		pbrecs.Logs[i] = entry
 
-		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID.String(), req.Header.From.ID.String())
+		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID, req.Header.From.ID)
 	}
 
 	return pbrecs, nil
@@ -201,7 +201,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if req.Header == nil {
 		return nil, status.Error(codes.FailedPrecondition, "request header is required")
 	}
-	log.Debugf("received push record request from %s", req.Header.From.ID.String())
+	log.Debugf("received push record request from %s", req.Header.From.ID)
 
 	// Verify the request
 	reqpk, err := requestPubKey(req)
