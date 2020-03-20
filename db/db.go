@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"sync"
 	"time"
 
@@ -343,19 +342,6 @@ func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error) error {
 		return err
 	}
 	return txn.Commit()
-}
-
-func isValidCollection(t interface{}) (valid bool) {
-	defer func() {
-		if err := recover(); err != nil {
-			valid = false
-		}
-	}()
-	v := reflect.ValueOf(t)
-	if v.Type().Kind() != reflect.Ptr {
-		v = reflect.New(reflect.TypeOf(v))
-	}
-	return v.Elem().FieldByName(idFieldName).IsValid()
 }
 
 func defaultIndexFunc(s *DB) func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
