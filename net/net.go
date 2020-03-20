@@ -25,6 +25,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -187,13 +188,18 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 	if err = t.store.AddLog(id, linfo); err != nil {
 		return
 	}
+
+	if err = t.server.ps.Add(id); err != nil {
+		return
+	}
+
 	return t.store.GetThread(id)
 }
 
 func (t *net) ensureUnique(id thread.ID) error {
 	_, err := t.store.GetThread(id)
 	if err == nil {
-		return fmt.Errorf("thread %s already exists", id.String())
+		return fmt.Errorf("thread %s already exists", id)
 	}
 	if !errors.Is(err, lstore.ErrThreadNotFound) {
 		return err
@@ -255,6 +261,10 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 		}
 	}
 
+	if err = t.server.ps.Add(id); err != nil {
+		return
+	}
+
 	return t.store.GetThread(id)
 }
 
@@ -275,7 +285,7 @@ func (t *net) getThreadSemaphore(id thread.ID) chan struct{} {
 }
 
 func (t *net) PullThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("pulling thread %s...", id.String())
+	log.Debugf("pulling thread %s...", id)
 	ptl := t.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}:
@@ -291,8 +301,8 @@ func (t *net) PullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// pullThread for new records. It's internal and *not* thread-safe,
-// it assumes we currently own the thread-lock.
+// pullThread for new records.
+// This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	info, err := t.store.GetThread(id)
 	if err != nil {
@@ -302,15 +312,14 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	// Gather offsets for each log
 	offsets := make(map[peer.ID]cid.Cid)
 	for _, lg := range info.Logs {
-		offsets[lg.ID] = cid.Undef
-		if len(lg.Heads) > 0 {
-			has, err := t.bstore.Has(lg.Heads[0])
-			if err != nil {
-				return err
-			}
-			if has {
-				offsets[lg.ID] = lg.Heads[0]
-			}
+		has, err := t.bstore.Has(lg.Head)
+		if err != nil {
+			return err
+		}
+		if has {
+			offsets[lg.ID] = lg.Head
+		} else {
+			offsets[lg.ID] = cid.Undef
 		}
 	}
 	var fetchedRcs []map[peer.ID][]core.Record
@@ -348,9 +357,47 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// @todo
-func (t *net) DeleteThread(context.Context, thread.ID) error {
-	panic("implement me")
+func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
+	log.Debugf("deleting thread %s...", id)
+	ptl := t.getThreadSemaphore(id)
+	select {
+	case ptl <- struct{}{}: // Must block in case the thread is being pulled
+		err := t.deleteThread(ctx, id)
+		if err != nil {
+			<-ptl
+			return err
+		}
+		<-ptl
+	}
+	return nil
+}
+
+// deleteThread cleans up all the persistent and in-memory bits of a thread. This includes:
+// - Removing all record and event nodes.
+// - Deleting all logstore keys, addresses, and heads.
+// - Cancelling the pubsub subscription and topic.
+// Local subscriptions will not be cancelled and will simply stop reporting.
+// This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
+func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
+	if err := t.server.ps.Remove(id); err != nil {
+		return err
+	}
+
+	info, err := t.store.GetThread(id)
+	if err != nil {
+		return err
+	}
+	for _, lg := range info.Logs { // Walk logs, removing record and event nodes
+		head := lg.Head
+		for head.Defined() {
+			head, err = t.deleteRecord(ctx, head, info.Key.Service())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return t.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
 func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
@@ -391,7 +438,7 @@ func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err == nil {
 		t.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
 	} else {
-		log.Warnf("peer %s address requires a DHT lookup", pid.String())
+		log.Warnf("peer %s address requires a DHT lookup", pid)
 	}
 
 	// Send all logs to the new replicator
@@ -462,7 +509,7 @@ func (t *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node) 
 		return nil, err
 	}
 
-	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid().String(), id, lg.ID)
+	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid(), id, lg.ID)
 
 	// Notify local listeners
 	r = NewRecord(rec, id, lg.ID)
@@ -651,7 +698,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 			return err
 		}
 
-		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid().String(), id, lg.ID)
+		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
 		// Notify local listeners
 		if err = t.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
@@ -694,11 +741,7 @@ func (t *net) createRecord(ctx context.Context, id thread.ID, lg thread.LogInfo,
 		return nil, err
 	}
 
-	prev := cid.Undef
-	if len(lg.Heads) != 0 {
-		prev = lg.Heads[0]
-	}
-	return cbor.CreateRecord(ctx, t, event, prev, lg.PrivKey, sk)
+	return cbor.CreateRecord(ctx, t, event, lg.Head, lg.PrivKey, sk)
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of
@@ -726,14 +769,7 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 		return recs, nil
 	}
 
-	if len(lg.Heads) == 0 {
-		return []core.Record{}, nil
-	}
-
-	if len(lg.Heads) != 1 {
-		return nil, fmt.Errorf("log head must reference exactly one node")
-	}
-	cursor := lg.Heads[0]
+	cursor := lg.Head
 	for {
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
@@ -752,6 +788,25 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 	return recs, nil
 }
 
+// deleteRecord remove a record from the dag service.
+func (t *net) deleteRecord(ctx context.Context, rid cid.Cid, sk *sym.Key) (prev cid.Cid, err error) {
+	rec, err := cbor.GetRecord(ctx, t, rid, sk)
+	if err != nil {
+		return
+	}
+	if err = cbor.RemoveRecord(ctx, t, rec); err != nil {
+		return
+	}
+	event, err := cbor.EventFromRecord(ctx, t, rec)
+	if err != nil {
+		return
+	}
+	if err = cbor.RemoveEvent(ctx, t, event); err != nil {
+		return
+	}
+	return rec.PrevID(), nil
+}
+
 // startPulling periodically pulls on all threads.
 func (t *net) startPulling() {
 	pull := func() {
@@ -763,7 +818,7 @@ func (t *net) startPulling() {
 		for _, id := range ts {
 			go func(id thread.ID) {
 				if err := t.PullThread(t.ctx, id); err != nil {
-					log.Errorf("error pulling thread %s: %s", id.String(), err)
+					log.Errorf("error pulling thread %s: %s", id, err)
 				}
 			}(id)
 		}
@@ -854,7 +909,7 @@ func (t *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 			PubKey:  pubKey,
 			PrivKey: privKey,
 			Addrs:   addrs,
-			Heads:   []cid.Cid{},
+			Head:    cid.Undef,
 		}
 		if err := t.store.AddLog(tid, lginfo); err != nil {
 			return err

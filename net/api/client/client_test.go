@@ -125,7 +125,6 @@ func TestClient_PullThread(t *testing.T) {
 }
 
 func TestClient_DeleteThread(t *testing.T) {
-	t.Skip() // @todo: Thread deletes
 	t.Parallel()
 	_, client, done := setup(t)
 	defer done()
@@ -135,6 +134,9 @@ func TestClient_DeleteThread(t *testing.T) {
 	t.Run("test delete thread", func(t *testing.T) {
 		if err := client.DeleteThread(context.Background(), info.ID); err != nil {
 			t.Fatalf("failed to delete thread: %v", err)
+		}
+		if _, err := client.GetThread(context.Background(), info.ID); err == nil {
+			t.Fatal("thread was not deleted")
 		}
 	})
 }

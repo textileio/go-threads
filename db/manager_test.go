@@ -41,14 +41,14 @@ var (
 
 func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
-	t.Run("Single", func(t *testing.T) {
+	t.Run("test one new db", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
 		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
 	})
-	t.Run("Multiple", func(t *testing.T) {
+	t.Run("test multiple new dbs", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
@@ -95,7 +95,7 @@ func TestManager_GetDB(t *testing.T) {
 	err = n.Close()
 	checkErr(t, err)
 
-	t.Run("GetHydrated", func(t *testing.T) {
+	t.Run("test get db after restart", func(t *testing.T) {
 		n, err := DefaultNetwork(dir)
 		checkErr(t, err)
 		man, err := NewManager(n, WithRepoPath(dir), WithDebug(true))
@@ -123,6 +123,32 @@ func TestManager_GetDB(t *testing.T) {
 		err = n.Close()
 		checkErr(t, err)
 	})
+}
+
+func TestManager_DeleteDB(t *testing.T) {
+	t.Parallel()
+	man, clean := createTestManager(t)
+	defer clean()
+
+	id := thread.NewIDV1(thread.Raw, 32)
+	db, err := man.NewDB(context.Background(), id)
+	checkErr(t, err)
+
+	// Register a schema and create an instance
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: jsonSchema})
+	checkErr(t, err)
+	person1 := `{"ID": "", "Name": "Foo", "Age": 21}`
+	err = collection.Create(&person1)
+	checkErr(t, err)
+
+	time.Sleep(time.Second)
+
+	err = man.DeleteDB(context.Background(), id)
+	checkErr(t, err)
+
+	if man.GetDB(id) != nil {
+		t.Fatal("db was not deleted")
+	}
 }
 
 func createTestManager(t *testing.T) (*Manager, func()) {

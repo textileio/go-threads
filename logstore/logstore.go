@@ -3,6 +3,7 @@ package logstore
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -12,6 +13,8 @@ import (
 
 // logstore is a collection of books for storing thread logs.
 type logstore struct {
+	sync.RWMutex
+
 	core.KeyBook
 	core.AddrBook
 	core.ThreadMetadata
@@ -52,6 +55,9 @@ func (ls *logstore) Close() (err error) {
 
 // Threads returns a list of the thread IDs in the store.
 func (ls *logstore) Threads() (thread.IDSlice, error) {
+	ls.RLock()
+	defer ls.RUnlock()
+
 	set := map[thread.ID]struct{}{}
 	threadsFromKeys, err := ls.ThreadsFromKeys()
 	if err != nil {
@@ -72,12 +78,14 @@ func (ls *logstore) Threads() (thread.IDSlice, error) {
 	for t := range set {
 		ids = append(ids, t)
 	}
-
 	return ids, nil
 }
 
 // AddThread adds a thread with keys.
 func (ls *logstore) AddThread(info thread.Info) error {
+	ls.Lock()
+	defer ls.Unlock()
+
 	if info.Key.Service() == nil {
 		return fmt.Errorf("a service-key is required to add a thread")
 	}
@@ -94,6 +102,9 @@ func (ls *logstore) AddThread(info thread.Info) error {
 
 // GetThread returns thread info of the given id.
 func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
+	ls.RLock()
+	defer ls.RUnlock()
+
 	sk, err := ls.ServiceKey(id)
 	if err != nil {
 		return
@@ -106,20 +117,9 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 		return
 	}
 
-	set := map[peer.ID]struct{}{}
-	logsWithKeys, err := ls.LogsWithKeys(id)
+	set, err := ls.getLogIDs(id)
 	if err != nil {
 		return
-	}
-	for _, l := range logsWithKeys {
-		set[l] = struct{}{}
-	}
-	logsWithAddrs, err := ls.LogsWithAddrs(id)
-	if err != nil {
-		return
-	}
-	for _, l := range logsWithAddrs {
-		set[l] = struct{}{}
 	}
 
 	logs := make([]thread.LogInfo, 0, len(set))
@@ -138,34 +138,79 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 	}, nil
 }
 
+func (ls *logstore) getLogIDs(id thread.ID) (map[peer.ID]struct{}, error) {
+	set := map[peer.ID]struct{}{}
+	logsWithKeys, err := ls.LogsWithKeys(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range logsWithKeys {
+		set[l] = struct{}{}
+	}
+	logsWithAddrs, err := ls.LogsWithAddrs(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range logsWithAddrs {
+		set[l] = struct{}{}
+	}
+	return set, nil
+}
+
+// DeleteThread deletes a thread.
+func (ls *logstore) DeleteThread(id thread.ID) error {
+	ls.Lock()
+	defer ls.Unlock()
+
+	if err := ls.ClearKeys(id); err != nil {
+		return err
+	}
+
+	set, err := ls.getLogIDs(id)
+	if err != nil {
+		return nil
+	}
+	for l := range set {
+		if err := ls.ClearAddrs(id, l); err != nil {
+			return err
+		}
+		if err := ls.ClearHeads(id, l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AddLog adds a log under the given thread.
 func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
+	ls.Lock()
+	defer ls.Unlock()
+
 	err := ls.AddPubKey(id, lg.ID, lg.PubKey)
 	if err != nil {
 		return err
 	}
-
 	if lg.PrivKey != nil {
-		err = ls.AddPrivKey(id, lg.ID, lg.PrivKey)
-		if err != nil {
+		if err = ls.AddPrivKey(id, lg.ID, lg.PrivKey); err != nil {
 			return err
 		}
 	}
-
-	err = ls.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL)
-	if err != nil {
+	if err = ls.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 		return err
 	}
-	err = ls.AddHeads(id, lg.ID, lg.Heads)
-	if err != nil {
-		return err
+	if lg.Head.Defined() {
+		if err = ls.SetHead(id, lg.ID, lg.Head); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
 // GetLog returns info about the given thread.
 func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+	ls.RLock()
+	defer ls.RUnlock()
+
 	pk, err := ls.PubKey(id, lid)
 	if err != nil {
 		return
@@ -190,6 +235,25 @@ func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	info.PubKey = pk
 	info.PrivKey = sk
 	info.Addrs = addrs
-	info.Heads = heads
+	if len(heads) > 0 {
+		info.Head = heads[0]
+	}
 	return
+}
+
+// DeleteLog deletes a log.
+func (ls *logstore) DeleteLog(id thread.ID, lid peer.ID) (err error) {
+	ls.Lock()
+	defer ls.Unlock()
+
+	if err = ls.ClearLogKeys(id, lid); err != nil {
+		return
+	}
+	if err = ls.ClearAddrs(id, lid); err != nil {
+		return
+	}
+	if err = ls.ClearHeads(id, lid); err != nil {
+		return
+	}
+	return nil
 }

@@ -3,7 +3,6 @@ package cbor
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
@@ -11,7 +10,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/crypto"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 func init() {
@@ -27,13 +26,12 @@ type event struct {
 
 // eventHeader defines the node structure of an event header.
 type eventHeader struct {
-	Time int64
-	Key  []byte `refmt:",omitempty"`
+	Key []byte `refmt:",omitempty"`
 }
 
 // CreateEvent create a new event by wrapping the body node.
 func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (net.Event, error) {
-	key, err := symmetric.NewRandom()
+	key, err := sym.NewRandom()
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +44,7 @@ func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, r
 		return nil, err
 	}
 	eventHeader := &eventHeader{
-		Time: time.Now().Unix(),
-		Key:  keyb,
+		Key: keyb,
 	}
 	header, err := cbornode.WrapObject(eventHeader, mh.SHA2_256, -1)
 	if err != nil {
@@ -116,6 +113,11 @@ func EventFromRecord(ctx context.Context, dag format.DAGService, rec net.Record)
 		return EventFromNode(block)
 	}
 	return event, nil
+}
+
+// RemoveEvent removes an event from the dag service.
+func RemoveEvent(ctx context.Context, dag format.DAGService, e *Event) error {
+	return dag.RemoveMany(ctx, []cid.Cid{e.Cid(), e.HeaderID(), e.BodyID()})
 }
 
 // Event is a IPLD node representing an event.
@@ -201,15 +203,6 @@ type EventHeader struct {
 	format.Node
 
 	obj *eventHeader
-}
-
-// Time returns the wall-clock time when the event was created if it has been decoded.
-func (h *EventHeader) Time() (*time.Time, error) {
-	if h.obj == nil {
-		return nil, fmt.Errorf("obj not loaded")
-	}
-	t := time.Unix(h.obj.Time, 0)
-	return &t, nil
 }
 
 // Key returns the key needed to decrypt the event body if it has been decoded.

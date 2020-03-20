@@ -105,7 +105,7 @@ func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key 
 
 	go func() {
 		if err := network.PullThread(ctx, ti.ID); err != nil {
-			log.Errorf("error pulling thread %s", ti.ID.String())
+			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
 	return d, nil
