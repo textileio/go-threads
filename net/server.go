@@ -22,12 +22,13 @@ import (
 // server implements the net gRPC server.
 type server struct {
 	net    *net
-	pubsub *pubsub.PubSub
-	topics *topics
+	topics *TopicManager
 }
 
 // newServer creates a new network server.
 func newServer(n *net) (*server, error) {
+	s := &server{net: n}
+
 	ps, err := pubsub.NewGossipSub(
 		n.ctx,
 		n.host,
@@ -36,24 +37,28 @@ func newServer(n *net) (*server, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.topics = NewTopicManager(n.ctx, n.host.ID(), ps, s.topicsHandler)
 
-	s := &server{
-		net:    n,
-		pubsub: ps,
-		topics: newTopics(),
-	}
-
-	// Setup pubsub topics
 	ts, err := n.store.Threads()
 	if err != nil {
 		return nil, err
 	}
 	for _, id := range ts {
-		if err := s.addTopic(id); err != nil {
+		if err := s.topics.Add(id); err != nil {
 			return nil, err
 		}
 	}
 	return s, nil
+}
+
+func (s *server) topicsHandler(req *pb.PushRecordRequest) {
+	if _, err := s.PushRecord(s.net.ctx, req); err != nil {
+		// This error will be "log not found" if the record sent over pubsub
+		// beat the log, which has to be sent directly via the normal API.
+		// In this case, the record will arrive directly after the log via
+		// the normal API.
+		log.Debugf("error handling topics record: %s", err)
+	}
 }
 
 // GetLogs receives a get logs request.

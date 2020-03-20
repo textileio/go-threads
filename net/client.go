@@ -355,7 +355,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	// Finally, publish to the thread's topic
-	if err = s.publish(ctx, id, req); err != nil {
+	if err = s.topics.Publish(ctx, id, req); err != nil {
 		return err
 	}
 
@@ -378,18 +378,4 @@ func (s *server) getDialOption() grpc.DialOption {
 		}
 		return gostream.Dial(ctx, s.net.host, id, thread.Protocol)
 	})
-}
-
-// publish a request to a thread.
-func (s *server) publish(ctx context.Context, id thread.ID, req *pb.PushRecordRequest) error {
-	data, err := req.Marshal()
-	if err != nil {
-		return err
-	}
-
-	topic, ok := s.topics.Load(id)
-	if !ok {
-		return fmt.Errorf("thread topic not found")
-	}
-	return topic.t.Publish(ctx, data)
 }

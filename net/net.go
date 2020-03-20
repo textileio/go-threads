@@ -189,7 +189,7 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 		return
 	}
 
-	if err = t.server.addTopic(id); err != nil {
+	if err = t.server.topics.Add(id); err != nil {
 		return
 	}
 
@@ -261,7 +261,7 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 		}
 	}
 
-	if err = t.server.addTopic(id); err != nil {
+	if err = t.server.topics.Add(id); err != nil {
 		return
 	}
 
@@ -375,11 +375,11 @@ func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
 // deleteThread cleans up all the persistent and in-memory bits of a thread. This includes:
 // - Removing all record and event nodes.
 // - Deleting all logstore keys, addresses, and heads.
-// - Canceling the pubsub subscription and topic.
+// - Cancelling the pubsub subscription and topic.
 // Local subscriptions will not be cancelled and will simply stop reporting.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
-	if err := t.server.removeTopic(id); err != nil {
+	if err := t.server.topics.Remove(id); err != nil {
 		return err
 	}
 
