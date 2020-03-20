@@ -123,7 +123,7 @@ func TestCollectionQuery(t *testing.T) {
 			res := make([]*book, len(ret))
 			for i, bookJSON := range ret {
 				var book = &book{}
-				util.InstanceFromJSONString(&bookJSON, book)
+				util.InstanceFromJSONString(bookJSON, book)
 				res[i] = book
 			}
 

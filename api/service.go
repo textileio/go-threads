@@ -191,7 +191,7 @@ func (s *Service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, e
 	if err != nil {
 		return nil, err
 	}
-	return s.processFindRequest(req, collection.FindJSON)
+	return s.processFindRequest(req, collection.Find)
 }
 
 func (s *Service) FindByID(_ context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {

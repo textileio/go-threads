@@ -312,7 +312,7 @@ func TestQuery(t *testing.T) {
 		q := q
 		t.Run(q.name, func(t *testing.T) {
 			t.Parallel()
-			res, err := c.FindJSON(q.query)
+			res, err := c.Find(q.query)
 			checkErr(t, err)
 			if len(q.resIdx) != len(res) {
 				t.Fatalf("query results length doesn't match, expected: %d, got: %d", len(q.resIdx), len(res))

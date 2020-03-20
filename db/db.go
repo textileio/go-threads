@@ -204,7 +204,7 @@ func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
 		return nil, fmt.Errorf("already registered collection")
 	}
 
-	c := newCollectionFromSchema(config.Name, config.Schema, d)
+	c := newCollection(config.Name, config.Schema, d)
 	key := dsDBSchemas.ChildString(config.Name)
 	exists, err := d.datastore.Has(key)
 	if err != nil {

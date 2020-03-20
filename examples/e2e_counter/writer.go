@@ -43,7 +43,7 @@ func runWriterPeer(repo string) {
 	counters := make([]*myCounter, len(res))
 	for i, counterJSON := range res {
 		counter := &myCounter{}
-		util.InstanceFromJSONString(&counterJSON, counter)
+		util.InstanceFromJSONString(counterJSON, counter)
 		counters[i] = counter
 	}
 	if len(counters) > 0 {
@@ -58,8 +58,8 @@ func runWriterPeer(repo string) {
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
 		err = m.WriteTxn(func(txn *db.Txn) error {
-			var counterJSON *string
-			if err = txn.FindByID(counter.ID, counterJSON); err != nil {
+			counterJSON := ""
+			if err = txn.FindByID(counter.ID, &counterJSON); err != nil {
 				return err
 			}
 			c := &myCounter{}

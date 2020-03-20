@@ -41,7 +41,7 @@ func TestE2EWithThreads(t *testing.T) {
 	dummyInstanceString := util.JSONStringFromInstance(dummyInstance)
 	checkErr(t, c1.Create(dummyInstanceString))
 	updatedDummyInstance := &dummy{}
-	util.InstanceFromJSONString(dummyInstanceString, updatedDummyInstance)
+	util.InstanceFromJSONString(*dummyInstanceString, updatedDummyInstance)
 	updatedDummyInstance.Counter += 42
 	checkErr(t, c1.Save(util.JSONStringFromInstance(updatedDummyInstance)))
 
@@ -77,8 +77,8 @@ func TestE2EWithThreads(t *testing.T) {
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
-	var dummyInstance2String *string
-	checkErr(t, c2.FindByID(updatedDummyInstance.ID, dummyInstance2String))
+	dummyInstance2String := ""
+	checkErr(t, c2.FindByID(updatedDummyInstance.ID, &dummyInstance2String))
 	dummyInstance2 := &dummy{}
 	util.InstanceFromJSONString(dummyInstance2String, dummyInstance2)
 	if dummyInstance2.Name != updatedDummyInstance.Name || dummyInstance2.Counter != updatedDummyInstance.Counter {

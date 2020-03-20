@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/alecthomas/jsonschema"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
@@ -42,20 +41,7 @@ type Collection struct {
 	indexes      map[string]Index
 }
 
-func newCollection(name string, defaultInstance interface{}, d *DB) *Collection {
-	schema := jsonschema.Reflect(defaultInstance)
-	schemaLoader := gojsonschema.NewGoLoader(schema)
-	c := &Collection{
-		name:         name,
-		schemaLoader: schemaLoader,
-		valueType:    reflect.TypeOf(defaultInstance),
-		db:           d,
-		indexes:      make(map[string]Index),
-	}
-	return c
-}
-
-func newCollectionFromSchema(name string, schema string, d *DB) *Collection {
+func newCollection(name string, schema string, d *DB) *Collection {
 	schemaLoader := gojsonschema.NewStringLoader(schema)
 	c := &Collection{
 		name:         name,

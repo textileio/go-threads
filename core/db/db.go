@@ -24,8 +24,10 @@ func (e InstanceID) String() string {
 }
 
 func IsValidInstanceID(instanceID string) bool {
-	_, err := uuid.Parse(instanceID)
-	return err == nil
+	// ToDo: Decide how we want to apply instance id requirements
+	return len(instanceID) > 0
+	// _, err := uuid.Parse(instanceID)
+	// return err == nil
 }
 
 // Event is a local or remote event generated in collection and dispatcher

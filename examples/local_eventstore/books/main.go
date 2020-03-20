@@ -78,7 +78,7 @@ func main() {
 
 	// Query with nested condition
 	{
-		books, err := collection.Find(db.JSONWhere("Meta.TotalReads").Eq(100))
+		books, err := collection.Find(db.JSONWhere("Meta.TotalReads").Eq(float64(100)))
 		checkErr(err)
 		if len(books) != 1 {
 			panic("There should be one book with 100 total reads")
@@ -111,7 +111,7 @@ func main() {
 		books := make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(&item, book)
+			util.InstanceFromJSONString(item, book)
 			books[i] = book
 		}
 		if books[0].Meta.TotalReads != 100 || books[1].Meta.TotalReads != 150 {
@@ -123,7 +123,7 @@ func main() {
 		books = make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(&item, book)
+			util.InstanceFromJSONString(item, book)
 			books[i] = book
 		}
 		if books[0].Meta.TotalReads != 150 || books[1].Meta.TotalReads != 100 {
@@ -138,7 +138,7 @@ func main() {
 		books := make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(&item, book)
+			util.InstanceFromJSONString(item, book)
 			books[i] = book
 		}
 
@@ -161,7 +161,7 @@ func main() {
 		books = make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(&item, book)
+			util.InstanceFromJSONString(item, book)
 			books[i] = book
 		}
 		_ = collection.Delete(books[0].ID)

@@ -151,7 +151,7 @@ func JSONStringFromInstance(i interface{}) *string {
 	return &val
 }
 
-func InstanceFromJSONString(s *string, i interface{}) {
+func InstanceFromJSONString(s string, i interface{}) {
 	if err := json.Unmarshal([]byte(s), i); err != nil {
 		panic(err)
 	}
