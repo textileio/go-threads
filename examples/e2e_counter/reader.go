@@ -35,7 +35,7 @@ func runReaderPeer(repo string) {
 	checkErr(err)
 	for range l.Channel() {
 		err := c.ReadTxn(func(txn *db.Txn) error {
-			res, err := txn.FindJSON(&db.JSONQuery{})
+			res, err := txn.Find(&db.Query{})
 			if err != nil {
 				return err
 			}

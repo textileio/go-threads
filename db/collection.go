@@ -136,9 +136,9 @@ func (c *Collection) Has(ids ...core.InstanceID) (exists bool, err error) {
 }
 
 // Find executes a Query and returns the result.
-func (c *Collection) Find(q *JSONQuery) (ret []string, err error) {
+func (c *Collection) Find(q *Query) (ret []string, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
-		ret, err = txn.FindJSON(q)
+		ret, err = txn.Find(q)
 		return err
 	})
 	return

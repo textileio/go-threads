@@ -60,7 +60,7 @@ func main() {
 
 	// Query all the books
 	{
-		books, err := collection.Find(&db.JSONQuery{})
+		books, err := collection.Find(&db.Query{})
 		checkErr(err)
 		if len(books) != 3 {
 			panic("there should be three books")
@@ -69,7 +69,7 @@ func main() {
 
 	// Query the books from Author2
 	{
-		books, err := collection.Find(db.JSONWhere("Author").Eq("Author1"))
+		books, err := collection.Find(db.Where("Author").Eq("Author1"))
 		checkErr(err)
 		if len(books) != 2 {
 			panic("Author1 should have two books")
@@ -78,7 +78,7 @@ func main() {
 
 	// Query with nested condition
 	{
-		books, err := collection.Find(db.JSONWhere("Meta.TotalReads").Eq(float64(100)))
+		books, err := collection.Find(db.Where("Meta.TotalReads").Eq(float64(100)))
 		checkErr(err)
 		if len(books) != 1 {
 			panic("There should be one book with 100 total reads")
@@ -87,7 +87,7 @@ func main() {
 
 	// Query book by two conditions
 	{
-		books, err := collection.Find(db.JSONWhere("Author").Eq("Author1").JSONAnd("Title").Eq("Title2"))
+		books, err := collection.Find(db.Where("Author").Eq("Author1").And("Title").Eq("Title2"))
 		checkErr(err)
 		if len(books) != 1 {
 			panic("Author1 should have only one book with Title2")
@@ -96,7 +96,7 @@ func main() {
 
 	// Query book by OR condition
 	{
-		books, err := collection.Find(db.JSONWhere("Author").Eq("Author1").JSONOr(db.JSONWhere("Author").Eq("Author2")))
+		books, err := collection.Find(db.Where("Author").Eq("Author1").Or(db.Where("Author").Eq("Author2")))
 		checkErr(err)
 		if len(books) != 3 {
 			panic("Author1 & Author2 have should have 3 books in total")
@@ -106,7 +106,7 @@ func main() {
 	// Sorted query
 	{
 		// Ascending
-		res, err := collection.Find(db.JSONWhere("Author").Eq("Author1").JSONOrderBy("Meta.TotalReads"))
+		res, err := collection.Find(db.Where("Author").Eq("Author1").OrderBy("Meta.TotalReads"))
 		checkErr(err)
 		books := make([]*book, len(res))
 		for i, item := range res {
@@ -118,7 +118,7 @@ func main() {
 			panic("books aren't ordered asc correctly")
 		}
 		// Descending
-		res, err = collection.Find(db.JSONWhere("Author").Eq("Author1").JSONOrderByDesc("Meta.TotalReads"))
+		res, err = collection.Find(db.Where("Author").Eq("Author1").OrderByDesc("Meta.TotalReads"))
 		checkErr(err)
 		books = make([]*book, len(res))
 		for i, item := range res {
@@ -133,7 +133,7 @@ func main() {
 
 	// Query, Update, and Save
 	{
-		res, err := collection.Find(db.JSONWhere("Title").Eq("Title3"))
+		res, err := collection.Find(db.Where("Title").Eq("Title3"))
 		checkErr(err)
 		books := make([]*book, len(res))
 		for i, item := range res {
@@ -146,14 +146,14 @@ func main() {
 		firstBook := books[0]
 		firstBook.Title = "ModifiedTitle"
 		_ = collection.Save(util.JSONStringFromInstance(firstBook))
-		res, err = collection.Find(db.JSONWhere("Title").Eq("Title3"))
+		res, err = collection.Find(db.Where("Title").Eq("Title3"))
 		checkErr(err)
 		if len(res) != 0 {
 			panic("Book with Title3 shouldn't exist")
 		}
 
 		// Delete it
-		res, err = collection.Find(db.JSONWhere("Title").Eq("ModifiedTitle"))
+		res, err = collection.Find(db.Where("Title").Eq("ModifiedTitle"))
 		checkErr(err)
 		if len(res) != 1 {
 			panic("Book with ModifiedTitle should exist")
@@ -165,7 +165,7 @@ func main() {
 			books[i] = book
 		}
 		_ = collection.Delete(books[0].ID)
-		res, err = collection.Find(db.JSONWhere("Title").Eq("ModifiedTitle"))
+		res, err = collection.Find(db.Where("Title").Eq("ModifiedTitle"))
 		checkErr(err)
 		if len(res) != 0 {
 			panic("Book with ModifiedTitle shouldn't exist")

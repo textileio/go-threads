@@ -71,7 +71,7 @@ func (t *ReadTransaction) FindByID(instanceID string, instance interface{}) erro
 }
 
 // Find finds instances by query
-func (t *ReadTransaction) Find(query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (t *ReadTransaction) Find(query *db.Query, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

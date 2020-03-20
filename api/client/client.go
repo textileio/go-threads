@@ -203,7 +203,7 @@ func (c *Client) Has(ctx context.Context, dbID thread.ID, collectionName string,
 }
 
 // Find finds instances by query
-func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string, query *db.JSONQuery, dummySlice interface{}) (interface{}, error) {
+func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string, query *db.Query, dummySlice interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err

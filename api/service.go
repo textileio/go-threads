@@ -253,7 +253,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 					return err
 				}
 			case *pb.ReadTransactionRequest_FindRequest:
-				innerReply, err := s.processFindRequest(x.FindRequest, txn.FindJSON)
+				innerReply, err := s.processFindRequest(x.FindRequest, txn.Find)
 				if err != nil {
 					return err
 				}
@@ -321,7 +321,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_FindRequest:
-				innerReply, err := s.processFindRequest(x.FindRequest, txn.FindJSON)
+				innerReply, err := s.processFindRequest(x.FindRequest, txn.Find)
 				if err != nil {
 					return err
 				}
@@ -514,8 +514,8 @@ func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(
 	return &pb.FindByIDReply{Instance: result}, nil
 }
 
-func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.JSONQuery) (ret []string, err error)) (*pb.FindReply, error) {
-	q := &db.JSONQuery{}
+func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.Query) (ret []string, err error)) (*pb.FindReply, error) {
+	q := &db.Query{}
 	if err := json.Unmarshal(req.QueryJSON, q); err != nil {
 		return nil, err
 	}

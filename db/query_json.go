@@ -8,51 +8,51 @@ import (
 	"strings"
 )
 
-// JSONQuery is a json-seriable query representation
-type JSONQuery struct {
-	Ands  []*JSONCriterion
-	Ors   []*JSONQuery
-	Sort  JSONSort
+// Query is a json-seriable query representation
+type Query struct {
+	Ands  []*Criterion
+	Ors   []*Query
+	Sort  Sort
 	Index string
 }
 
-// JSONCriterion represents a restriction on a field
-type JSONCriterion struct {
+// Criterion represents a restriction on a field
+type Criterion struct {
 	FieldPath string
-	Operation JSONOperation
-	Value     JSONValue
-	query     *JSONQuery
+	Operation Operation
+	Value     Value
+	query     *Query
 }
 
-// JSONValue models a single value in JSON
-type JSONValue struct {
+// Value models a single value in JSON
+type Value struct {
 	String *string
 	Bool   *bool
 	Float  *float64
 }
 
-// JSONSort represents a sort order on a field
-type JSONSort struct {
+// Sort represents a sort order on a field
+type Sort struct {
 	FieldPath string
 	Desc      bool
 }
 
-// JSONOperation models comparison operators
-type JSONOperation int
+// Operation models comparison operators
+type Operation int
 
 const (
 	// Eq is "equals"
-	Eq = JSONOperation(eq)
+	Eq = Operation(eq)
 	// Ne is "not equal to"
-	Ne = JSONOperation(ne)
+	Ne = Operation(ne)
 	// Gt is "greater than"
-	Gt = JSONOperation(gt)
+	Gt = Operation(gt)
 	// Lt is "less than"
-	Lt = JSONOperation(lt)
+	Lt = Operation(lt)
 	// Ge is "greater than or equal to"
-	Ge = JSONOperation(ge)
+	Ge = Operation(ge)
 	// Le is "less than or equal to"
-	Le = JSONOperation(le)
+	Le = Operation(le)
 )
 
 var (
@@ -66,139 +66,139 @@ type marshaledValue struct {
 	rawJSON []byte
 }
 
-// JSONWhere starts to create a query condition for a field
-func JSONWhere(field string) *JSONCriterion {
-	return &JSONCriterion{
+// Where starts to create a query condition for a field
+func Where(field string) *Criterion {
+	return &Criterion{
 		FieldPath: field,
 	}
 }
 
-// JSONOrderBy specify ascending order for the query results.
-func JSONOrderBy(field string) *JSONQuery {
-	q := &JSONQuery{}
+// OrderBy specify ascending order for the query results.
+func OrderBy(field string) *Query {
+	q := &Query{}
 	q.Sort.FieldPath = field
 	q.Sort.Desc = false
 	return q
 }
 
-// JSONOrderByDesc specify descending order for the query results.
-func JSONOrderByDesc(field string) *JSONQuery {
-	q := &JSONQuery{}
+// OrderByDesc specify descending order for the query results.
+func OrderByDesc(field string) *Query {
+	q := &Query{}
 	q.Sort.FieldPath = field
 	q.Sort.Desc = true
 	return q
 }
 
-// JSONAnd concatenates a new condition in an existing field.
-func (q *JSONQuery) JSONAnd(field string) *JSONCriterion {
-	return &JSONCriterion{
+// And concatenates a new condition in an existing field.
+func (q *Query) And(field string) *Criterion {
+	return &Criterion{
 		FieldPath: field,
 		query:     q,
 	}
 }
 
 // UseIndex specifies the index to use when running this query
-func (q *JSONQuery) UseIndex(path string) *JSONQuery {
+func (q *Query) UseIndex(path string) *Query {
 	q.Index = path
 	return q
 }
 
-// JSONOr concatenates a new condition that is sufficient
+// Or concatenates a new condition that is sufficient
 // for an instance to satisfy, independant of the current Query.
 // Has left-associativity as: (a And b) Or c
-func (q *JSONQuery) JSONOr(orQuery *JSONQuery) *JSONQuery {
+func (q *Query) Or(orQuery *Query) *Query {
 	q.Ors = append(q.Ors, orQuery)
 	return q
 }
 
-// JSONOrderBy specify ascending order for the query results.
+// OrderBy specify ascending order for the query results.
 // On multiple calls, only the last one is considered.
-func (q *JSONQuery) JSONOrderBy(field string) *JSONQuery {
+func (q *Query) OrderBy(field string) *Query {
 	q.Sort.FieldPath = field
 	q.Sort.Desc = false
 	return q
 }
 
-// JSONOrderByDesc specify descending order for the query results.
+// OrderByDesc specify descending order for the query results.
 // On multiple calls, only the last one is considered.
-func (q *JSONQuery) JSONOrderByDesc(field string) *JSONQuery {
+func (q *Query) OrderByDesc(field string) *Query {
 	q.Sort.FieldPath = field
 	q.Sort.Desc = true
 	return q
 }
 
-// JSONCriterion helpers
+// Criterion helpers
 
 // Eq is an equality operator against a field
-func (c *JSONCriterion) Eq(value interface{}) *JSONQuery {
+func (c *Criterion) Eq(value interface{}) *Query {
 	return c.createcriterion(Eq, value)
 }
 
 // Ne is a not equal operator against a field
-func (c *JSONCriterion) Ne(value interface{}) *JSONQuery {
+func (c *Criterion) Ne(value interface{}) *Query {
 	return c.createcriterion(Ne, value)
 }
 
 // Gt is a greater operator against a field
-func (c *JSONCriterion) Gt(value interface{}) *JSONQuery {
+func (c *Criterion) Gt(value interface{}) *Query {
 	return c.createcriterion(Gt, value)
 }
 
 // Lt is a less operation against a field
-func (c *JSONCriterion) Lt(value interface{}) *JSONQuery {
+func (c *Criterion) Lt(value interface{}) *Query {
 	return c.createcriterion(Lt, value)
 }
 
 // Ge is a greater or equal operator against a field
-func (c *JSONCriterion) Ge(value interface{}) *JSONQuery {
+func (c *Criterion) Ge(value interface{}) *Query {
 	return c.createcriterion(Ge, value)
 }
 
 // Le is a less or equal operator against a field
-func (c *JSONCriterion) Le(value interface{}) *JSONQuery {
+func (c *Criterion) Le(value interface{}) *Query {
 	return c.createcriterion(Le, value)
 }
 
-func createValue(value interface{}) JSONValue {
+func createValue(value interface{}) Value {
 	s, ok := value.(string)
 	if ok {
-		return JSONValue{String: &s}
+		return Value{String: &s}
 	}
 	b, ok := value.(bool)
 	if ok {
-		return JSONValue{Bool: &b}
+		return Value{Bool: &b}
 	}
 	f, ok := value.(float64)
 	if ok {
-		return JSONValue{Float: &f}
+		return Value{Float: &f}
 	}
 	sp, ok := value.(*string)
 	if ok {
-		return JSONValue{String: sp}
+		return Value{String: sp}
 	}
 	bp, ok := value.(*bool)
 	if ok {
-		return JSONValue{Bool: bp}
+		return Value{Bool: bp}
 	}
 	fp, ok := value.(*float64)
 	if ok {
-		return JSONValue{Float: fp}
+		return Value{Float: fp}
 	}
-	return JSONValue{}
+	return Value{}
 }
 
-func (c *JSONCriterion) createcriterion(op JSONOperation, value interface{}) *JSONQuery {
+func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 	c.Operation = op
 	c.Value = createValue(value)
 	if c.query == nil {
-		c.query = &JSONQuery{}
+		c.query = &Query{}
 	}
 	c.query.Ands = append(c.query.Ands, c)
 	return c.query
 }
 
-// FindJSON queries for instances by JSONQuery
-func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
+// Find queries for instances by Query
+func (t *Txn) Find(q *Query) ([]string, error) {
 	txn, err := t.collection.db.datastore.NewTransaction(true)
 	if err != nil {
 		return nil, fmt.Errorf("error building internal query: %v", err)
@@ -255,7 +255,7 @@ func (t *Txn) FindJSON(q *JSONQuery) ([]string, error) {
 	return res, nil
 }
 
-func (q *JSONQuery) matchJSON(v map[string]interface{}) (bool, error) {
+func (q *Query) match(v map[string]interface{}) (bool, error) {
 	if q == nil {
 		panic("query can't be nil")
 	}
@@ -280,7 +280,7 @@ func (q *JSONQuery) matchJSON(v map[string]interface{}) (bool, error) {
 	}
 
 	for _, q := range q.Ors {
-		ok, err := q.matchJSON(v)
+		ok, err := q.match(v)
 		if err != nil {
 			return false, err
 		}
@@ -292,7 +292,7 @@ func (q *JSONQuery) matchJSON(v map[string]interface{}) (bool, error) {
 	return false, nil
 }
 
-func compareJSONValue(value interface{}, critVal JSONValue) (int, error) {
+func compareValue(value interface{}, critVal Value) (int, error) {
 	if critVal.String != nil {
 		s, ok := value.(string)
 		if !ok {
@@ -323,13 +323,13 @@ func compareJSONValue(value interface{}, critVal JSONValue) (int, error) {
 		}
 		return 1, nil
 	}
-	log.Fatalf("no underlying value for json criterion was provided")
+	log.Fatalf("no underlying value for criterion was provided")
 	return 0, nil
 }
 
-func (c *JSONCriterion) match(value reflect.Value) (bool, error) {
+func (c *Criterion) match(value reflect.Value) (bool, error) {
 	valueInterface := value.Interface()
-	result, err := compareJSONValue(valueInterface, c.Value)
+	result, err := compareValue(valueInterface, c.Value)
 	if err != nil {
 		return false, err
 	}

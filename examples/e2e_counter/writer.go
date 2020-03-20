@@ -38,7 +38,7 @@ func runWriterPeer(repo string) {
 	checkErr(err)
 
 	var counter *myCounter
-	res, err := m.Find(db.JSONWhere("Name").Eq("TestCounter"))
+	res, err := m.Find(db.Where("Name").Eq("TestCounter"))
 	checkErr(err)
 	counters := make([]*myCounter, len(res))
 	for i, counterJSON := range res {

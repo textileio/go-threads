@@ -211,7 +211,7 @@ func TestFind(t *testing.T) {
 		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		q := db.JSONWhere("lastName").Eq(person.LastName)
+		q := db.Where("lastName").Eq(person.LastName)
 
 		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
 		if err != nil {
@@ -250,7 +250,7 @@ func TestFindWithIndex(t *testing.T) {
 		err = client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
-		q := db.JSONWhere("lastName").Eq(person.LastName).UseIndex("lastName")
+		q := db.Where("lastName").Eq(person.LastName).UseIndex("lastName")
 
 		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
 		if err != nil {
@@ -343,7 +343,7 @@ func TestReadTransaction(t *testing.T) {
 			t.Fatal("txn collection found by id does't equal the original")
 		}
 
-		q := db.JSONWhere("lastName").Eq(person.LastName)
+		q := db.Where("lastName").Eq(person.LastName)
 
 		rawResults, err := txn.Find(q, []*Person{})
 		if err != nil {
@@ -419,7 +419,7 @@ func TestWriteTransaction(t *testing.T) {
 			t.Fatalf("txn collection found by id does't equal the original")
 		}
 
-		q := db.JSONWhere("lastName").Eq(person.LastName)
+		q := db.Where("lastName").Eq(person.LastName)
 
 		rawResults, err := txn.Find(q, []*Person{})
 		if err != nil {

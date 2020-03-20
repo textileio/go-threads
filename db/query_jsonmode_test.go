@@ -61,7 +61,7 @@ const (
 
 type jsonQueryTest struct {
 	name    string
-	query   *JSONQuery
+	query   *Query
 	resIdx  []int
 	ordered bool
 }
@@ -96,210 +96,210 @@ var (
 		{
 			name:   "EqByTitle1",
 			resIdx: []int{0},
-			query:  JSONWhere("Title").Eq(&title0),
+			query:  Where("Title").Eq(&title0),
 		},
 		{
 			name:   "NeByTitle1",
 			resIdx: []int{1, 2, 3},
-			query:  JSONWhere("Title").Ne(&title0),
+			query:  Where("Title").Ne(&title0),
 		},
 		{
 			name:   "NeByTitle",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Title").Ne(&title),
+			query:  Where("Title").Ne(&title),
 		},
 		{
 			name:   "EqByTitle",
 			resIdx: []int{},
-			query:  JSONWhere("Title").Eq(&title),
+			query:  Where("Title").Eq(&title),
 		},
 		{
 			name:   "LtByTitle",
 			resIdx: []int{},
-			query:  JSONWhere("Title").Lt(&title),
+			query:  Where("Title").Lt(&title),
 		},
 		{
 			name:   "GtByTitle",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Title").Gt(&title),
+			query:  Where("Title").Gt(&title),
 		},
 		{
 			name:   "GtByTitleMax",
 			resIdx: []int{},
-			query:  JSONWhere("Title").Gt(&titleMax),
+			query:  Where("Title").Gt(&titleMax),
 		},
 
 		// Ands "int" (which query interpret as float)
 		{
 			name:   "EqByTotalReads1",
 			resIdx: []int{0},
-			query:  JSONWhere("Meta.TotalReads").Eq(&totreadEq1),
+			query:  Where("Meta.TotalReads").Eq(&totreadEq1),
 		},
 		{
 			name:   "LtByTotalReads1",
 			resIdx: []int{},
-			query:  JSONWhere("Meta.TotalReads").Lt(&totreadEq1),
+			query:  Where("Meta.TotalReads").Lt(&totreadEq1),
 		},
 		{
 			name:   "LeByTotalReadsBigger",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Meta.TotalReads").Le(&totreadMax),
+			query:  Where("Meta.TotalReads").Le(&totreadMax),
 		},
 		{
 			name:   "GeByTotalReadsMin",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Meta.TotalReads").Ge(&totreadMin),
+			query:  Where("Meta.TotalReads").Ge(&totreadMin),
 		},
 		{
 			name:   "LtByTotalReadsMidpoint",
 			resIdx: []int{0, 2},
-			query:  JSONWhere("Meta.TotalReads").Lt(&totreadMid),
+			query:  Where("Meta.TotalReads").Lt(&totreadMid),
 		},
 		{
 			name:   "GtByTotalReadsMidpoint",
 			resIdx: []int{1, 3},
-			query:  JSONWhere("Meta.TotalReads").Gt(&totreadMid),
+			query:  Where("Meta.TotalReads").Gt(&totreadMid),
 		},
 		{
 			name:   "LtByTotalReads2",
 			resIdx: []int{0, 2},
-			query:  JSONWhere("Meta.TotalReads").Lt(&totreadEq2),
+			query:  Where("Meta.TotalReads").Lt(&totreadEq2),
 		},
 
 		// Ands float
 		{
 			name:   "EqByRating1",
 			resIdx: []int{0},
-			query:  JSONWhere("Meta.Rating").Eq(&rating1),
+			query:  Where("Meta.Rating").Eq(&rating1),
 		},
 		{
 			name:   "GtByRating1",
 			resIdx: []int{1, 2},
-			query:  JSONWhere("Meta.Rating").Gt(&rating1),
+			query:  Where("Meta.Rating").Gt(&rating1),
 		},
 		{
 			name:   "LeByRatingMin",
 			resIdx: []int{},
-			query:  JSONWhere("Meta.Rating").Le(&ratingMin),
+			query:  Where("Meta.Rating").Le(&ratingMin),
 		},
 		{
 			name:   "GeByRatingMin",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Meta.Rating").Ge(&ratingMin),
+			query:  Where("Meta.Rating").Ge(&ratingMin),
 		},
 		{
 			name:   "LeByRatingMid",
 			resIdx: []int{0, 3},
-			query:  JSONWhere("Meta.Rating").Le(&ratingMid),
+			query:  Where("Meta.Rating").Le(&ratingMid),
 		},
 		{
 			name:   "GeByRatingMid",
 			resIdx: []int{1, 2},
-			query:  JSONWhere("Meta.Rating").Ge(&ratingMid),
+			query:  Where("Meta.Rating").Ge(&ratingMid),
 		},
 		{
 			name:   "LeByRatingMax",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Meta.Rating").Le(&ratingMax),
+			query:  Where("Meta.Rating").Le(&ratingMax),
 		},
 		{
 			name:   "GtByRatingMax",
 			resIdx: []int{},
-			query:  JSONWhere("Meta.Rating").Gt(&ratingMax),
+			query:  Where("Meta.Rating").Gt(&ratingMax),
 		},
 		// Ands bool
 		{
 			name:   "EqByBanned",
 			resIdx: []int{0, 3},
-			query:  JSONWhere("Banned").Eq(&boolTrue),
+			query:  Where("Banned").Eq(&boolTrue),
 		},
 		{
 			name:   "NeByBanned",
 			resIdx: []int{1, 2},
-			query:  JSONWhere("Banned").Ne(&boolTrue),
+			query:  Where("Banned").Ne(&boolTrue),
 		},
 		{
 			name:   "EqByBannedFalse",
 			resIdx: []int{1, 2},
-			query:  JSONWhere("Banned").Eq(&boolFalse),
+			query:  Where("Banned").Eq(&boolFalse),
 		},
 
 		// Ors
 		{
 			name:   "EqTitle1OrTitle3",
 			resIdx: []int{0, 2},
-			query:  JSONWhere("Title").Eq(&title0).JSONOr(JSONWhere("Title").Eq(&title3)),
+			query:  Where("Title").Eq(&title0).Or(Where("Title").Eq(&title3)),
 		},
 		{
 			name:   "EqTitle2OrRating",
 			resIdx: []int{0, 1},
-			query:  JSONWhere("Title").Eq(&title1).JSONOr(JSONWhere("Meta.Rating").Eq(&rating1)),
+			query:  Where("Title").Eq(&title1).Or(Where("Meta.Rating").Eq(&rating1)),
 		},
 
 		// Ordering (string, int, float)
 		{
 			name:    "AllOrderedTitle",
 			resIdx:  []int{0, 1, 2, 3},
-			query:   JSONOrderBy("Title"),
+			query:   OrderBy("Title"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedTitleDesc",
 			resIdx:  []int{3, 2, 1, 0},
-			query:   JSONOrderByDesc("Title"),
+			query:   OrderByDesc("Title"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedTotalReads",
 			resIdx:  []int{0, 2, 1, 3},
-			query:   JSONOrderBy("Meta.TotalReads"),
+			query:   OrderBy("Meta.TotalReads"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedTotalReads",
 			resIdx:  []int{3, 1, 2, 0},
-			query:   JSONOrderByDesc("Meta.TotalReads"),
+			query:   OrderByDesc("Meta.TotalReads"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedRatings",
 			resIdx:  []int{3, 0, 1, 2},
-			query:   JSONOrderBy("Meta.Rating"),
+			query:   OrderBy("Meta.Rating"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedRatingsDesc",
 			resIdx:  []int{2, 1, 0, 3},
-			query:   JSONOrderByDesc("Meta.Rating"),
+			query:   OrderByDesc("Meta.Rating"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedRatingsDescWithAnd",
 			resIdx:  []int{2, 1},
-			query:   JSONWhere("Meta.Rating").Gt(&ratingMid).JSONOrderBy("Meta.TotalReads"),
+			query:   Where("Meta.Rating").Gt(&ratingMid).OrderBy("Meta.TotalReads"),
 			ordered: true,
 		},
 		{
 			name:    "AllOrderedRatingsDescWithAndDesc",
 			resIdx:  []int{1, 2},
-			query:   JSONWhere("Meta.Rating").Gt(&ratingMid).JSONOrderByDesc("Meta.TotalReads"),
+			query:   Where("Meta.Rating").Gt(&ratingMid).OrderByDesc("Meta.TotalReads"),
 			ordered: true,
 		},
 		// Indexing
 		{
 			name:   "EqTitle1OrTitle3UseIndex",
 			resIdx: []int{0, 2},
-			query:  JSONWhere("Title").Eq(&title0).JSONOr(JSONWhere("Title").Eq(&title3)).UseIndex("Title"),
+			query:  Where("Title").Eq(&title0).Or(Where("Title").Eq(&title3)).UseIndex("Title"),
 		},
 		{
 			name:   "GeByTotalReadsMinUseIndex",
 			resIdx: []int{0, 1, 2, 3},
-			query:  JSONWhere("Meta.TotalReads").Ge(&totreadMin).UseIndex("Meta.TotalReads"),
+			query:  Where("Meta.TotalReads").Ge(&totreadMin).UseIndex("Meta.TotalReads"),
 		},
 		{
 			name:   "InvalidIndex",
 			resIdx: []int{},
-			query:  JSONWhere("Meta.TotalReads").Ge(&totreadMin).UseIndex("Not.Valid.Path"),
+			query:  Where("Meta.TotalReads").Ge(&totreadMin).UseIndex("Not.Valid.Path"),
 		},
 	}
 )

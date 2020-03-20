@@ -25,7 +25,7 @@ type bookStats struct {
 
 type queryTest struct {
 	name    string
-	query   *JSONQuery
+	query   *Query
 	resIdx  []int // expected idx results from sample data
 	ordered bool
 }
@@ -153,7 +153,7 @@ func TestInvalidSortField(t *testing.T) {
 
 	c, clean := createCollectionWithData(t)
 	defer clean()
-	_, err := c.Find(JSONOrderBy("WrongFieldName"))
+	_, err := c.Find(OrderBy("WrongFieldName"))
 	if !errors.Is(err, ErrInvalidSortingField) {
 		t.Fatal("query should fail using an invalid field")
 	}
