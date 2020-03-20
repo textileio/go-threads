@@ -13,7 +13,7 @@ import (
 )
 
 // Handler receives all pushed thread records.
-type Handler func(*pb.PushRecordRequest)
+type Handler func(context.Context, *pb.PushRecordRequest)
 
 // PubSub manages thread pubsub topics.
 type PubSub struct {
@@ -30,6 +30,8 @@ type topic struct {
 	t *pubsub.Topic
 	h *pubsub.TopicEventHandler
 	s *pubsub.Subscription
+
+	cancel context.CancelFunc
 }
 
 // NewPubSub returns a new thread topic manager.
@@ -63,10 +65,15 @@ func (s *PubSub) Add(id thread.ID) error {
 		return err
 	}
 
-	topic := &topic{t: pt, h: h}
+	ctx, cancel := context.WithCancel(s.ctx)
+	topic := &topic{
+		t:      pt,
+		h:      h,
+		cancel: cancel,
+	}
 	s.m[id] = topic
-	go s.watch(s.ctx, id, topic)
-	go s.subscribe(s.ctx, id, topic)
+	go s.watch(ctx, id, topic)
+	go s.subscribe(ctx, id, topic)
 	return nil
 }
 
@@ -86,6 +93,7 @@ func (s *PubSub) Remove(id thread.ID) error {
 	if err := topic.t.Close(); err != nil {
 		return err
 	}
+	topic.cancel()
 	delete(s.m, id)
 	return nil
 }
@@ -160,6 +168,6 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 
 		log.Debugf("received multicast record from %s", from)
 
-		s.handler(req)
+		s.handler(ctx, req)
 	}
 }

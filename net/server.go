@@ -51,8 +51,9 @@ func newServer(n *net) (*server, error) {
 	return s, nil
 }
 
-func (s *server) pubsubHandler(req *pb.PushRecordRequest) {
-	if _, err := s.PushRecord(s.net.ctx, req); err != nil {
+// pubsubHandler receives records over pubsub.
+func (s *server) pubsubHandler(ctx context.Context, req *pb.PushRecordRequest) {
+	if _, err := s.PushRecord(ctx, req); err != nil {
 		// This error will be "log not found" if the record sent over pubsub
 		// beat the log, which has to be sent directly via the normal API.
 		// In this case, the record will arrive directly after the log via
