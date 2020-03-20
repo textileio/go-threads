@@ -149,21 +149,11 @@ func main() {
 			if err != nil {
 				continue // Not one of our messages
 			}
-			header, err := event.GetHeader(ctx, net, info.Key.Read())
-			if err != nil {
-				logError(err)
-				continue
-			}
-			msgTime, err := header.Time()
-			if err != nil {
-				logError(err)
-				continue
-			}
 
 			clean(0)
 
 			fmt.Println(pink(name+"> ") +
-				grey(msgTime.Format(timeLayout)+" ") +
+				grey(time.Now().Format(timeLayout)+" ") +
 				cyan(shortID(rec.LogID())+"  ") +
 				grey(m.Txt))
 

@@ -91,7 +91,7 @@ func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
-		return nil, fmt.Errorf("db %s already exists", id.String())
+		return nil, fmt.Errorf("db %s already exists", id)
 	}
 	if _, err := m.network.CreateThread(ctx, id); err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, err
 	}
 	if _, ok := m.dbs[id]; ok {
-		return nil, fmt.Errorf("db %s already exists", id.String())
+		return nil, fmt.Errorf("db %s already exists", id)
 	}
 	if _, err = m.network.AddThread(ctx, addr, net.ThreadKey(key)); err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 
 	go func() {
 		if err := m.network.PullThread(ctx, id); err != nil {
-			log.Errorf("error pulling thread %s", id.String())
+			log.Errorf("error pulling thread %s", id)
 		}
 	}()
 

@@ -287,19 +287,21 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 				return info, err
 			}
 		}
-		heads := make([]cid.Cid, len(lg.Heads))
-		for k, head := range lg.Heads {
-			heads[k], err = cid.Cast(head)
+		var head cid.Cid
+		if lg.Head != nil {
+			head, err = cid.Cast(lg.Head)
 			if err != nil {
 				return info, err
 			}
+		} else {
+			head = cid.Undef
 		}
 		logs[i] = thread.LogInfo{
 			ID:      id,
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Heads:   heads,
+			Head:    head,
 		}
 	}
 	return thread.Info{

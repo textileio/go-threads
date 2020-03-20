@@ -324,5 +324,5 @@ type LogInfo struct {
 	PubKey  crypto.PubKey
 	PrivKey crypto.PrivKey
 	Addrs   []ma.Multiaddr
-	Heads   []cid.Cid
+	Head    cid.Cid
 }

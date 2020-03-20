@@ -44,7 +44,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 		ServiceKey: &pb.ProtoKey{Key: sk},
 	}
 
-	log.Debugf("getting %s logs from %s...", id.String(), pid.String())
+	log.Debugf("getting %s logs from %s...", id, pid)
 
 	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()
@@ -52,15 +52,14 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 	if err != nil {
 		return nil, err
 	}
-	// @todo: Retain connections.
 	client := pb.NewServiceClient(conn)
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
-		log.Warnf("get logs from %s failed: %s", pid.String(), err)
+		log.Warnf("get logs from %s failed: %s", pid, err)
 		return nil, err
 	}
 
-	log.Debugf("received %d logs from %s", len(reply.Logs), pid.String())
+	log.Debugf("received %d logs from %s", len(reply.Logs), pid)
 
 	lgs := make([]thread.LogInfo, len(reply.Logs))
 	for i, l := range reply.Logs {
@@ -86,18 +85,18 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 		lreq.ReadKey = &pb.ProtoKey{Key: rk}
 	}
 
-	log.Debugf("pushing log %s to %s...", lg.ID.String(), pid.String())
+	log.Debugf("pushing log %s to %s...", lg.ID, pid)
 
 	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
 	defer cancel()
 	conn, err := s.dial(cctx, pid, grpc.WithInsecure())
 	if err != nil {
-		return fmt.Errorf("dial %s failed: %s", pid.String(), err)
+		return fmt.Errorf("dial %s failed: %s", pid, err)
 	}
 	client := pb.NewServiceClient(conn)
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
-		return fmt.Errorf("push log to %s failed: %s", pid.String(), err)
+		return fmt.Errorf("push log to %s failed: %s", pid, err)
 	}
 	return err
 }
@@ -218,7 +217,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				return
 			}
 			for _, l := range reply.Logs {
-				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID.String(), p)
+				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID, p)
 
 				lg, err := s.net.store.GetLog(id, l.LogID.ID)
 				if err != nil {
@@ -228,7 +227,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				if lg.PubKey == nil {
 					if l.Log != nil {
 						lg = logFromProto(l.Log)
-						lg.Heads = []cid.Cid{}
+						lg.Head = cid.Undef
 						if err = s.net.store.AddLog(id, lg); err != nil {
 							log.Error(err)
 							return
@@ -327,7 +326,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 			client := pb.NewServiceClient(conn)
 			if _, err = client.PushRecord(cctx, req); err != nil {
 				if status.Convert(err).Code() == codes.NotFound {
-					log.Debugf("pushing log %s to %s...", lid.String(), p)
+					log.Debugf("pushing log %s to %s...", lid, p)
 
 					// Send the missing log
 					l, err := s.net.store.GetLog(id, lid)
@@ -355,8 +354,8 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	// Finally, publish to the thread's topic
-	if err = s.publish(id, req); err != nil {
-		log.Error(err)
+	if err = s.ps.Publish(ctx, id, req); err != nil {
+		log.Errorf("error publishing record: %s", err)
 	}
 
 	wg.Wait()
@@ -378,13 +377,4 @@ func (s *server) getDialOption() grpc.DialOption {
 		}
 		return gostream.Dial(ctx, s.net.host, id, thread.Protocol)
 	})
-}
-
-// publish a request to a thread.
-func (s *server) publish(id thread.ID, req *pb.PushRecordRequest) error {
-	data, err := req.Marshal()
-	if err != nil {
-		return err
-	}
-	return s.pubsub.Publish(id.String(), data)
 }

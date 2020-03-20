@@ -17,8 +17,8 @@ message Log {
     // addrs of the log.
     repeated bytes addrs = 3 [(gogoproto.customtype) = "ProtoAddr"];
 
-    // heads of the log.
-    repeated bytes heads = 4 [(gogoproto.customtype) = "ProtoCid"];
+    // head of the log.
+    bytes head = 4 [(gogoproto.customtype) = "ProtoCid"];
 
     // Record is a thread record containing link data.
     message Record {
