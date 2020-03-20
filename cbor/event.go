@@ -11,7 +11,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/crypto"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 func init() {
@@ -33,7 +33,7 @@ type eventHeader struct {
 
 // CreateEvent create a new event by wrapping the body node.
 func CreateEvent(ctx context.Context, dag format.DAGService, body format.Node, rkey crypto.EncryptionKey) (net.Event, error) {
-	key, err := symmetric.NewRandom()
+	key, err := sym.NewRandom()
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,11 @@ func EventFromRecord(ctx context.Context, dag format.DAGService, rec net.Record)
 		return EventFromNode(block)
 	}
 	return event, nil
+}
+
+// RemoveEvent removes an event from the dag service.
+func RemoveEvent(ctx context.Context, dag format.DAGService, e *Event) error {
+	return dag.RemoveMany(ctx, []cid.Cid{e.Cid(), e.HeaderID(), e.BodyID()})
 }
 
 // Event is a IPLD node representing an event.

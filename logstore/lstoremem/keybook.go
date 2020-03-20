@@ -49,44 +49,6 @@ func NewKeyBook() core.KeyBook {
 	}
 }
 
-func (mkb *memoryKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
-	mkb.RLock()
-	ps := make(map[peer.ID]struct{})
-	if mkb.pks[t] != nil {
-		for p := range mkb.pks[t] {
-			ps[p] = struct{}{}
-		}
-	}
-	if mkb.sks[t] != nil {
-		for p := range mkb.sks[t] {
-			ps[p] = struct{}{}
-		}
-	}
-	mkb.RUnlock()
-	var pids peer.IDSlice
-	for p := range ps {
-		pids = append(pids, p)
-	}
-	return pids, nil
-}
-
-func (mkb *memoryKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
-	mkb.RLock()
-	ts := make(map[thread.ID]struct{})
-	for t := range mkb.pks {
-		ts[t] = struct{}{}
-	}
-	for t := range mkb.sks {
-		ts[t] = struct{}{}
-	}
-	mkb.RUnlock()
-	var tids thread.IDSlice
-	for t := range ts {
-		tids = append(tids, t)
-	}
-	return tids, nil
-}
-
 func (mkb *memoryKeyBook) PubKey(t thread.ID, p peer.ID) (crypto.PubKey, error) {
 	mkb.RLock()
 	pk, _ := mkb.getPubKey(t, p)
@@ -175,4 +137,60 @@ func (mkb *memoryKeyBook) AddServiceKey(t thread.ID, key *sym.Key) error {
 	mkb.fks[t] = key.Bytes()
 	mkb.Unlock()
 	return nil
+}
+
+func (mkb *memoryKeyBook) ClearKeys(t thread.ID) error {
+	mkb.Lock()
+	delete(mkb.pks, t)
+	delete(mkb.sks, t)
+	delete(mkb.rks, t)
+	delete(mkb.fks, t)
+	mkb.Unlock()
+	return nil
+}
+
+func (mkb *memoryKeyBook) ClearLogKeys(t thread.ID, p peer.ID) error {
+	mkb.Lock()
+	delete(mkb.pks, t)
+	delete(mkb.sks, t)
+	mkb.Unlock()
+	return nil
+}
+
+func (mkb *memoryKeyBook) LogsWithKeys(t thread.ID) (peer.IDSlice, error) {
+	mkb.RLock()
+	ps := make(map[peer.ID]struct{})
+	if mkb.pks[t] != nil {
+		for p := range mkb.pks[t] {
+			ps[p] = struct{}{}
+		}
+	}
+	if mkb.sks[t] != nil {
+		for p := range mkb.sks[t] {
+			ps[p] = struct{}{}
+		}
+	}
+	mkb.RUnlock()
+	var pids peer.IDSlice
+	for p := range ps {
+		pids = append(pids, p)
+	}
+	return pids, nil
+}
+
+func (mkb *memoryKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
+	mkb.RLock()
+	ts := make(map[thread.ID]struct{})
+	for t := range mkb.pks {
+		ts[t] = struct{}{}
+	}
+	for t := range mkb.sks {
+		ts[t] = struct{}{}
+	}
+	mkb.RUnlock()
+	var tids thread.IDSlice
+	for t := range ts {
+		tids = append(tids, t)
+	}
+	return tids, nil
 }

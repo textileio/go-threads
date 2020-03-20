@@ -12,17 +12,19 @@ import (
 	pt "github.com/libp2p/go-libp2p-core/test"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 var keyBookSuite = map[string]func(kb core.KeyBook) func(*testing.T){
-	"AddGetPrivKey":         testKeyBookPrivKey,
-	"AddGetPubKey":          testKeyBookPubKey,
-	"AddGetReadKey":         testKeyBookReadKey,
-	"AddGetFollowKey":       testKeyBookFollowKey,
-	"LogsWithKeys":          testKeyBookLogs,
-	"ThreadsFromKeys":       testKeyBookThreads,
-	"PubKeyAddedOnRetrieve": testInlinedPubKeyAddedOnRetrieve,
+	"AddGetPrivKey":           testKeyBookPrivKey,
+	"AddGetPubKey":            testKeyBookPubKey,
+	"AddGetReadKey":           testKeyBookReadKey,
+	"AddGetServiceKey":        testKeyBookServiceKey,
+	"LogsWithKeys":            testKeyBookLogs,
+	"testKeyBookClearKeys":    testKeyBookClearKeys,
+	"testKeyBookClearLogKeys": testKeyBookClearLogKeys,
+	"ThreadsFromKeys":         testKeyBookThreads,
+	"PubKeyAddedOnRetrieve":   testInlinedPubKeyAddedOnRetrieve,
 }
 
 type KeyBookFactory func() (core.KeyBook, func())
@@ -124,7 +126,7 @@ func testKeyBookReadKey(kb core.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		key, err := symmetric.NewRandom()
+		key, err := sym.NewRandom()
 		if err != nil {
 			t.Error(err)
 		}
@@ -140,7 +142,7 @@ func testKeyBookReadKey(kb core.KeyBook) func(t *testing.T) {
 	}
 }
 
-func testKeyBookFollowKey(kb core.KeyBook) func(t *testing.T) {
+func testKeyBookServiceKey(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
@@ -148,7 +150,7 @@ func testKeyBookFollowKey(kb core.KeyBook) func(t *testing.T) {
 			t.Error("expected logs to be empty on init without errors")
 		}
 
-		key, err := symmetric.NewRandom()
+		key, err := sym.NewRandom()
 		if err != nil {
 			t.Error(err)
 		}
@@ -160,6 +162,140 @@ func testKeyBookFollowKey(kb core.KeyBook) func(t *testing.T) {
 
 		if res, err := kb.ServiceKey(tid); err != nil || !bytes.Equal(res.Bytes(), key.Bytes()) {
 			t.Error("retrieved read key did not match stored read key without errors")
+		}
+	}
+}
+
+func testKeyBookClearKeys(kb core.KeyBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		key1, err := sym.NewRandom()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = kb.AddServiceKey(tid, key1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.ServiceKey(tid); err != nil || res == nil {
+			t.Error("missing service key")
+		}
+
+		key2, err := sym.NewRandom()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = kb.AddReadKey(tid, key2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.ReadKey(tid); err != nil || res == nil {
+			t.Error("missing read key")
+		}
+
+		priv, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := peer.IDFromPrivateKey(priv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = kb.AddPrivKey(tid, id, priv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.PrivKey(tid, id); err != nil || res == nil {
+			t.Error("missing private key")
+		}
+		err = kb.AddPubKey(tid, id, pub)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.PubKey(tid, id); err != nil || res == nil {
+			t.Error("missing public key")
+		}
+
+		if err = kb.ClearKeys(tid); err != nil {
+			t.Fatal(err)
+		}
+
+		if res, err := kb.ServiceKey(tid); err != nil || res != nil {
+			t.Error("service key should have been deleted")
+		}
+		if res, err := kb.ReadKey(tid); err != nil || res != nil {
+			t.Error("read key should have been deleted")
+		}
+		if res, err := kb.PrivKey(tid, id); err != nil || res != nil {
+			t.Error("private key should have been deleted")
+		}
+		if res, err := kb.PubKey(tid, id); err != nil || res != nil {
+			t.Error("public key should have been deleted")
+		}
+	}
+}
+
+func testKeyBookClearLogKeys(kb core.KeyBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		key1, err := sym.NewRandom()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = kb.AddServiceKey(tid, key1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.ServiceKey(tid); err != nil || res == nil {
+			t.Error("missing service key")
+		}
+
+		key2, err := sym.NewRandom()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = kb.AddReadKey(tid, key2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.ReadKey(tid); err != nil || res == nil {
+			t.Error("missing read key")
+		}
+
+		priv, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := peer.IDFromPrivateKey(priv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = kb.AddPrivKey(tid, id, priv)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.PrivKey(tid, id); err != nil || res == nil {
+			t.Error("missing private key")
+		}
+		err = kb.AddPubKey(tid, id, pub)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res, err := kb.PubKey(tid, id); err != nil || res == nil {
+			t.Error("missing public key")
+		}
+
+		if err = kb.ClearLogKeys(tid, id); err != nil {
+			t.Fatal(err)
+		}
+
+		if res, err := kb.PrivKey(tid, id); err != nil || res != nil {
+			t.Error("private key should have been deleted")
+		}
+		if res, err := kb.PubKey(tid, id); err != nil || res != nil {
+			t.Error("public key should have been deleted")
 		}
 	}
 }

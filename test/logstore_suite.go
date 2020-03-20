@@ -7,14 +7,13 @@ import (
 	"testing"
 	"time"
 
-	sym "github.com/textileio/go-threads/crypto/symmetric"
-
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
+	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
 var threadstoreSuite = map[string]func(core.Logstore) func(*testing.T){
@@ -272,7 +271,43 @@ func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 			t.Fatal("stored wrong address")
 		}
 
-		// @todo Test AddLog
+		// Test add entire log
+		tid := thread.NewIDV1(thread.Raw, 24)
+		priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+		p, _ := peer.IDFromPrivateKey(priv)
+		err = ls.AddLog(tid, thread.LogInfo{
+			ID:      p,
+			PubKey:  pub,
+			PrivKey: priv,
+			Addrs:   getAddrs(t, 1),
+		})
+		check(t, err)
+		log, err = ls.GetLog(tid, p)
+		check(t, err)
+
+		// Test delete log
+		err = ls.DeleteLog(tid, p)
+		check(t, err)
+		if _, err = ls.GetLog(tid, p); err != core.ErrLogNotFound {
+			t.Fatal("log was not deleted")
+		}
+
+		// Test delete thread (add the log back to the store)
+		err = ls.AddLog(tid, thread.LogInfo{
+			ID:      p,
+			PubKey:  pub,
+			PrivKey: priv,
+			Addrs:   getAddrs(t, 1),
+		})
+		check(t, err)
+		log, err = ls.GetLog(tid, p)
+		check(t, err)
+
+		err = ls.DeleteThread(tid)
+		check(t, err)
+		if _, err = ls.GetThread(tid); err != core.ErrThreadNotFound {
+			t.Fatal("thread was not deleted")
+		}
 	}
 }
 
