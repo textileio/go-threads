@@ -199,6 +199,9 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 
 // Find queries for instances by Query
 func (t *Txn) Find(q *Query) ([]string, error) {
+	if q == nil {
+		q = &Query{}
+	}
 	txn, err := t.collection.db.datastore.NewTransaction(true)
 	if err != nil {
 		return nil, fmt.Errorf("error building internal query: %v", err)
