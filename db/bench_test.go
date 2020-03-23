@@ -63,7 +63,6 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	id := thread.NewIDV1(thread.Raw, 32)
 	opts = append(opts, WithRepoPath(dir))
-	opts = append(opts, WithJsonMode(true))
 	d, err := NewDB(context.Background(), n, id, opts...)
 	checkBenchErr(b, err)
 	return d, func() {
@@ -193,7 +192,7 @@ func BenchmarkNoIndexFind(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result, err := collection.FindJSON(JSONWhere("Name").Eq("Name0").JSONOr(JSONWhere("Name").Eq("Name6")))
+		result, err := collection.Find(Where("Name").Eq("Name0").Or(Where("Name").Eq("Name6")))
 		if err != nil {
 			b.Fatalf("Error finding data: %s", err)
 		}
@@ -233,7 +232,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result, err := collection.FindJSON(JSONWhere("Name").Eq("Name0").JSONOr(JSONWhere("Name").Eq("Name6")).UseIndex("Name"))
+		result, err := collection.Find(Where("Name").Eq("Name0").Or(Where("Name").Eq("Name6")).UseIndex("Name"))
 		if err != nil {
 			b.Fatalf("Error finding data: %s", err)
 		}

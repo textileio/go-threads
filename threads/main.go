@@ -149,7 +149,7 @@ func find(id thread.ID, collection string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	rawResults, err := apiClient.Find(ctx, id, collection, &db.JSONQuery{}, []*any{})
+	rawResults, err := apiClient.Find(ctx, id, collection, &db.Query{}, []*any{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return

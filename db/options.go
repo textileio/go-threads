@@ -20,16 +20,16 @@ type Option func(*Config) error
 
 // Config has configuration parameters for a db
 type Config struct {
-	RepoPath   string
-	Datastore  ds.TxnDatastore
-	EventCodec core.EventCodec
-	JsonMode   bool
-	Debug      bool
-	LowMem     bool
+	RepoPath    string
+	Datastore   ds.TxnDatastore
+	EventCodec  core.EventCodec
+	Debug       bool
+	LowMem      bool
+	Collections []CollectionConfig
 }
 
-func newDefaultEventCodec(jsonMode bool) core.EventCodec {
-	return jsonpatcher.New(jsonMode)
+func newDefaultEventCodec() core.EventCodec {
+	return jsonpatcher.New()
 }
 
 func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) {
@@ -47,13 +47,6 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 func WithLowMem(low bool) Option {
 	return func(sc *Config) error {
 		sc.LowMem = low
-		return nil
-	}
-}
-
-func WithJsonMode(enabled bool) Option {
-	return func(sc *Config) error {
-		sc.JsonMode = enabled
 		return nil
 	}
 }
@@ -78,6 +71,15 @@ func WithDebug(enable bool) Option {
 func WithEventCodec(ec core.EventCodec) Option {
 	return func(sc *Config) error {
 		sc.EventCodec = ec
+		return nil
+	}
+}
+
+// WithCollections is used to specify collections that
+// will be created
+func WithCollections(collections ...CollectionConfig) Option {
+	return func(sc *Config) error {
+		sc.Collections = collections
 		return nil
 	}
 }

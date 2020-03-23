@@ -9,6 +9,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/util"
 )
 
 func runReaderPeer(repo string) {
@@ -19,23 +20,27 @@ func runReaderPeer(repo string) {
 	checkErr(err)
 	defer n.Close()
 
-	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, key, db.WithRepoPath(repo))
+	cc := db.CollectionConfig{
+		Name:   "counter",
+		Schema: util.SchemaFromInstance(&myCounter{}),
+	}
+
+	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, key, db.WithRepoPath(repo), db.WithCollections(cc))
 	checkErr(err)
 	defer d.Close()
 
-	c, err := d.NewCollectionFromInstance("counter", &myCounter{})
-	checkErr(err)
+	c := d.GetCollection("counter")
 
 	l, err := d.Listen()
 	checkErr(err)
 	for range l.Channel() {
 		err := c.ReadTxn(func(txn *db.Txn) error {
-			var res []*myCounter
-			if err := txn.Find(&res, nil); err != nil {
+			res, err := txn.Find(&db.Query{})
+			if err != nil {
 				return err
 			}
-			for _, c := range res {
-				fmt.Printf("Counter %s: has value %d\n", c.Name, c.Count)
+			for i, c := range res {
+				fmt.Printf("Counter %v: has value %v\n", i, c)
 			}
 			return nil
 		})

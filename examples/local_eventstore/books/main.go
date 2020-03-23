@@ -9,6 +9,7 @@ import (
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/util"
 )
 
 type book struct {
@@ -27,7 +28,10 @@ func main() {
 	d, clean := createMemDB()
 	defer clean()
 
-	collection, err := d.NewCollectionFromInstance("Book", &book{})
+	collection, err := d.NewCollection(db.CollectionConfig{
+		Name:   "Book",
+		Schema: util.SchemaFromInstance(&book{}),
+	})
 	checkErr(err)
 
 	// Bootstrap the collection with some books: two from Author1 and one from Author2
@@ -43,7 +47,7 @@ func main() {
 			Author: "Author1",
 			Meta:   bookStats{TotalReads: 150, Rating: 4.1},
 		}
-		checkErr(collection.Create(book1, book2)) // Note you can create multiple books at the same time (variadic)
+		checkErr(collection.Create(util.JSONStringFromInstance(book1), util.JSONStringFromInstance(book2))) // Note you can create multiple books at the same time (variadic)
 
 		// Create book for Author2
 		book3 := &book{
@@ -51,13 +55,12 @@ func main() {
 			Author: "Author2",
 			Meta:   bookStats{TotalReads: 500, Rating: 4.9},
 		}
-		checkErr(collection.Create(book3))
+		checkErr(collection.Create(util.JSONStringFromInstance(book3)))
 	}
 
 	// Query all the books
 	{
-		var books []*book
-		err := collection.Find(&books, &db.Query{})
+		books, err := collection.Find(&db.Query{})
 		checkErr(err)
 		if len(books) != 3 {
 			panic("there should be three books")
@@ -66,8 +69,7 @@ func main() {
 
 	// Query the books from Author2
 	{
-		var books []*book
-		err := collection.Find(&books, db.Where("Author").Eq("Author1"))
+		books, err := collection.Find(db.Where("Author").Eq("Author1"))
 		checkErr(err)
 		if len(books) != 2 {
 			panic("Author1 should have two books")
@@ -76,8 +78,7 @@ func main() {
 
 	// Query with nested condition
 	{
-		var books []*book
-		err := collection.Find(&books, db.Where("Meta.TotalReads").Eq(100))
+		books, err := collection.Find(db.Where("Meta.TotalReads").Eq(float64(100)))
 		checkErr(err)
 		if len(books) != 1 {
 			panic("There should be one book with 100 total reads")
@@ -86,8 +87,7 @@ func main() {
 
 	// Query book by two conditions
 	{
-		var books []*book
-		err := collection.Find(&books, db.Where("Author").Eq("Author1").And("Title").Eq("Title2"))
+		books, err := collection.Find(db.Where("Author").Eq("Author1").And("Title").Eq("Title2"))
 		checkErr(err)
 		if len(books) != 1 {
 			panic("Author1 should have only one book with Title2")
@@ -96,8 +96,7 @@ func main() {
 
 	// Query book by OR condition
 	{
-		var books []*book
-		err := collection.Find(&books, db.Where("Author").Eq("Author1").Or(db.Where("Author").Eq("Author2")))
+		books, err := collection.Find(db.Where("Author").Eq("Author1").Or(db.Where("Author").Eq("Author2")))
 		checkErr(err)
 		if len(books) != 3 {
 			panic("Author1 & Author2 have should have 3 books in total")
@@ -106,16 +105,27 @@ func main() {
 
 	// Sorted query
 	{
-		var books []*book
 		// Ascending
-		err := collection.Find(&books, db.Where("Author").Eq("Author1").OrderBy("Meta.TotalReads"))
+		res, err := collection.Find(db.Where("Author").Eq("Author1").OrderBy("Meta.TotalReads"))
 		checkErr(err)
+		books := make([]*book, len(res))
+		for i, item := range res {
+			book := &book{}
+			util.InstanceFromJSONString(item, book)
+			books[i] = book
+		}
 		if books[0].Meta.TotalReads != 100 || books[1].Meta.TotalReads != 150 {
 			panic("books aren't ordered asc correctly")
 		}
 		// Descending
-		err = collection.Find(&books, db.Where("Author").Eq("Author1").OrderByDesc("Meta.TotalReads"))
+		res, err = collection.Find(db.Where("Author").Eq("Author1").OrderByDesc("Meta.TotalReads"))
 		checkErr(err)
+		books = make([]*book, len(res))
+		for i, item := range res {
+			book := &book{}
+			util.InstanceFromJSONString(item, book)
+			books[i] = book
+		}
 		if books[0].Meta.TotalReads != 150 || books[1].Meta.TotalReads != 100 {
 			panic("books aren't ordered desc correctly")
 		}
@@ -123,30 +133,41 @@ func main() {
 
 	// Query, Update, and Save
 	{
-		var books []*book
-		err := collection.Find(&books, db.Where("Title").Eq("Title3"))
+		res, err := collection.Find(db.Where("Title").Eq("Title3"))
 		checkErr(err)
+		books := make([]*book, len(res))
+		for i, item := range res {
+			book := &book{}
+			util.InstanceFromJSONString(item, book)
+			books[i] = book
+		}
 
 		// Modify title
-		book := books[0]
-		book.Title = "ModifiedTitle"
-		_ = collection.Save(book)
-		err = collection.Find(&books, db.Where("Title").Eq("Title3"))
+		firstBook := books[0]
+		firstBook.Title = "ModifiedTitle"
+		_ = collection.Save(util.JSONStringFromInstance(firstBook))
+		res, err = collection.Find(db.Where("Title").Eq("Title3"))
 		checkErr(err)
-		if len(books) != 0 {
+		if len(res) != 0 {
 			panic("Book with Title3 shouldn't exist")
 		}
 
 		// Delete it
-		err = collection.Find(&books, db.Where("Title").Eq("ModifiedTitle"))
+		res, err = collection.Find(db.Where("Title").Eq("ModifiedTitle"))
 		checkErr(err)
-		if len(books) != 1 {
+		if len(res) != 1 {
 			panic("Book with ModifiedTitle should exist")
 		}
+		books = make([]*book, len(res))
+		for i, item := range res {
+			book := &book{}
+			util.InstanceFromJSONString(item, book)
+			books[i] = book
+		}
 		_ = collection.Delete(books[0].ID)
-		err = collection.Find(&books, db.Where("Title").Eq("ModifiedTitle"))
+		res, err = collection.Find(db.Where("Title").Eq("ModifiedTitle"))
 		checkErr(err)
-		if len(books) != 0 {
+		if len(res) != 0 {
 			panic("Book with ModifiedTitle shouldn't exist")
 		}
 	}

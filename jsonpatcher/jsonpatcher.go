@@ -3,7 +3,6 @@ package jsonpatcher
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -39,7 +38,6 @@ type operation struct {
 }
 
 type jsonPatcher struct {
-	jsonMode bool
 }
 
 var _ core.EventCodec = (*jsonPatcher)(nil)
@@ -52,8 +50,8 @@ func init() {
 }
 
 // New returns a JSON-Patcher EventCodec
-func New(jsonMode bool) core.EventCodec {
-	return &jsonPatcher{jsonMode: jsonMode}
+func New() core.EventCodec {
+	return &jsonPatcher{}
 }
 
 func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node, error) {
@@ -67,9 +65,9 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 		var err error
 		switch actions[i].Type {
 		case core.Create:
-			op, err = createEvent(actions[i].InstanceID, actions[i].Current, jp.jsonMode)
+			op, err = createEvent(actions[i].InstanceID, actions[i].Current)
 		case core.Save:
-			op, err = saveEvent(actions[i].InstanceID, actions[i].Previous, actions[i].Current, jp.jsonMode)
+			op, err = saveEvent(actions[i].InstanceID, actions[i].Previous, actions[i].Current)
 		case core.Delete:
 			op, err = deleteEvent(actions[i].InstanceID)
 		default:
@@ -193,19 +191,11 @@ func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
 	return res, nil
 }
 
-func createEvent(id core.InstanceID, v interface{}, jsonMode bool) (*operation, error) {
+func createEvent(id core.InstanceID, v interface{}) (*operation, error) {
 	var opBytes []byte
 
-	if jsonMode {
-		strjson := v.(*string)
-		opBytes = []byte(*strjson)
-	} else {
-		var err error
-		opBytes, err = json.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-	}
+	strjson := v.(*string)
+	opBytes = []byte(*strjson)
 	return &operation{
 		Type:       create,
 		InstanceID: id,
@@ -213,24 +203,12 @@ func createEvent(id core.InstanceID, v interface{}, jsonMode bool) (*operation, 
 	}, nil
 }
 
-func saveEvent(id core.InstanceID, prev interface{}, curr interface{}, jsonMode bool) (*operation, error) {
+func saveEvent(id core.InstanceID, prev interface{}, curr interface{}) (*operation, error) {
 	var prevBytes, currBytes []byte
-	if jsonMode {
-		strCurrJson := curr.(*string)
+	strCurrJSON := curr.(*string)
 
-		prevBytes = prev.([]byte)
-		currBytes = []byte(*strCurrJson)
-	} else {
-		var err error
-		prevBytes, err = json.Marshal(prev)
-		if err != nil {
-			return nil, err
-		}
-		currBytes, err = json.Marshal(curr)
-		if err != nil {
-			return nil, err
-		}
-	}
+	prevBytes = prev.([]byte)
+	currBytes = []byte(*strCurrJSON)
 	jsonPatch, err := jsonpatch.CreateMergePatch(prevBytes, currBytes)
 	if err != nil {
 		return nil, err

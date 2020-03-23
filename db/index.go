@@ -177,13 +177,13 @@ type MarshaledResult struct {
 type iterator struct {
 	nextKeys func() ([]ds.Key, error)
 	txn      ds.Txn
-	query    *JSONQuery
+	query    *Query
 	err      error
 	keyCache []ds.Key
 	iter     query.Results
 }
 
-func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
+func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 	i := &iterator{
 		txn:   txn,
 		query: q,
@@ -235,7 +235,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *JSONQuery) *iterator {
 			if err := json.Unmarshal([]byte(doc), &value); err != nil {
 				return nil, fmt.Errorf("error when unmarshaling query result: %v", err)
 			}
-			ok, err = q.matchJSON(value)
+			ok, err = q.match(value)
 			if err != nil {
 				return nil, fmt.Errorf("error when matching entry with query: %v", err)
 			}
@@ -266,7 +266,7 @@ func (i *iterator) NextSync() (MarshaledResult, bool) {
 			if value.Error = json.Unmarshal(res.Value, &val); value.Error != nil {
 				break
 			}
-			ok, value.Error = i.query.matchJSON(val)
+			ok, value.Error = i.query.match(val)
 			if value.Error != nil {
 				break
 			}

@@ -27,19 +27,8 @@ package db
 import (
 	"fmt"
 	"math/big"
-	"reflect"
-	"strings"
 	"time"
 )
-
-// Criterion is a partial condition that can specify comparison
-// operator for a field.
-type Criterion struct {
-	fieldPath string
-	operation operation
-	value     interface{}
-	query     *Query
-}
 
 type operation int
 
@@ -52,114 +41,6 @@ const (
 	le           // <=
 	fn           // func
 )
-
-// Eq is an equality operator against a field
-func (c *Criterion) Eq(value interface{}) *Query {
-	return c.createcriterion(eq, value)
-}
-
-// Ne is a not equal operator against a field
-func (c *Criterion) Ne(value interface{}) *Query {
-	return c.createcriterion(ne, value)
-}
-
-// Gt is a greater operator against a field
-func (c *Criterion) Gt(value interface{}) *Query {
-	return c.createcriterion(gt, value)
-}
-
-// Lt is a less operation against a field
-func (c *Criterion) Lt(value interface{}) *Query {
-	return c.createcriterion(lt, value)
-}
-
-// Ge is a greater or equal operator against a field
-func (c *Criterion) Ge(value interface{}) *Query {
-	return c.createcriterion(ge, value)
-}
-
-// Le is a less or equal operator against a field
-func (c *Criterion) Le(value interface{}) *Query {
-	return c.createcriterion(le, value)
-}
-
-// Fn is a custom evaluation function against a field
-func (c *Criterion) Fn(mf MatchFunc) *Query {
-	return c.createcriterion(fn, mf)
-}
-
-func (c *Criterion) createcriterion(op operation, value interface{}) *Query {
-	c.operation = op
-	c.value = value
-	if c.query == nil {
-		c.query = &Query{}
-	}
-	c.query.ands = append(c.query.ands, c)
-	return c.query
-}
-
-func (c *Criterion) compare(testedValue, criterionValue interface{}) (int, error) {
-	if testedValue == nil || criterionValue == nil {
-		if testedValue == criterionValue {
-			return 0, nil
-		}
-		return 0, &errTypeMismatch{testedValue, criterionValue}
-	}
-
-	for reflect.TypeOf(testedValue).Kind() == reflect.Ptr {
-		testedValue = reflect.ValueOf(testedValue).Elem().Interface()
-	}
-
-	for reflect.TypeOf(criterionValue).Kind() == reflect.Ptr {
-		criterionValue = reflect.ValueOf(criterionValue).Elem().Interface()
-	}
-
-	return compare(testedValue, criterionValue)
-}
-
-func (c *Criterion) match(value reflect.Value) (bool, error) {
-	valueInterface := value.Interface()
-	switch c.operation {
-	case fn:
-		return c.value.(MatchFunc)(valueInterface)
-	default:
-		result, err := c.compare(valueInterface, c.value)
-		if err != nil {
-			return false, err
-		}
-		switch c.operation {
-		case eq:
-			return result == 0, nil
-		case ne:
-			return result != 0, nil
-		case gt:
-			return result > 0, nil
-		case lt:
-			return result < 0, nil
-		case le:
-			return result < 0 || result == 0, nil
-		case ge:
-			return result > 0 || result == 0, nil
-		default:
-			panic("invalid operation")
-		}
-	}
-}
-
-func traverseFieldPath(value reflect.Value, fieldPath string) (reflect.Value, error) {
-	fields := strings.Split(fieldPath, ".")
-	for i := range fields {
-		if value.Kind() == reflect.Ptr {
-			value = value.Elem()
-		}
-		value = value.FieldByName(fields[i])
-
-		if !value.IsValid() {
-			return reflect.Value{}, fmt.Errorf("instance field %s doesn't exist in type %s", fieldPath, value)
-		}
-	}
-	return value, nil
-}
 
 type errTypeMismatch struct {
 	Value interface{}

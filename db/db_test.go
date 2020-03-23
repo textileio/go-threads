@@ -13,6 +13,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 )
 
 func TestE2EWithThreads(t *testing.T) {
@@ -31,12 +32,18 @@ func TestE2EWithThreads(t *testing.T) {
 	d1, err := NewDB(context.Background(), n1, id1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
-	c1, err := d1.NewCollectionFromInstance("dummy", &dummy{})
+	c1, err := d1.NewCollection(CollectionConfig{
+		Name:   "dummy",
+		Schema: util.SchemaFromInstance(&dummy{}),
+	})
 	checkErr(t, err)
 	dummyInstance := &dummy{Name: "Textile", Counter: 0}
-	checkErr(t, c1.Create(dummyInstance))
-	dummyInstance.Counter += 42
-	checkErr(t, c1.Save(dummyInstance))
+	dummyInstanceString := util.JSONStringFromInstance(dummyInstance)
+	checkErr(t, c1.Create(dummyInstanceString))
+	updatedDummyInstance := &dummy{}
+	util.InstanceFromJSONString(*dummyInstanceString, updatedDummyInstance)
+	updatedDummyInstance.Counter += 42
+	checkErr(t, c1.Save(util.JSONStringFromInstance(updatedDummyInstance)))
 
 	// Boilerplate to generate peer1 thread-addr
 	// @todo: This should be a network method
@@ -58,17 +65,23 @@ func TestE2EWithThreads(t *testing.T) {
 
 	ti, err := n1.GetThread(context.Background(), id1)
 	checkErr(t, err)
-	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithRepoPath(tmpDir2))
+	cc := CollectionConfig{
+		Name:   "dummy",
+		Schema: util.SchemaFromInstance(&dummy{}),
+	}
+	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithRepoPath(tmpDir2), WithCollections(cc))
 	checkErr(t, err)
 	defer d2.Close()
-	c2, err := d2.NewCollectionFromInstance("dummy", &dummy{})
+	c2 := d1.GetCollection("dummy")
 	checkErr(t, err)
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
+	dummyInstance2String := ""
+	checkErr(t, c2.FindByID(updatedDummyInstance.ID, &dummyInstance2String))
 	dummyInstance2 := &dummy{}
-	checkErr(t, c2.FindByID(dummyInstance.ID, dummyInstance2))
-	if dummyInstance2.Name != dummyInstance.Name || dummyInstance2.Counter != dummyInstance.Counter {
+	util.InstanceFromJSONString(dummyInstance2String, dummyInstance2)
+	if dummyInstance2.Name != updatedDummyInstance.Name || dummyInstance2.Counter != updatedDummyInstance.Counter {
 		t.Fatalf("instances of both peers must be equal after sync")
 	}
 }
@@ -87,9 +100,12 @@ func TestOptions(t *testing.T) {
 	d, err := NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
-	m, err := d.NewCollectionFromInstance("dummy", &dummy{})
+	m, err := d.NewCollection(CollectionConfig{
+		Name:   "dummy",
+		Schema: util.SchemaFromInstance(&dummy{}),
+	})
 	checkErr(t, err)
-	checkErr(t, m.Create(&dummy{Name: "Textile"}))
+	checkErr(t, m.Create(util.JSONStringFromInstance(&dummy{Name: "Textile"})))
 
 	if !ec.called {
 		t.Fatalf("custom event codec wasn't called")
@@ -234,15 +250,23 @@ func TestListeners(t *testing.T) {
 func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	t.Helper()
 	d, cls := createTestDB(t)
-	c1, err := d.NewCollectionFromInstance("Collection1", &dummy{})
+	cc1 := CollectionConfig{
+		Name:   "Collection1",
+		Schema: util.SchemaFromInstance(&dummy{}),
+	}
+	c1, err := d.NewCollection(cc1)
 	checkErr(t, err)
-	c2, err := d.NewCollectionFromInstance("Collection2", &dummy{})
+	cc2 := CollectionConfig{
+		Name:   "Collection2",
+		Schema: util.SchemaFromInstance(&dummy{}),
+	}
+	c2, err := d.NewCollection(cc2)
 	checkErr(t, err)
 
 	// Create some instance *before* any listener, just to test doesn't appear
 	// on listener Action stream.
 	i1 := &dummy{ID: "id-i1", Name: "Textile1"}
-	checkErr(t, c1.Create(i1))
+	checkErr(t, c1.Create(util.JSONStringFromInstance(i1)))
 
 	l, err := d.Listen(los...)
 	checkErr(t, err)
@@ -255,22 +279,22 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 
 	// Collection1 Save i1
 	i1.Name = "Textile0"
-	checkErr(t, c1.Save(i1))
+	checkErr(t, c1.Save(util.JSONStringFromInstance(i1)))
 
 	// Collection1 Create i2
 	i2 := &dummy{ID: "id-i2", Name: "Textile2"}
-	checkErr(t, c1.Create(i2))
+	checkErr(t, c1.Create(util.JSONStringFromInstance(i2)))
 
 	// Collection2 Create j1
 	j1 := &dummy{ID: "id-j1", Name: "Textile3"}
-	checkErr(t, c2.Create(j1))
+	checkErr(t, c2.Create(util.JSONStringFromInstance(j1)))
 
 	// Collection1 Save i1
 	// Collection1 Save i2
 	err = c1.WriteTxn(func(txn *Txn) error {
 		i1.Counter = 30
 		i2.Counter = 11
-		if err := txn.Save(i1, i2); err != nil {
+		if err := txn.Save(util.JSONStringFromInstance(i1), util.JSONStringFromInstance(i2)); err != nil {
 			return nil
 		}
 		return nil
@@ -280,7 +304,7 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	// Collection2 Save j1
 	j1.Counter = -1
 	j1.Name = "Textile33"
-	checkErr(t, c2.Save(j1))
+	checkErr(t, c2.Save(util.JSONStringFromInstance(j1)))
 
 	checkErr(t, c1.Delete(i1.ID))
 

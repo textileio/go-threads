@@ -89,7 +89,7 @@ func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 }
 
 // NewDB creates a new db and prefixes its datastore with base key.
-func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
+func (m *Manager) NewDB(ctx context.Context, id thread.ID, collections ...CollectionConfig) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
@@ -97,7 +97,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID) (*DB, error) {
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config))
+	db, err := newDB(m.network, id, getDBConfig(id, m.config, collections...))
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config), collections...)
+	db, err := newDB(m.network, id, getDBConfig(id, m.config, collections...))
 	if err != nil {
 		return nil, err
 	}
@@ -187,16 +187,17 @@ func (m *Manager) Close() error {
 	return m.config.Datastore.Close()
 }
 
-// getDBConfig copies the manager's base config and
-// wraps the datastore with an id prefix.
-func getDBConfig(id thread.ID, base *Config) *Config {
+// getDBConfig copies the manager's base config,
+// wraps the datastore with an id prefix,
+// and merges specified collection configs with those from base
+func getDBConfig(id thread.ID, base *Config, collections ...CollectionConfig) *Config {
 	return &Config{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
 			Prefix: dsDBManagerBaseKey.ChildString(id.String()),
 		}),
-		EventCodec: base.EventCodec,
-		JsonMode:   base.JsonMode,
-		Debug:      base.Debug,
+		EventCodec:  base.EventCodec,
+		Debug:       base.Debug,
+		Collections: append(base.Collections, collections...),
 	}
 }

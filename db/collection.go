@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/alecthomas/jsonschema"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
@@ -42,20 +41,7 @@ type Collection struct {
 	indexes      map[string]Index
 }
 
-func newCollection(name string, defaultInstance interface{}, d *DB) *Collection {
-	schema := jsonschema.Reflect(defaultInstance)
-	schemaLoader := gojsonschema.NewGoLoader(schema)
-	c := &Collection{
-		name:         name,
-		schemaLoader: schemaLoader,
-		valueType:    reflect.TypeOf(defaultInstance),
-		db:           d,
-		indexes:      make(map[string]Index),
-	}
-	return c
-}
-
-func newCollectionFromSchema(name string, schema string, d *DB) *Collection {
+func newCollection(name string, schema string, d *DB) *Collection {
 	schemaLoader := gojsonschema.NewStringLoader(schema)
 	c := &Collection{
 		name:         name,
@@ -149,17 +135,10 @@ func (c *Collection) Has(ids ...core.InstanceID) (exists bool, err error) {
 	return
 }
 
-// Find executes a Query into result.
-func (c *Collection) Find(result interface{}, q *Query) error {
-	return c.ReadTxn(func(txn *Txn) error {
-		return txn.Find(result, q)
-	})
-}
-
-// FindJSON executes a Query in in JSONMode and returns the result.
-func (c *Collection) FindJSON(q *JSONQuery) (ret []string, err error) {
+// Find executes a Query and returns the result.
+func (c *Collection) Find(q *Query) (ret []string, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
-		ret, err = txn.FindJSON(q)
+		ret, err = txn.Find(q)
 		return err
 	})
 	return
@@ -167,17 +146,12 @@ func (c *Collection) FindJSON(q *JSONQuery) (ret []string, err error) {
 
 func (c *Collection) validInstance(v interface{}) (bool, error) {
 	var vLoader gojsonschema.JSONLoader
-	if c.db.jsonMode {
-		strJSON := v.(*string)
-		vLoader = gojsonschema.NewBytesLoader([]byte(*strJSON))
-	} else {
-		vLoader = gojsonschema.NewGoLoader(v)
-	}
+	strJSON := v.(*string)
+	vLoader = gojsonschema.NewBytesLoader([]byte(*strJSON))
 	r, err := gojsonschema.Validate(c.schemaLoader, vLoader)
 	if err != nil {
 		return false, err
 	}
-
 	return r.Valid(), nil
 }
 
@@ -196,7 +170,7 @@ type Txn struct {
 }
 
 // Create creates new instances in the collection
-// If the ID value on the instance is nil or otherwise a null value (e.g., "" in jsonMode),
+// If the ID value on the instance is nil or otherwise a null value (e.g., ""),
 // the ID is updated in-place to reflect the automatically-genereted UUID.
 func (t *Txn) Create(new ...interface{}) error {
 	for i := range new {
@@ -211,10 +185,9 @@ func (t *Txn) Create(new ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		jsonMode := t.collection.db.jsonMode
-		id := getInstanceID(new[i], jsonMode)
+		id := getInstanceID(new[i])
 		if id == core.EmptyInstanceID {
-			id = setNewInstanceID(new[i], jsonMode)
+			id = setNewInstanceID(new[i])
 		}
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -253,7 +226,7 @@ func (t *Txn) Save(updated ...interface{}) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getInstanceID(updated[i], t.collection.db.jsonMode)
+		id := getInstanceID(updated[i])
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -265,13 +238,6 @@ func (t *Txn) Save(updated ...interface{}) error {
 
 		var previous interface{}
 		previous = beforeBytes
-		if !t.collection.db.jsonMode {
-			before := reflect.New(t.collection.valueType.Elem()).Interface()
-			if err = json.Unmarshal(beforeBytes, before); err != nil {
-				return err
-			}
-			previous = before
-		}
 		t.actions = append(t.actions, core.Action{
 			Type:           core.Save,
 			InstanceID:     id,
@@ -336,15 +302,12 @@ func (t *Txn) FindByID(id core.InstanceID, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	if t.collection.db.jsonMode {
-		str := string(bytes)
-		rflStr := reflect.ValueOf(str)
-		reflV := reflect.ValueOf(v)
-		reflV.Elem().Set(rflStr)
+	str := string(bytes)
+	rflStr := reflect.ValueOf(str)
+	reflV := reflect.ValueOf(v)
+	reflV.Elem().Set(rflStr)
 
-		return nil
-	}
-	return json.Unmarshal(bytes, v)
+	return nil
 }
 
 // Commit applies all changes done in the current transaction
@@ -376,48 +339,28 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getInstanceID(t interface{}, jsonMode bool) core.InstanceID {
-	if jsonMode {
-		partial := &struct{ ID *string }{}
-		if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
-			log.Fatalf("error when unmarshaling json instance: %v", err)
-		}
-		if partial.ID == nil {
-			log.Fatal("invalid instance: doesn't have an ID attribute")
-		}
-		if *partial.ID != "" && !core.IsValidInstanceID(*partial.ID) {
-			log.Fatal("invalid instance: invalid ID value")
-		}
-		return core.InstanceID(*partial.ID)
-	} else {
-		v := reflect.ValueOf(t)
-		if v.Type().Kind() != reflect.Ptr {
-			v = reflect.New(reflect.TypeOf(v))
-		}
-		v = v.Elem().FieldByName(idFieldName)
-		if !v.IsValid() || v.Type() != reflect.TypeOf(core.EmptyInstanceID) {
-			log.Fatal("invalid instance: doesn't have InstanceID attribute")
-		}
-		return core.InstanceID(v.String())
+func getInstanceID(t interface{}) core.InstanceID {
+	partial := &struct{ ID *string }{}
+	if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
+		log.Fatalf("error when unmarshaling json instance: %v", err)
 	}
+	if partial.ID == nil {
+		log.Fatal("invalid instance: doesn't have an ID attribute")
+	}
+	if *partial.ID != "" && !core.IsValidInstanceID(*partial.ID) {
+		log.Fatal("invalid instance: invalid ID value")
+	}
+	return core.InstanceID(*partial.ID)
 }
 
-func setNewInstanceID(t interface{}, jsonMode bool) core.InstanceID {
+func setNewInstanceID(t interface{}) core.InstanceID {
 	newID := core.NewInstanceID()
-	if jsonMode {
-		patchedValue, err := jsonpatch.MergePatch([]byte(*(t.(*string))), []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
-		if err != nil {
-			log.Fatalf("error while automatically patching autogenerated ID: %v", err)
-		}
-		strPatchedValue := string(patchedValue)
-		reflectPatchedValue := reflect.ValueOf(&strPatchedValue)
-		reflect.ValueOf(t).Elem().Set(reflectPatchedValue.Elem())
-	} else {
-		v := reflect.ValueOf(t)
-		if v.Type().Kind() != reflect.Ptr {
-			v = reflect.New(reflect.TypeOf(v))
-		}
-		v.Elem().FieldByName(idFieldName).Set(reflect.ValueOf(newID))
+	patchedValue, err := jsonpatch.MergePatch([]byte(*(t.(*string))), []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
+	if err != nil {
+		log.Fatalf("error while automatically patching autogenerated ID: %v", err)
 	}
+	strPatchedValue := string(patchedValue)
+	reflectPatchedValue := reflect.ValueOf(&strPatchedValue)
+	reflect.ValueOf(t).Elem().Set(reflectPatchedValue.Elem())
 	return newID
 }
