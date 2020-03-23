@@ -224,7 +224,17 @@ func TestClient_AddRecord(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		rec, err := cbor.CreateRecord(context.Background(), nil, event, cid.Undef, sk, tk.Service())
+		ak, _, err := crypto.GenerateEd25519Key(crand.Reader) // Create a local author key
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec, err := cbor.CreateRecord(context.Background(), nil, cbor.CreateRecordConfig{
+			Block:      event,
+			Prev:       cid.Undef,
+			Key:        sk,
+			AuthorKey:  ak,
+			ServiceKey: tk.Service(),
+		})
 		if err != nil {
 			t.Fatal(err)
 		}

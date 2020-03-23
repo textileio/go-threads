@@ -4,12 +4,12 @@ import (
 	"encoding/hex"
 	"testing"
 
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	. "github.com/textileio/go-threads/crypto/asymmetric"
 )
 
 func TestEncrypt(t *testing.T) {
-	priv, pub, err := ic.GenerateKeyPair(ic.Ed25519, 0)
+	priv, pub, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -50,7 +50,7 @@ func TestDecrypt(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	sk, err := ic.UnmarshalPrivateKey(privKeyBytes)
+	sk, err := crypto.UnmarshalPrivateKey(privKeyBytes)
 	if err != nil {
 		t.Error(err)
 		return

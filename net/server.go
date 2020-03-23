@@ -243,8 +243,8 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return &pb.PushRecordReply{}, nil
 	}
 
-	// Verify node
-	if err = rec.Verify(logpk); err != nil {
+	// Verify the record signature
+	if err = rec.Verify(rec.Sig(), logpk); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

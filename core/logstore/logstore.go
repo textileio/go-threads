@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/thread"
@@ -74,16 +74,16 @@ type ThreadMetadata interface {
 // KeyBook stores log keys.
 type KeyBook interface {
 	// PubKey retrieves the public key of a log.
-	PubKey(thread.ID, peer.ID) (ic.PubKey, error)
+	PubKey(thread.ID, peer.ID) (crypto.PubKey, error)
 
 	// AddPubKey adds a public key under a log.
-	AddPubKey(thread.ID, peer.ID, ic.PubKey) error
+	AddPubKey(thread.ID, peer.ID, crypto.PubKey) error
 
 	// PrivKey retrieves the private key of a log.
-	PrivKey(thread.ID, peer.ID) (ic.PrivKey, error)
+	PrivKey(thread.ID, peer.ID) (crypto.PrivKey, error)
 
 	// AddPrivKey adds a private key under a log.
-	AddPrivKey(thread.ID, peer.ID, ic.PrivKey) error
+	AddPrivKey(thread.ID, peer.ID, crypto.PrivKey) error
 
 	// ReadKey retrieves the read key of a thread.
 	ReadKey(thread.ID) (*sym.Key, error)

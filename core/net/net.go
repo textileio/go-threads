@@ -51,7 +51,8 @@ type API interface {
 	// AddReplicator sends the service key and all logs to another peer.
 	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error)
 
-	// CreateRecord with body.
+	// CreateRecord with body. The resulting record will have an author signature
+	// by the thread host. Use AddRecord to add a record from a different author.
 	CreateRecord(ctx context.Context, id thread.ID, body format.Node) (ThreadRecord, error)
 
 	// AddRecord to the given log.

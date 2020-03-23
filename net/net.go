@@ -542,8 +542,8 @@ func (t *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		return nil
 	}
 
-	// Verify node
-	if err = rec.Verify(logpk); err != nil {
+	// Verify the record signature
+	if err = rec.Verify(rec.Sig(), logpk); err != nil {
 		return err
 	}
 
@@ -741,7 +741,13 @@ func (t *net) createRecord(ctx context.Context, id thread.ID, lg thread.LogInfo,
 		return nil, err
 	}
 
-	return cbor.CreateRecord(ctx, t, event, lg.Head, lg.PrivKey, sk)
+	return cbor.CreateRecord(ctx, t, cbor.CreateRecordConfig{
+		Block:      event,
+		Prev:       lg.Head,
+		Key:        lg.PrivKey,
+		AuthorKey:  t.getPrivKey(),
+		ServiceKey: sk,
+	})
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of

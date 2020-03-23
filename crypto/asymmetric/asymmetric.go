@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	extra "github.com/agl/ed25519/extra25519"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -24,12 +24,12 @@ var (
 
 // EncryptionKey is a public key wrapper that can perform encryption.
 type EncryptionKey struct {
-	pk ic.PubKey
+	pk crypto.PubKey
 }
 
 // FromPubKey returns a key by parsing k into a public key.
-func FromPubKey(pk ic.PubKey) (*EncryptionKey, error) {
-	if _, ok := pk.(*ic.Ed25519PublicKey); !ok {
+func FromPubKey(pk crypto.PubKey) (*EncryptionKey, error) {
+	if _, ok := pk.(*crypto.Ed25519PublicKey); !ok {
 		return nil, fmt.Errorf("could not determine key type")
 	}
 	return &EncryptionKey{pk: pk}, nil
@@ -42,17 +42,17 @@ func (k *EncryptionKey) Encrypt(plaintext []byte) ([]byte, error) {
 
 // MarshalBinary implements BinaryMarshaler.
 func (k *EncryptionKey) MarshalBinary() ([]byte, error) {
-	return ic.MarshalPublicKey(k.pk)
+	return crypto.MarshalPublicKey(k.pk)
 }
 
 // DecryptionKey is a private key wrapper that can perform decryption.
 type DecryptionKey struct {
-	sk ic.PrivKey
+	sk crypto.PrivKey
 }
 
 // FromPrivKey returns a key by parsing k into a private key.
-func FromPrivKey(sk ic.PrivKey) (*DecryptionKey, error) {
-	if _, ok := sk.(*ic.Ed25519PrivateKey); !ok {
+func FromPrivKey(sk crypto.PrivKey) (*DecryptionKey, error) {
+	if _, ok := sk.(*crypto.Ed25519PrivateKey); !ok {
 		return nil, fmt.Errorf("could not determine key type")
 	}
 	return &DecryptionKey{sk: sk}, nil
@@ -70,26 +70,26 @@ func (k *DecryptionKey) Decrypt(ciphertext []byte) ([]byte, error) {
 
 // MarshalBinary implements BinaryMarshaler.
 func (k *DecryptionKey) MarshalBinary() ([]byte, error) {
-	return ic.MarshalPrivateKey(k.sk)
+	return crypto.MarshalPrivateKey(k.sk)
 }
 
-func encrypt(plaintext []byte, pk ic.PubKey) ([]byte, error) {
-	ed25519Pubkey, ok := pk.(*ic.Ed25519PublicKey)
+func encrypt(plaintext []byte, pk crypto.PubKey) ([]byte, error) {
+	ed25519Pubkey, ok := pk.(*crypto.Ed25519PublicKey)
 	if ok {
 		return encryptCurve25519(ed25519Pubkey, plaintext)
 	}
 	return nil, fmt.Errorf("could not determine key type")
 }
 
-func decrypt(ciphertext []byte, sk ic.PrivKey) ([]byte, error) {
-	ed25519Privkey, ok := sk.(*ic.Ed25519PrivateKey)
+func decrypt(ciphertext []byte, sk crypto.PrivKey) ([]byte, error) {
+	ed25519Privkey, ok := sk.(*crypto.Ed25519PrivateKey)
 	if ok {
 		return decryptCurve25519(ed25519Privkey, ciphertext)
 	}
 	return nil, fmt.Errorf("could not determine key type")
 }
 
-func publicToCurve25519(k *ic.Ed25519PublicKey) (*[EphemeralPublicKeyBytes]byte, error) {
+func publicToCurve25519(k *crypto.Ed25519PublicKey) (*[EphemeralPublicKeyBytes]byte, error) {
 	var cp [EphemeralPublicKeyBytes]byte
 	var pk [EphemeralPublicKeyBytes]byte
 	r, err := k.Raw()
@@ -104,7 +104,7 @@ func publicToCurve25519(k *ic.Ed25519PublicKey) (*[EphemeralPublicKeyBytes]byte,
 	return &cp, nil
 }
 
-func encryptCurve25519(pubKey *ic.Ed25519PublicKey, bytes []byte) ([]byte, error) {
+func encryptCurve25519(pubKey *crypto.Ed25519PublicKey, bytes []byte) ([]byte, error) {
 	// generated ephemeral key pair
 	ephemPub, ephemPriv, err := box.GenerateKey(rand.Reader)
 	if err != nil {
@@ -137,7 +137,7 @@ func encryptCurve25519(pubKey *ic.Ed25519PublicKey, bytes []byte) ([]byte, error
 	return ciphertext, nil
 }
 
-func decryptCurve25519(privKey *ic.Ed25519PrivateKey, ciphertext []byte) ([]byte, error) {
+func decryptCurve25519(privKey *crypto.Ed25519PrivateKey, ciphertext []byte) ([]byte, error) {
 	curve25519Privkey, err := privateToCurve25519(privKey)
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func decryptCurve25519(privKey *ic.Ed25519PrivateKey, ciphertext []byte) ([]byte
 	return plaintext, nil
 }
 
-func privateToCurve25519(k *ic.Ed25519PrivateKey) (*[EphemeralPublicKeyBytes]byte, error) {
+func privateToCurve25519(k *crypto.Ed25519PrivateKey) (*[EphemeralPublicKeyBytes]byte, error) {
 	var cs [EphemeralPublicKeyBytes]byte
 	r, err := k.Raw()
 	if err != nil {
