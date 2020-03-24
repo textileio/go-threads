@@ -63,7 +63,7 @@ func (t *ReadTransaction) FindByID(instanceID string, instance interface{}) erro
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_FindByIDReply:
-		err := json.Unmarshal([]byte(x.FindByIDReply.GetInstance()), instance)
+		err := json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
 		return err
 	default:
 		return fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)

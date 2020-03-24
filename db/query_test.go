@@ -1,9 +1,12 @@
 package db
 
 import (
+	"bytes"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -323,14 +326,14 @@ func TestQuery(t *testing.T) {
 			}
 			if !q.ordered {
 				sort.Slice(res, func(i, j int) bool {
-					return strings.Compare(res[i], res[j]) == -1
+					return bytes.Compare(res[i], res[j]) == -1
 				})
 				sort.Slice(expectedIdx, func(i, j int) bool {
 					return strings.Compare(jsonSampleData[expectedIdx[i]], jsonSampleData[expectedIdx[j]]) == -1
 				})
 			}
 			for i, idx := range expectedIdx {
-				if jsonSampleData[idx] != res[i] {
+				if jsonSampleData[idx] != string(res[i]) {
 					t.Fatalf("wrong query item result, expected: %v, got: %v", jsonSampleData[idx], res[i])
 				}
 			}
@@ -352,9 +355,15 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 	})
 	checkErr(t, err)
 	for i := range jsonSampleData {
-		if err = c.Create(&jsonSampleData[i]); err != nil {
+		ids, err := c.Create([]byte(jsonSampleData[i]))
+		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
+		updated, err := sjson.Set(jsonSampleData[i], "ID", ids[0].String())
+		if err != nil {
+			t.Fatalf("failed to update sample data json with id: %v", err)
+		}
+		jsonSampleData[i] = updated
 	}
 	return c, clean
 }
