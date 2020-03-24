@@ -191,11 +191,9 @@ func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
 	return res, nil
 }
 
-func createEvent(id core.InstanceID, v interface{}) (*operation, error) {
+func createEvent(id core.InstanceID, v []byte) (*operation, error) {
 	var opBytes []byte
-
-	strjson := v.(*string)
-	opBytes = []byte(*strjson)
+	opBytes = v
 	return &operation{
 		Type:       create,
 		InstanceID: id,
@@ -203,12 +201,11 @@ func createEvent(id core.InstanceID, v interface{}) (*operation, error) {
 	}, nil
 }
 
-func saveEvent(id core.InstanceID, prev interface{}, curr interface{}) (*operation, error) {
+func saveEvent(id core.InstanceID, prev []byte, curr []byte) (*operation, error) {
 	var prevBytes, currBytes []byte
-	strCurrJSON := curr.(*string)
 
-	prevBytes = prev.([]byte)
-	currBytes = []byte(*strCurrJSON)
+	prevBytes = prev
+	currBytes = curr
 	jsonPatch, err := jsonpatch.CreateMergePatch(prevBytes, currBytes)
 	if err != nil {
 		return nil, err

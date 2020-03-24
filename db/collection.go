@@ -249,13 +249,11 @@ func (t *Txn) Save(updated ...[]byte) error {
 			return err
 		}
 
-		var previous interface{}
-		previous = beforeBytes
 		t.actions = append(t.actions, core.Action{
 			Type:           core.Save,
 			InstanceID:     id,
 			CollectionName: t.collection.name,
-			Previous:       previous,
+			Previous:       beforeBytes,
 			Current:        updated[i],
 		})
 	}
