@@ -48,17 +48,17 @@ message NewCollectionReply {}
 message CreateRequest {
     string dbID = 1;
     string collectionName = 2;
-    repeated string values = 3;
+    repeated bytes instances = 3;
 }
 
 message CreateReply {
-    repeated string instances = 1;
+    repeated string instanceIDs = 1;
 }
 
 message SaveRequest {
     string dbID = 1;
     string collectionName = 2;
-    repeated string values = 3;
+    repeated bytes instances = 3;
 }
 
 message SaveReply {}
@@ -98,7 +98,7 @@ message FindByIDRequest {
 }
 
 message FindByIDReply {
-    string instance = 1;
+    bytes instance = 1;
 }
 
 message StartTransactionRequest {

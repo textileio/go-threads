@@ -37,13 +37,12 @@ func TestE2EWithThreads(t *testing.T) {
 		Schema: util.SchemaFromInstance(&dummy{}),
 	})
 	checkErr(t, err)
-	dummyInstance := &dummy{Name: "Textile", Counter: 0}
-	dummyInstanceString := util.JSONStringFromInstance(dummyInstance)
-	checkErr(t, c1.Create(dummyInstanceString))
-	updatedDummyInstance := &dummy{}
-	util.InstanceFromJSONString(*dummyInstanceString, updatedDummyInstance)
-	updatedDummyInstance.Counter += 42
-	checkErr(t, c1.Save(util.JSONStringFromInstance(updatedDummyInstance)))
+	dummyJSON := util.JSONFromInstance(dummy{Name: "Textile", Counter: 0})
+	res, err := c1.Create(dummyJSON)
+	checkErr(t, err)
+	dummyJSON = util.SetJSONID(res[0], dummyJSON)
+	dummyJSON = util.SetJSONProperty("Counter", 42, dummyJSON)
+	checkErr(t, c1.Save(dummyJSON))
 
 	// Boilerplate to generate peer1 thread-addr
 	// @todo: This should be a network method
@@ -77,11 +76,15 @@ func TestE2EWithThreads(t *testing.T) {
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
-	dummyInstance2String := ""
-	checkErr(t, c2.FindByID(updatedDummyInstance.ID, &dummyInstance2String))
-	dummyInstance2 := &dummy{}
-	util.InstanceFromJSONString(dummyInstance2String, dummyInstance2)
-	if dummyInstance2.Name != updatedDummyInstance.Name || dummyInstance2.Counter != updatedDummyInstance.Counter {
+	dummy2JSON, err := c2.FindByID(res[0])
+	checkErr(t, err)
+
+	dummyInstance := &dummy{}
+	util.InstanceFromJSON(dummyJSON, dummyInstance)
+	dummy2Instance := &dummy{}
+	util.InstanceFromJSON(dummy2JSON, dummy2Instance)
+
+	if dummy2Instance.Name != dummyInstance.Name || dummy2Instance.Counter != dummyInstance.Counter {
 		t.Fatalf("instances of both peers must be equal after sync")
 	}
 }
@@ -105,7 +108,8 @@ func TestOptions(t *testing.T) {
 		Schema: util.SchemaFromInstance(&dummy{}),
 	})
 	checkErr(t, err)
-	checkErr(t, m.Create(util.JSONStringFromInstance(&dummy{Name: "Textile"})))
+	_, err = m.Create(util.JSONFromInstance(dummy{Name: "Textile"}))
+	checkErr(t, err)
 
 	if !ec.called {
 		t.Fatalf("custom event codec wasn't called")
@@ -265,8 +269,9 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 
 	// Create some instance *before* any listener, just to test doesn't appear
 	// on listener Action stream.
-	i1 := &dummy{ID: "id-i1", Name: "Textile1"}
-	checkErr(t, c1.Create(util.JSONStringFromInstance(i1)))
+	i1 := util.JSONFromInstance(dummy{ID: "id-i1", Name: "Textile1"})
+	i1Ids, err := c1.Create(i1)
+	checkErr(t, err)
 
 	l, err := d.Listen(los...)
 	checkErr(t, err)
@@ -278,41 +283,40 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	}()
 
 	// Collection1 Save i1
-	i1.Name = "Textile0"
-	checkErr(t, c1.Save(util.JSONStringFromInstance(i1)))
+	i1 = util.SetJSONProperty("Name", "Textile0", i1)
+	checkErr(t, c1.Save(i1))
 
 	// Collection1 Create i2
-	i2 := &dummy{ID: "id-i2", Name: "Textile2"}
-	checkErr(t, c1.Create(util.JSONStringFromInstance(i2)))
+	i2 := util.JSONFromInstance(dummy{ID: "id-i2", Name: "Textile2"})
+	i2Ids, err := c1.Create(i2)
+	checkErr(t, err)
 
 	// Collection2 Create j1
-	j1 := &dummy{ID: "id-j1", Name: "Textile3"}
-	checkErr(t, c2.Create(util.JSONStringFromInstance(j1)))
+	j1 := util.JSONFromInstance(dummy{ID: "id-j1", Name: "Textile3"})
+	j1Ids, err := c2.Create(j1)
+	checkErr(t, err)
 
 	// Collection1 Save i1
 	// Collection1 Save i2
 	err = c1.WriteTxn(func(txn *Txn) error {
-		i1.Counter = 30
-		i2.Counter = 11
-		if err := txn.Save(util.JSONStringFromInstance(i1), util.JSONStringFromInstance(i2)); err != nil {
-			return nil
-		}
-		return nil
+		i1 = util.SetJSONProperty("Counter", 30, i1)
+		i2 = util.SetJSONProperty("Counter", 11, i2)
+		return txn.Save(i1, i2)
 	})
 	checkErr(t, err)
 
 	// Collection2 Save j1
-	j1.Counter = -1
-	j1.Name = "Textile33"
-	checkErr(t, c2.Save(util.JSONStringFromInstance(j1)))
+	j1 = util.SetJSONProperty("Counter", -1, j1)
+	j1 = util.SetJSONProperty("Name", "Textile33", j1)
+	checkErr(t, c2.Save(j1))
 
-	checkErr(t, c1.Delete(i1.ID))
+	checkErr(t, c1.Delete(i1Ids...))
 
 	// Collection2 Delete
-	checkErr(t, c2.Delete(j1.ID))
+	checkErr(t, c2.Delete(j1Ids...))
 
 	// Collection2 Delete i2
-	checkErr(t, c1.Delete(i2.ID))
+	checkErr(t, c1.Delete(i2Ids...))
 
 	l.Close()
 	cls()

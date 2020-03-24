@@ -23,6 +23,8 @@ var (
 	// ErrInvalidSchemaInstance indicates the current operation is from an
 	// instance that doesn't satisfy the collection schema.
 	ErrInvalidSchemaInstance = errors.New("instance doesn't correspond to schema")
+	// ErrInstanceIDNotSet indicates the instance id isn't set during a write operation
+	ErrInstanceIDNotSet = errors.New("instance id is not set")
 
 	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/commited txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
@@ -95,19 +97,23 @@ func (c *Collection) WriteTxn(f func(txn *Txn) error) error {
 	return c.db.writeTxn(c, f)
 }
 
-// FindByID finds an instance by its ID and saves it in v.
+// FindByID finds an instance by its ID.
 // If doesn't exists returns ErrNotFound.
-func (c *Collection) FindByID(id core.InstanceID, v interface{}) error {
-	return c.ReadTxn(func(txn *Txn) error {
-		return txn.FindByID(id, v)
+func (c *Collection) FindByID(id core.InstanceID) (instance []byte, err error) {
+	_ = c.ReadTxn(func(txn *Txn) error {
+		instance, err = txn.FindByID(id)
+		return err
 	})
+	return
 }
 
 // Create creates instances in the collection.
-func (c *Collection) Create(vs ...interface{}) error {
-	return c.WriteTxn(func(txn *Txn) error {
-		return txn.Create(vs...)
+func (c *Collection) Create(vs ...[]byte) (ids []core.InstanceID, err error) {
+	_ = c.WriteTxn(func(txn *Txn) error {
+		ids, err = txn.Create(vs...)
+		return err
 	})
+	return
 }
 
 // Delete deletes instances by its IDs. It doesn't
@@ -119,7 +125,7 @@ func (c *Collection) Delete(ids ...core.InstanceID) error {
 }
 
 // Save saves changes of instances in the collection.
-func (c *Collection) Save(vs ...interface{}) error {
+func (c *Collection) Save(vs ...[]byte) error {
 	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Save(vs...)
 	})
@@ -136,18 +142,18 @@ func (c *Collection) Has(ids ...core.InstanceID) (exists bool, err error) {
 }
 
 // Find executes a Query and returns the result.
-func (c *Collection) Find(q *Query) (ret []string, err error) {
+func (c *Collection) Find(q *Query) (instances [][]byte, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
-		ret, err = txn.Find(q)
+		instances, err = txn.Find(q)
 		return err
 	})
 	return
 }
 
-func (c *Collection) validInstance(v interface{}) (bool, error) {
+// validInstance validates the json object against the collection schema
+func (c *Collection) validInstance(v []byte) (bool, error) {
 	var vLoader gojsonschema.JSONLoader
-	strJSON := v.(*string)
-	vLoader = gojsonschema.NewBytesLoader([]byte(*strJSON))
+	vLoader = gojsonschema.NewBytesLoader(v)
 	r, err := gojsonschema.Validate(c.schemaLoader, vLoader)
 	if err != nil {
 		return false, err
@@ -171,31 +177,35 @@ type Txn struct {
 
 // Create creates new instances in the collection
 // If the ID value on the instance is nil or otherwise a null value (e.g., ""),
-// the ID is updated in-place to reflect the automatically-genereted UUID.
-func (t *Txn) Create(new ...interface{}) error {
+// and ID is generated and used to store the instance.
+func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
+	results := make([]core.InstanceID, len(new))
 	for i := range new {
 		if t.readonly {
-			return ErrReadonlyTx
+			return nil, ErrReadonlyTx
 		}
 		valid, err := t.collection.validInstance(new[i])
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !valid {
-			return ErrInvalidSchemaInstance
+			return nil, ErrInvalidSchemaInstance
 		}
 
-		id := getInstanceID(new[i])
+		updated := make([]byte, len(new[i]))
+		copy(updated, new[i])
+		id := getInstanceID(updated)
 		if id == core.EmptyInstanceID {
-			id = setNewInstanceID(new[i])
+			id, updated = setNewInstanceID(new[i])
 		}
+		results[i] = id
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		exists, err := t.collection.db.datastore.Has(key)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if exists {
-			return errCantCreateExistingInstance
+			return nil, errCantCreateExistingInstance
 		}
 
 		a := core.Action{
@@ -203,16 +213,16 @@ func (t *Txn) Create(new ...interface{}) error {
 			InstanceID:     id,
 			CollectionName: t.collection.name,
 			Previous:       nil,
-			Current:        new[i],
+			Current:        updated,
 		}
 		t.actions = append(t.actions, a)
 	}
-	return nil
+	return results, nil
 }
 
 // Save saves an instance changes to be commited when the
 // current transaction commits.
-func (t *Txn) Save(updated ...interface{}) error {
+func (t *Txn) Save(updated ...[]byte) error {
 	for i := range updated {
 		if t.readonly {
 			return ErrReadonlyTx
@@ -227,6 +237,9 @@ func (t *Txn) Save(updated ...interface{}) error {
 		}
 
 		id := getInstanceID(updated[i])
+		if id == core.EmptyInstanceID {
+			return ErrInstanceIDNotSet
+		}
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -293,21 +306,16 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 }
 
 // FindByID gets an instance by ID in the current txn scope.
-func (t *Txn) FindByID(id core.InstanceID, v interface{}) error {
+func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 	bytes, err := t.collection.db.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
-		return ErrNotFound
+		return nil, ErrNotFound
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-	str := string(bytes)
-	rflStr := reflect.ValueOf(str)
-	reflV := reflect.ValueOf(v)
-	reflV.Elem().Set(rflStr)
-
-	return nil
+	return bytes, nil
 }
 
 // Commit applies all changes done in the current transaction
@@ -339,9 +347,9 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getInstanceID(t interface{}) core.InstanceID {
+func getInstanceID(t []byte) core.InstanceID {
 	partial := &struct{ ID *string }{}
-	if err := json.Unmarshal([]byte(*(t.(*string))), partial); err != nil {
+	if err := json.Unmarshal(t, partial); err != nil {
 		log.Fatalf("error when unmarshaling json instance: %v", err)
 	}
 	if partial.ID == nil {
@@ -353,14 +361,11 @@ func getInstanceID(t interface{}) core.InstanceID {
 	return core.InstanceID(*partial.ID)
 }
 
-func setNewInstanceID(t interface{}) core.InstanceID {
+func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 	newID := core.NewInstanceID()
-	patchedValue, err := jsonpatch.MergePatch([]byte(*(t.(*string))), []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
+	patchedValue, err := jsonpatch.MergePatch(t, []byte(fmt.Sprintf(`{"ID": %q}`, newID.String())))
 	if err != nil {
 		log.Fatalf("error while automatically patching autogenerated ID: %v", err)
 	}
-	strPatchedValue := string(patchedValue)
-	reflectPatchedValue := reflect.ValueOf(&strPatchedValue)
-	reflect.ValueOf(t).Elem().Set(reflectPatchedValue.Elem())
-	return newID
+	return newID, patchedValue
 }
