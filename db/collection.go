@@ -23,8 +23,6 @@ var (
 	// ErrInvalidSchemaInstance indicates the current operation is from an
 	// instance that doesn't satisfy the collection schema.
 	ErrInvalidSchemaInstance = errors.New("instance doesn't correspond to schema")
-	// ErrInstanceIDNotSet indicates the instance id isn't set during a write operation
-	ErrInstanceIDNotSet = errors.New("instance id is not set")
 
 	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/commited txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
@@ -237,9 +235,6 @@ func (t *Txn) Save(updated ...[]byte) error {
 		}
 
 		id := getInstanceID(updated[i])
-		if id == core.EmptyInstanceID {
-			return ErrInstanceIDNotSet
-		}
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {

@@ -132,9 +132,10 @@ func TestSave(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
 
+		person.ID = ids[0]
 		person.Age = 30
 		err = client.Save(context.Background(), dbID, collectionName, person)
 		if err != nil {
@@ -157,8 +158,10 @@ func TestDelete(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		err = client.Delete(context.Background(), dbID, collectionName, person.ID)
 		if err != nil {
@@ -181,8 +184,10 @@ func TestHas(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		exists, err := client.Has(context.Background(), dbID, collectionName, person.ID)
 		if err != nil {
@@ -208,8 +213,10 @@ func TestFind(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		q := db.Where("lastName").Eq(person.LastName)
 
@@ -247,8 +254,10 @@ func TestFindWithIndex(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		q := db.Where("lastName").Eq(person.LastName).UseIndex("lastName")
 
@@ -280,8 +289,10 @@ func TestFindByID(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		newPerson := &Person{}
 		err = client.FindByID(context.Background(), dbID, collectionName, person.ID, newPerson)
@@ -307,8 +318,10 @@ func TestReadTransaction(t *testing.T) {
 		checkErr(t, err)
 
 		person := createPerson()
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		txn, err := client.ReadTransaction(context.Background(), dbID, collectionName)
 		if err != nil {
@@ -373,8 +386,10 @@ func TestWriteTransaction(t *testing.T) {
 
 		existingPerson := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, existingPerson)
+		ids, err := client.Create(context.Background(), dbID, collectionName, existingPerson)
 		checkErr(t, err)
+
+		existingPerson.ID = ids[0]
 
 		txn, err := client.WriteTransaction(context.Background(), dbID, collectionName)
 		if err != nil {
@@ -394,13 +409,12 @@ func TestWriteTransaction(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = txn.Create(person)
+		ids, err = txn.Create(person)
 		if err != nil {
 			t.Fatalf("failed to create in write txn: %v", err)
 		}
-		if person.ID == "" {
-			t.Fatalf("expected an instance id to be set but it wasn't")
-		}
+
+		person.ID = ids[0]
 
 		has, err := txn.Has(existingPerson.ID)
 		if err != nil {
@@ -460,8 +474,10 @@ func TestListen(t *testing.T) {
 
 		person := createPerson()
 
-		_, err = client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), dbID, collectionName, person)
 		checkErr(t, err)
+
+		person.ID = ids[0]
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

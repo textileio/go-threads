@@ -1,7 +1,6 @@
 package db
 
 import (
-	"bytes"
 	"errors"
 	"os"
 	"reflect"
@@ -311,11 +310,17 @@ func TestGetInstance(t *testing.T) {
 	})
 	checkErr(t, err)
 	newPerson = util.SetJSONID(res[0], newPerson)
+	newPersonInstance := &Person{}
+	util.InstanceFromJSON(newPerson, newPersonInstance)
 
 	t.Run("WithImplicitTx", func(t *testing.T) {
 		found, err := collection.FindByID(res[0])
 		checkErr(t, err)
-		if !bytes.Equal(newPerson, found) {
+
+		foundInstance := &Person{}
+		util.InstanceFromJSON(found, foundInstance)
+
+		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
 		}
 	})
@@ -326,7 +331,11 @@ func TestGetInstance(t *testing.T) {
 			return
 		})
 		checkErr(t, err)
-		if !bytes.Equal(newPerson, found) {
+
+		foundInstance := &Person{}
+		util.InstanceFromJSON(found, foundInstance)
+
+		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
 		}
 	})
@@ -337,7 +346,11 @@ func TestGetInstance(t *testing.T) {
 			return
 		})
 		checkErr(t, err)
-		if !bytes.Equal(newPerson, found) {
+
+		foundInstance := &Person{}
+		util.InstanceFromJSON(found, foundInstance)
+
+		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
 		}
 	})

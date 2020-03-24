@@ -144,27 +144,12 @@ func SchemaFromInstance(i interface{}) string {
 	return string(JSON)
 }
 
-func JSONStringFromInstance(i interface{}) *string {
-	JSON, err := json.MarshalIndent(i, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	val := string(JSON)
-	return &val
-}
-
 func JSONFromInstance(i interface{}) []byte {
-	JSON, err := json.MarshalIndent(i, "", "  ")
+	JSON, err := json.Marshal(i)
 	if err != nil {
 		panic(err)
 	}
 	return JSON
-}
-
-func InstanceFromJSONString(s string, i interface{}) {
-	if err := json.Unmarshal([]byte(s), i); err != nil {
-		panic(err)
-	}
 }
 
 func InstanceFromJSON(b []byte, i interface{}) {
