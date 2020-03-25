@@ -231,7 +231,7 @@ func (r *Record) AuthorSig() []byte {
 }
 
 // Verify returns a nil error if the node signature is valid.
-func (r *Record) Verify(sig []byte, key ic.PubKey) error {
+func (r *Record) Verify(key ic.PubKey, sig []byte) error {
 	if r.block == nil {
 		return fmt.Errorf("block not loaded")
 	}

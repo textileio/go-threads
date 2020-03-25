@@ -38,12 +38,20 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 		return nil, fmt.Errorf("a service-key is required to request logs")
 	}
 
-	req := &pb.GetLogsRequest{
-		Header: &pb.Header{
-			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
-		},
+	body := &pb.GetLogsRequest_Body{
 		ThreadID:   &pb.ProtoThreadID{ID: id},
 		ServiceKey: &pb.ProtoKey{Key: sk},
+	}
+	sig, key, err := s.signRequestBody(body)
+	if err != nil {
+		return nil, err
+	}
+	req := &pb.GetLogsRequest{
+		Header: &pb.Header{
+			PubKey:    &pb.ProtoPubKey{PubKey: key},
+			Signature: sig,
+		},
+		Body: body,
 	}
 
 	log.Debugf("getting %s logs from %s...", id, pid)
@@ -73,26 +81,26 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 
 // pushLog to a peer.
 func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, pid peer.ID, sk *sym.Key, rk *sym.Key) error {
-	// Serialize and sign the record for transport
-	pblog := logToProto(lg)
-	sig, key, err := s.signRequest(pblog)
+	body := &pb.PushLogRequest_Body{
+		ThreadID: &pb.ProtoThreadID{ID: id},
+		Log:      logToProto(lg),
+	}
+	if sk != nil {
+		body.ServiceKey = &pb.ProtoKey{Key: sk}
+	}
+	if rk != nil {
+		body.ReadKey = &pb.ProtoKey{Key: rk}
+	}
+	sig, key, err := s.signRequestBody(body)
 	if err != nil {
 		return err
 	}
 	lreq := &pb.PushLogRequest{
 		Header: &pb.Header{
-			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
-			Sig:  sig,
-			Key:  &pb.ProtoPubKey{PubKey: key.GetPublic()},
+			PubKey:    &pb.ProtoPubKey{PubKey: key},
+			Signature: sig,
 		},
-		ThreadID: &pb.ProtoThreadID{ID: id},
-		Log:      pblog,
-	}
-	if sk != nil {
-		lreq.ServiceKey = &pb.ProtoKey{Key: sk}
-	}
-	if rk != nil {
-		lreq.ReadKey = &pb.ProtoKey{Key: rk}
+		Body: body,
 	}
 
 	log.Debugf("pushing log %s to %s...", lg.ID, pid)
@@ -164,22 +172,30 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 		return nil, fmt.Errorf("a service-key is required to request records")
 	}
 
-	pblgs := make([]*pb.GetRecordsRequest_LogEntry, 0, len(offsets))
+	pblgs := make([]*pb.GetRecordsRequest_Body_LogEntry, 0, len(offsets))
 	for lid, offset := range offsets {
-		pblgs = append(pblgs, &pb.GetRecordsRequest_LogEntry{
+		pblgs = append(pblgs, &pb.GetRecordsRequest_Body_LogEntry{
 			LogID:  &pb.ProtoPeerID{ID: lid},
 			Offset: &pb.ProtoCid{Cid: offset},
 			Limit:  int32(limit),
 		})
 	}
 
-	req := &pb.GetRecordsRequest{
-		Header: &pb.Header{
-			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
-		},
+	body := &pb.GetRecordsRequest_Body{
 		ThreadID:   &pb.ProtoThreadID{ID: id},
 		ServiceKey: &pb.ProtoKey{Key: sk},
 		Logs:       pblgs,
+	}
+	sig, key, err := s.signRequestBody(body)
+	if err != nil {
+		return nil, err
+	}
+	req := &pb.GetRecordsRequest{
+		Header: &pb.Header{
+			PubKey:    &pb.ProtoPubKey{PubKey: key},
+			Signature: sig,
+		},
+		Body: body,
 	}
 
 	lg, err := s.net.store.GetLog(id, lid)
@@ -275,24 +291,25 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		addrs = append(addrs, l.Addrs...)
 	}
 
-	// Serialize and sign the record for transport
 	pbrec, err := cbor.RecordToProto(ctx, s.net, rec)
 	if err != nil {
 		return err
 	}
-	sig, key, err := s.signRequest(pbrec)
+	body := &pb.PushRecordRequest_Body{
+		ThreadID: &pb.ProtoThreadID{ID: id},
+		LogID:    &pb.ProtoPeerID{ID: lid},
+		Record:   pbrec,
+	}
+	sig, key, err := s.signRequestBody(body)
 	if err != nil {
 		return err
 	}
 	req := &pb.PushRecordRequest{
 		Header: &pb.Header{
-			From: &pb.ProtoPeerID{ID: s.net.host.ID()},
-			Sig:  sig,
-			Key:  &pb.ProtoPubKey{PubKey: key.GetPublic()},
+			PubKey:    &pb.ProtoPubKey{PubKey: key},
+			Signature: sig,
 		},
-		ThreadID: &pb.ProtoThreadID{ID: id},
-		LogID:    &pb.ProtoPeerID{ID: lid},
-		Record:   pbrec,
+		Body: body,
 	}
 
 	// Push to each address
@@ -329,26 +346,26 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
 					log.Debugf("pushing log %s to %s...", lid, p)
 
-					// Serialize and sign the record for transport
 					l, err := s.net.store.GetLog(id, lid)
 					if err != nil {
 						log.Error(err)
 						return
 					}
-					pblog := logToProto(l)
-					sig, key, err := s.signRequest(pblog)
+					body := &pb.PushLogRequest_Body{
+						ThreadID: &pb.ProtoThreadID{ID: id},
+						Log:      logToProto(l),
+					}
+					sig, key, err := s.signRequestBody(body)
 					if err != nil {
 						log.Error(err)
 						return
 					}
 					lreq := &pb.PushLogRequest{
 						Header: &pb.Header{
-							From: &pb.ProtoPeerID{ID: s.net.host.ID()},
-							Sig:  sig,
-							Key:  &pb.ProtoPubKey{PubKey: key.GetPublic()},
+							PubKey:    &pb.ProtoPubKey{PubKey: key},
+							Signature: sig,
 						},
-						ThreadID: &pb.ProtoThreadID{ID: id},
-						Log:      pblog,
+						Body: body,
 					}
 					if _, err = client.PushLog(cctx, lreq); err != nil {
 						log.Warnf("push log to %s failed: %s", p, err)
@@ -388,20 +405,20 @@ func (s *server) getDialOption() grpc.DialOption {
 	})
 }
 
-// signRequest signs an outbound proto message with the host's private key.
-func (s *server) signRequest(msg proto.Marshaler) (sig []byte, key crypto.PrivKey, err error) {
+// signRequestBody signs an outbound request body with the hosts's private key.
+func (s *server) signRequestBody(msg proto.Marshaler) (sig []byte, pk crypto.PubKey, err error) {
 	payload, err := msg.Marshal()
 	if err != nil {
 		return
 	}
-	key = s.net.getPrivKey()
-	if key == nil {
+	sk := s.net.getPrivKey()
+	if sk == nil {
 		err = fmt.Errorf("private key for host not found")
 		return
 	}
-	sig, err = key.Sign(payload)
+	sig, err = sk.Sign(payload)
 	if err != nil {
 		return
 	}
-	return sig, key, nil
+	return sig, sk.GetPublic(), nil
 }

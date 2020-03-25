@@ -93,7 +93,7 @@ func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key 
 		}
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.ThreadKey(key))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key))
 	if err != nil {
 		return nil, err
 	}

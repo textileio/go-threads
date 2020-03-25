@@ -112,7 +112,6 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 	}()
 
 	go t.startPulling()
-
 	return t, nil
 }
 
@@ -145,7 +144,6 @@ func (t *net) Close() (err error) {
 	for _, semaph := range t.pullLocks {
 		semaph <- struct{}{}
 	}
-
 	return nil
 }
 
@@ -157,11 +155,12 @@ func (t *net) Store() lstore.Logstore {
 	return t.store
 }
 
-func (t *net) GetHostID(context.Context) (peer.ID, error) {
+func (t *net) GetHostID(_ context.Context) (peer.ID, error) {
 	return t.host.ID(), nil
 }
 
-func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOption) (info thread.Info, err error) {
+func (t *net) CreateThread(_ context.Context, creds thread.Credentials, opts ...core.KeyOption) (info thread.Info, err error) {
+	id := creds.ThreadID()
 	if err = t.ensureUnique(id); err != nil {
 		return
 	}
@@ -188,11 +187,9 @@ func (t *net) CreateThread(_ context.Context, id thread.ID, opts ...core.KeyOpti
 	if err = t.store.AddLog(id, linfo); err != nil {
 		return
 	}
-
 	if err = t.server.ps.Add(id); err != nil {
 		return
 	}
-
 	return t.store.GetThread(id)
 }
 
@@ -207,10 +204,14 @@ func (t *net) ensureUnique(id thread.ID) error {
 	return nil
 }
 
-func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
-	id, err := thread.FromAddr(addr)
+func (t *net) AddThread(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
+	id := creds.ThreadID()
+	addrID, err := thread.FromAddr(addr)
 	if err != nil {
 		return
+	}
+	if addrID != id {
+		err = fmt.Errorf("address does not match thread ID")
 	}
 	if err = t.ensureUnique(id); err != nil {
 		return
@@ -254,22 +255,19 @@ func (t *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.Key
 	if err != nil {
 		return
 	}
-
 	for _, l := range lgs {
 		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
 			return
 		}
 	}
-
 	if err = t.server.ps.Add(id); err != nil {
 		return
 	}
-
 	return t.store.GetThread(id)
 }
 
-func (t *net) GetThread(_ context.Context, id thread.ID) (thread.Info, error) {
-	return t.store.GetThread(id)
+func (t *net) GetThread(_ context.Context, creds thread.Credentials) (thread.Info, error) {
+	return t.store.GetThread(creds.ThreadID())
 }
 
 func (t *net) getThreadSemaphore(id thread.ID) chan struct{} {
@@ -284,12 +282,16 @@ func (t *net) getThreadSemaphore(id thread.ID) chan struct{} {
 	return ptl
 }
 
-func (t *net) PullThread(ctx context.Context, id thread.ID) error {
+func (t *net) PullThread(ctx context.Context, creds thread.Credentials) error {
+	return t.pullThread(ctx, creds.ThreadID())
+}
+
+func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id)
 	ptl := t.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}:
-		err := t.pullThread(ctx, id)
+		err := t.pullThreadUnsafe(ctx, id)
 		if err != nil {
 			<-ptl
 			return err
@@ -301,9 +303,9 @@ func (t *net) PullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-// pullThread for new records.
+// pullThreadUnsafe for new records.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
-func (t *net) pullThread(ctx context.Context, id thread.ID) error {
+func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	info, err := t.store.GetThread(id)
 	if err != nil {
 		return err
@@ -329,12 +331,7 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 		go func(lg thread.LogInfo) {
 			defer wg.Done()
 			// Pull from addresses
-			recs, err := t.server.getRecords(
-				ctx,
-				id,
-				lg.ID,
-				offsets,
-				MaxPullLimit)
+			recs, err := t.server.getRecords(ctx, id, lg.ID, offsets, MaxPullLimit)
 			if err != nil {
 				log.Error(err)
 				return
@@ -357,7 +354,8 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-func (t *net) DeleteThread(ctx context.Context, id thread.ID) error {
+func (t *net) DeleteThread(ctx context.Context, creds thread.Credentials) error {
+	id := creds.ThreadID()
 	log.Debugf("deleting thread %s...", id)
 	ptl := t.getThreadSemaphore(id)
 	select {
@@ -400,8 +398,8 @@ func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
 	return t.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
-func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (pid peer.ID, err error) {
-	info, err := t.store.GetThread(id)
+func (t *net) AddReplicator(ctx context.Context, creds thread.Credentials, paddr ma.Multiaddr) (pid peer.ID, err error) {
+	info, err := t.store.GetThread(creds.ThreadID())
 	if err != nil {
 		return
 	}
@@ -421,14 +419,14 @@ func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err != nil {
 		return
 	}
-	ownlg, err := t.getOwnLog(id)
+	ownlg, err := t.getOwnLog(info.ID)
 	if err != nil {
 		return
 	}
-	if err = t.store.AddAddr(id, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+	if err = t.store.AddAddr(info.ID, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return
 	}
-	info, err = t.store.GetThread(id) // Update info
+	info, err = t.store.GetThread(info.ID) // Update info
 	if err != nil {
 		return
 	}
@@ -443,8 +441,8 @@ func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
-		if err = t.server.pushLog(ctx, id, l, pid, info.Key.Service(), nil); err != nil {
-			if err := t.store.SetAddrs(id, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
+		if err = t.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
+			if err := t.store.SetAddrs(info.ID, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
 				log.Errorf("error rolling back log address change: %s", err)
 			}
 			return
@@ -476,7 +474,7 @@ func (t *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 				return
 			}
 
-			if err = t.server.pushLog(ctx, id, ownlg, pid, nil, nil); err != nil {
+			if err = t.server.pushLog(ctx, info.ID, ownlg, pid, nil, nil); err != nil {
 				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
 			}
 		}(addr)
@@ -491,41 +489,34 @@ func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return ma.NewMultiaddr(parts[0])
 }
 
-func (t *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node) (r core.ThreadRecord, err error) {
-	// Get or create a log for the new node
+func (t *net) CreateRecord(ctx context.Context, creds thread.Credentials, body format.Node) (r core.ThreadRecord, err error) {
+	id := creds.ThreadID()
 	lg, err := t.getOrCreateOwnLog(id)
 	if err != nil {
 		return
 	}
-
-	// Write a record locally
 	rec, err := t.createRecord(ctx, id, lg, body)
 	if err != nil {
 		return
 	}
-
-	// Update head
 	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
 		return nil, err
 	}
 
 	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid(), id, lg.ID)
 
-	// Notify local listeners
 	r = NewRecord(rec, id, lg.ID)
 	if err = t.bus.SendWithTimeout(r, notifyTimeout); err != nil {
 		return
 	}
-
-	// Push out the new record
 	if err = t.server.pushRecord(ctx, id, lg.ID, rec); err != nil {
 		return
 	}
-
 	return r, nil
 }
 
-func (t *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
+func (t *net) AddRecord(ctx context.Context, creds thread.Credentials, lid peer.ID, rec core.Record) error {
+	id := creds.ThreadID()
 	logpk, err := t.store.PubKey(id, lid)
 	if err != nil {
 		return err
@@ -542,15 +533,17 @@ func (t *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		return nil
 	}
 
-	// Verify the record signature
-	if err = rec.Verify(rec.Sig(), logpk); err != nil {
+	if err = rec.Verify(logpk, rec.Sig()); err != nil {
 		return err
 	}
-
 	return t.PutRecord(ctx, id, lid, rec)
 }
 
-func (t *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
+func (t *net) GetRecord(ctx context.Context, creds thread.Credentials, rid cid.Cid) (core.Record, error) {
+	return t.getRecord(ctx, creds.ThreadID(), rid)
+}
+
+func (t *net) getRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
 	sk, err := t.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
@@ -594,9 +587,9 @@ func (t *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 		opt(args)
 	}
 	filter := make(map[thread.ID]struct{})
-	for _, id := range args.ThreadIDs {
-		if id.Defined() {
-			filter[id] = struct{}{}
+	for _, creds := range args.Credentials {
+		if creds.ThreadID().Defined() {
+			filter[creds.ThreadID()] = struct{}{}
 		}
 	}
 	channel := make(chan core.ThreadRecord)
@@ -652,7 +645,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		}
 		var r core.Record
 		if c.String() != rec.Cid().String() {
-			r, err = t.GetRecord(ctx, id, c)
+			r, err = t.getRecord(ctx, id, c)
 			if err != nil {
 				return err
 			}
@@ -700,11 +693,9 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 
 		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
-		// Notify local listeners
 		if err = t.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
 			return err
 		}
-		// Update head
 		if err = t.store.SetHead(id, lg.ID, r.Cid()); err != nil {
 			return err
 		}
@@ -823,7 +814,7 @@ func (t *net) startPulling() {
 		}
 		for _, id := range ts {
 			go func(id thread.ID) {
-				if err := t.PullThread(t.ctx, id); err != nil {
+				if err := t.pullThread(t.ctx, id); err != nil {
 					log.Errorf("error pulling thread %s: %s", id, err)
 				}
 			}(id)

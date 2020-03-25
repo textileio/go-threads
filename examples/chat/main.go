@@ -379,7 +379,7 @@ func addCmd(args []string) (out string, err error) {
 		if !util.CanDial(addr, net.Host().Network().(*swarm.Swarm)) {
 			return "", fmt.Errorf("address is not dialable")
 		}
-		info, err := net.AddThread(ctx, addr, core.ThreadKey(k))
+		info, err := net.AddThread(ctx, addr, core.WithThreadKey(k))
 		if err != nil {
 			return "", err
 		}

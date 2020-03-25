@@ -30,7 +30,7 @@ type Record interface {
 	AuthorSig() []byte
 
 	// Verify returns a nil error if the node signature is valid.
-	Verify(sig []byte, key crypto.PubKey) error
+	Verify(key crypto.PubKey, sig []byte) error
 }
 
 // ThreadRecord wraps Record within a thread and log context.

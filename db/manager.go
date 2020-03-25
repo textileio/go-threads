@@ -116,7 +116,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	if _, err = m.network.AddThread(ctx, addr, net.ThreadKey(key)); err != nil {
+	if _, err = m.network.AddThread(ctx, addr, net.WithThreadKey(key)); err != nil {
 		return nil, err
 	}
 
