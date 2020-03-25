@@ -182,7 +182,11 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 		if t.readonly {
 			return nil, ErrReadonlyTx
 		}
-		valid, err := t.collection.validInstance(new[i])
+
+		updated := make([]byte, len(new[i]))
+		copy(updated, new[i])
+
+		valid, err := t.collection.validInstance(updated)
 		if err != nil {
 			return nil, err
 		}
@@ -190,11 +194,9 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 			return nil, ErrInvalidSchemaInstance
 		}
 
-		updated := make([]byte, len(new[i]))
-		copy(updated, new[i])
 		id := getInstanceID(updated)
 		if id == core.EmptyInstanceID {
-			id, updated = setNewInstanceID(new[i])
+			id, updated = setNewInstanceID(updated)
 		}
 		results[i] = id
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
@@ -226,7 +228,10 @@ func (t *Txn) Save(updated ...[]byte) error {
 			return ErrReadonlyTx
 		}
 
-		valid, err := t.collection.validInstance(updated[i])
+		item := make([]byte, len(updated[i]))
+		copy(item, updated[i])
+
+		valid, err := t.collection.validInstance(item)
 		if err != nil {
 			return err
 		}
@@ -234,7 +239,7 @@ func (t *Txn) Save(updated ...[]byte) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getInstanceID(updated[i])
+		id := getInstanceID(item)
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -249,7 +254,7 @@ func (t *Txn) Save(updated ...[]byte) error {
 			InstanceID:     id,
 			CollectionName: t.collection.name,
 			Previous:       beforeBytes,
-			Current:        updated[i],
+			Current:        item,
 		})
 	}
 	return nil

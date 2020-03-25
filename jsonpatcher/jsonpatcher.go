@@ -192,21 +192,15 @@ func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
 }
 
 func createEvent(id core.InstanceID, v []byte) (*operation, error) {
-	var opBytes []byte
-	opBytes = v
 	return &operation{
 		Type:       create,
 		InstanceID: id,
-		JSONPatch:  opBytes,
+		JSONPatch:  v,
 	}, nil
 }
 
 func saveEvent(id core.InstanceID, prev []byte, curr []byte) (*operation, error) {
-	var prevBytes, currBytes []byte
-
-	prevBytes = prev
-	currBytes = curr
-	jsonPatch, err := jsonpatch.CreateMergePatch(prevBytes, currBytes)
+	jsonPatch, err := jsonpatch.CreateMergePatch(prev, curr)
 	if err != nil {
 		return nil, err
 	}
