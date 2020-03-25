@@ -207,7 +207,7 @@ public class Client implements LifecycleObserver {
         asyncStub.find(request.build(), responseObserver);
     }
 
-    public void NewCollectionSync (String dbID, String name, String schema) {
+    public void NewCollectionSync (String dbID, String name, ByteString schema) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDbID(dbID);
         CollectionConfig.Builder config = CollectionConfig.newBuilder();
@@ -217,7 +217,7 @@ public class Client implements LifecycleObserver {
         blockingStub.newCollection(request.build());
     }
 
-    public void NewCollection (String dbID, String name, String schema, StreamObserver<NewCollectionReply> responseObserver) {
+    public void NewCollection (String dbID, String name, ByteString schema, StreamObserver<NewCollectionReply> responseObserver) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
         request.setDbID(dbID);
         CollectionConfig.Builder config = CollectionConfig.newBuilder();
