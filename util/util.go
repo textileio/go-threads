@@ -135,13 +135,18 @@ func MustParseAddr(str string) ma.Multiaddr {
 	return addr
 }
 
-func SchemaFromInstance(i interface{}) string {
+func SchemaFromInstance(i interface{}) *jsonschema.Schema {
 	schema := jsonschema.Reflect(i)
-	JSON, err := json.MarshalIndent(schema, "", "  ")
-	if err != nil {
+	return schema
+}
+
+func SchemaFromSchemaString(s string) *jsonschema.Schema {
+	schemaBytes := []byte(s)
+	schema := &jsonschema.Schema{}
+	if err := json.Unmarshal(schemaBytes, schema); err != nil {
 		panic(err)
 	}
-	return string(JSON)
+	return schema
 }
 
 func JSONFromInstance(i interface{}) []byte {

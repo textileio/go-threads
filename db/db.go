@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alecthomas/jsonschema"
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
@@ -171,14 +172,21 @@ func (d *DB) reCreateCollections() error {
 
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
+
+		schema := &jsonschema.Schema{}
+		if err := json.Unmarshal(res.Value, schema); err != nil {
+			return err
+		}
+
 		var indexes []IndexConfig
 		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
 		if err == nil && index != nil {
 			_ = json.Unmarshal(index, &indexes)
 		}
+
 		if _, err := d.NewCollection(CollectionConfig{
 			Name:    name,
-			Schema:  string(res.Value),
+			Schema:  schema,
 			Indexes: indexes,
 		}); err != nil {
 			return err
@@ -190,7 +198,7 @@ func (d *DB) reCreateCollections() error {
 // CollectionConfig describes a new Collection.
 type CollectionConfig struct {
 	Name    string
-	Schema  string
+	Schema  *jsonschema.Schema
 	Indexes []IndexConfig
 }
 
@@ -203,14 +211,21 @@ func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
 		return nil, fmt.Errorf("already registered collection")
 	}
 
-	c := newCollection(config.Name, config.Schema, d)
+	c, err := newCollection(config.Name, config.Schema, d)
+	if err != nil {
+		return nil, err
+	}
 	key := dsDBSchemas.ChildString(config.Name)
 	exists, err := d.datastore.Has(key)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		if err := d.datastore.Put(key, []byte(config.Schema)); err != nil {
+		schemaBytes, err := json.Marshal(config.Schema)
+		if err != nil {
+			return nil, err
+		}
+		if err := d.datastore.Put(key, schemaBytes); err != nil {
 			return nil, err
 		}
 	}

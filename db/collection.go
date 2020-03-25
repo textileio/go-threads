@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/alecthomas/jsonschema"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
@@ -41,8 +42,15 @@ type Collection struct {
 	indexes      map[string]Index
 }
 
-func newCollection(name string, schema string, d *DB) *Collection {
-	schemaLoader := gojsonschema.NewStringLoader(schema)
+func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, error) {
+	// ToDo: validate schema here, return error if not valid
+	// foo := schema.Type
+	// fmt.Printf("type = %v", foo)
+	schemaBytes, err := json.Marshal(schema)
+	if err != nil {
+		return nil, err
+	}
+	schemaLoader := gojsonschema.NewBytesLoader(schemaBytes)
 	c := &Collection{
 		name:         name,
 		schemaLoader: schemaLoader,
@@ -50,7 +58,7 @@ func newCollection(name string, schema string, d *DB) *Collection {
 		db:           d,
 		indexes:      make(map[string]Index),
 	}
-	return c
+	return c, nil
 }
 
 func (c *Collection) BaseKey() ds.Key {

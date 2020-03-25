@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/alecthomas/jsonschema"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
@@ -90,7 +91,11 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 
 	collections := make([]db.CollectionConfig, len(req.Collections))
 	for i, c := range req.Collections {
-		collections[i] = collectionConfigFromPb(c)
+		cc, err := collectionConfigFromPb(c)
+		if err != nil {
+			return nil, err
+		}
+		collections[i] = cc
 	}
 	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, collections...); err != nil {
 		return nil, err
@@ -98,7 +103,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	return &pb.NewDBReply{}, nil
 }
 
-func collectionConfigFromPb(pbc *pb.CollectionConfig) db.CollectionConfig {
+func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, error) {
 	indexes := make([]db.IndexConfig, len(pbc.Indexes))
 	for i, index := range pbc.Indexes {
 		indexes[i] = db.IndexConfig{
@@ -106,11 +111,15 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) db.CollectionConfig {
 			Unique: index.Unique,
 		}
 	}
+	schema := &jsonschema.Schema{}
+	if err := json.Unmarshal(pbc.GetSchema(), schema); err != nil {
+		return db.CollectionConfig{}, err
+	}
 	return db.CollectionConfig{
 		Name:    pbc.Name,
-		Schema:  pbc.Schema,
+		Schema:  schema,
 		Indexes: indexes,
-	}
+	}, nil
 }
 
 // GetDBInfo returns db addresses and keys.
@@ -146,7 +155,11 @@ func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = d.NewCollection(collectionConfigFromPb(req.Config)); err != nil {
+	cc, err := collectionConfigFromPb(req.Config)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = d.NewCollection(cc); err != nil {
 		return nil, err
 	}
 	return &pb.NewCollectionReply{}, nil

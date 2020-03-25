@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 )
 
 var (
@@ -81,7 +82,7 @@ func TestManager_GetDB(t *testing.T) {
 	}
 
 	// Register a schema and create an instance
-	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: jsonSchema})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: util.SchemaFromSchemaString(jsonSchema)})
 	checkErr(t, err)
 	person1 := []byte(`{"ID": "", "Name": "Foo", "Age": 21}`)
 	_, err = collection.Create(person1)
@@ -135,7 +136,7 @@ func TestManager_DeleteDB(t *testing.T) {
 	checkErr(t, err)
 
 	// Register a schema and create an instance
-	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: jsonSchema})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: util.SchemaFromSchemaString(jsonSchema)})
 	checkErr(t, err)
 	person1 := []byte(`{"ID": "", "Name": "Foo", "Age": 21}`)
 	_, err = collection.Create(person1)

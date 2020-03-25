@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 	"github.com/tidwall/sjson"
 )
 
@@ -76,7 +77,7 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 func BenchmarkNoIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: util.SchemaFromSchemaString(testBenchSchema)})
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -95,7 +96,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
-		Schema: testBenchSchema,
+		Schema: util.SchemaFromSchemaString(testBenchSchema),
 		Indexes: []IndexConfig{{
 			Path:   "Name",
 			Unique: false,
@@ -117,7 +118,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 func BenchmarkNoIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: util.SchemaFromSchemaString(testBenchSchema)})
 	checkBenchErr(b, err)
 
 	var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
@@ -147,7 +148,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
-		Schema: testBenchSchema,
+		Schema: util.SchemaFromSchemaString(testBenchSchema),
 		Indexes: []IndexConfig{{
 			Path:   "Age",
 			Unique: false,
@@ -180,7 +181,7 @@ func BenchmarkIndexSave(b *testing.B) {
 func BenchmarkNoIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: util.SchemaFromSchemaString(testBenchSchema)})
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {
@@ -215,7 +216,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
-		Schema: testBenchSchema,
+		Schema: util.SchemaFromSchemaString(testBenchSchema),
 		Indexes: []IndexConfig{{
 			Path:   "Name",
 			Unique: false,
