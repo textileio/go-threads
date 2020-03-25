@@ -59,9 +59,9 @@ type Action struct {
 	// CollectionName of the instance in action
 	CollectionName string
 	// Previous is the instance before the action
-	Previous interface{}
+	Previous []byte
 	// Current is the instance after the action was done
-	Current interface{}
+	Current []byte
 }
 
 type ReduceAction struct {

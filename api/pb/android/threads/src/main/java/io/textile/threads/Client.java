@@ -117,37 +117,37 @@ public class Client implements LifecycleObserver {
         asyncStub.getDBInfo(request.build(), responseObserver);
     }
 
-    public CreateReply CreateSync (String dbID, String collectionName, String[] values) {
+    public CreateReply CreateSync (String dbID, String collectionName, ByteString[] instances) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
         request.setDbID(dbID);
         request.setCollectionName(collectionName);
-        request.addAllValues(Arrays.asList(values));
+        request.addAllInstances(Arrays.asList(instances));
         CreateReply reply = blockingStub.create(request.build());
         return reply;
     }
 
-    public void Create (String dbID, String collectionName, String[] values, StreamObserver<CreateReply> responseObserver) {
+    public void Create (String dbID, String collectionName, ByteString[] instances, StreamObserver<CreateReply> responseObserver) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
         request.setDbID(dbID);
         request.setCollectionName(collectionName);
-        request.addAllValues(Arrays.asList(values));
+        request.addAllInstances(Arrays.asList(instances));
         asyncStub.create(request.build(), responseObserver);
     }
 
-    public SaveReply SaveSync (String dbID, String collectionName, String[] values) {
+    public SaveReply SaveSync (String dbID, String collectionName, ByteString[] instances) {
         SaveRequest.Builder request = SaveRequest.newBuilder();
         request.setDbID(dbID);
         request.setCollectionName(collectionName);
-        request.addAllValues(Arrays.asList(values));
+        request.addAllInstances(Arrays.asList(instances));
         SaveReply reply = blockingStub.save(request.build());
         return reply;
     }
 
-    public void Save (String dbID, String collectionName, String[] values, StreamObserver<SaveReply> responseObserver) {
+    public void Save (String dbID, String collectionName, ByteString[] instances, StreamObserver<SaveReply> responseObserver) {
         SaveRequest.Builder request = SaveRequest.newBuilder();
         request.setDbID(dbID);
         request.setCollectionName(collectionName);
-        request.addAllValues(Arrays.asList(values));
+        request.addAllInstances(Arrays.asList(instances));
         SaveReply reply = blockingStub.save(request.build());
         asyncStub.save(request.build(), responseObserver);
     }

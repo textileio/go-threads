@@ -13,6 +13,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 
 import com.google.gson.Gson;
+import com.google.protobuf.ByteString;
 
 import io.textile.threads_grpc.*;
 
@@ -61,33 +62,32 @@ public class ClientUnitTest {
 
     @Test
     public void t06_Create() throws Exception {
-        String person = createPerson("", 22);
-        String[] data = { person };
+        ByteString person = createPerson("", 22);
+        ByteString[] data = { person };
         CreateReply reply = client.CreateSync(dbId, "Person", data);
-        assertEquals(1, reply.getInstancesCount());
-        String jsonString = reply.getInstances(0);
-        Person instance = new Gson().fromJson(jsonString, Person.class);
-        instanceId = instance.ID;
-        assertEquals(instance.ID.length(), 36);
+        assertEquals(1, reply.getInstanceIDsCount());
+        String id = reply.getInstanceIDs(0);
+        instanceId = id;
+        assertEquals(id.length(), 36);
     }
 
     @Test
     public void t06_Save() throws Exception {
-        String person = createPerson(instanceId, 22);
-        String[] data = { person };
+        ByteString person = createPerson(instanceId, 22);
+        ByteString[] data = { person };
         client.SaveSync(dbId, "Person", data);
         // now check that it's been updated
         FindByIDReply reply = client.FindByIDSync(dbId, "Person", instanceId);
-        String jsonString = reply.getInstance();
-        Person instance = new Gson().fromJson(jsonString, Person.class);
+        ByteString jsonBytes = reply.getInstance();
+        Person instance = new Gson().fromJson(jsonBytes.toStringUtf8(), Person.class);
         assertEquals(instanceId, instance.ID);
     }
 
-    private String createPerson(String ID, int age) throws Exception {
+    private ByteString createPerson(String ID, int age) throws Exception {
         Gson gson = new Gson();
         Person person = new Person(ID, age);
         String json = gson.toJson(person);
-        return json;
+        return ByteString.copyFrom(json.getBytes());
     }
 
     private String getStoredSchema() throws Exception {

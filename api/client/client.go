@@ -139,34 +139,27 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 }
 
 // Create creates new instances of objects
-func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName string, items ...interface{}) error {
-	values, err := marshalItems(items)
+func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName string, items ...interface{}) ([]string, error) {
+	instances, err := marshalItems(items)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := c.c.Create(ctx, &pb.CreateRequest{
 		DbID:           dbID.String(),
 		CollectionName: collectionName,
-		Values:         values,
+		Instances:      instances,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for i, instance := range resp.GetInstances() {
-		err := json.Unmarshal([]byte(instance), items[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return resp.GetInstanceIDs(), nil
 }
 
 // Save saves existing instances
-func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string, items ...interface{}) error {
-	values, err := marshalItems(items)
+func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string, instances ...interface{}) error {
+	values, err := marshalItems(instances)
 	if err != nil {
 		return err
 	}
@@ -174,7 +167,7 @@ func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string
 	_, err = c.c.Save(ctx, &pb.SaveRequest{
 		DbID:           dbID.String(),
 		CollectionName: collectionName,
-		Values:         values,
+		Instances:      values,
 	})
 	return err
 }
@@ -229,7 +222,7 @@ func (c *Client) FindByID(ctx context.Context, dbID thread.ID, collectionName, i
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal([]byte(resp.GetInstance()), instance)
+	return json.Unmarshal(resp.GetInstance(), instance)
 }
 
 // ReadTransaction returns a read transaction that can be started and used and ended
@@ -339,14 +332,14 @@ func processFindReply(reply *pb.FindReply, dummySlice interface{}) (interface{},
 	return results.Interface(), nil
 }
 
-func marshalItems(items []interface{}) ([]string, error) {
-	values := make([]string, len(items))
+func marshalItems(items []interface{}) ([][]byte, error) {
+	values := make([][]byte, len(items))
 	for i, item := range items {
 		bytes, err := json.Marshal(item)
 		if err != nil {
-			return []string{}, err
+			return nil, err
 		}
-		values[i] = string(bytes)
+		values[i] = bytes
 	}
 	return values, nil
 }

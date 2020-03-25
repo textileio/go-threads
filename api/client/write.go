@@ -60,7 +60,7 @@ func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_FindByIDReply:
-		err := json.Unmarshal([]byte(x.FindByIDReply.GetInstance()), instance)
+		err := json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
 		return err
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
@@ -91,33 +91,27 @@ func (t *WriteTransaction) Find(query *db.Query, dummySlice interface{}) (interf
 }
 
 // Create creates new instances of objects
-func (t *WriteTransaction) Create(items ...interface{}) error {
+func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	values, err := marshalItems(items)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	innerReq := &pb.CreateRequest{
-		Values: values,
+		Instances: values,
 	}
 	option := &pb.WriteTransactionRequest_CreateRequest{CreateRequest: innerReq}
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
-		return err
+		return nil, err
 	}
 	var resp *pb.WriteTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
-		return err
+		return nil, err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_CreateReply:
-		for i, instance := range x.CreateReply.GetInstances() {
-			err := json.Unmarshal([]byte(instance), items[i])
-			if err != nil {
-				return err
-			}
-		}
-		return nil
+		return x.CreateReply.GetInstanceIDs(), nil
 	default:
-		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+		return nil, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 
@@ -128,7 +122,7 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 		return err
 	}
 	innerReq := &pb.SaveRequest{
-		Values: values,
+		Instances: values,
 	}
 	option := &pb.WriteTransactionRequest_SaveRequest{SaveRequest: innerReq}
 	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {

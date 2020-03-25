@@ -9,7 +9,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
-	coredb "github.com/textileio/go-threads/core/db"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
@@ -162,6 +162,7 @@ func (s *Service) Create(_ context.Context, req *pb.CreateRequest) (*pb.CreateRe
 	return s.processCreateRequest(req, collection.Create)
 }
 
+// Save saves instances
 func (s *Service) Save(_ context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
 	collection, err := s.getCollection(req.DbID, req.CollectionName)
 	if err != nil {
@@ -170,6 +171,7 @@ func (s *Service) Save(_ context.Context, req *pb.SaveRequest) (*pb.SaveReply, e
 	return s.processSaveRequest(req, collection.Save)
 }
 
+// Delete deletes instances
 func (s *Service) Delete(_ context.Context, req *pb.DeleteRequest) (*pb.DeleteReply, error) {
 	collection, err := s.getCollection(req.DbID, req.CollectionName)
 	if err != nil {
@@ -178,6 +180,7 @@ func (s *Service) Delete(_ context.Context, req *pb.DeleteRequest) (*pb.DeleteRe
 	return s.processDeleteRequest(req, collection.Delete)
 }
 
+// Has determines if the collection inclides instances with the specified ids
 func (s *Service) Has(_ context.Context, req *pb.HasRequest) (*pb.HasReply, error) {
 	collection, err := s.getCollection(req.DbID, req.CollectionName)
 	if err != nil {
@@ -186,6 +189,7 @@ func (s *Service) Has(_ context.Context, req *pb.HasRequest) (*pb.HasReply, erro
 	return s.processHasRequest(req, collection.Has)
 }
 
+// Find executes a query against the db
 func (s *Service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, error) {
 	collection, err := s.getCollection(req.DbID, req.CollectionName)
 	if err != nil {
@@ -194,6 +198,7 @@ func (s *Service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, e
 	return s.processFindRequest(req, collection.Find)
 }
 
+// FindByID searces for an instance by id
 func (s *Service) FindByID(_ context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {
 	collection, err := s.getCollection(req.DbID, req.CollectionName)
 	if err != nil {
@@ -202,6 +207,7 @@ func (s *Service) FindByID(_ context.Context, req *pb.FindByIDRequest) (*pb.Find
 	return s.processFindByIDRequest(req, collection.FindByID)
 }
 
+// ReadTransaction runs a read transaction
 func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 	firstReq, err := stream.Recv()
 	if err != nil {
@@ -270,6 +276,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 	})
 }
 
+// WriteTransaction runs a write transaction
 func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 	firstReq, err := stream.Recv()
 	if err != nil {
@@ -390,7 +397,7 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 		options[i] = db.ListenOption{
 			Type:       listenActionType,
 			Collection: filter.CollectionName,
-			ID:         coredb.InstanceID(filter.InstanceID),
+			ID:         core.InstanceID(filter.InstanceID),
 		}
 	}
 
@@ -444,48 +451,39 @@ func (s *Service) instanceForAction(db *db.DB, action db.Action) ([]byte, error)
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, "collection not found")
 	}
-	var res string
-	if err := collection.FindByID(action.ID, &res); err != nil {
+	res, err := collection.FindByID(action.ID)
+	if err != nil {
 		return nil, err
 	}
-	return []byte(res), nil
+	return res, nil
 }
 
-func (s *Service) processCreateRequest(req *pb.CreateRequest, createFunc func(...interface{}) error) (*pb.CreateReply, error) {
-	values := make([]interface{}, len(req.Values))
-	for i, v := range req.Values {
-		s := v
-		values[i] = &s
-	}
-	if err := createFunc(values...); err != nil {
+func (s *Service) processCreateRequest(req *pb.CreateRequest, createFunc func(...[]byte) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
+	res, err := createFunc(req.Instances...)
+	if err != nil {
 		return nil, err
 	}
-
-	reply := &pb.CreateReply{
-		Instances: make([]string, len(values)),
+	ids := make([]string, len(res))
+	for i, id := range res {
+		ids[i] = id.String()
 	}
-	for i, v := range values {
-		reply.Instances[i] = *(v.(*string))
+	reply := &pb.CreateReply{
+		InstanceIDs: ids,
 	}
 	return reply, nil
 }
 
-func (s *Service) processSaveRequest(req *pb.SaveRequest, saveFunc func(...interface{}) error) (*pb.SaveReply, error) {
-	values := make([]interface{}, len(req.Values))
-	for i, v := range req.Values {
-		s := v
-		values[i] = &s
-	}
-	if err := saveFunc(values...); err != nil {
+func (s *Service) processSaveRequest(req *pb.SaveRequest, saveFunc func(...[]byte) error) (*pb.SaveReply, error) {
+	if err := saveFunc(req.Instances...); err != nil {
 		return nil, err
 	}
 	return &pb.SaveReply{}, nil
 }
 
-func (s *Service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(...coredb.InstanceID) error) (*pb.DeleteReply, error) {
-	instanceIDs := make([]coredb.InstanceID, len(req.InstanceIDs))
+func (s *Service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(...core.InstanceID) error) (*pb.DeleteReply, error) {
+	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
-		instanceIDs[i] = coredb.InstanceID(ID)
+		instanceIDs[i] = core.InstanceID(ID)
 	}
 	if err := deleteFunc(instanceIDs...); err != nil {
 		return nil, err
@@ -493,10 +491,10 @@ func (s *Service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(..
 	return &pb.DeleteReply{}, nil
 }
 
-func (s *Service) processHasRequest(req *pb.HasRequest, hasFunc func(...coredb.InstanceID) (bool, error)) (*pb.HasReply, error) {
-	instanceIDs := make([]coredb.InstanceID, len(req.InstanceIDs))
+func (s *Service) processHasRequest(req *pb.HasRequest, hasFunc func(...core.InstanceID) (bool, error)) (*pb.HasReply, error) {
+	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
-		instanceIDs[i] = coredb.InstanceID(ID)
+		instanceIDs[i] = core.InstanceID(ID)
 	}
 	exists, err := hasFunc(instanceIDs...)
 	if err != nil {
@@ -505,29 +503,25 @@ func (s *Service) processHasRequest(req *pb.HasRequest, hasFunc func(...coredb.I
 	return &pb.HasReply{Exists: exists}, nil
 }
 
-func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(id coredb.InstanceID, v interface{}) error) (*pb.FindByIDReply, error) {
-	instanceID := coredb.InstanceID(req.InstanceID)
-	var result string
-	if err := findFunc(instanceID, &result); err != nil {
+func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(id core.InstanceID) ([]byte, error)) (*pb.FindByIDReply, error) {
+	instanceID := core.InstanceID(req.InstanceID)
+	found, err := findFunc(instanceID)
+	if err != nil {
 		return nil, err
 	}
-	return &pb.FindByIDReply{Instance: result}, nil
+	return &pb.FindByIDReply{Instance: found}, nil
 }
 
-func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.Query) (ret []string, err error)) (*pb.FindReply, error) {
+func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.Query) (ret [][]byte, err error)) (*pb.FindReply, error) {
 	q := &db.Query{}
 	if err := json.Unmarshal(req.QueryJSON, q); err != nil {
 		return nil, err
 	}
-	stringInstances, err := findFunc(q)
+	instances, err := findFunc(q)
 	if err != nil {
 		return nil, err
 	}
-	byteInstances := make([][]byte, len(stringInstances))
-	for i, stringInstance := range stringInstances {
-		byteInstances[i] = []byte(stringInstance)
-	}
-	return &pb.FindReply{Instances: byteInstances}, nil
+	return &pb.FindReply{Instances: instances}, nil
 }
 
 func (s *Service) getDB(idStr string) (d *db.DB, id thread.ID, err error) {

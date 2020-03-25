@@ -83,8 +83,8 @@ func TestManager_GetDB(t *testing.T) {
 	// Register a schema and create an instance
 	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: jsonSchema})
 	checkErr(t, err)
-	person1 := `{"ID": "", "Name": "Foo", "Age": 21}`
-	err = collection.Create(&person1)
+	person1 := []byte(`{"ID": "", "Name": "Foo", "Age": 21}`)
+	_, err = collection.Create(person1)
 	checkErr(t, err)
 
 	time.Sleep(time.Second)
@@ -111,9 +111,9 @@ func TestManager_GetDB(t *testing.T) {
 		if collection == nil {
 			t.Fatal("collection was not hydrated")
 		}
-		person2 := `{"ID": "", "Name": "Bar", "Age": 21}`
-		person3 := `{"ID": "", "Name": "Baz", "Age": 21}`
-		err = collection.Create(&person2, &person3)
+		person2 := []byte(`{"ID": "", "Name": "Bar", "Age": 21}`)
+		person3 := []byte(`{"ID": "", "Name": "Baz", "Age": 21}`)
+		_, err = collection.Create(person2, person3)
 		checkErr(t, err)
 
 		time.Sleep(time.Second)
@@ -137,8 +137,8 @@ func TestManager_DeleteDB(t *testing.T) {
 	// Register a schema and create an instance
 	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: jsonSchema})
 	checkErr(t, err)
-	person1 := `{"ID": "", "Name": "Foo", "Age": 21}`
-	err = collection.Create(&person1)
+	person1 := []byte(`{"ID": "", "Name": "Foo", "Age": 21}`)
+	_, err = collection.Create(person1)
 	checkErr(t, err)
 
 	time.Sleep(time.Second)

@@ -191,25 +191,16 @@ func (jp *jsonPatcher) EventsFromBytes(data []byte) ([]core.Event, error) {
 	return res, nil
 }
 
-func createEvent(id core.InstanceID, v interface{}) (*operation, error) {
-	var opBytes []byte
-
-	strjson := v.(*string)
-	opBytes = []byte(*strjson)
+func createEvent(id core.InstanceID, v []byte) (*operation, error) {
 	return &operation{
 		Type:       create,
 		InstanceID: id,
-		JSONPatch:  opBytes,
+		JSONPatch:  v,
 	}, nil
 }
 
-func saveEvent(id core.InstanceID, prev interface{}, curr interface{}) (*operation, error) {
-	var prevBytes, currBytes []byte
-	strCurrJSON := curr.(*string)
-
-	prevBytes = prev.([]byte)
-	currBytes = []byte(*strCurrJSON)
-	jsonPatch, err := jsonpatch.CreateMergePatch(prevBytes, currBytes)
+func saveEvent(id core.InstanceID, prev []byte, curr []byte) (*operation, error) {
+	jsonPatch, err := jsonpatch.CreateMergePatch(prev, curr)
 	if err != nil {
 		return nil, err
 	}

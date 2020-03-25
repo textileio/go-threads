@@ -82,8 +82,8 @@ func BenchmarkNoIndexCreate(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-		var err = collection.Create(&benchItem)
+		var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
+		var _, err = collection.Create(benchItem)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -106,8 +106,8 @@ func BenchmarkIndexCreate(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-		var err = collection.Create(&benchItem)
+		var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
+		var _, err = collection.Create(benchItem)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -120,18 +120,22 @@ func BenchmarkNoIndexSave(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: testBenchSchema})
 	checkBenchErr(b, err)
 
-	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-	err = collection.Create(&benchItem)
+	var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
+	res, err := collection.Create(benchItem)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		newItem, err := sjson.Set(benchItem, "Age", rand.Int())
+		updated, err := sjson.SetBytes(benchItem, "ID", res[i].String())
+		if err != nil {
+			b.Fatalf("Error setting instance id: %s", err)
+		}
+		updated, err = sjson.SetBytes(updated, "Age", rand.Int())
 		if err != nil {
 			b.Fatalf("Error modifying instance: %s", err)
 		}
-		err = collection.Save(&newItem)
+		err = collection.Save(updated)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -151,18 +155,22 @@ func BenchmarkIndexSave(b *testing.B) {
 	})
 	checkBenchErr(b, err)
 
-	var benchItem = `{"ID": "", "Name": "Lucas", "Age": 7}`
-	err = collection.Create(&benchItem)
+	var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
+	res, err := collection.Create(benchItem)
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		newItem, err := sjson.Set(benchItem, "Age", rand.Int())
+		updated, err := sjson.SetBytes(benchItem, "ID", res[i].String())
+		if err != nil {
+			b.Fatalf("Error setting instance id: %s", err)
+		}
+		updated, err = sjson.SetBytes(updated, "Age", rand.Int())
 		if err != nil {
 			b.Fatalf("Error modifying instance: %s", err)
 		}
-		err = collection.Save(&newItem)
+		err = collection.Save(updated)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -177,12 +185,12 @@ func BenchmarkNoIndexFind(b *testing.B) {
 
 	for j := 0; j < 10; j++ {
 		for i := 0; i < nameSize; i++ {
-			var benchItem = `{"ID": "", "Name": "Name", "Age": 7}`
-			newItem, err := sjson.Set(benchItem, "Name", fmt.Sprintf("Name%d", j))
+			var benchItem = []byte(`{"ID": "", "Name": "Name", "Age": 7}`)
+			newItem, err := sjson.SetBytes(benchItem, "Name", fmt.Sprintf("Name%d", j))
 			if err != nil {
 				b.Fatalf("Error modifying instance: %s", err)
 			}
-			err = collection.Create(&newItem)
+			_, err = collection.Create(newItem)
 			if err != nil {
 				b.Fatalf("Error creating instance: %s", err)
 			}
@@ -217,12 +225,12 @@ func BenchmarkIndexFind(b *testing.B) {
 
 	for j := 0; j < 10; j++ {
 		for i := 0; i < nameSize; i++ {
-			var benchItem = `{"ID": "", "Name": "Name", "Age": 7}`
-			newItem, err := sjson.Set(benchItem, "Name", fmt.Sprintf("Name%d", j))
+			var benchItem = []byte(`{"ID": "", "Name": "Name", "Age": 7}`)
+			newItem, err := sjson.SetBytes(benchItem, "Name", fmt.Sprintf("Name%d", j))
 			if err != nil {
 				b.Fatalf("Error modifying instance: %s", err)
 			}
-			err = collection.Create(&newItem)
+			_, err = collection.Create(newItem)
 			if err != nil {
 				b.Fatalf("Error creating instance: %s", err)
 			}

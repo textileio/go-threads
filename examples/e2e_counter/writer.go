@@ -43,14 +43,15 @@ func runWriterPeer(repo string) {
 	counters := make([]*myCounter, len(res))
 	for i, counterJSON := range res {
 		counter := &myCounter{}
-		util.InstanceFromJSONString(counterJSON, counter)
+		util.InstanceFromJSON(counterJSON, counter)
 		counters[i] = counter
 	}
 	if len(counters) > 0 {
 		counter = counters[0]
 	} else {
 		counter = &myCounter{Name: "TestCounter", Count: 0}
-		checkErr(m.Create(util.JSONStringFromInstance(counter)))
+		_, err := m.Create(util.JSONFromInstance(counter))
+		checkErr(err)
 	}
 
 	saveThreadMultiaddrForOtherPeer(n, id)
@@ -58,15 +59,15 @@ func runWriterPeer(repo string) {
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
 		err = m.WriteTxn(func(txn *db.Txn) error {
-			counterJSON := ""
-			if err = txn.FindByID(counter.ID, &counterJSON); err != nil {
+			counterJSON, err := txn.FindByID(counter.ID)
+			if err != nil {
 				return err
 			}
 			c := &myCounter{}
-			util.InstanceFromJSONString(counterJSON, c)
+			util.InstanceFromJSON(counterJSON, c)
 			c.Count++
 			fmt.Printf("%d ,", c.Count)
-			return txn.Save(util.JSONStringFromInstance(c))
+			return txn.Save(util.JSONFromInstance(c))
 		})
 		checkErr(err)
 	}

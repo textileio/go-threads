@@ -1,77 +1,34 @@
 package db
 
 import (
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/util"
 )
 
-const (
-	testQuerySchema = `{
-		"$schema": "http://json-schema.org/draft-04/schema#",
-		"$ref": "#/definitions/book",
-		"definitions": {
-		   "book": {
-			  "required": [
-				 "ID",
-				 "Title",
-				 "Author",
-				 "Meta"
-			  ],
-			  "properties": {
-				 "Author": {
-					"type": "string"
-				 },
-				 "Banned": {
-					"type": "boolean"
-				 },
-				 "ID": {
-					"type": "string"
-				 },
-				 "Meta": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
-					"$ref": "#/definitions/bookStats"
-				 },
-				 "Title": {
-					"type": "string"
-				 }
-			  },
-			  "additionalProperties": false,
-			  "type": "object"
-		   },
-		   "bookStats": {
-			  "required": [
-				 "TotalReads",
-				 "Rating"
-			  ],
-			  "properties": {
-				 "Rating": {
-					"type": "number"
-				 },
-				 "TotalReads": {
-					"type": "integer"
-				 }
-			  },
-			  "additionalProperties": false,
-			  "type": "object"
-		   }
-		}
-	 }`
-)
+type Meta struct {
+	TotalReads int
+	Rating     float64
+}
 
-type jsonQueryTest struct {
-	name    string
-	query   *Query
-	resIdx  []int
-	ordered bool
+type Book struct {
+	ID     db.InstanceID
+	Title  string
+	Banned bool
+	Author string
+	Meta   Meta
 }
 
 var (
-	jsonSampleData = []string{
-		`{"ID": "", "Title": "Title1", "Banned": true,  "Author": "Author1", "Meta": { "TotalReads": 100, "Rating": 3.2 }}`,
-		`{"ID": "", "Title": "Title2", "Banned": false, "Author": "Author1", "Meta": { "TotalReads": 150, "Rating": 4.1 }}`,
-		`{"ID": "", "Title": "Title3", "Banned": false, "Author": "Author2", "Meta": { "TotalReads": 120, "Rating": 4.6 }}`,
-		`{"ID": "", "Title": "Title4", "Banned": true,  "Author": "Author3", "Meta": { "TotalReads": 1000, "Rating": 2.6 }}`,
+	data = []Book{
+		Book{Title: "Title1", Banned: true, Author: "Author1", Meta: Meta{TotalReads: 100, Rating: 3.2}},
+		Book{Title: "Title2", Banned: false, Author: "Author1", Meta: Meta{TotalReads: 150, Rating: 4.1}},
+		Book{Title: "Title3", Banned: false, Author: "Author2", Meta: Meta{TotalReads: 120, Rating: 4.6}},
+		Book{Title: "Title4", Banned: true, Author: "Author3", Meta: Meta{TotalReads: 1000, Rating: 2.6}},
 	}
 
 	boolTrue   = true
@@ -91,7 +48,7 @@ var (
 	ratingMid  = 3.6
 	ratingMax  = 5.0
 
-	jsonQueries = []jsonQueryTest{
+	jsonQueries = []queryTest{
 		// Ands string
 		{
 			name:   "EqByTitle1",
@@ -317,21 +274,30 @@ func TestQuery(t *testing.T) {
 			if len(q.resIdx) != len(res) {
 				t.Fatalf("query results length doesn't match, expected: %d, got: %d", len(q.resIdx), len(res))
 			}
+
+			foundBooks := make([]Book, len(res))
+			for i := range res {
+				book := Book{}
+				util.InstanceFromJSON(res[i], &book)
+				foundBooks[i] = book
+			}
+
 			expectedIdx := make([]int, len(q.resIdx))
 			for i := range q.resIdx {
 				expectedIdx[i] = q.resIdx[i]
 			}
+
 			if !q.ordered {
-				sort.Slice(res, func(i, j int) bool {
-					return strings.Compare(res[i], res[j]) == -1
+				sort.Slice(foundBooks, func(i, j int) bool {
+					return strings.Compare(foundBooks[i].ID.String(), foundBooks[j].ID.String()) == -1
 				})
 				sort.Slice(expectedIdx, func(i, j int) bool {
-					return strings.Compare(jsonSampleData[expectedIdx[i]], jsonSampleData[expectedIdx[j]]) == -1
+					return strings.Compare(data[expectedIdx[i]].ID.String(), data[expectedIdx[j]].ID.String()) == -1
 				})
 			}
 			for i, idx := range expectedIdx {
-				if jsonSampleData[idx] != res[i] {
-					t.Fatalf("wrong query item result, expected: %v, got: %v", jsonSampleData[idx], res[i])
+				if !reflect.DeepEqual(data[idx], foundBooks[i]) {
+					t.Fatalf("wrong query item result, expected: %v, got: %v", data[idx], foundBooks[i])
 				}
 			}
 		})
@@ -342,19 +308,22 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 	s, clean := createTestDB(t)
 	c, err := s.NewCollection(CollectionConfig{
 		Name:   "Book",
-		Schema: testQuerySchema,
-		Indexes: []IndexConfig{{
-			Path: "Meta.TotalReads",
-		},
+		Schema: util.SchemaFromInstance(&Book{}),
+		Indexes: []IndexConfig{
+			{
+				Path: "Meta.TotalReads",
+			},
 			{
 				Path: "Title",
 			}},
 	})
 	checkErr(t, err)
-	for i := range jsonSampleData {
-		if err = c.Create(&jsonSampleData[i]); err != nil {
+	for i := range data {
+		ids, err := c.Create(util.JSONFromInstance(data[i]))
+		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
+		data[i].ID = ids[0]
 	}
 	return c, clean
 }

@@ -47,7 +47,8 @@ func main() {
 			Author: "Author1",
 			Meta:   bookStats{TotalReads: 150, Rating: 4.1},
 		}
-		checkErr(collection.Create(util.JSONStringFromInstance(book1), util.JSONStringFromInstance(book2))) // Note you can create multiple books at the same time (variadic)
+		_, err := collection.Create(util.JSONFromInstance(book1), util.JSONFromInstance(book2)) // Note you can create multiple books at the same time (variadic)
+		checkErr(err)
 
 		// Create book for Author2
 		book3 := &book{
@@ -55,7 +56,8 @@ func main() {
 			Author: "Author2",
 			Meta:   bookStats{TotalReads: 500, Rating: 4.9},
 		}
-		checkErr(collection.Create(util.JSONStringFromInstance(book3)))
+		_, err = collection.Create(util.JSONFromInstance(book3))
+		checkErr(err)
 	}
 
 	// Query all the books
@@ -111,7 +113,7 @@ func main() {
 		books := make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(item, book)
+			util.InstanceFromJSON(item, book)
 			books[i] = book
 		}
 		if books[0].Meta.TotalReads != 100 || books[1].Meta.TotalReads != 150 {
@@ -123,7 +125,7 @@ func main() {
 		books = make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(item, book)
+			util.InstanceFromJSON(item, book)
 			books[i] = book
 		}
 		if books[0].Meta.TotalReads != 150 || books[1].Meta.TotalReads != 100 {
@@ -138,14 +140,14 @@ func main() {
 		books := make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(item, book)
+			util.InstanceFromJSON(item, book)
 			books[i] = book
 		}
 
 		// Modify title
 		firstBook := books[0]
 		firstBook.Title = "ModifiedTitle"
-		_ = collection.Save(util.JSONStringFromInstance(firstBook))
+		_ = collection.Save(util.JSONFromInstance(firstBook))
 		res, err = collection.Find(db.Where("Title").Eq("Title3"))
 		checkErr(err)
 		if len(res) != 0 {
@@ -161,7 +163,7 @@ func main() {
 		books = make([]*book, len(res))
 		for i, item := range res {
 			book := &book{}
-			util.InstanceFromJSONString(item, book)
+			util.InstanceFromJSON(item, book)
 			books[i] = book
 		}
 		_ = collection.Delete(books[0].ID)

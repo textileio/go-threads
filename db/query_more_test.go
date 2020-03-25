@@ -110,7 +110,7 @@ func TestCollectionQuery(t *testing.T) {
 			res := make([]*book, len(ret))
 			for i, bookJSON := range ret {
 				var book = &book{}
-				util.InstanceFromJSONString(bookJSON, book)
+				util.InstanceFromJSON(bookJSON, book)
 				res[i] = book
 			}
 
@@ -154,12 +154,14 @@ func createCollectionWithData(t *testing.T) (*Collection, func()) {
 	})
 	checkErr(t, err)
 	for i := range sampleData {
-		sampleDataString := util.JSONStringFromInstance(&sampleData[i])
-		if err = c.Create(sampleDataString); err != nil {
+		sampleDataJSON := util.JSONFromInstance(sampleData[i])
+		ids, err := c.Create(sampleDataJSON)
+		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
+		sampleDataJSON = util.SetJSONID(ids[0], sampleDataJSON)
 		updated := book{}
-		util.InstanceFromJSONString(*sampleDataString, &updated)
+		util.InstanceFromJSON(sampleDataJSON, &updated)
 		sampleData[i] = updated
 	}
 	return c, clean

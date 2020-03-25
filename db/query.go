@@ -198,7 +198,7 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 }
 
 // Find queries for instances by Query
-func (t *Txn) Find(q *Query) ([]string, error) {
+func (t *Txn) Find(q *Query) ([][]byte, error) {
 	if q == nil {
 		q = &Query{}
 	}
@@ -250,9 +250,9 @@ func (t *Txn) Find(q *Query) ([]string, error) {
 		}
 	}
 
-	res := make([]string, len(values))
+	res := make([][]byte, len(values))
 	for i := range values {
-		res[i] = string(values[i].Value)
+		res[i] = values[i].Value
 	}
 
 	return res, nil

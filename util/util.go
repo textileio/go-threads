@@ -14,6 +14,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	ma "github.com/multiformats/go-multiaddr"
+	core "github.com/textileio/go-threads/core/db"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -142,17 +144,28 @@ func SchemaFromInstance(i interface{}) string {
 	return string(JSON)
 }
 
-func JSONStringFromInstance(i interface{}) *string {
-	JSON, err := json.MarshalIndent(i, "", "  ")
+func JSONFromInstance(i interface{}) []byte {
+	JSON, err := json.Marshal(i)
 	if err != nil {
 		panic(err)
 	}
-	val := string(JSON)
-	return &val
+	return JSON
 }
 
-func InstanceFromJSONString(s string, i interface{}) {
-	if err := json.Unmarshal([]byte(s), i); err != nil {
+func InstanceFromJSON(b []byte, i interface{}) {
+	if err := json.Unmarshal(b, i); err != nil {
 		panic(err)
 	}
+}
+
+func SetJSONProperty(name string, value interface{}, json []byte) []byte {
+	updated, err := sjson.SetBytes(json, name, value)
+	if err != nil {
+		panic(err)
+	}
+	return updated
+}
+
+func SetJSONID(id core.InstanceID, json []byte) []byte {
+	return SetJSONProperty("ID", id.String(), json)
 }
