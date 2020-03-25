@@ -32,9 +32,8 @@ const (
 var (
 	log = logging.Logger("db")
 
-	// ErrInvalidCollectionType indicates the provided default type isn't compatible
-	// with a Collection type.
-	ErrInvalidCollectionType = errors.New("the collection type should be a non-nil pointer to a struct that has an ID property")
+	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
+	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an ID string property")
 
 	dsDBPrefix  = ds.NewKey("/db")
 	dsDBSchemas = dsDBPrefix.ChildString("schema")

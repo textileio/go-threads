@@ -30,7 +30,7 @@ func main() {
 
 	collection, err := d.NewCollection(db.CollectionConfig{
 		Name:   "Book",
-		Schema: util.SchemaFromInstance(&book{}),
+		Schema: util.SchemaFromInstance(&book{}, false),
 	})
 	checkErr(err)
 
