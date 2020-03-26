@@ -49,22 +49,19 @@ func TestManager_NewDB(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		author, _, err := crypto.GenerateEd25519Key(rand.Reader)
-		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), author)
+		_, err := man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
 		checkErr(t, err)
 	})
 	t.Run("test multiple new dbs", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
+		_, err := man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
+		checkErr(t, err)
+		// NewDB with author
 		author, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), author)
-		checkErr(t, err)
-		author, _, err = crypto.GenerateEd25519Key(rand.Reader)
-		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), author)
+		_, err = man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32), thread.WithPrivKey(author)))
 		checkErr(t, err)
 	})
 }
@@ -84,9 +81,7 @@ func TestManager_GetDB(t *testing.T) {
 	}()
 
 	id := thread.NewIDV1(thread.Raw, 32)
-	author, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	checkErr(t, err)
-	_, err = man.NewDB(ctx, id, author)
+	_, err = man.NewDB(ctx, thread.NewDefaultCreds(id))
 	checkErr(t, err)
 	db := man.GetDB(id)
 	if db == nil {
@@ -145,9 +140,7 @@ func TestManager_DeleteDB(t *testing.T) {
 	defer clean()
 
 	id := thread.NewIDV1(thread.Raw, 32)
-	author, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	checkErr(t, err)
-	db, err := man.NewDB(ctx, id, author)
+	db, err := man.NewDB(ctx, thread.NewDefaultCreds(id))
 	checkErr(t, err)
 
 	// Register a schema and create an instance

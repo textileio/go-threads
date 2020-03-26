@@ -6,15 +6,9 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
-// Credentials is used to prove a caller identity, which is needed
-// for thread ACL checks. The referenced ACL will be verified by threadID,
-// which is partially defined by hashing the ACL.
 message Credentials {
-    // threadID of the target resource.
     bytes threadID = 1;
-    // pubKey is a public key identifying the caller.
     bytes pubKey = 2;
-    // signature is the caller's signature of threadID.
     bytes signature = 3;
 }
 

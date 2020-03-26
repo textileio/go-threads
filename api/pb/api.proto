@@ -6,8 +6,14 @@ option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THREADS";
 
+message Credentials {
+    bytes threadID = 1;
+    bytes pubKey = 2;
+    bytes signature = 3;
+}
+
 message NewDBRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
 }
 
 message CollectionConfig {
@@ -22,31 +28,32 @@ message CollectionConfig {
 }
 
 message NewDBFromAddrRequest {
-    string dbAddr = 1;
-    bytes dbKey = 2;
+    Credentials credentials = 1;
+    string addr = 2;
+    bytes key = 3;
     repeated CollectionConfig collections = 4;
 }
 
 message NewDBReply {}
 
 message GetDBInfoRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
 }
 
 message GetDBInfoReply {
     repeated string addresses = 1;
-    bytes dbKey = 2;
+    bytes key = 2;
 }
 
 message NewCollectionRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     CollectionConfig config = 2;
 }
 
 message NewCollectionReply {}
 
 message CreateRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
     repeated bytes instances = 3;
 }
@@ -56,7 +63,7 @@ message CreateReply {
 }
 
 message SaveRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
     repeated bytes instances = 3;
 }
@@ -64,7 +71,7 @@ message SaveRequest {
 message SaveReply {}
 
 message DeleteRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
     repeated string instanceIDs = 3;
 }
@@ -72,7 +79,7 @@ message DeleteRequest {
 message DeleteReply {}
 
 message HasRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
     repeated string instanceIDs = 3;
 }
@@ -82,7 +89,7 @@ message HasReply {
 }
 
 message FindRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
     bytes queryJSON = 3;
 }
@@ -92,7 +99,7 @@ message FindReply {
 }
 
 message FindByIDRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
     string instanceID = 3;
 }
@@ -102,7 +109,7 @@ message FindByIDReply {
 }
 
 message StartTransactionRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     string collectionName = 2;
 }
 
@@ -147,7 +154,7 @@ message WriteTransactionReply {
 }
 
 message ListenRequest {
-    string dbID = 1;
+    Credentials credentials = 1;
     repeated Filter filters = 2;
 
     message Filter {

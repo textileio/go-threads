@@ -66,11 +66,11 @@ func (s *Service) Close() error {
 func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBReply, error) {
 	log.Debugf("received new db request")
 
-	id, err := thread.Decode(req.DbID)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDB(ctx, id); err != nil {
+	if _, err = s.manager.NewDB(ctx, creds); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -560,4 +560,8 @@ func (s *Service) getCollection(dbID string, collectionName string) (*db.Collect
 		return nil, status.Error(codes.NotFound, "collection not found")
 	}
 	return collection, nil
+}
+
+func getCredentials(c *pb.Credentials) (thread.Credentials, error) {
+	return thread.NewSignedCredsFromBytes(c.ThreadID, c.PubKey, c.Signature)
 }

@@ -32,23 +32,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-type credentials struct {
-	threadID thread.ID
-	privKey  crypto.PrivKey
-}
-
-func (c credentials) ThreadID() thread.ID {
-	return c.threadID
-}
-
-func (c credentials) Sign() (crypto.PubKey, thread.Signature, error) {
-	sig, err := c.privKey.Sign(c.threadID.Bytes())
-	if err != nil {
-		return nil, nil, nil
-	}
-	return c.privKey.GetPublic(), sig, nil
-}
-
 func TestClient_GetHostID(t *testing.T) {
 	t.Parallel()
 	_, client, done := setup(t)
@@ -227,7 +210,7 @@ func TestClient_AddRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	creds := credentials{threadID: id, privKey: authorSk}
+	creds := thread.NewDefaultCreds(id, thread.WithPrivKey(authorSk))
 	_, err = client.CreateThread(context.Background(), creds, core.WithThreadKey(tk), core.WithLogKey(logPk))
 	if err != nil {
 		t.Fatal(err)

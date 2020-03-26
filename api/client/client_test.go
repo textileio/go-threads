@@ -53,7 +53,7 @@ func TestNewDBFromAddr(t *testing.T) {
 	t.Run("test new db from address", func(t *testing.T) {
 		addr, err := ma.NewMultiaddr(info.Addresses[0])
 		checkErr(t, err)
-		key, err := thread.KeyFromBytes(info.DbKey)
+		key, err := thread.KeyFromBytes(info.Key)
 		if err := client2.NewDBFromAddr(context.Background(), addr, key); err != nil {
 			t.Fatalf("failed to create new db from address: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestGetDBInfo(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
-		if info.DbKey == nil {
+		if info.Key == nil {
 			t.Fatal("got nil db key")
 		}
 		if len(info.Addresses) == 0 {

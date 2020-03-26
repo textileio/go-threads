@@ -21,6 +21,7 @@ import (
 var (
 	dsDBManagerBaseKey = ds.NewKey("/manager")
 	dsDBAuthor         = ds.NewKey("/author")
+	dsDBSignature      = ds.NewKey("/signature")
 )
 
 type Manager struct {
@@ -82,11 +83,10 @@ func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		author, err := m.getDBAuthor(id) // can be nil for open dbs
+		creds, err := m.getDBCreds(id)
 		if err != nil {
 			return nil, err
 		}
-		creds := credentials{threadID: id, privKey: author}
 		s, err := newDB(m.network, creds, getDBConfig(id, m.config))
 		if err != nil {
 			return nil, err
@@ -97,15 +97,15 @@ func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 }
 
 // NewDB creates a new db and prefixes its datastore with base key.
-func (m *Manager) NewDB(ctx context.Context, id thread.ID, author crypto.PrivKey, collections ...CollectionConfig) (*DB, error) {
+func (m *Manager) NewDB(ctx context.Context, creds thread.Credentials, collections ...CollectionConfig) (*DB, error) {
+	id := creds.ThreadID()
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	creds := credentials{threadID: id, privKey: author}
 	if _, err := m.network.CreateThread(ctx, creds); err != nil {
 		return nil, err
 	}
-	if err := m.putDBAuthor(id, author); err != nil {
+	if err := m.putDBCreds(id, creds); err != nil {
 		return nil, err
 	}
 
@@ -120,19 +120,15 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, author crypto.PrivKey
 // NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
 // Unlike NewDB, this method takes a list of collections added to the original db that
 // should also be added to this host.
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, author crypto.PrivKey, key thread.Key, collections ...CollectionConfig) (*DB, error) {
-	id, err := thread.FromAddr(addr)
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) NewDBFromAddr(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, collections ...CollectionConfig) (*DB, error) {
+	id := creds.ThreadID()
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	creds := credentials{threadID: id, privKey: author}
 	if _, err := m.network.AddThread(ctx, creds, addr, net.WithThreadKey(key)); err != nil {
 		return nil, err
 	}
-	if err := m.putDBAuthor(id, author); err != nil {
+	if err := m.putDBCreds(id, creds); err != nil {
 		return nil, err
 	}
 
@@ -162,11 +158,10 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID) error {
 	if db == nil {
 		return nil
 	}
-	author, err := m.getDBAuthor(id)
+	creds, err := m.getDBCreds(id)
 	if err != nil {
 		return err
 	}
-	creds := credentials{threadID: id, privKey: author}
 
 	if err := db.Close(); err != nil {
 		return err
@@ -223,25 +218,41 @@ func getDBConfig(id thread.ID, base *Config, collections ...CollectionConfig) *C
 	}
 }
 
-// putDBAuthor persists a db author to the datastore.
-func (m *Manager) putDBAuthor(id thread.ID, sk crypto.PrivKey) error {
-	skb, err := crypto.MarshalPrivateKey(sk)
+// putDBCreds persists db creds for a thread.
+func (m *Manager) putDBCreds(id thread.ID, creds thread.Credentials) error {
+	pk, sig, err := creds.Sign()
 	if err != nil {
 		return err
 	}
-	key := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBAuthor)
-	return m.config.Datastore.Put(key, skb)
+	if pk == nil {
+		return nil
+	}
+	pkb, err := crypto.MarshalPublicKey(pk)
+	if err != nil {
+		return err
+	}
+	ak := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBAuthor)
+	if err = m.config.Datastore.Put(ak, pkb); err != nil {
+		return err
+	}
+	sk := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBSignature)
+	return m.config.Datastore.Put(sk, sig)
 }
 
-// getDBAuthor loads a db author from the datastore.
-func (m *Manager) getDBAuthor(id thread.ID) (crypto.PrivKey, error) {
-	key := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBAuthor)
-	skb, err := m.config.Datastore.Get(key)
-	if err != nil {
-		if errors.Is(err, ds.ErrNotFound) {
-			return nil, nil
-		}
+// getDBCreds loads a db author from the datastore.
+func (m *Manager) getDBCreds(id thread.ID) (thread.Credentials, error) {
+	ak := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBAuthor)
+	pkb, err := m.config.Datastore.Get(ak)
+	if err != nil && !errors.Is(err, ds.ErrNotFound) {
 		return nil, err
 	}
-	return crypto.UnmarshalPrivateKey(skb)
+	var sig []byte
+	if pkb != nil {
+		sk := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBSignature)
+		sig, err = m.config.Datastore.Get(sk)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return thread.NewSignedCredsFromBytes(id.Bytes(), pkb, sig)
 }

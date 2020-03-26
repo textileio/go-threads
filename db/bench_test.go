@@ -2,14 +2,12 @@ package db
 
 import (
 	"context"
-	crand "crypto/rand"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
 	"github.com/tidwall/sjson"
@@ -64,12 +62,8 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	n, err := DefaultNetwork(dir)
 	checkBenchErr(b, err)
-	id := thread.NewIDV1(thread.Raw, 32)
-	author, _, err := crypto.GenerateEd25519Key(crand.Reader)
-	checkBenchErr(b, err)
-	creds := credentials{threadID: id, privKey: author}
 	opts = append(opts, WithRepoPath(dir))
-	d, err := NewDB(context.Background(), n, creds, opts...)
+	d, err := NewDB(context.Background(), n, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)), opts...)
 	checkBenchErr(b, err)
 	return d, func() {
 		if err := n.Close(); err != nil {

@@ -61,7 +61,7 @@ func (s *Service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetH
 func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received create thread request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received add thread request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	}
 	go func() {
 		if err := s.net.PullThread(ctx, creds); err != nil {
-			log.Errorf("error pulling thread %s: %s", creds.threadID, err)
+			log.Errorf("error pulling thread %s: %s", creds.ThreadID(), err)
 		}
 	}()
 	return threadInfoToProto(info)
@@ -106,7 +106,7 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received get thread request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
 	log.Debugf("received pull thread request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*p
 func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest) (*pb.DeleteThreadReply, error) {
 	log.Debugf("received delete thread request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest)
 func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorRequest) (*pb.AddReplicatorReply, error) {
 	log.Debugf("received add replicator request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorReques
 func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest) (*pb.NewRecordReply, error) {
 	log.Debugf("received create record request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest)
 func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
 	log.Debugf("received add record request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
 	log.Debugf("received get record request")
 
-	creds, err := newCredentials(req.Credentials)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 
 	opts := make([]net.SubOption, len(req.Credentials))
 	for i, c := range req.Credentials {
-		creds, err := newCredentials(c)
+		creds, err := getCredentials(c)
 		if err != nil {
 			return err
 		}
@@ -273,6 +273,10 @@ func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 func marshalPeerID(id peer.ID) []byte {
 	b, _ := id.Marshal() // This will never return an error
 	return b
+}
+
+func getCredentials(c *pb.Credentials) (thread.Credentials, error) {
+	return thread.NewSignedCredsFromBytes(c.ThreadID, c.PubKey, c.Signature)
 }
 
 func getKeyOptions(keys *pb.Keys) (opts []net.KeyOption, err error) {

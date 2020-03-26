@@ -25,7 +25,9 @@ func runReaderPeer(repo string) {
 		Schema: util.SchemaFromInstance(&myCounter{}, false),
 	}
 
-	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, key, db.WithRepoPath(repo), db.WithCollections(cc))
+	id, err := thread.FromAddr(writerAddr)
+	checkErr(err)
+	d, err := db.NewDBFromAddr(context.Background(), n, thread.NewDefaultCreds(id), writerAddr, key, db.WithRepoPath(repo), db.WithCollections(cc))
 	checkErr(err)
 	defer d.Close()
 
