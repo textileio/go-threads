@@ -55,9 +55,10 @@ public class ClientUnitTest {
     @Test
     public void t05_NewCollection() throws Exception {
         String jsonStr = getStoredSchema();
+        ByteString schema = ByteString.copyFrom(jsonStr.getBytes());
         JSONObject json = new JSONObject(jsonStr);
         assertEquals(json.get("title").toString(), "Person");
-        client.NewCollectionSync(dbId, "Person", jsonStr);
+        client.NewCollectionSync(dbId, "Person", schema);
     }
 
     @Test

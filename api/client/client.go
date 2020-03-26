@@ -97,7 +97,11 @@ func (c *Client) NewDB(ctx context.Context, id thread.ID) error {
 func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
 	pbcollections := make([]*pb.CollectionConfig, len(collections))
 	for i, c := range collections {
-		pbcollections[i] = collectionConfigToPb(c)
+		cc, err := collectionConfigToPb(c)
+		if err != nil {
+			return err
+		}
+		pbcollections[i] = cc
 	}
 	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
 		DbAddr:      addr.String(),
@@ -107,7 +111,7 @@ func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key threa
 	return err
 }
 
-func collectionConfigToPb(c db.CollectionConfig) *pb.CollectionConfig {
+func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 	idx := make([]*pb.CollectionConfig_IndexConfig, len(c.Indexes))
 	for i, index := range c.Indexes {
 		idx[i] = &pb.CollectionConfig_IndexConfig{
@@ -115,11 +119,15 @@ func collectionConfigToPb(c db.CollectionConfig) *pb.CollectionConfig {
 			Unique: index.Unique,
 		}
 	}
+	schemaBytes, err := json.Marshal(c.Schema)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.CollectionConfig{
 		Name:    c.Name,
-		Schema:  c.Schema,
+		Schema:  schemaBytes,
 		Indexes: idx,
-	}
+	}, nil
 }
 
 // GetDBInfo retrives db addresses and keys.
@@ -131,9 +139,13 @@ func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID) (*pb.GetDBInfoRe
 
 // NewCollection creates a new collection
 func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig) error {
-	_, err := c.c.NewCollection(ctx, &pb.NewCollectionRequest{
+	cc, err := collectionConfigToPb(config)
+	if err != nil {
+		return err
+	}
+	_, err = c.c.NewCollection(ctx, &pb.NewCollectionRequest{
 		DbID:   dbID.String(),
-		Config: collectionConfigToPb(config),
+		Config: cc,
 	})
 	return err
 }

@@ -12,7 +12,7 @@ message NewDBRequest {
 
 message CollectionConfig {
     string name = 1;
-    string schema = 2;
+    bytes schema = 2;
     repeated IndexConfig indexes = 3;
 
     message IndexConfig {

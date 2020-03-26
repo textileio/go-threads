@@ -43,7 +43,17 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		_, err := db.NewCollection(CollectionConfig{
 			Name:   "Dog",
-			Schema: util.SchemaFromInstance(&Dog{}),
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+		})
+		checkErr(t, err)
+	})
+	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		_, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, true),
 		})
 		checkErr(t, err)
 	})
@@ -53,30 +63,42 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		_, err := db.NewCollection(CollectionConfig{
 			Name:   "Dog",
-			Schema: util.SchemaFromInstance(&Dog{}),
+			Schema: util.SchemaFromInstance(&Dog{}, false),
 		})
 		checkErr(t, err)
 		_, err = db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 	})
-	// t.Run("Fail/WithoutInstanceID", func(t *testing.T) {
-	// 	t.Parallel()
-	// 	type FailingType struct {
-	// 		IDontHaveAnIDField int
-	// 	}
-	// 	db, clean := createTestDB(t)
-	// 	defer clean()
-	// 	cc := CollectionConfig{
-	// 		Name:   "FailingType",
-	// 		Schema: util.SchemaFromInstance(&FailingType{}),
-	// 	}
-	// 	if _, err := db.NewCollection(cc); err != ErrInvalidCollectionType {
-	// 		t.Fatal("the collection should be invalid")
-	// 	}
-	// })
+	type FailingType struct {
+		IDontHaveAnIDField int
+	}
+	t.Run("Fail/WithoutInstanceID", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		cc := CollectionConfig{
+			Name:   "FailingType",
+			Schema: util.SchemaFromInstance(&FailingType{}, false),
+		}
+		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionSchema {
+			t.Fatal("the collection should be invalid")
+		}
+	})
+	t.Run("Fail/WithoutInstanceIDExpandedSchemaStruct", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		cc := CollectionConfig{
+			Name:   "FailingType",
+			Schema: util.SchemaFromInstance(&FailingType{}, true),
+		}
+		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionSchema {
+			t.Fatal("the collection should be invalid")
+		}
+	})
 }
 
 func TestCreateInstance(t *testing.T) {
@@ -87,7 +109,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 
@@ -116,7 +138,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 
@@ -145,7 +167,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 
@@ -168,7 +190,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 
@@ -192,7 +214,7 @@ func TestReadTxnValidation(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 		err = m.ReadTxn(func(txn *Txn) error {
@@ -209,7 +231,7 @@ func TestReadTxnValidation(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 		p := util.JSONFromInstance(Person{Name: "Foo1", Age: 42})
@@ -229,7 +251,7 @@ func TestReadTxnValidation(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 		p := util.JSONFromInstance(Person{Name: "Foo1", Age: 42})
@@ -251,7 +273,7 @@ func TestVariadic(t *testing.T) {
 	defer clean()
 	m, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}),
+		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
 	checkErr(t, err)
 
@@ -298,7 +320,7 @@ func TestGetInstance(t *testing.T) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}),
+		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
 	checkErr(t, err)
 
@@ -365,7 +387,7 @@ func TestSaveInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 
@@ -403,7 +425,7 @@ func TestSaveInstance(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}),
+			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
 		checkErr(t, err)
 
@@ -421,7 +443,7 @@ func TestDeleteInstance(t *testing.T) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}),
+		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
 	checkErr(t, err)
 
@@ -462,7 +484,7 @@ func TestInvalidActions(t *testing.T) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}),
+		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {

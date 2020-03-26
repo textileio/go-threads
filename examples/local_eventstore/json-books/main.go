@@ -10,6 +10,7 @@ import (
 
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/util"
 	"github.com/tidwall/sjson"
 )
 
@@ -67,7 +68,7 @@ func main() {
 	d, clean := createMemDB()
 	defer clean()
 
-	collection, err := d.NewCollection(db.CollectionConfig{Name: "Book", Schema: jsonSchema})
+	collection, err := d.NewCollection(db.CollectionConfig{Name: "Book", Schema: util.SchemaFromSchemaString(jsonSchema)})
 	checkErr(err)
 
 	// Bootstrap the collection with some books: two from Author1 and one from Author2
