@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'com.google.protobuf'
 
 repositories {
     maven {
@@ -35,6 +36,14 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
+    implementation "io.grpc:grpc-core:$gRPCVersion"
+    implementation "io.grpc:grpc-okhttp:$gRPCVersion"
+    implementation "io.grpc:grpc-stub:$gRPCVersion"
+    testImplementation "io.grpc:grpc-testing:$gRPCVersion"
+
+    // Lite, use below for Full
+    implementation "io.grpc:grpc-protobuf-lite:$gRPCVersion"
+
     // UI
     implementation "com.android.support.constraint:constraint-layout:$constraintLayoutVersion"
 
@@ -42,7 +51,7 @@ dependencies {
     implementation "com.android.support:appcompat-v7:$appcompatVersion"
     implementation "com.android.support:support-v4:$appcompatVersion"
 
-    // gRPC IPFS Lite
+    // Threads
     implementation project(':threads')
 
     // HTTP Requests
