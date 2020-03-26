@@ -12,7 +12,7 @@ import (
 // ReadTransaction encapsulates a read transaction
 type ReadTransaction struct {
 	client         pb.API_ReadTransactionClient
-	dbID           thread.ID
+	creds          thread.Credentials
 	collectionName string
 }
 
@@ -21,8 +21,17 @@ type EndTransactionFunc = func() error
 
 // Start starts the read transaction
 func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
-	innerReq := &pb.StartTransactionRequest{DbID: t.dbID.String(), CollectionName: t.collectionName}
-	option := &pb.ReadTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
+	signed, err := signCreds(t.creds)
+	if err != nil {
+		return nil, err
+	}
+	innerReq := &pb.StartTransactionRequest{
+		Credentials:    signed,
+		CollectionName: t.collectionName,
+	}
+	option := &pb.ReadTransactionRequest_StartTransactionRequest{
+		StartTransactionRequest: innerReq,
+	}
 	if err := t.client.Send(&pb.ReadTransactionRequest{Option: option}); err != nil {
 		return nil, err
 	}

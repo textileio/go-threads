@@ -148,19 +148,16 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, creds thread.Credentials, a
 }
 
 // GetDB returns a db by id.
-func (m *Manager) GetDB(id thread.ID) *DB {
-	return m.dbs[id]
+func (m *Manager) GetDB(creds thread.Credentials) *DB {
+	return m.dbs[creds.ThreadID()]
 }
 
 // DeleteDB deletes a db by id.
-func (m *Manager) DeleteDB(ctx context.Context, id thread.ID) error {
+func (m *Manager) DeleteDB(ctx context.Context, creds thread.Credentials) error {
+	id := creds.ThreadID()
 	db := m.dbs[id]
 	if db == nil {
 		return nil
-	}
-	creds, err := m.getDBCreds(id)
-	if err != nil {
-		return err
 	}
 
 	if err := db.Close(); err != nil {

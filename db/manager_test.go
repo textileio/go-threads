@@ -80,10 +80,10 @@ func TestManager_GetDB(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	id := thread.NewIDV1(thread.Raw, 32)
-	_, err = man.NewDB(ctx, thread.NewDefaultCreds(id))
+	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+	_, err = man.NewDB(ctx, creds)
 	checkErr(t, err)
-	db := man.GetDB(id)
+	db := man.GetDB(creds)
 	if db == nil {
 		t.Fatal("db not found")
 	}
@@ -109,7 +109,7 @@ func TestManager_GetDB(t *testing.T) {
 		man, err := NewManager(n, WithRepoPath(dir), WithDebug(true))
 		checkErr(t, err)
 
-		db := man.GetDB(id)
+		db := man.GetDB(creds)
 		if db == nil {
 			t.Fatal("db was not hydrated")
 		}
@@ -139,8 +139,8 @@ func TestManager_DeleteDB(t *testing.T) {
 	man, clean := createTestManager(t)
 	defer clean()
 
-	id := thread.NewIDV1(thread.Raw, 32)
-	db, err := man.NewDB(ctx, thread.NewDefaultCreds(id))
+	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+	db, err := man.NewDB(ctx, creds)
 	checkErr(t, err)
 
 	// Register a schema and create an instance
@@ -152,10 +152,10 @@ func TestManager_DeleteDB(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	err = man.DeleteDB(ctx, id)
+	err = man.DeleteDB(ctx, creds)
 	checkErr(t, err)
 
-	if man.GetDB(id) != nil {
+	if man.GetDB(creds) != nil {
 		t.Fatal("db was not deleted")
 	}
 }

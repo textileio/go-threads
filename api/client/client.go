@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	ic "github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -86,15 +87,23 @@ func (c *Client) Close() error {
 }
 
 // NewDB creates a new DB with ID
-func (c *Client) NewDB(ctx context.Context, id thread.ID) error {
-	_, err := c.c.NewDB(ctx, &pb.NewDBRequest{
-		DbID: id.String(),
+func (c *Client) NewDB(ctx context.Context, creds thread.Credentials) error {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return err
+	}
+	_, err = c.c.NewDB(ctx, &pb.NewDBRequest{
+		Credentials: signed,
 	})
 	return err
 }
 
 // NewDBFromAddr creates a new DB with address and keys.
-func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
+func (c *Client) NewDBFromAddr(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return err
+	}
 	pbcollections := make([]*pb.CollectionConfig, len(collections))
 	for i, c := range collections {
 		cc, err := collectionConfigToPb(c)
@@ -103,9 +112,10 @@ func (c *Client) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key threa
 		}
 		pbcollections[i] = cc
 	}
-	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
-		DbAddr:      addr.String(),
-		DbKey:       key.Bytes(),
+	_, err = c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
+		Credentials: signed,
+		Addr:        addr.String(),
+		Key:         key.Bytes(),
 		Collections: pbcollections,
 	})
 	return err
@@ -131,34 +141,46 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 }
 
 // GetDBInfo retrives db addresses and keys.
-func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID) (*pb.GetDBInfoReply, error) {
+func (c *Client) GetDBInfo(ctx context.Context, creds thread.Credentials) (*pb.GetDBInfoReply, error) {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return nil, err
+	}
 	return c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
-		DbID: dbID.String(),
+		Credentials: signed,
 	})
 }
 
 // NewCollection creates a new collection
-func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig) error {
+func (c *Client) NewCollection(ctx context.Context, creds thread.Credentials, config db.CollectionConfig) error {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return err
+	}
 	cc, err := collectionConfigToPb(config)
 	if err != nil {
 		return err
 	}
 	_, err = c.c.NewCollection(ctx, &pb.NewCollectionRequest{
-		DbID:   dbID.String(),
-		Config: cc,
+		Credentials: signed,
+		Config:      cc,
 	})
 	return err
 }
 
 // Create creates new instances of objects
-func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName string, items ...interface{}) ([]string, error) {
+func (c *Client) Create(ctx context.Context, creds thread.Credentials, collectionName string, items ...interface{}) ([]string, error) {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return nil, err
+	}
 	instances, err := marshalItems(items)
 	if err != nil {
 		return nil, err
 	}
 
 	resp, err := c.c.Create(ctx, &pb.CreateRequest{
-		DbID:           dbID.String(),
+		Credentials:    signed,
 		CollectionName: collectionName,
 		Instances:      instances,
 	})
@@ -170,14 +192,18 @@ func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName stri
 }
 
 // Save saves existing instances
-func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string, instances ...interface{}) error {
+func (c *Client) Save(ctx context.Context, creds thread.Credentials, collectionName string, instances ...interface{}) error {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return err
+	}
 	values, err := marshalItems(instances)
 	if err != nil {
 		return err
 	}
 
 	_, err = c.c.Save(ctx, &pb.SaveRequest{
-		DbID:           dbID.String(),
+		Credentials:    signed,
 		CollectionName: collectionName,
 		Instances:      values,
 	})
@@ -185,9 +211,13 @@ func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string
 }
 
 // Delete deletes data
-func (c *Client) Delete(ctx context.Context, dbID thread.ID, collectionName string, instanceIDs ...string) error {
-	_, err := c.c.Delete(ctx, &pb.DeleteRequest{
-		DbID:           dbID.String(),
+func (c *Client) Delete(ctx context.Context, creds thread.Credentials, collectionName string, instanceIDs ...string) error {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return err
+	}
+	_, err = c.c.Delete(ctx, &pb.DeleteRequest{
+		Credentials:    signed,
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
 	})
@@ -195,9 +225,13 @@ func (c *Client) Delete(ctx context.Context, dbID thread.ID, collectionName stri
 }
 
 // Has checks if the specified instances exist
-func (c *Client) Has(ctx context.Context, dbID thread.ID, collectionName string, instanceIDs ...string) (bool, error) {
+func (c *Client) Has(ctx context.Context, creds thread.Credentials, collectionName string, instanceIDs ...string) (bool, error) {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return false, err
+	}
 	resp, err := c.c.Has(ctx, &pb.HasRequest{
-		DbID:           dbID.String(),
+		Credentials:    signed,
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
 	})
@@ -208,13 +242,17 @@ func (c *Client) Has(ctx context.Context, dbID thread.ID, collectionName string,
 }
 
 // Find finds instances by query
-func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string, query *db.Query, dummySlice interface{}) (interface{}, error) {
+func (c *Client) Find(ctx context.Context, creds thread.Credentials, collectionName string, query *db.Query, dummySlice interface{}) (interface{}, error) {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return nil, err
+	}
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := c.c.Find(ctx, &pb.FindRequest{
-		DbID:           dbID.String(),
+		Credentials:    signed,
 		CollectionName: collectionName,
 		QueryJSON:      queryBytes,
 	})
@@ -225,9 +263,13 @@ func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string
 }
 
 // FindByID finds an instance by id
-func (c *Client) FindByID(ctx context.Context, dbID thread.ID, collectionName, instanceID string, instance interface{}) error {
+func (c *Client) FindByID(ctx context.Context, creds thread.Credentials, collectionName, instanceID string, instance interface{}) error {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return err
+	}
 	resp, err := c.c.FindByID(ctx, &pb.FindByIDRequest{
-		DbID:           dbID.String(),
+		Credentials:    signed,
 		CollectionName: collectionName,
 		InstanceID:     instanceID,
 	})
@@ -238,29 +280,37 @@ func (c *Client) FindByID(ctx context.Context, dbID thread.ID, collectionName, i
 }
 
 // ReadTransaction returns a read transaction that can be started and used and ended
-func (c *Client) ReadTransaction(ctx context.Context, dbID thread.ID, collectionName string) (*ReadTransaction, error) {
+func (c *Client) ReadTransaction(ctx context.Context, creds thread.Credentials, collectionName string) (*ReadTransaction, error) {
 	client, err := c.c.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &ReadTransaction{
 		client:         client,
-		dbID:           dbID,
+		creds:          creds,
 		collectionName: collectionName,
 	}, nil
 }
 
 // WriteTransaction returns a read transaction that can be started and used and ended
-func (c *Client) WriteTransaction(ctx context.Context, dbID thread.ID, collectionName string) (*WriteTransaction, error) {
+func (c *Client) WriteTransaction(ctx context.Context, creds thread.Credentials, collectionName string) (*WriteTransaction, error) {
 	client, err := c.c.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &WriteTransaction{client: client, dbID: dbID, collectionName: collectionName}, nil
+	return &WriteTransaction{
+		client:         client,
+		creds:          creds,
+		collectionName: collectionName,
+	}, nil
 }
 
 // Listen provides an update whenever the specified db, collection, or instance is updated
-func (c *Client) Listen(ctx context.Context, dbID thread.ID, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
+func (c *Client) Listen(ctx context.Context, creds thread.Credentials, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
+	signed, err := signCreds(creds)
+	if err != nil {
+		return nil, err
+	}
 	channel := make(chan ListenEvent)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
 	for i, listenOption := range listenOptions {
@@ -284,8 +334,8 @@ func (c *Client) Listen(ctx context.Context, dbID thread.ID, listenOptions ...Li
 		}
 	}
 	stream, err := c.c.Listen(ctx, &pb.ListenRequest{
-		DbID:    dbID.String(),
-		Filters: filters,
+		Credentials: signed,
+		Filters:     filters,
 	})
 	if err != nil {
 		return nil, err
@@ -354,4 +404,23 @@ func marshalItems(items []interface{}) ([][]byte, error) {
 		values[i] = bytes
 	}
 	return values, nil
+}
+
+func signCreds(creds thread.Credentials) (pcreds *pb.Credentials, err error) {
+	pcreds = &pb.Credentials{
+		ThreadID: creds.ThreadID().Bytes(),
+	}
+	pk, sig, err := creds.Sign()
+	if err != nil {
+		return
+	}
+	if pk == nil {
+		return
+	}
+	pcreds.PubKey, err = ic.MarshalPublicKey(pk)
+	if err != nil {
+		return
+	}
+	pcreds.Signature = sig
+	return pcreds, nil
 }

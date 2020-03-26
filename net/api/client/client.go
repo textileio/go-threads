@@ -281,20 +281,23 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	return channel, nil
 }
 
-func signCreds(creds thread.Credentials) (*pb.Credentials, error) {
+func signCreds(creds thread.Credentials) (pcreds *pb.Credentials, err error) {
+	pcreds = &pb.Credentials{
+		ThreadID: creds.ThreadID().Bytes(),
+	}
 	pk, sig, err := creds.Sign()
 	if err != nil {
-		return nil, err
+		return
 	}
-	pkb, err := ic.MarshalPublicKey(pk)
+	if pk == nil {
+		return
+	}
+	pcreds.PubKey, err = ic.MarshalPublicKey(pk)
 	if err != nil {
-		return nil, err
+		return
 	}
-	return &pb.Credentials{
-		ThreadID:  creds.ThreadID().Bytes(),
-		PubKey:    pkb,
-		Signature: sig,
-	}, nil
+	pcreds.Signature = sig
+	return pcreds, nil
 }
 
 func getThreadKeys(args *core.KeyOptions) (*pb.Keys, error) {

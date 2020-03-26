@@ -31,7 +31,8 @@ func TestNewDB(t *testing.T) {
 	defer done()
 
 	t.Run("test new db", func(t *testing.T) {
-		if err := client.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32)); err != nil {
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		if err := client.NewDB(context.Background(), creds); err != nil {
 			t.Fatalf("failed to create new db: %v", err)
 		}
 	})
@@ -44,17 +45,17 @@ func TestNewDBFromAddr(t *testing.T) {
 	client2, done2 := setup(t)
 	defer done2()
 
-	dbID := thread.NewIDV1(thread.Raw, 32)
-	err := client1.NewDB(context.Background(), dbID)
+	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+	err := client1.NewDB(context.Background(), creds)
 	checkErr(t, err)
-	info, err := client1.GetDBInfo(context.Background(), dbID)
+	info, err := client1.GetDBInfo(context.Background(), creds)
 	checkErr(t, err)
 
 	t.Run("test new db from address", func(t *testing.T) {
 		addr, err := ma.NewMultiaddr(info.Addresses[0])
 		checkErr(t, err)
 		key, err := thread.KeyFromBytes(info.Key)
-		if err := client2.NewDBFromAddr(context.Background(), addr, key); err != nil {
+		if err := client2.NewDBFromAddr(context.Background(), creds, addr, key); err != nil {
 			t.Fatalf("failed to create new db from address: %v", err)
 		}
 	})
@@ -66,10 +67,10 @@ func TestNewCollection(t *testing.T) {
 	defer done()
 
 	t.Run("test new collection", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		if err != nil {
 			t.Fatalf("failed add new collection: %v", err)
 		}
@@ -82,13 +83,13 @@ func TestCreate(t *testing.T) {
 	defer done()
 
 	t.Run("test collection create", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
-		_, err = client.Create(context.Background(), dbID, collectionName, createPerson())
+		_, err = client.Create(context.Background(), creds, collectionName, createPerson())
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
@@ -101,11 +102,11 @@ func TestGetDBInfo(t *testing.T) {
 	defer done()
 
 	t.Run("test get db info", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
 
-		info, err := client.GetDBInfo(context.Background(), dbID)
+		info, err := client.GetDBInfo(context.Background(), creds)
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
@@ -124,20 +125,20 @@ func TestSave(t *testing.T) {
 	defer done()
 
 	t.Run("test collection save", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 		person.Age = 30
-		err = client.Save(context.Background(), dbID, collectionName, person)
+		err = client.Save(context.Background(), creds, collectionName, person)
 		if err != nil {
 			t.Fatalf("failed to save collection: %v", err)
 		}
@@ -150,20 +151,20 @@ func TestDelete(t *testing.T) {
 	defer done()
 
 	t.Run("test collection delete", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 
-		err = client.Delete(context.Background(), dbID, collectionName, person.ID)
+		err = client.Delete(context.Background(), creds, collectionName, person.ID)
 		if err != nil {
 			t.Fatalf("failed to delete collection: %v", err)
 		}
@@ -176,20 +177,20 @@ func TestHas(t *testing.T) {
 	defer done()
 
 	t.Run("test collection has", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 
-		exists, err := client.Has(context.Background(), dbID, collectionName, person.ID)
+		exists, err := client.Has(context.Background(), creds, collectionName, person.ID)
 		if err != nil {
 			t.Fatalf("failed to check collection has: %v", err)
 		}
@@ -205,22 +206,22 @@ func TestFind(t *testing.T) {
 	defer done()
 
 	t.Run("test collection find", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 
 		q := db.Where("lastName").Eq(person.LastName)
 
-		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
+		rawResults, err := client.Find(context.Background(), creds, collectionName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -239,10 +240,10 @@ func TestFindWithIndex(t *testing.T) {
 	client, done := setup(t)
 	defer done()
 	t.Run("test collection find", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{
 			Name:   collectionName,
 			Schema: util.SchemaFromSchemaString(schema),
 			Indexes: []db.IndexConfig{{
@@ -254,14 +255,14 @@ func TestFindWithIndex(t *testing.T) {
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 
 		q := db.Where("lastName").Eq(person.LastName).UseIndex("lastName")
 
-		rawResults, err := client.Find(context.Background(), dbID, collectionName, q, []*Person{})
+		rawResults, err := client.Find(context.Background(), creds, collectionName, q, []*Person{})
 		if err != nil {
 			t.Fatalf("failed to find: %v", err)
 		}
@@ -281,21 +282,21 @@ func TestFindByID(t *testing.T) {
 	defer done()
 
 	t.Run("test collection find by ID", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 
 		newPerson := &Person{}
-		err = client.FindByID(context.Background(), dbID, collectionName, person.ID, newPerson)
+		err = client.FindByID(context.Background(), creds, collectionName, person.ID, newPerson)
 		if err != nil {
 			t.Fatalf("failed to find collection by id: %v", err)
 		}
@@ -311,19 +312,19 @@ func TestReadTransaction(t *testing.T) {
 	defer done()
 
 	t.Run("test read transaction", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
 
-		txn, err := client.ReadTransaction(context.Background(), dbID, collectionName)
+		txn, err := client.ReadTransaction(context.Background(), creds, collectionName)
 		if err != nil {
 			t.Fatalf("failed to create read txn: %v", err)
 		}
@@ -378,20 +379,20 @@ func TestWriteTransaction(t *testing.T) {
 	defer done()
 
 	t.Run("test write transaction", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		existingPerson := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, existingPerson)
+		ids, err := client.Create(context.Background(), creds, collectionName, existingPerson)
 		checkErr(t, err)
 
 		existingPerson.ID = ids[0]
 
-		txn, err := client.WriteTransaction(context.Background(), dbID, collectionName)
+		txn, err := client.WriteTransaction(context.Background(), creds, collectionName)
 		if err != nil {
 			t.Fatalf("failed to create write txn: %v", err)
 		}
@@ -466,15 +467,15 @@ func TestListen(t *testing.T) {
 	defer done()
 
 	t.Run("test listen", func(t *testing.T) {
-		dbID := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), dbID)
+		creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+		err := client.NewDB(context.Background(), creds)
 		checkErr(t, err)
-		err = client.NewCollection(context.Background(), dbID, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		err = client.NewCollection(context.Background(), creds, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		checkErr(t, err)
 
 		person := createPerson()
 
-		ids, err := client.Create(context.Background(), dbID, collectionName, person)
+		ids, err := client.Create(context.Background(), creds, collectionName, person)
 		checkErr(t, err)
 
 		person.ID = ids[0]
@@ -485,7 +486,7 @@ func TestListen(t *testing.T) {
 			Collection: collectionName,
 			InstanceID: person.ID,
 		}
-		channel, err := client.Listen(ctx, dbID, opt)
+		channel, err := client.Listen(ctx, creds, opt)
 		if err != nil {
 			t.Fatalf("failed to call listen: %v", err)
 		}
@@ -493,9 +494,9 @@ func TestListen(t *testing.T) {
 		go func() {
 			time.Sleep(1 * time.Second)
 			person.Age = 30
-			_ = client.Save(context.Background(), dbID, collectionName, person)
+			_ = client.Save(context.Background(), creds, collectionName, person)
 			person.Age = 40
-			_ = client.Save(context.Background(), dbID, collectionName, person)
+			_ = client.Save(context.Background(), creds, collectionName, person)
 		}()
 
 		val, ok := <-channel

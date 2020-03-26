@@ -81,14 +81,12 @@ func NewSignedCredsFromBytes(id, pubKey, signature []byte) (creds SignedCreds, e
 	if pubKey == nil {
 		return
 	}
-	key, err := crypto.UnmarshalPublicKey(pubKey)
+	creds.pubKey, err = crypto.UnmarshalPublicKey(pubKey)
 	if err != nil {
 		return
 	}
-	return SignedCreds{
-		pubKey:    key,
-		signature: signature,
-	}, nil
+	creds.signature = signature
+	return creds, nil
 }
 
 func (c SignedCreds) ThreadID() ID {

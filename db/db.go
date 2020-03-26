@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	idFieldName = "ID"
-	busTimeout  = time.Second * 10
+	busTimeout = time.Second * 10
 )
 
 var (

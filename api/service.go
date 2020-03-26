@@ -80,15 +80,18 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrRequest) (*pb.NewDBReply, error) {
 	log.Debugf("received new db from address request")
 
-	addr, err := ma.NewMultiaddr(req.DbAddr)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	key, err := thread.KeyFromBytes(req.DbKey)
+	addr, err := ma.NewMultiaddr(req.Addr)
 	if err != nil {
 		return nil, err
 	}
-
+	key, err := thread.KeyFromBytes(req.Key)
+	if err != nil {
+		return nil, err
+	}
 	collections := make([]db.CollectionConfig, len(req.Collections))
 	for i, c := range req.Collections {
 		cc, err := collectionConfigFromPb(c)
@@ -97,7 +100,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 		}
 		collections[i] = cc
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, collections...); err != nil {
+	if _, err = s.manager.NewDBFromAddr(ctx, creds, addr, key, collections...); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -124,17 +127,17 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 
 // GetDBInfo returns db addresses and keys.
 func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
-	_, id, err := s.getDB(req.DbID)
+	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := s.manager.Net().GetThread(ctx, id)
+	tinfo, err := s.manager.Net().GetThread(ctx, creds)
 	if err != nil {
 		return nil, err
 	}
 	host := s.manager.Net().Host()
 	peerID, _ := ma.NewComponent("p2p", host.ID().String())
-	threadID, _ := ma.NewComponent("thread", id.String())
+	threadID, _ := ma.NewComponent("thread", tinfo.ID.String())
 	addrs := host.Addrs()
 	res := make([]string, len(addrs))
 	for i := range addrs {
@@ -142,16 +145,20 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	}
 	reply := &pb.GetDBInfoReply{
 		Addresses: res,
-		DbKey:     tinfo.Key.Bytes(),
+		Key:       tinfo.Key.Bytes(),
 	}
 	return reply, nil
 }
 
 // NewCollection registers a JSON schema with a db.
 func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
-	log.Debugf("received new collection request in db %s", req.DbID)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("received new collection request in db %s", creds.ThreadID())
 
-	d, _, err := s.getDB(req.DbID)
+	d, err := s.getDB(creds)
 	if err != nil {
 		return nil, err
 	}
@@ -167,8 +174,13 @@ func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest)
 
 // Create adds a new instance of a collection to a db.
 func (s *Service) Create(_ context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
-	log.Debugf("received collection create request for collection %s", req.CollectionName)
-	collection, err := s.getCollection(req.DbID, req.CollectionName)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("received collection create %s request in db %s", req.CollectionName, creds.ThreadID())
+
+	collection, err := s.getCollection(creds, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +189,11 @@ func (s *Service) Create(_ context.Context, req *pb.CreateRequest) (*pb.CreateRe
 
 // Save saves instances
 func (s *Service) Save(_ context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
-	collection, err := s.getCollection(req.DbID, req.CollectionName)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(creds, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +202,11 @@ func (s *Service) Save(_ context.Context, req *pb.SaveRequest) (*pb.SaveReply, e
 
 // Delete deletes instances
 func (s *Service) Delete(_ context.Context, req *pb.DeleteRequest) (*pb.DeleteReply, error) {
-	collection, err := s.getCollection(req.DbID, req.CollectionName)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(creds, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +215,11 @@ func (s *Service) Delete(_ context.Context, req *pb.DeleteRequest) (*pb.DeleteRe
 
 // Has determines if the collection inclides instances with the specified ids
 func (s *Service) Has(_ context.Context, req *pb.HasRequest) (*pb.HasReply, error) {
-	collection, err := s.getCollection(req.DbID, req.CollectionName)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(creds, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +228,11 @@ func (s *Service) Has(_ context.Context, req *pb.HasRequest) (*pb.HasReply, erro
 
 // Find executes a query against the db
 func (s *Service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, error) {
-	collection, err := s.getCollection(req.DbID, req.CollectionName)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(creds, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +241,11 @@ func (s *Service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, e
 
 // FindByID searces for an instance by id
 func (s *Service) FindByID(_ context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {
-	collection, err := s.getCollection(req.DbID, req.CollectionName)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(creds, req.CollectionName)
 	if err != nil {
 		return nil, err
 	}
@@ -227,10 +259,14 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return err
 	}
 
-	var dbID, collectionName string
+	var creds thread.Credentials
+	var collectionName string
 	switch x := firstReq.Option.(type) {
 	case *pb.ReadTransactionRequest_StartTransactionRequest:
-		dbID = x.StartTransactionRequest.DbID
+		creds, err = getCredentials(x.StartTransactionRequest.Credentials)
+		if err != nil {
+			return err
+		}
 		collectionName = x.StartTransactionRequest.CollectionName
 	case nil:
 		return fmt.Errorf("no ReadTransactionRequest type set")
@@ -238,7 +274,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	collection, err := s.getCollection(dbID, collectionName)
+	collection, err := s.getCollection(creds, collectionName)
 	if err != nil {
 		return err
 	}
@@ -296,10 +332,14 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return err
 	}
 
-	var dbID, collectionName string
+	var creds thread.Credentials
+	var collectionName string
 	switch x := firstReq.Option.(type) {
 	case *pb.WriteTransactionRequest_StartTransactionRequest:
-		dbID = x.StartTransactionRequest.DbID
+		creds, err = getCredentials(x.StartTransactionRequest.Credentials)
+		if err != nil {
+			return err
+		}
 		collectionName = x.StartTransactionRequest.CollectionName
 	case nil:
 		return fmt.Errorf("no WriteTransactionRequest type set")
@@ -307,7 +347,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	collection, err := s.getCollection(dbID, collectionName)
+	collection, err := s.getCollection(creds, collectionName)
 	if err != nil {
 		return err
 	}
@@ -387,7 +427,11 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 
 // Listen returns a stream of instances, trigged by a local or remote state change.
 func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
-	d, _, err := s.getDB(req.DbID)
+	creds, err := getCredentials(req.Credentials)
+	if err != nil {
+		return err
+	}
+	d, err := s.getDB(creds)
 	if err != nil {
 		return err
 	}
@@ -537,21 +581,16 @@ func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.Qu
 	return &pb.FindReply{Instances: instances}, nil
 }
 
-func (s *Service) getDB(idStr string) (d *db.DB, id thread.ID, err error) {
-	id, err = thread.Decode(idStr)
-	if err != nil {
-		return
-	}
-	d = s.manager.GetDB(id)
+func (s *Service) getDB(creds thread.Credentials) (*db.DB, error) {
+	d := s.manager.GetDB(creds)
 	if d == nil {
-		err = status.Error(codes.NotFound, "db not found")
-		return
+		return nil, status.Error(codes.NotFound, "db not found")
 	}
-	return d, id, nil
+	return d, nil
 }
 
-func (s *Service) getCollection(dbID string, collectionName string) (*db.Collection, error) {
-	d, _, err := s.getDB(dbID)
+func (s *Service) getCollection(creds thread.Credentials, collectionName string) (*db.Collection, error) {
+	d, err := s.getDB(creds)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "db not found")
 	}
