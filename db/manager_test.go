@@ -2,11 +2,13 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
 )
@@ -42,26 +44,34 @@ var (
 
 func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	t.Run("test one new db", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
+		author, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		checkErr(t, err)
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), author)
 		checkErr(t, err)
 	})
 	t.Run("test multiple new dbs", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
+		author, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		checkErr(t, err)
-		_, err = man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), author)
+		checkErr(t, err)
+		author, _, err = crypto.GenerateEd25519Key(rand.Reader)
+		checkErr(t, err)
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), author)
 		checkErr(t, err)
 	})
 }
 
 func TestManager_GetDB(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
@@ -74,7 +84,9 @@ func TestManager_GetDB(t *testing.T) {
 	}()
 
 	id := thread.NewIDV1(thread.Raw, 32)
-	_, err = man.NewDB(context.Background(), id)
+	author, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	checkErr(t, err)
+	_, err = man.NewDB(ctx, id, author)
 	checkErr(t, err)
 	db := man.GetDB(id)
 	if db == nil {
@@ -128,11 +140,14 @@ func TestManager_GetDB(t *testing.T) {
 
 func TestManager_DeleteDB(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	man, clean := createTestManager(t)
 	defer clean()
 
 	id := thread.NewIDV1(thread.Raw, 32)
-	db, err := man.NewDB(context.Background(), id)
+	author, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	checkErr(t, err)
+	db, err := man.NewDB(ctx, id, author)
 	checkErr(t, err)
 
 	// Register a schema and create an instance
@@ -144,7 +159,7 @@ func TestManager_DeleteDB(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	err = man.DeleteDB(context.Background(), id)
+	err = man.DeleteDB(ctx, id)
 	checkErr(t, err)
 
 	if man.GetDB(id) != nil {

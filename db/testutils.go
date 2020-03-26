@@ -2,11 +2,13 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
 )
 
@@ -24,7 +26,10 @@ func createTestDB(t *testing.T, opts ...Option) (*DB, func()) {
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, id, opts...)
+	author, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	checkErr(t, err)
+	creds := credentials{threadID: id, privKey: author}
+	d, err := NewDB(context.Background(), n, creds, opts...)
 	checkErr(t, err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work
