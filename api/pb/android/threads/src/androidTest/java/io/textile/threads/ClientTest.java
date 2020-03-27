@@ -2,6 +2,7 @@ package io.textile.threads;
 
 import android.support.test.runner.AndroidJUnit4;
 
+import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 
 import org.junit.FixMethodOrder;
@@ -44,9 +45,9 @@ public class ClientTest {
             connect();
         }
 
-        String dbId = "bafkr2ecolcv34sdo2mivzn3spt4ofmgzmaaplqoedm";
+        String dbId = "AVXwYdq9KAKa/qBCJulxduX3IuaiRjB6R68=";
         Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(dbId.getBytes()));
+        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         client.NewDBSync(creds.build());
     }
 }

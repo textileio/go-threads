@@ -170,7 +170,6 @@ func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordR
 		return
 	}
 	if from.String() == s.host.String() {
-		log.Warn("received multicast request from self")
 		return
 	}
 

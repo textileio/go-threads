@@ -11,7 +11,9 @@ import org.junit.runners.MethodSorters;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
+import com.google.common.io.BaseEncoding;
 import com.google.gson.Gson;
 import com.google.protobuf.ByteString;
 
@@ -24,7 +26,7 @@ import static org.junit.Assert.*;
 public class ClientUnitTest {
 
     static Client client;
-    static String dbId = "bafk7ayo2xuuafgx6ubbcn2lro3s7oixgujdda6shv4";
+    static String dbId = "AVXwYdq9KAKa/qBCJulxduX3IuaiRjB6R68=";
     static String instanceId = "";
 
     void connect() throws Exception {
@@ -44,14 +46,14 @@ public class ClientUnitTest {
     @Test
     public void t02_NewDB() throws Exception {
         Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(dbId.getBytes()));
+        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         client.NewDBSync(creds.build());
     }
 
     @Test
     public void t04_GetDBInfo() throws Exception {
         Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(dbId.getBytes()));
+        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         GetDBInfoReply reply = client.GetDBInfoSync(creds.build());
         assertNotEquals(0, reply.getAddressesCount());
     }
@@ -63,7 +65,7 @@ public class ClientUnitTest {
         JSONObject json = new JSONObject(jsonStr);
         assertEquals(json.get("title").toString(), "Person");
         Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(dbId.getBytes()));
+        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         client.NewCollectionSync(creds.build(), "Person", schema);
     }
 
@@ -72,7 +74,7 @@ public class ClientUnitTest {
         ByteString person = createPerson("", 22);
         ByteString[] data = { person };
         Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(dbId.getBytes()));
+        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         CreateReply reply = client.CreateSync(creds.build(), "Person", data);
         assertEquals(1, reply.getInstanceIDsCount());
         String id = reply.getInstanceIDs(0);
@@ -85,7 +87,7 @@ public class ClientUnitTest {
         ByteString person = createPerson(instanceId, 22);
         ByteString[] data = { person };
         Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(dbId.getBytes()));
+        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         client.SaveSync(creds.build(), "Person", data);
         // now check that it's been updated
         FindByIDReply reply = client.FindByIDSync(creds.build(), "Person", instanceId);
