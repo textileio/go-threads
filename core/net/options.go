@@ -2,7 +2,6 @@ package net
 
 import (
 	"github.com/libp2p/go-libp2p-core/crypto"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
 )
 
@@ -10,7 +9,6 @@ import (
 type KeyOptions struct {
 	ThreadKey thread.Key
 	LogKey    crypto.Key
-	AuthKey   ic.PrivKey
 }
 
 // KeyOption specifies encryption keys.
