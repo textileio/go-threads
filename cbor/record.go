@@ -20,10 +20,10 @@ func init() {
 
 // record defines the node structure of a record.
 type record struct {
-	Block   cid.Cid
-	Sig     []byte
-	HostSig []byte
-	Prev    cid.Cid `refmt:",omitempty"`
+	Block     cid.Cid
+	Sig       []byte
+	AuthorSig []byte
+	Prev      cid.Cid `refmt:",omitempty"`
 }
 
 type CreateRecordConfig struct {
@@ -49,10 +49,10 @@ func CreateRecord(ctx context.Context, dag format.DAGService, config CreateRecor
 		return nil, err
 	}
 	obj := &record{
-		Block:   config.Block.Cid(),
-		Sig:     sig,
-		HostSig: hsig,
-		Prev:    config.Prev,
+		Block:     config.Block.Cid(),
+		Sig:       sig,
+		AuthorSig: hsig,
+		Prev:      config.Prev,
 	}
 	node, err := cbornode.WrapObject(obj, mh.SHA2_256, -1)
 	if err != nil {
@@ -225,9 +225,9 @@ func (r *Record) Sig() []byte {
 	return r.obj.Sig
 }
 
-// HostSig returns the node's host key signature.
+// AuthorSig returns the node's author key signature.
 func (r *Record) AuthorSig() []byte {
-	return r.obj.HostSig
+	return r.obj.AuthorSig
 }
 
 // Verify returns a nil error if the node signature is valid.
