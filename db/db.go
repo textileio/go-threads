@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	idFieldName = "ID"
-	busTimeout  = time.Second * 10
+	busTimeout = time.Second * 10
 )
 
 var (
@@ -62,7 +61,7 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network net.Net, id thread.ID, opts ...Option) (*DB, error) {
+func NewDB(ctx context.Context, network net.Net, creds thread.Credentials, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -70,22 +69,22 @@ func NewDB(ctx context.Context, network net.Net, id thread.ID, opts ...Option) (
 		}
 	}
 
-	if _, err := network.GetThread(ctx, id); err != nil {
+	if _, err := network.GetThread(ctx, creds); err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
-			if _, err = network.CreateThread(ctx, id); err != nil {
+			if _, err = network.CreateThread(ctx, creds); err != nil {
 				return nil, err
 			}
 		} else {
 			return nil, err
 		}
 	}
-	return newDB(network, id, config)
+	return newDB(network, creds, config)
 }
 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
+func NewDBFromAddr(ctx context.Context, network net.Net, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -93,17 +92,17 @@ func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key 
 		}
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.ThreadKey(key))
+	ti, err := network.AddThread(ctx, creds, addr, net.WithThreadKey(key))
 	if err != nil {
 		return nil, err
 	}
-	d, err := newDB(network, ti.ID, config)
+	d, err := newDB(network, creds, config)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		if err := network.PullThread(ctx, ti.ID); err != nil {
+		if err := network.PullThread(ctx, creds); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
@@ -112,7 +111,7 @@ func NewDBFromAddr(ctx context.Context, network net.Net, addr ma.Multiaddr, key 
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(n net.Net, id thread.ID, config *Config) (*DB, error) {
+func newDB(n net.Net, creds thread.Credentials, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -152,7 +151,7 @@ func newDB(n net.Net, id thread.ID, config *Config) (*DB, error) {
 		}
 	}
 
-	adapter := newSingleThreadAdapter(d, n, id)
+	adapter := newSingleThreadAdapter(d, n, creds)
 	d.adapter = adapter
 	adapter.Start()
 

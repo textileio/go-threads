@@ -23,8 +23,7 @@ func createTestDB(t *testing.T, opts ...Option) (*DB, func()) {
 	n, err := DefaultNetwork(dir)
 	checkErr(t, err)
 	opts = append(opts, WithRepoPath(dir))
-	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, id, opts...)
+	d, err := NewDB(context.Background(), n, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)), opts...)
 	checkErr(t, err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work

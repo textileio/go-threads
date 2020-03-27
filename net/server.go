@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
@@ -28,7 +27,6 @@ type server struct {
 // newServer creates a new network server.
 func newServer(n *net) (*server, error) {
 	s := &server{net: n}
-
 	ps, err := pubsub.NewGossipSub(
 		n.ctx,
 		n.host,
@@ -63,20 +61,19 @@ func (s *server) pubsubHandler(ctx context.Context, req *pb.PushRecordRequest) {
 }
 
 // GetLogs receives a get logs request.
-// @todo: Verification
 func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
-	if req.Header == nil {
-		return nil, status.Error(codes.FailedPrecondition, "request header is required")
+	pid, err := verifyRequest(req.Header, req.Body)
+	if err != nil {
+		return nil, err
 	}
-	log.Debugf("received get logs request from %s", req.Header.From.ID)
+	log.Debugf("received get logs request from %s", pid)
 
 	pblgs := &pb.GetLogsReply{}
-
-	if err := s.checkServiceKey(req.ThreadID.ID, req.ServiceKey); err != nil {
+	if err := s.checkServiceKey(req.Body.ThreadID.ID, req.Body.ServiceKey); err != nil {
 		return pblgs, err
 	}
 
-	info, err := s.net.store.GetThread(req.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.net.store.GetThread(req.Body.ThreadID.ID) // Safe since putRecord will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -86,71 +83,69 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		pblgs.Logs[i] = logToProto(l)
 	}
 
-	log.Debugf("sending %d logs to %s", len(info.Logs), req.Header.From.ID)
+	log.Debugf("sending %d logs to %s", len(info.Logs), pid)
 
 	return pblgs, nil
 }
 
 // PushLog receives a push log request.
-// @todo: Verification
 // @todo: Don't overwrite info from non-owners
 func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
-	if req.Header == nil {
-		return nil, status.Error(codes.FailedPrecondition, "request header is required")
+	pid, err := verifyRequest(req.Header, req.Body)
+	if err != nil {
+		return nil, err
 	}
-	log.Debugf("received push log request from %s", req.Header.From.ID)
+	log.Debugf("received push log request from %s", pid)
 
 	// Pick up missing keys
-	info, err := s.net.store.GetThread(req.ThreadID.ID)
+	info, err := s.net.store.GetThread(req.Body.ThreadID.ID)
 	if err != nil && !errors.Is(err, lstore.ErrThreadNotFound) {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !info.Key.Defined() {
-		if req.ServiceKey != nil && req.ServiceKey.Key != nil {
-			if err = s.net.store.AddServiceKey(req.ThreadID.ID, req.ServiceKey.Key); err != nil {
+		if req.Body.ServiceKey != nil && req.Body.ServiceKey.Key != nil {
+			if err = s.net.store.AddServiceKey(req.Body.ThreadID.ID, req.Body.ServiceKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else {
 			return nil, status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 		}
 	} else if !info.Key.CanRead() {
-		if req.ReadKey != nil && req.ReadKey.Key != nil {
-			if err = s.net.store.AddReadKey(req.ThreadID.ID, req.ReadKey.Key); err != nil {
+		if req.Body.ReadKey != nil && req.Body.ReadKey.Key != nil {
+			if err = s.net.store.AddReadKey(req.Body.ThreadID.ID, req.Body.ReadKey.Key); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
 
-	lg := logFromProto(req.Log)
-	err = s.net.createExternalLogIfNotExist(req.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
+	lg := logFromProto(req.Body.Log)
+	err = s.net.createExternalLogIfNotExist(req.Body.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	go s.net.updateRecordsFromLog(req.ThreadID.ID, lg.ID)
-
+	go s.net.updateRecordsFromLog(req.Body.ThreadID.ID, lg.ID)
 	return &pb.PushLogReply{}, nil
 }
 
 // GetRecords receives a get records request.
-// @todo: Verification
 func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
-	if req.Header == nil {
-		return nil, status.Error(codes.FailedPrecondition, "request header is required")
+	pid, err := verifyRequest(req.Header, req.Body)
+	if err != nil {
+		return nil, err
 	}
-	log.Debugf("received get records request from %s", req.Header.From.ID)
+	log.Debugf("received get records request from %s", pid)
 
 	pbrecs := &pb.GetRecordsReply{}
-
-	if err := s.checkServiceKey(req.ThreadID.ID, req.ServiceKey); err != nil {
+	if err := s.checkServiceKey(req.Body.ThreadID.ID, req.Body.ServiceKey); err != nil {
 		return pbrecs, err
 	}
 
-	reqd := make(map[peer.ID]*pb.GetRecordsRequest_LogEntry)
-	for _, l := range req.Logs {
+	reqd := make(map[peer.ID]*pb.GetRecordsRequest_Body_LogEntry)
+	for _, l := range req.Body.Logs {
 		reqd[l.LogID.ID] = l
 	}
-	info, err := s.net.store.GetThread(req.ThreadID.ID)
+	info, err := s.net.store.GetThread(req.Body.ThreadID.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -168,12 +163,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			limit = MaxPullLimit
 			pblg = logToProto(lg)
 		}
-		recs, err := s.net.getLocalRecords(
-			ctx,
-			req.ThreadID.ID,
-			lg.ID,
-			offset,
-			limit)
+		recs, err := s.net.getLocalRecords(ctx, req.Body.ThreadID.ID, lg.ID, offset, limit)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -191,7 +181,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 		pbrecs.Logs[i] = entry
 
-		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID, req.Header.From.ID)
+		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID, pid)
 	}
 
 	return pbrecs, nil
@@ -199,23 +189,14 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 
 // PushRecord receives a push record request.
 func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb.PushRecordReply, error) {
-	if req.Header == nil {
-		return nil, status.Error(codes.FailedPrecondition, "request header is required")
-	}
-	log.Debugf("received push record request from %s", req.Header.From.ID)
-
-	// Verify the request
-	reqpk, err := requestPubKey(req)
+	pid, err := verifyRequest(req.Header, req.Body)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
-	err = verifyRequestSignature(req.Record, reqpk, req.Header.Signature)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	log.Debugf("received push record request from %s", pid)
 
 	// A log is required to accept new records
-	logpk, err := s.net.store.PubKey(req.ThreadID.ID, req.LogID.ID)
+	logpk, err := s.net.store.PubKey(req.Body.ThreadID.ID, req.Body.LogID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -223,11 +204,11 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return nil, status.Error(codes.NotFound, "log not found")
 	}
 
-	key, err := s.net.store.ServiceKey(req.ThreadID.ID)
+	key, err := s.net.store.ServiceKey(req.Body.ThreadID.ID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	rec, err := cbor.RecordFromProto(req.Record, key)
+	rec, err := cbor.RecordFromProto(req.Body.Record, key)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -239,15 +220,12 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return &pb.PushRecordReply{}, nil
 	}
 
-	// Verify node
-	if err = rec.Verify(logpk); err != nil {
+	if err = rec.Verify(logpk, rec.Sig()); err != nil {
+		return nil, status.Error(codes.Unauthenticated, err.Error())
+	}
+	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-
-	if err = s.net.PutRecord(ctx, req.ThreadID.ID, req.LogID.ID, rec); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
 	return &pb.PushRecordReply{}, nil
 }
 
@@ -264,47 +242,33 @@ func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 		return status.Error(codes.NotFound, lstore.ErrThreadNotFound.Error())
 	}
 	if !bytes.Equal(k.Key.Bytes(), sk.Bytes()) {
-		return status.Error(codes.PermissionDenied, "invalid service-key")
+		return status.Error(codes.Unauthenticated, "invalid service-key")
 	}
 	return nil
 }
 
-// requestPubKey returns the key associated with a request.
-func requestPubKey(r *pb.PushRecordRequest) (ic.PubKey, error) {
-	var pubk ic.PubKey
-	var err error
-	if r.Header.Key == nil {
-		// No attached key, it must be extractable from the source ID
-		pubk, err = r.Header.From.ID.ExtractPublicKey()
-		if err != nil {
-			return nil, fmt.Errorf("cannot extract signing key: %s", err)
-		}
-		if pubk == nil {
-			return nil, fmt.Errorf("cannot extract signing key")
-		}
-	} else {
-		pubk = r.Header.Key.PubKey
-		// Verify that the source ID matches the attached key
-		if !r.Header.From.ID.MatchesPublicKey(r.Header.Key.PubKey) {
-			return nil, fmt.Errorf(
-				"bad signing key; source ID %s doesn't match key",
-				r.Header.From.ID)
-		}
+// verifyRequest verifies that the signature associated with a request is valid.
+func verifyRequest(header *pb.Header, body proto.Marshaler) (pid peer.ID, err error) {
+	if header == nil || body == nil {
+		err = status.Error(codes.InvalidArgument, "bad request")
+		return
 	}
-	return pubk, nil
-}
-
-// verifyRequestSignature verifies that the signature assocated with a request is valid.
-func verifyRequestSignature(rec *pb.Log_Record, pk ic.PubKey, sig []byte) error {
-	payload, err := rec.Marshal()
+	payload, err := body.Marshal()
 	if err != nil {
-		return err
+		err = status.Error(codes.Internal, err.Error())
+		return
 	}
-	ok, err := pk.Verify(payload, sig)
+	ok, err := header.PubKey.Verify(payload, header.Signature)
 	if !ok || err != nil {
-		return fmt.Errorf("bad signature")
+		err = status.Error(codes.Unauthenticated, "bad signature")
+		return
 	}
-	return nil
+	pid, err = peer.IDFromPublicKey(header.PubKey)
+	if err != nil {
+		err = status.Error(codes.InvalidArgument, err.Error())
+		return
+	}
+	return pid, nil
 }
 
 // logToProto returns a proto log from a thread log.

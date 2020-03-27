@@ -14,18 +14,18 @@ type KeyOptions struct {
 // KeyOption specifies encryption keys.
 type KeyOption func(*KeyOptions)
 
-// ThreadKey handles log encryption.
-func ThreadKey(key thread.Key) KeyOption {
+// WithThreadKey handles log encryption.
+func WithThreadKey(key thread.Key) KeyOption {
 	return func(args *KeyOptions) {
 		args.ThreadKey = key
 	}
 }
 
-// LogKey defines the public or private key used to write a log records.
+// WithLogKey is the public or private key used to write log records.
 // If this is just a public key, the service itself won't be able to create records.
-// In other words, all records must pre-created and added with AddRecord.
+// In other words, all records must be pre-created and added with AddRecord.
 // If no log key is provided, one will be created internally.
-func LogKey(key crypto.Key) KeyOption {
+func WithLogKey(key crypto.Key) KeyOption {
 	return func(args *KeyOptions) {
 		args.LogKey = key
 	}
@@ -33,17 +33,16 @@ func LogKey(key crypto.Key) KeyOption {
 
 // SubOptions defines options for a thread subscription.
 type SubOptions struct {
-	ThreadIDs thread.IDSlice
+	Credentials []thread.Credentials
 }
 
 // SubOption is a thread subscription option.
 type SubOption func(*SubOptions)
 
-// ThreadID restricts the subscription to the given thread.
-// Use this option multiple times to build up a list of threads
-// to subscribe to.
-func ThreadID(id thread.ID) SubOption {
+// WithCredentials restricts the subscription to a given thread.
+// Use this option multiple times to subscribe to multiple threads.
+func WithCredentials(creds thread.Credentials) SubOption {
 	return func(args *SubOptions) {
-		args.ThreadIDs = append(args.ThreadIDs, id)
+		args.Credentials = append(args.Credentials, creds)
 	}
 }

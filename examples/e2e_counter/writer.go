@@ -26,8 +26,8 @@ func runWriterPeer(repo string) {
 	n, err := db.DefaultNetwork(repo)
 	checkErr(err)
 	defer n.Close()
-	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(repo))
+	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+	d, err := db.NewDB(context.Background(), n, creds, db.WithRepoPath(repo))
 	checkErr(err)
 	defer d.Close()
 
@@ -54,7 +54,7 @@ func runWriterPeer(repo string) {
 		checkErr(err)
 	}
 
-	saveThreadMultiaddrForOtherPeer(n, id)
+	saveThreadMultiaddrForOtherPeer(n, creds)
 
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
@@ -73,13 +73,13 @@ func runWriterPeer(repo string) {
 	}
 }
 
-func saveThreadMultiaddrForOtherPeer(n net.Net, threadID thread.ID) {
-	tinfo, err := n.GetThread(context.Background(), threadID)
+func saveThreadMultiaddrForOtherPeer(n net.Net, creds thread.Credentials) {
+	tinfo, err := n.GetThread(context.Background(), creds)
 	checkErr(err)
 
 	// Create listen addr
 	id, _ := multiaddr.NewComponent("p2p", n.Host().ID().String())
-	threadComp, _ := multiaddr.NewComponent("thread", threadID.String())
+	threadComp, _ := multiaddr.NewComponent("thread", creds.ThreadID().String())
 
 	listenAddr := n.Host().Addrs()[0].Encapsulate(id).Encapsulate(threadComp).String()
 	key := tinfo.Key.String()

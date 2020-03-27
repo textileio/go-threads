@@ -6,6 +6,12 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
+message Credentials {
+    bytes threadID = 1;
+    bytes pubKey = 2;
+    bytes signature = 3;
+}
+
 message GetHostIDRequest {}
 
 message GetHostIDReply {
@@ -18,7 +24,7 @@ message Keys {
 }
 
 message CreateThreadRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
     Keys keys = 2;
 }
 
@@ -31,34 +37,35 @@ message LogInfo {
 }
 
 message ThreadInfoReply {
-    bytes ID = 1;
-    repeated LogInfo logs = 2;
-    bytes threadKey = 3;
+    bytes threadID = 1;
+    bytes threadKey = 2;
+    repeated LogInfo logs = 3;
 }
 
 message AddThreadRequest {
-    bytes addr = 1;
-    Keys keys = 2;
+    Credentials credentials = 1;
+    bytes addr = 2;
+    Keys keys = 3;
 }
 
 message GetThreadRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
 }
 
 message PullThreadRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
 }
 
 message PullThreadReply {}
 
 message DeleteThreadRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
 }
 
 message DeleteThreadReply {}
 
 message AddReplicatorRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
     bytes addr = 2;
 }
 
@@ -67,7 +74,7 @@ message AddReplicatorReply {
 }
 
 message CreateRecordRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
     bytes body = 2;
 }
 
@@ -85,7 +92,7 @@ message NewRecordReply {
 }
 
 message AddRecordRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
     bytes logID = 2;
     Record record = 3;
 }
@@ -93,7 +100,7 @@ message AddRecordRequest {
 message AddRecordReply {}
 
 message GetRecordRequest {
-    bytes threadID = 1;
+    Credentials credentials = 1;
     bytes recordID = 2;
 }
 
@@ -102,7 +109,7 @@ message GetRecordReply {
 }
 
 message SubscribeRequest {
-    repeated bytes threadIDs = 1;
+    repeated Credentials credentials = 1;
 }
 
 service API {

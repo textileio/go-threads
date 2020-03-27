@@ -7,6 +7,10 @@ import android.view.View;
 import io.textile.threads.Client;
 import io.textile.threads.Config;
 import io.textile.threads.DefaultConfig;
+import io.textile.threads_grpc.Credentials;
+
+import com.google.common.io.BaseEncoding;
+import com.google.protobuf.ByteString;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -22,7 +26,10 @@ public class MainActivity extends AppCompatActivity {
 
     public void onButtonClick(View v) {
         try {
-            client.NewDBSync("bafk7ayo2xuuafgx6ubbcn2lro3s7oixgujdda6shv4");
+            String dbId = "AVXwYdq9KAKa/qBCJulxduX3IuaiRjB6R68=";
+            Credentials.Builder creds = Credentials.newBuilder();
+            creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
+            client.NewDBSync(creds.build());
             System.out.println("Added DB");
         } catch (Exception e) {
             System.out.println("Error Info: " + e.getMessage());

@@ -181,7 +181,7 @@ func createMemDB() (*db.DB, func()) {
 	n, err := db.DefaultNetwork(dir)
 	checkErr(err)
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(dir))
+	d, err := db.NewDB(context.Background(), n, thread.NewDefaultCreds(id), db.WithRepoPath(dir))
 	checkErr(err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work

@@ -151,23 +151,39 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 		if err != nil {
 			break
 		}
-		from, err := peer.IDFromBytes(msg.From)
+		from, req, err := s.handleMsg(msg)
 		if err != nil {
-			log.Errorf("error decoding publisher ID: %s", err)
+			log.Errorf("error handling multicast request: %s", err)
+			continue
+		} else if req == nil {
 			continue
 		}
-		if from.String() == s.host.String() {
-			continue
-		}
-
-		req := new(pb.PushRecordRequest)
-		if err = proto.Unmarshal(msg.Data, req); err != nil {
-			log.Errorf("error unmarshaling published record", err)
-			continue
-		}
-
 		log.Debugf("received multicast record from %s", from)
 
 		s.handler(ctx, req)
 	}
+}
+
+func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordRequest, err error) {
+	from, err = peer.IDFromBytes(m.From)
+	if err != nil {
+		return
+	}
+	if from.String() == s.host.String() {
+		return
+	}
+
+	req := new(pb.PushRecordRequest)
+	if err = proto.Unmarshal(m.Data, req); err != nil {
+		return
+	}
+	pid, err := peer.IDFromPublicKey(req.Header.PubKey)
+	if err != nil {
+		return
+	}
+	if from.String() != pid.String() {
+		log.Warnf("multicast sender does not match record header (%s != %s)", from, pid)
+		return
+	}
+	return from, req, nil
 }

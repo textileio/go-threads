@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -18,6 +20,8 @@ import (
 
 var (
 	dsDBManagerBaseKey = ds.NewKey("/manager")
+	dsDBAuthor         = ds.NewKey("/author")
+	dsDBSignature      = ds.NewKey("/signature")
 )
 
 type Manager struct {
@@ -79,7 +83,11 @@ func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		s, err := newDB(m.network, id, getDBConfig(id, m.config))
+		creds, err := m.getDBCreds(id)
+		if err != nil {
+			return nil, err
+		}
+		s, err := newDB(m.network, creds, getDBConfig(id, m.config))
 		if err != nil {
 			return nil, err
 		}
@@ -89,15 +97,19 @@ func NewManager(network net.Net, opts ...Option) (*Manager, error) {
 }
 
 // NewDB creates a new db and prefixes its datastore with base key.
-func (m *Manager) NewDB(ctx context.Context, id thread.ID, collections ...CollectionConfig) (*DB, error) {
+func (m *Manager) NewDB(ctx context.Context, creds thread.Credentials, collections ...CollectionConfig) (*DB, error) {
+	id := creds.ThreadID()
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	if _, err := m.network.CreateThread(ctx, id); err != nil {
+	if _, err := m.network.CreateThread(ctx, creds); err != nil {
+		return nil, err
+	}
+	if err := m.putDBCreds(id, creds); err != nil {
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config, collections...))
+	db, err := newDB(m.network, creds, getDBConfig(id, m.config, collections...))
 	if err != nil {
 		return nil, err
 	}
@@ -108,26 +120,26 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, collections ...Collec
 // NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
 // Unlike NewDB, this method takes a list of collections added to the original db that
 // should also be added to this host.
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, collections ...CollectionConfig) (*DB, error) {
-	id, err := thread.FromAddr(addr)
-	if err != nil {
-		return nil, err
-	}
+func (m *Manager) NewDBFromAddr(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, collections ...CollectionConfig) (*DB, error) {
+	id := creds.ThreadID()
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	if _, err = m.network.AddThread(ctx, addr, net.ThreadKey(key)); err != nil {
+	if _, err := m.network.AddThread(ctx, creds, addr, net.WithThreadKey(key)); err != nil {
+		return nil, err
+	}
+	if err := m.putDBCreds(id, creds); err != nil {
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config, collections...))
+	db, err := newDB(m.network, creds, getDBConfig(id, m.config, collections...))
 	if err != nil {
 		return nil, err
 	}
 	m.dbs[id] = db
 
 	go func() {
-		if err := m.network.PullThread(ctx, id); err != nil {
+		if err := m.network.PullThread(ctx, creds); err != nil {
 			log.Errorf("error pulling thread %s", id)
 		}
 	}()
@@ -136,12 +148,13 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 }
 
 // GetDB returns a db by id.
-func (m *Manager) GetDB(id thread.ID) *DB {
-	return m.dbs[id]
+func (m *Manager) GetDB(creds thread.Credentials) *DB {
+	return m.dbs[creds.ThreadID()]
 }
 
 // DeleteDB deletes a db by id.
-func (m *Manager) DeleteDB(ctx context.Context, id thread.ID) error {
+func (m *Manager) DeleteDB(ctx context.Context, creds thread.Credentials) error {
+	id := creds.ThreadID()
 	db := m.dbs[id]
 	if db == nil {
 		return nil
@@ -150,7 +163,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID) error {
 	if err := db.Close(); err != nil {
 		return err
 	}
-	if err := m.network.DeleteThread(ctx, id); err != nil {
+	if err := m.network.DeleteThread(ctx, creds); err != nil {
 		return err
 	}
 
@@ -200,4 +213,43 @@ func getDBConfig(id thread.ID, base *Config, collections ...CollectionConfig) *C
 		Debug:       base.Debug,
 		Collections: append(base.Collections, collections...),
 	}
+}
+
+// putDBCreds persists db creds for a thread.
+func (m *Manager) putDBCreds(id thread.ID, creds thread.Credentials) error {
+	pk, sig, err := creds.Sign()
+	if err != nil {
+		return err
+	}
+	if pk == nil {
+		return nil
+	}
+	pkb, err := crypto.MarshalPublicKey(pk)
+	if err != nil {
+		return err
+	}
+	ak := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBAuthor)
+	if err = m.config.Datastore.Put(ak, pkb); err != nil {
+		return err
+	}
+	sk := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBSignature)
+	return m.config.Datastore.Put(sk, sig)
+}
+
+// getDBCreds loads a db author from the datastore.
+func (m *Manager) getDBCreds(id thread.ID) (thread.Credentials, error) {
+	ak := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBAuthor)
+	pkb, err := m.config.Datastore.Get(ak)
+	if err != nil && !errors.Is(err, ds.ErrNotFound) {
+		return nil, err
+	}
+	var sig []byte
+	if pkb != nil {
+		sk := dsDBManagerBaseKey.ChildString(id.String()).Child(dsDBSignature)
+		sig, err = m.config.Datastore.Get(sk)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return thread.NewSignedCredsFromBytes(id.Bytes(), pkb, sig)
 }

@@ -12,14 +12,23 @@ import (
 // WriteTransaction encapsulates a write transaction
 type WriteTransaction struct {
 	client         pb.API_WriteTransactionClient
-	dbID           thread.ID
+	creds          thread.Credentials
 	collectionName string
 }
 
 // Start starts the write transaction
 func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
-	innerReq := &pb.StartTransactionRequest{DbID: t.dbID.String(), CollectionName: t.collectionName}
-	option := &pb.WriteTransactionRequest_StartTransactionRequest{StartTransactionRequest: innerReq}
+	signed, err := signCreds(t.creds)
+	if err != nil {
+		return nil, err
+	}
+	innerReq := &pb.StartTransactionRequest{
+		Credentials:    signed,
+		CollectionName: t.collectionName,
+	}
+	option := &pb.WriteTransactionRequest_StartTransactionRequest{
+		StartTransactionRequest: innerReq,
+	}
 	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
 		return nil, err
 	}

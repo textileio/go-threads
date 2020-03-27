@@ -2,11 +2,13 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
 )
@@ -42,26 +44,31 @@ var (
 
 func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	t.Run("test one new db", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
+		_, err := man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
 		checkErr(t, err)
 	})
 	t.Run("test multiple new dbs", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
+		_, err := man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
 		checkErr(t, err)
-		_, err = man.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32))
+		// NewDB with author
+		author, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		checkErr(t, err)
+		_, err = man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32), thread.WithPrivKey(author)))
 		checkErr(t, err)
 	})
 }
 
 func TestManager_GetDB(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
@@ -73,10 +80,10 @@ func TestManager_GetDB(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	id := thread.NewIDV1(thread.Raw, 32)
-	_, err = man.NewDB(context.Background(), id)
+	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+	_, err = man.NewDB(ctx, creds)
 	checkErr(t, err)
-	db := man.GetDB(id)
+	db := man.GetDB(creds)
 	if db == nil {
 		t.Fatal("db not found")
 	}
@@ -102,7 +109,7 @@ func TestManager_GetDB(t *testing.T) {
 		man, err := NewManager(n, WithRepoPath(dir), WithDebug(true))
 		checkErr(t, err)
 
-		db := man.GetDB(id)
+		db := man.GetDB(creds)
 		if db == nil {
 			t.Fatal("db was not hydrated")
 		}
@@ -128,11 +135,12 @@ func TestManager_GetDB(t *testing.T) {
 
 func TestManager_DeleteDB(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 	man, clean := createTestManager(t)
 	defer clean()
 
-	id := thread.NewIDV1(thread.Raw, 32)
-	db, err := man.NewDB(context.Background(), id)
+	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
+	db, err := man.NewDB(ctx, creds)
 	checkErr(t, err)
 
 	// Register a schema and create an instance
@@ -144,10 +152,10 @@ func TestManager_DeleteDB(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	err = man.DeleteDB(context.Background(), id)
+	err = man.DeleteDB(ctx, creds)
 	checkErr(t, err)
 
-	if man.GetDB(id) != nil {
+	if man.GetDB(creds) != nil {
 		t.Fatal("db was not deleted")
 	}
 }

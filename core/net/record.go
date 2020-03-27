@@ -14,20 +14,23 @@ import (
 type Record interface {
 	format.Node
 
-	// BlockID returns the cid of the node block.
+	// BlockID returns the cid of the inner block.
 	BlockID() cid.Cid
 
-	// GetBlock loads the node block.
+	// GetBlock loads the inner block.
 	GetBlock(context.Context, format.DAGService) (format.Node, error)
 
-	// PrevID returns the cid of the previous node.
+	// PrevID returns the cid of the previous record.
 	PrevID() cid.Cid
 
-	// Sig returns the node signature.
+	// Sig returns a signature from the log key.
 	Sig() []byte
 
-	// Verify returns a non-nil error if the node signature is valid.
-	Verify(pk crypto.PubKey) error
+	// AuthorSig returns a signature from the author's key.
+	AuthorSig() []byte
+
+	// Verify returns a nil error if the node signature is valid.
+	Verify(key crypto.PubKey, sig []byte) error
 }
 
 // ThreadRecord wraps Record within a thread and log context.

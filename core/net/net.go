@@ -30,35 +30,38 @@ type API interface {
 	// GetHostID returns the host's peer id.
 	GetHostID(ctx context.Context) (peer.ID, error)
 
-	// CreateThread with id.
-	CreateThread(ctx context.Context, id thread.ID, opts ...KeyOption) (thread.Info, error)
+	// CreateThread with credentials.
+	CreateThread(ctx context.Context, creds thread.Credentials, opts ...KeyOption) (thread.Info, error)
 
-	// AddThread from a multiaddress.
-	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...KeyOption) (thread.Info, error)
+	// AddThread with credentials from a multiaddress.
+	AddThread(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, opts ...KeyOption) (thread.Info, error)
 
-	// GetThread with id.
-	GetThread(ctx context.Context, id thread.ID) (thread.Info, error)
+	// GetThread with credentials.
+	GetThread(ctx context.Context, creds thread.Credentials) (thread.Info, error)
 
 	// PullThread for new records.
 	// Logs owned by this host are traversed locally.
 	// Remotely addressed logs are pulled from the network.
 	// Is thread-safe.
-	PullThread(ctx context.Context, id thread.ID) error
+	PullThread(ctx context.Context, creds thread.Credentials) error
 
-	// DeleteThread with id.
-	DeleteThread(ctx context.Context, id thread.ID) error
+	// DeleteThread with credentials.
+	DeleteThread(ctx context.Context, creds thread.Credentials) error
 
-	// AddReplicator sends the service key and all logs to another peer.
-	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr) (peer.ID, error)
+	// AddReplicator with credentials.
+	// The thread service key and all records will be pushed to paddr.
+	AddReplicator(ctx context.Context, creds thread.Credentials, paddr ma.Multiaddr) (peer.ID, error)
 
-	// CreateRecord with body.
-	CreateRecord(ctx context.Context, id thread.ID, body format.Node) (ThreadRecord, error)
+	// CreateRecord with credentials and body.
+	// The resulting record will have an author signature by the thread host.
+	// Use AddRecord to add a record from a different author.
+	CreateRecord(ctx context.Context, creds thread.Credentials, body format.Node) (ThreadRecord, error)
 
 	// AddRecord to the given log.
-	AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec Record) error
+	AddRecord(ctx context.Context, creds thread.Credentials, lid peer.ID, rec Record) error
 
 	// GetRecord returns the record at cid.
-	GetRecord(ctx context.Context, id thread.ID, rid cid.Cid) (Record, error)
+	GetRecord(ctx context.Context, creds thread.Credentials, rid cid.Cid) (Record, error)
 
 	// Subscribe returns a read-only channel of records.
 	Subscribe(ctx context.Context, opts ...SubOption) (<-chan ThreadRecord, error)

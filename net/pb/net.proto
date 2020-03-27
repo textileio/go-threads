@@ -6,17 +6,22 @@ import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
+// Header holds a key and signature for a request.
+message Header {
+    // pubKey is the author's public key.
+    bytes pubKey = 1 [(gogoproto.customtype) = "ProtoPubKey"];
+    // signature is the message signature.
+    bytes signature = 2;
+}
+
 // Log represents a thread log.
 message Log {
     // ID of the log.
     bytes ID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-
     // pubKey of the log.
     bytes pubKey = 2 [(gogoproto.customtype) = "ProtoPubKey"];
-
     // addrs of the log.
     repeated bytes addrs = 3 [(gogoproto.customtype) = "ProtoAddr"];
-
     // head of the log.
     bytes head = 4 [(gogoproto.customtype) = "ProtoCid"];
 
@@ -24,13 +29,10 @@ message Log {
     message Record {
         // recordNode is the top-level node's raw data.
         bytes recordNode = 1;
-
         // eventNode is the event node's raw data.
         bytes eventNode = 2;
-
         // headerNode is the header node's raw data.
         bytes headerNode = 3;
-
         // bodyNode is the body node's raw data.
         bytes bodyNode = 4;
     }
@@ -40,16 +42,14 @@ message Log {
 message GetLogsRequest {
     // header is the message header.
     Header header = 1;
+    // body is the message body.
+    Body body = 2;
 
-    // threadID is the target thread's ID.
-    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
-
-    // serviceKey for the thread.
-    bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    message Body {
+        // threadID is the target thread's ID.
+        bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+        // serviceKey for the thread.
+        bytes serviceKey = 2 [(gogoproto.customtype) = "ProtoKey"];
     }
 }
 
@@ -63,22 +63,18 @@ message GetLogsReply {
 message PushLogRequest {
     // header is the message header.
     Header header = 1;
+    // body is the message body.
+    Body body = 2;
 
-    // threadID is the target thread's ID.
-    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
-
-    // serviceKey for the thread.
-    bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
-
-    // readKey for the thread.
-    bytes readKey = 4 [(gogoproto.customtype) = "ProtoKey"];
-
-    // log is the actual log payload.
-    Log log = 5;
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+    message Body {
+        // threadID is the target thread's ID.
+        bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+        // serviceKey for the thread.
+        bytes serviceKey = 2 [(gogoproto.customtype) = "ProtoKey"];
+        // readKey for the thread.
+        bytes readKey = 3 [(gogoproto.customtype) = "ProtoKey"];
+        // log is the actual log payload.
+        Log log = 4;
     }
 }
 
@@ -89,31 +85,26 @@ message PushLogReply {}
 message GetRecordsRequest {
     // header is the message header.
     Header header = 1;
+    // body is the message body.
+    Body body = 2;
 
-    // threadID is the target thread's ID.
-    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
+    message Body {
+        // threadID is the target thread's ID.
+        bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+        // serviceKey for the thread.
+        bytes serviceKey = 2 [(gogoproto.customtype) = "ProtoKey"];
+        // List of requested logs.
+        repeated LogEntry logs = 3;
 
-    // serviceKey for the thread.
-    bytes serviceKey = 3 [(gogoproto.customtype) = "ProtoKey"];
-
-    // List of requested logs.
-    repeated LogEntry logs = 4;
-
-    // LogEntry represents a single log.
-    message LogEntry {
-        // logID of this entry.
-        bytes logID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-
-        // offset tells the recipient at which point to consider records new for the reply.
-        bytes offset = 2 [(gogoproto.customtype) = "ProtoCid"];
-
-        // limit indicates the max number of records to return.
-        int32 limit = 3;
-    }
-
-    // Header holds sender information.
-    message Header {
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+        // LogEntry represents a single log.
+        message LogEntry {
+            // logID of this entry.
+            bytes logID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
+            // offset tells the recipient at which point to consider records new for the reply.
+            bytes offset = 2 [(gogoproto.customtype) = "ProtoCid"];
+            // limit indicates the max number of records to return.
+            int32 limit = 3;
+        }
     }
 }
 
@@ -126,10 +117,8 @@ message GetRecordsReply {
     message LogEntry {
         // logID of this entry.
         bytes logID = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-
         // records returned for this entry.
         repeated Log.Record records = 2;
-
         // log contains new log info that was missing from the request.
         Log log = 3;
     }
@@ -137,28 +126,18 @@ message GetRecordsReply {
 
 // PushRecordRequest is used to push a log record to a peer.
 message PushRecordRequest {
-    // header is the header message.
+    // header is the message header.
     Header header = 1;
+    // body is the message body.
+    Body body = 2;
 
-    // threadID is the target thread's ID.
-    bytes threadID = 2 [(gogoproto.customtype) = "ProtoThreadID"];
-
-    // logID is the target log's ID.
-    bytes logID = 3 [(gogoproto.customtype) = "ProtoPeerID"];
-
-    // record is the actual record payload.
-    Log.Record record = 4;
-
-    // Header holds sender and key information.
-    message Header {
-        // from is the sender's peerID.
-        bytes from = 1 [(gogoproto.customtype) = "ProtoPeerID"];
-
-        // signature is the signature of the payload.
-        bytes signature = 2;
-
-        // key is the sender's public key used to sign the payload.
-        bytes key = 3 [(gogoproto.customtype) = "ProtoPubKey"];
+    message Body {
+        // threadID is the target thread's ID.
+        bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+        // logID is the target log's ID.
+        bytes logID = 2 [(gogoproto.customtype) = "ProtoPeerID"];
+        // record is the actual record payload.
+        Log.Record record = 3;
     }
 }
 
@@ -169,13 +148,10 @@ message PushRecordReply {}
 service Service {
     // GetLogs from a peer.
     rpc GetLogs(GetLogsRequest) returns (GetLogsReply) {}
-
     // PushLog to a peer.
     rpc PushLog(PushLogRequest) returns (PushLogReply) {}
-
     // GetRecords from a peer.
     rpc GetRecords(GetRecordsRequest) returns (GetRecordsReply) {}
-
     // PushRecord to a peer.
     rpc PushRecord(PushRecordRequest) returns (PushRecordReply) {}
 }

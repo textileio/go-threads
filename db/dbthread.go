@@ -19,12 +19,12 @@ const (
 
 // SingleThreadAdapter connects a DB with a Service
 type singleThreadAdapter struct {
-	net        net.Net
-	db         *DB
-	threadID   thread.ID
-	ownLogID   peer.ID
-	closeChan  chan struct{}
-	goRoutines sync.WaitGroup
+	net         net.Net
+	db          *DB
+	threadCreds thread.Credentials
+	ownLogID    peer.ID
+	closeChan   chan struct{}
+	goRoutines  sync.WaitGroup
 
 	lock    sync.Mutex
 	started bool
@@ -33,12 +33,12 @@ type singleThreadAdapter struct {
 
 // NewSingleThreadAdapter returns a new Adapter which maps
 // a DB with a single Thread
-func newSingleThreadAdapter(db *DB, n net.Net, threadID thread.ID) *singleThreadAdapter {
+func newSingleThreadAdapter(db *DB, n net.Net, creds thread.Credentials) *singleThreadAdapter {
 	return &singleThreadAdapter{
-		net:       n,
-		threadID:  threadID,
-		db:        db,
-		closeChan: make(chan struct{}),
+		net:         n,
+		threadCreds: creds,
+		db:          db,
+		closeChan:   make(chan struct{}),
 	}
 }
 
@@ -63,14 +63,14 @@ func (a *singleThreadAdapter) Start() {
 		return
 	}
 	a.started = true
-	li, err := a.net.GetThread(context.Background(), a.threadID)
+	li, err := a.net.GetThread(context.Background(), a.threadCreds)
 	if err != nil {
-		log.Fatalf("error getting thread %s: %v", a.threadID, err)
+		log.Fatalf("error getting thread %s: %v", a.threadCreds.ThreadID(), err)
 	}
 	if ownLog := li.GetOwnLog(); ownLog != nil {
 		a.ownLogID = ownLog.ID
 	} else {
-		log.Fatalf("error getting own log for thread %s: %v", a.threadID, err)
+		log.Fatalf("error getting own log for thread %s: %v", a.threadCreds.ThreadID(), err)
 	}
 
 	var wg sync.WaitGroup
@@ -85,7 +85,7 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 	defer a.goRoutines.Done()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	sub, err := a.net.Subscribe(ctx, net.ThreadID(a.threadID))
+	sub, err := a.net.Subscribe(ctx, net.WithCredentials(a.threadCreds))
 	if err != nil {
 		log.Fatalf("error getting thread subscription: %v", err)
 	}
@@ -93,7 +93,7 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.closeChan:
-			log.Debugf("closing thread-to-db flow on thread %s", a.threadID)
+			log.Debugf("closing thread-to-db flow on thread %s", a.threadCreds.ThreadID())
 			return
 		case rec, ok := <-sub:
 			if !ok {
@@ -115,16 +115,16 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 					log.Fatalf("error when decoding block to event: %v", err)
 				}
 			}
-			info, err := a.net.GetThread(ctx, a.threadID)
+			info, err := a.net.GetThread(ctx, a.threadCreds)
 			if err != nil {
-				log.Fatalf("error when getting info for thread %s: %v", a.threadID, err)
+				log.Fatalf("error when getting info for thread %s: %v", a.threadCreds.ThreadID(), err)
 			}
 			if !info.Key.CanRead() {
-				log.Fatalf("read key not found for thread %s/%s", a.threadID, rec.LogID())
+				log.Fatalf("read key not found for thread %s/%s", a.threadCreds.ThreadID(), rec.LogID())
 			}
 			node, err := event.GetBody(ctx, a.net, info.Key.Read())
 			if err != nil {
-				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadID, rec.LogID(), err)
+				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadCreds.ThreadID(), rec.LogID(), err)
 			}
 			dbEvents, err := a.db.eventsFromBytes(node.RawData())
 			if err != nil {
@@ -148,15 +148,15 @@ func (a *singleThreadAdapter) dbToThread(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-a.closeChan:
-			log.Debugf("closing db-to-thread flow on thread %s", a.threadID)
+			log.Debugf("closing db-to-thread flow on thread %s", a.threadCreds.ThreadID())
 			return
 		case node, ok := <-l.Channel():
 			if !ok {
-				log.Errorf("ending sending db local event to own thread since channel was closed for thread %s", a.threadID)
+				log.Errorf("ending sending db local event to own thread since channel was closed for thread %s", a.threadCreds.ThreadID())
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := a.net.CreateRecord(ctx, a.threadID, node); err != nil {
+			if _, err := a.net.CreateRecord(ctx, a.threadCreds, node); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()

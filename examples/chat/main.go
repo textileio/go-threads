@@ -127,7 +127,7 @@ func main() {
 				logError(err)
 				continue
 			}
-			info, err := net.GetThread(context.Background(), rec.ThreadID())
+			info, err := net.GetThread(context.Background(), thread.NewDefaultCreds(rec.ThreadID()))
 			if err != nil {
 				logError(err)
 				continue
@@ -376,17 +376,21 @@ func addCmd(args []string) (out string, err error) {
 
 	var id thread.ID
 	if addr != nil {
-		if !util.CanDial(addr, net.Host().Network().(*swarm.Swarm)) {
-			return "", fmt.Errorf("address is not dialable")
-		}
-		info, err := net.AddThread(ctx, addr, core.ThreadKey(k))
+		addrID, err := thread.FromAddr(addr)
 		if err != nil {
 			return "", err
 		}
-		go net.PullThread(ctx, info.ID)
+		if !util.CanDial(addr, net.Host().Network().(*swarm.Swarm)) {
+			return "", fmt.Errorf("address is not dialable")
+		}
+		info, err := net.AddThread(ctx, thread.NewDefaultCreds(addrID), addr, core.WithThreadKey(k))
+		if err != nil {
+			return "", err
+		}
 		id = info.ID
+		go net.PullThread(ctx, thread.NewDefaultCreds(id))
 	} else {
-		th, err := net.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
+		th, err := net.CreateThread(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
 		if err != nil {
 			return "", err
 		}
@@ -436,7 +440,7 @@ func threadCmd(cmds []string, input string) (out string, err error) {
 }
 
 func threadAddressCmd(id thread.ID) (out string, err error) {
-	info, err := net.GetThread(context.Background(), id)
+	info, err := net.GetThread(context.Background(), thread.NewDefaultCreds(id))
 	if err != nil {
 		return
 	}
@@ -488,7 +492,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 }
 
 func threadKeysCmd(id thread.ID) (out string, err error) {
-	info, err := net.GetThread(context.Background(), id)
+	info, err := net.GetThread(context.Background(), thread.NewDefaultCreds(id))
 	if err != nil {
 		return
 	}
@@ -509,7 +513,7 @@ func addReplicatorCmd(id thread.ID, addrStr string) (out string, err error) {
 	if err != nil {
 		return
 	}
-	pid, err := net.AddReplicator(ctx, id, addr)
+	pid, err := net.AddReplicator(ctx, thread.NewDefaultCreds(id), addr)
 	if err != nil {
 		return
 	}
@@ -528,7 +532,7 @@ func sendMessage(id thread.ID, txt string) error {
 	go func() {
 		mctx, cancel := context.WithTimeout(ctx, msgTimeout)
 		defer cancel()
-		if _, err = net.CreateRecord(mctx, id, body); err != nil {
+		if _, err = net.CreateRecord(mctx, thread.NewDefaultCreds(id), body); err != nil {
 			log.Errorf("error writing message: %s", err)
 		}
 	}()
