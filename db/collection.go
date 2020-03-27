@@ -93,8 +93,46 @@ func (c *Collection) Indexes() map[string]Index {
 // Adding an index will override any overlapping index values if they already exist.
 // @note: This does NOT currently build the index. If items have been added prior to adding
 // a new index, they will NOT be indexed a posteriori.
-func (c *Collection) AddIndex(path string, unique bool) error {
-	c.indexes[path] = Index{
+func (c *Collection) AddIndex(config IndexConfig) error {
+	indexKey := dsDBIndexes.ChildString(c.name)
+	exists, err := c.db.datastore.Has(indexKey)
+	if err != nil {
+		return err
+	}
+
+	indexes := map[string]IndexConfig{}
+
+	if exists {
+		indexesBytes, err := c.db.datastore.Get(indexKey)
+		if err != nil {
+			return err
+		}
+		if err = json.Unmarshal(indexesBytes, &indexes); err != nil {
+			return err
+		}
+	}
+
+	// if the index being added is for path ID
+	if config.Path == idFieldName {
+		// and there already is and index on ID
+		if _, exists := indexes[idFieldName]; exists {
+			// just return gracefully
+			return nil
+		}
+	}
+
+	indexes[config.Path] = config
+
+	indexBytes, err := json.Marshal(indexes)
+	if err != nil {
+		return err
+	}
+
+	if err := c.db.datastore.Put(indexKey, indexBytes); err != nil {
+		return err
+	}
+
+	c.indexes[config.Path] = Index{
 		IndexFunc: func(field string, value []byte) (ds.Key, error) {
 			result := gjson.GetBytes(value, field)
 			if !result.Exists() {
@@ -102,7 +140,7 @@ func (c *Collection) AddIndex(path string, unique bool) error {
 			}
 			return ds.NewKey(result.String()), nil
 		},
-		Unique: unique,
+		Unique: config.Unique,
 	}
 	return nil
 }

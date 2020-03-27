@@ -177,16 +177,21 @@ func (d *DB) reCreateCollections() error {
 			return err
 		}
 
-		var indexes []IndexConfig
+		var indexes map[string]IndexConfig
 		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
 		if err == nil && index != nil {
 			_ = json.Unmarshal(index, &indexes)
 		}
 
+		indexValues := make([]IndexConfig, len(indexes))
+		for _, value := range indexes {
+			indexValues = append(indexValues, value)
+		}
+
 		if _, err := d.NewCollection(CollectionConfig{
 			Name:    name,
 			Schema:  schema,
-			Indexes: indexes,
+			Indexes: indexValues,
 		}); err != nil {
 			return err
 		}
@@ -229,24 +234,13 @@ func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
 		}
 	}
 
-	for _, cfg := range config.Indexes {
-		// @todo: Should check to make sure this is a valid field path for this schema
-		if err := c.AddIndex(cfg.Path, cfg.Unique); err != nil {
-			return nil, err
-		}
+	if err := c.AddIndex(IndexConfig{Path: idFieldName, Unique: true}); err != nil {
+		return nil, err
 	}
 
-	indexBytes, err := json.Marshal(config.Indexes)
-	if err != nil {
-		return nil, err
-	}
-	indexKey := dsDBIndexes.ChildString(config.Name)
-	exists, err = d.datastore.Has(indexKey)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		if err := d.datastore.Put(indexKey, indexBytes); err != nil {
+	for _, cfg := range config.Indexes {
+		// @todo: Should check to make sure this is a valid field path for this schema
+		if err := c.AddIndex(cfg); err != nil {
 			return nil, err
 		}
 	}
