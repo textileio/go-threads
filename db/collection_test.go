@@ -101,6 +101,33 @@ func TestNewCollection(t *testing.T) {
 	})
 }
 
+func TestAddIndex(t *testing.T) {
+	t.Parallel()
+	t.Run("CreateDBAndCollection", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		collection, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}, false),
+		})
+		checkErr(t, err)
+
+		t.Run("AddNameUniqueIndex", func(t *testing.T) {
+			err := collection.AddIndex(IndexConfig{Path: "Name", Unique: true})
+			checkErr(t, err)
+		})
+		t.Run("AddAgeNonUniqueIndex", func(t *testing.T) {
+			err := collection.AddIndex(IndexConfig{Path: "Age", Unique: false})
+			checkErr(t, err)
+		})
+		t.Run("AddIDIndex", func(t *testing.T) {
+			err := collection.AddIndex(IndexConfig{Path: "ID", Unique: true})
+			checkErr(t, err)
+		})
+	})
+}
+
 func TestCreateInstance(t *testing.T) {
 	t.Parallel()
 	t.Run("Single", func(t *testing.T) {
