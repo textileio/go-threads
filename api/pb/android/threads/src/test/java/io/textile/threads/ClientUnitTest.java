@@ -51,10 +51,10 @@ public class ClientUnitTest {
     }
 
     @Test
-    public void t04_GetDBInfo() throws Exception {
+    public void t04_GetInviteInfo() throws Exception {
         Credentials.Builder creds = Credentials.newBuilder();
         creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
-        GetDBInfoReply reply = client.GetDBInfoSync(creds.build());
+        GetInviteInfoReply reply = client.GetInviteInfoSync(creds.build());
         assertNotEquals(0, reply.getAddressesCount());
     }
 

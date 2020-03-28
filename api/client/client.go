@@ -140,13 +140,13 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 	}, nil
 }
 
-// GetDBInfo retrives db addresses and keys.
-func (c *Client) GetDBInfo(ctx context.Context, creds thread.Credentials) (*pb.GetDBInfoReply, error) {
+// GetInviteInfo retrives db addresses and keys.
+func (c *Client) GetInviteInfo(ctx context.Context, creds thread.Credentials) (*pb.GetInviteInfoReply, error) {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return nil, err
 	}
-	return c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
+	return c.c.GetInviteInfo(ctx, &pb.GetInviteInfoRequest{
 		Credentials: signed,
 	})
 }

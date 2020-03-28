@@ -398,6 +398,22 @@ func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
 	return t.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
+func (t *net) GetThreadAddresses(ctx context.Context, creds thread.Credentials) ([]ma.Multiaddr, error) {
+	tinfo, err := t.GetThread(ctx, creds)
+	if err != nil {
+		return nil, err
+	}
+	host := t.Host()
+	peerID, _ := ma.NewComponent("p2p", host.ID().String())
+	threadID, _ := ma.NewComponent("thread", tinfo.ID.String())
+	addrs := host.Addrs()
+	res := make([]ma.Multiaddr, len(addrs))
+	for i := range addrs {
+		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID)
+	}
+	return res, nil
+}
+
 func (t *net) AddReplicator(ctx context.Context, creds thread.Credentials, paddr ma.Multiaddr) (pid peer.ID, err error) {
 	info, err := t.store.GetThread(creds.ThreadID())
 	if err != nil {

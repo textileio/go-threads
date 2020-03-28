@@ -125,27 +125,24 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 	}, nil
 }
 
-// GetDBInfo returns db addresses and keys.
-func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
+// GetInviteInfo returns db addresses and keys.
+func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoRequest) (*pb.GetInviteInfoReply, error) {
 	creds, err := getCredentials(req.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := s.manager.Net().GetThread(ctx, creds)
+	d, err := s.getDB(creds)
+	addrs, key, err := d.GetInviteInfo()
 	if err != nil {
 		return nil, err
 	}
-	host := s.manager.Net().Host()
-	peerID, _ := ma.NewComponent("p2p", host.ID().String())
-	threadID, _ := ma.NewComponent("thread", tinfo.ID.String())
-	addrs := host.Addrs()
 	res := make([]string, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).String()
+		res[i] = addrs[i].String()
 	}
-	reply := &pb.GetDBInfoReply{
+	reply := &pb.GetInviteInfoReply{
 		Addresses: res,
-		Key:       tinfo.Key.Bytes(),
+		Key:       key.Bytes(),
 	}
 	return reply, nil
 }
