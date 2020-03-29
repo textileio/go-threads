@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/textileio/go-threads/broadcast"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 // Listen returns a Listener which notifies about actions applying the
@@ -28,10 +28,7 @@ func (d *DB) Listen(los ...ListenOption) (Listener, error) {
 	return sl, nil
 }
 
-// localEventListen returns a listener which notifies *locally generated*
-// events in collections of the db. Caller should call .Discard() when
-// done.
-func (d *DB) localEventListen() *LocalEventListener {
+func (d *DB) LocalEventListen() *core.LocalEventListener {
 	return d.localEventsBus.Listen()
 }
 
@@ -39,8 +36,8 @@ func (d *DB) notifyStateChanged(actions []Action) {
 	d.stateChangedNotifee.notify(actions)
 }
 
-func (d *DB) notifyTxnEvents(node format.Node) error {
-	return d.localEventsBus.send(node)
+func (d *DB) notifyTxnEvents(node format.Node, creds thread.Credentials) error {
+	return d.localEventsBus.Send(node, creds)
 }
 
 type ActionType int
@@ -178,47 +175,4 @@ func (sl *listener) evaluate(a Action) bool {
 		return true
 	}
 	return false
-}
-
-type localEventsBus struct {
-	bus *broadcast.Broadcaster
-}
-
-func (leb *localEventsBus) send(node format.Node) error {
-	return leb.bus.SendWithTimeout(node, busTimeout)
-}
-
-func (leb *localEventsBus) Listen() *LocalEventListener {
-	l := &LocalEventListener{
-		listener: leb.bus.Listen(),
-		c:        make(chan format.Node),
-	}
-
-	go func() {
-		for v := range l.listener.Channel() {
-			events := v.(format.Node)
-			l.c <- events
-		}
-		close(l.c)
-	}()
-
-	return l
-}
-
-// LocalEventListener notifies about new locally generated ipld.Nodes results
-// of transactions
-type LocalEventListener struct {
-	listener *broadcast.Listener
-	c        chan format.Node
-}
-
-// Channel returns an unbuffered channel to receive local events
-func (l *LocalEventListener) Channel() <-chan format.Node {
-	return l.c
-}
-
-// Discard indicates that no further events will be received
-// and ready for being garbage collected
-func (l *LocalEventListener) Discard() {
-	l.listener.Discard()
 }

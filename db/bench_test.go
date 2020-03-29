@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
 	"github.com/tidwall/sjson"
@@ -60,10 +61,10 @@ func checkBenchErr(b *testing.B, err error) {
 func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
-	n, err := DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir)
 	checkBenchErr(b, err)
 	opts = append(opts, WithRepoPath(dir))
-	d, err := NewDB(context.Background(), n, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)), opts...)
+	d, err := NewDB(context.Background(), n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkBenchErr(b, err)
 	return d, func() {
 		if err := n.Close(); err != nil {

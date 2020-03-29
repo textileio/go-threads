@@ -279,7 +279,7 @@ func getCredentials(c *pb.Credentials) (thread.Credentials, error) {
 	return thread.NewSignedCredsFromBytes(c.ThreadID, c.PubKey, c.Signature)
 }
 
-func getKeyOptions(keys *pb.Keys) (opts []net.KeyOption, err error) {
+func getKeyOptions(keys *pb.Keys) (opts []net.NewThreadOption, err error) {
 	if keys == nil {
 		return
 	}

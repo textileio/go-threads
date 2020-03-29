@@ -11,6 +11,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -148,66 +149,100 @@ func (c *Collection) AddIndex(config IndexConfig) error {
 // ReadTxn creates an explicit readonly transaction. Any operation
 // that tries to mutate an instance of the collection will ErrReadonlyTx.
 // Provides serializable isolation gurantees.
-func (c *Collection) ReadTxn(f func(txn *Txn) error) error {
-	return c.db.readTxn(c, f)
+func (c *Collection) ReadTxn(f func(txn *Txn) error, opts ...TxnOption) error {
+	return c.db.readTxn(c, f, opts...)
 }
 
 // WriteTxn creates an explicit write transaction. Provides
 // serializable isolation gurantees.
-func (c *Collection) WriteTxn(f func(txn *Txn) error) error {
-	return c.db.writeTxn(c, f)
+func (c *Collection) WriteTxn(f func(txn *Txn) error, opts ...TxnOption) error {
+	return c.db.writeTxn(c, f, opts...)
 }
 
 // FindByID finds an instance by its ID.
 // If doesn't exists returns ErrNotFound.
-func (c *Collection) FindByID(id core.InstanceID) (instance []byte, err error) {
+func (c *Collection) FindByID(id core.InstanceID, opts ...TxnOption) (instance []byte, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
 		instance, err = txn.FindByID(id)
 		return err
-	})
+	}, opts...)
 	return
 }
 
-// Create creates instances in the collection.
-func (c *Collection) Create(vs ...[]byte) (ids []core.InstanceID, err error) {
+// Create creates an instance in the collection.
+func (c *Collection) Create(v []byte, opts ...TxnOption) (ids []core.InstanceID, err error) {
+	_ = c.WriteTxn(func(txn *Txn) error {
+		ids, err = txn.Create(v)
+		return err
+	}, opts...)
+	return
+}
+
+// CreateMany creates multiple instances in the collection.
+func (c *Collection) CreateMany(vs [][]byte, opts ...TxnOption) (ids []core.InstanceID, err error) {
 	_ = c.WriteTxn(func(txn *Txn) error {
 		ids, err = txn.Create(vs...)
 		return err
-	})
+	}, opts...)
 	return
 }
 
-// Delete deletes instances by its IDs. It doesn't
+// Delete deletes an instance by its ID. It doesn't
 // fail if the ID doesn't exist.
-func (c *Collection) Delete(ids ...core.InstanceID) error {
+func (c *Collection) Delete(id core.InstanceID, opts ...TxnOption) error {
+	return c.WriteTxn(func(txn *Txn) error {
+		return txn.Delete(id)
+	}, opts...)
+}
+
+// Delete deletes multiple instances by ID. It doesn't
+// fail if one of the IDs don't exist.
+func (c *Collection) DeleteMany(ids []core.InstanceID, opts ...TxnOption) error {
 	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Delete(ids...)
-	})
+	}, opts...)
 }
 
-// Save saves changes of instances in the collection.
-func (c *Collection) Save(vs ...[]byte) error {
+// Save saves changes of an instance in the collection.
+func (c *Collection) Save(v []byte, opts ...TxnOption) error {
+	return c.WriteTxn(func(txn *Txn) error {
+		return txn.Save(v)
+	}, opts...)
+}
+
+// SaveMany saves changes of multiple instances in the collection.
+func (c *Collection) SaveMany(vs [][]byte, opts ...TxnOption) error {
 	return c.WriteTxn(func(txn *Txn) error {
 		return txn.Save(vs...)
-	})
+	}, opts...)
 }
 
-// Has returns true if all IDs exist in the collection, false
+// Has returns true if ID exists in the collection, false
 // otherwise.
-func (c *Collection) Has(ids ...core.InstanceID) (exists bool, err error) {
+func (c *Collection) Has(id core.InstanceID, opts ...TxnOption) (exists bool, err error) {
+	_ = c.ReadTxn(func(txn *Txn) error {
+		exists, err = txn.Has(id)
+		return err
+	}, opts...)
+	return
+}
+
+// HasMany returns true if all IDs exist in the collection, false
+// otherwise.
+func (c *Collection) HasMany(ids []core.InstanceID, opts ...TxnOption) (exists bool, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
 		exists, err = txn.Has(ids...)
 		return err
-	})
+	}, opts...)
 	return
 }
 
 // Find executes a Query and returns the result.
-func (c *Collection) Find(q *Query) (instances [][]byte, err error) {
+func (c *Collection) Find(q *Query, opts ...TxnOption) (instances [][]byte, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
 		instances, err = txn.Find(q)
 		return err
-	})
+	}, opts...)
 	return
 }
 
@@ -228,10 +263,11 @@ var _ Indexer = (*Collection)(nil)
 // Txn represents a read/write transaction in the db. It allows for
 // serializable isolation level within the db.
 type Txn struct {
-	collection *Collection
-	discarded  bool
-	commited   bool
-	readonly   bool
+	collection  *Collection
+	credentials thread.Credentials
+	discarded   bool
+	commited    bool
+	readonly    bool
 
 	actions []core.Action
 }
@@ -399,7 +435,7 @@ func (t *Txn) Commit() error {
 	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
-	return t.collection.db.notifyTxnEvents(node)
+	return t.collection.db.notifyTxnEvents(node, t.credentials)
 }
 
 // Discard discards all changes done in the current

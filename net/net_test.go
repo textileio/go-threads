@@ -44,7 +44,7 @@ func TestService_CreateThreadAndRecords(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		r1, err := n.CreateRecord(ctx, thread.NewDefaultCreds(info.ID), body)
+		r1, err := n.CreateRecord(ctx, info.ID, body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,7 +52,7 @@ func TestService_CreateThreadAndRecords(t *testing.T) {
 			t.Fatalf("expected node to not be nil")
 		}
 
-		r2, err := n.CreateRecord(ctx, thread.NewDefaultCreds(info.ID), body)
+		r2, err := n.CreateRecord(ctx, info.ID, body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func TestService_CreateThreadAndRecords(t *testing.T) {
 			t.Fatalf("expected log IDs to match, got %s and %s", r1.LogID(), r2.LogID())
 		}
 
-		r1b, err := n.GetRecord(ctx, thread.NewDefaultCreds(info.ID), r1.Value().Cid())
+		r1b, err := n.GetRecord(ctx, info.ID, r1.Value().Cid())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,7 +104,7 @@ func TestService_AddThread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = n1.CreateRecord(ctx, thread.NewDefaultCreds(info.ID), body); err != nil {
+	if _, err = n1.CreateRecord(ctx, info.ID, body); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,11 +113,11 @@ func TestService_AddThread(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	info2, err := n2.AddThread(ctx, thread.NewDefaultCreds(info.ID), addr, core.WithThreadKey(info.Key))
+	info2, err := n2.AddThread(ctx, addr, core.WithThreadKey(info.Key))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := n2.PullThread(ctx, thread.NewDefaultCreds(info2.ID)); err != nil {
+	if err := n2.PullThread(ctx, info2.ID); err != nil {
 		t.Fatal(err)
 	}
 	if len(info2.Logs) != 2 {
@@ -130,11 +130,11 @@ func TestService_AddThread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = n2.CreateRecord(ctx, thread.NewDefaultCreds(info2.ID), body2); err != nil {
+	if _, err = n2.CreateRecord(ctx, info2.ID, body2); err != nil {
 		t.Fatal(err)
 	}
 
-	info3, err := n1.GetThread(context.Background(), thread.NewDefaultCreds(info.ID))
+	info3, err := n1.GetThread(context.Background(), info.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestService_AddReplicator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n1.CreateRecord(ctx, thread.NewDefaultCreds(info.ID), body); err != nil {
+	if _, err := n1.CreateRecord(ctx, info.ID, body); err != nil {
 		t.Fatal(err)
 	}
 
@@ -170,11 +170,11 @@ func TestService_AddReplicator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = n1.AddReplicator(ctx, thread.NewDefaultCreds(info.ID), addr); err != nil {
+	if _, err = n1.AddReplicator(ctx, info.ID, addr); err != nil {
 		t.Fatal(err)
 	}
 
-	info2, err := n1.GetThread(context.Background(), thread.NewDefaultCreds(info.ID))
+	info2, err := n1.GetThread(context.Background(), info.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestService_AddReplicator(t *testing.T) {
 		t.Fatalf("expected 2 addresses got %d", len(info2.Logs[0].Addrs))
 	}
 
-	info3, err := n2.GetThread(context.Background(), thread.NewDefaultCreds(info.ID))
+	info3, err := n2.GetThread(context.Background(), info.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,17 +212,17 @@ func TestService_DeleteThread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.CreateRecord(ctx, thread.NewDefaultCreds(info.ID), body); err != nil {
+	if _, err := n.CreateRecord(ctx, info.ID, body); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.CreateRecord(ctx, thread.NewDefaultCreds(info.ID), body); err != nil {
+	if _, err := n.CreateRecord(ctx, info.ID, body); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = n.DeleteThread(ctx, thread.NewDefaultCreds(info.ID)); err != nil {
+	if err = n.DeleteThread(ctx, info.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.GetThread(ctx, thread.NewDefaultCreds(info.ID)); err != logstore.ErrThreadNotFound {
+	if _, err := n.GetThread(ctx, info.ID); err != logstore.ErrThreadNotFound {
 		t.Fatal("thread was not deleted")
 	}
 }
@@ -272,8 +272,7 @@ func makeNetwork(t *testing.T) core.Net {
 }
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
-	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := api.CreateThread(ctx, thread.NewDefaultCreds(id))
+	info, err := api.CreateThread(ctx, thread.NewIDV1(thread.Raw, 32))
 	if err != nil {
 		t.Fatal(err)
 	}

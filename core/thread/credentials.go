@@ -10,89 +10,44 @@ type Signature []byte
 // Credentials are used to prove a caller identity, which is needed
 // for thread ACL checks.
 type Credentials interface {
-	// ThreadID must return the signed thread ID.
-	ThreadID() ID
-
-	// Sign must return the public key and signature which can
+	// Sign must return a public key and signature that can
 	// be used to verify the caller.
-	Sign() (crypto.PubKey, Signature, error)
+	Sign([]byte) (crypto.PubKey, Signature, error)
 }
 
-// DefaultCreds are useful for either threads that don't require
-// credentials or when the private key is available for local signing.
-type DefaultCreds struct {
-	threadID ID
-	privKey  crypto.PrivKey
+// PrivKeyAuth wraps a private key for signing.
+// This is useful when the private key is available for local signing.
+type PrivKeyAuth struct {
+	sk crypto.PrivKey
 }
 
-// NewDefaultCreds returns new default credentials.
-func NewDefaultCreds(id ID, opts ...CredOption) Credentials {
-	args := &CredOptions{}
-	for _, opt := range opts {
-		opt(args)
-	}
-	return DefaultCreds{threadID: id, privKey: args.PrivKey}
+// NewPrivKeyAuth returns credentials with private key..
+func NewPrivKeyAuth(privKey crypto.PrivKey) Credentials {
+	return PrivKeyAuth{sk: privKey}
 }
 
-func (c DefaultCreds) ThreadID() ID {
-	return c.threadID
-}
-
-func (c DefaultCreds) Sign() (crypto.PubKey, Signature, error) {
-	if c.privKey == nil {
+func (c PrivKeyAuth) Sign(msg []byte) (crypto.PubKey, Signature, error) {
+	if c.sk == nil {
 		return nil, nil, nil
 	}
-	sig, err := c.privKey.Sign(c.threadID.Bytes())
+	sig, err := c.sk.Sign(msg)
 	if err != nil {
 		return nil, nil, nil
 	}
-	return c.privKey.GetPublic(), sig, nil
+	return c.sk.GetPublic(), sig, nil
 }
 
-// CredOptions defines options for thread credentials.
-type CredOptions struct {
-	PrivKey crypto.PrivKey
+// PubKeyAuth wrap an existing public key and signature.
+type PubKeyAuth struct {
+	pk  crypto.PubKey
+	sig Signature
 }
 
-// CredOption specifies thread credential options.
-type CredOption func(*CredOptions)
-
-// WithPrivKey allows for the credentials to be signed.
-func WithPrivKey(sk crypto.PrivKey) CredOption {
-	return func(args *CredOptions) {
-		args.PrivKey = sk
-	}
+// NewPubKeyAuth returns new credentials with public key and signature.
+func NewPubKeyAuth(pubKey crypto.PubKey, signature []byte) Credentials {
+	return PubKeyAuth{pk: pubKey, sig: signature}
 }
 
-// SignedCreds are useful when the private key is not available.
-// In this case, the public key and signature are used directly.
-type SignedCreds struct {
-	threadID  ID
-	pubKey    crypto.PubKey
-	signature Signature
-}
-
-// NewSignedCreds returns new pre-signed credentials from the source.
-func NewSignedCredsFromBytes(id, pubKey, signature []byte) (creds SignedCreds, err error) {
-	creds.threadID, err = Cast(id)
-	if err != nil {
-		return
-	}
-	if pubKey == nil {
-		return
-	}
-	creds.pubKey, err = crypto.UnmarshalPublicKey(pubKey)
-	if err != nil {
-		return
-	}
-	creds.signature = signature
-	return creds, nil
-}
-
-func (c SignedCreds) ThreadID() ID {
-	return c.threadID
-}
-
-func (c SignedCreds) Sign() (crypto.PubKey, Signature, error) {
-	return c.pubKey, c.signature, nil
+func (c PubKeyAuth) Sign([]byte) (crypto.PubKey, Signature, error) {
+	return c.pk, c.sig, nil
 }

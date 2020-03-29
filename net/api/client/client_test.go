@@ -21,10 +21,10 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/cbor"
+	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
-	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/net/api"
 	. "github.com/textileio/go-threads/net/api/client"
 	pb "github.com/textileio/go-threads/net/api/pb"
@@ -51,7 +51,7 @@ func TestClient_CreateThread(t *testing.T) {
 
 	t.Run("test create thread", func(t *testing.T) {
 		id := thread.NewIDV1(thread.Raw, 32)
-		info, err := client.CreateThread(context.Background(), thread.NewDefaultCreds(id))
+		info, err := client.CreateThread(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
 		}
@@ -82,7 +82,7 @@ func TestClient_AddThread(t *testing.T) {
 	addr := threadAddr(t, hostAddr1, hostID1, info1)
 
 	t.Run("test add thread", func(t *testing.T) {
-		info2, err := client2.AddThread(context.Background(), thread.NewDefaultCreds(info1.ID), addr, core.WithThreadKey(info1.Key))
+		info2, err := client2.AddThread(context.Background(), addr, core.WithThreadKey(info1.Key))
 		if err != nil {
 			t.Fatalf("failed to add thread: %v", err)
 		}
@@ -100,7 +100,7 @@ func TestClient_GetThread(t *testing.T) {
 	info := createThread(t, client)
 
 	t.Run("test get thread", func(t *testing.T) {
-		info2, err := client.GetThread(context.Background(), thread.NewDefaultCreds(info.ID))
+		info2, err := client.GetThread(context.Background(), info.ID)
 		if err != nil {
 			t.Fatalf("failed to get thread: %v", err)
 		}
@@ -118,7 +118,7 @@ func TestClient_PullThread(t *testing.T) {
 	info := createThread(t, client)
 
 	t.Run("test pull thread", func(t *testing.T) {
-		if err := client.PullThread(context.Background(), thread.NewDefaultCreds(info.ID)); err != nil {
+		if err := client.PullThread(context.Background(), info.ID); err != nil {
 			t.Fatalf("failed to pull thread: %v", err)
 		}
 	})
@@ -132,10 +132,10 @@ func TestClient_DeleteThread(t *testing.T) {
 	info := createThread(t, client)
 
 	t.Run("test delete thread", func(t *testing.T) {
-		if err := client.DeleteThread(context.Background(), thread.NewDefaultCreds(info.ID)); err != nil {
+		if err := client.DeleteThread(context.Background(), info.ID); err != nil {
 			t.Fatalf("failed to delete thread: %v", err)
 		}
-		if _, err := client.GetThread(context.Background(), thread.NewDefaultCreds(info.ID)); err == nil {
+		if _, err := client.GetThread(context.Background(), info.ID); err == nil {
 			t.Fatal("thread was not deleted")
 		}
 	})
@@ -156,7 +156,7 @@ func TestClient_AddReplicator(t *testing.T) {
 
 	t.Run("test add replicator", func(t *testing.T) {
 		addr := peerAddr(t, hostAddr2, hostID2)
-		pid, err := client1.AddReplicator(context.Background(), thread.NewDefaultCreds(info.ID), addr)
+		pid, err := client1.AddReplicator(context.Background(), info.ID, addr)
 		if err != nil {
 			t.Fatalf("failed to add replicator: %v", err)
 		}
@@ -181,7 +181,7 @@ func TestClient_CreateRecord(t *testing.T) {
 	}
 
 	t.Run("test create record", func(t *testing.T) {
-		rec, err := client.CreateRecord(context.Background(), thread.NewDefaultCreds(info.ID), body)
+		rec, err := client.CreateRecord(context.Background(), info.ID, body)
 		if err != nil {
 			t.Fatalf("failed to create record: %v", err)
 		}
@@ -210,8 +210,8 @@ func TestClient_AddRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	creds := thread.NewDefaultCreds(id, thread.WithPrivKey(authorSk))
-	_, err = client.CreateThread(context.Background(), creds, core.WithThreadKey(tk), core.WithLogKey(logPk))
+	creds := thread.NewPrivKeyAuth(authorSk)
+	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewCredentials(creds))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,11 +243,11 @@ func TestClient_AddRecord(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = client.AddRecord(context.Background(), creds, logID, rec); err != nil {
+		if err = client.AddRecord(context.Background(), id, logID, rec); err != nil {
 			t.Fatalf("failed to add record: %v", err)
 		}
 
-		rec2, err := client.GetRecord(context.Background(), creds, rec.Cid())
+		rec2, err := client.GetRecord(context.Background(), id, rec.Cid())
 		if err != nil {
 			t.Fatalf("failed to get record back: %v", err)
 		}
@@ -273,13 +273,13 @@ func TestClient_GetRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, err := client.CreateRecord(context.Background(), thread.NewDefaultCreds(info.ID), body)
+	rec, err := client.CreateRecord(context.Background(), info.ID, body)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("test get record", func(t *testing.T) {
-		rec2, err := client.GetRecord(context.Background(), thread.NewDefaultCreds(info.ID), rec.Value().Cid())
+		rec2, err := client.GetRecord(context.Background(), info.ID, rec.Value().Cid())
 		if err != nil {
 			t.Fatalf("failed to get record: %v", err)
 		}
@@ -302,14 +302,14 @@ func TestClient_Subscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 	addr := peerAddr(t, hostAddr2, hostID2)
-	if _, err := client1.AddReplicator(context.Background(), thread.NewDefaultCreds(info.ID), addr); err != nil {
+	if _, err := client1.AddReplicator(context.Background(), info.ID, addr); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("test subscribe", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sub, err := client2.Subscribe(ctx, core.WithCredentials(thread.NewDefaultCreds(info.ID)))
+		sub, err := client2.Subscribe(ctx, core.WithSubFilter(core.ThreadFilter{ID: info.ID}))
 		if err != nil {
 			t.Fatalf("failed to subscribe to thread: %v", err)
 		}
@@ -326,14 +326,14 @@ func TestClient_Subscribe(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = client1.CreateRecord(context.Background(), thread.NewDefaultCreds(info.ID), body); err != nil {
+		if _, err = client1.CreateRecord(context.Background(), info.ID, body); err != nil {
 			t.Fatal(err)
 		}
 		body2, err := cbornode.WrapObject(map[string]interface{}{"foo": "bar2"}, mh.SHA2_256, -1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = client1.CreateRecord(context.Background(), thread.NewDefaultCreds(info.ID), body2); err != nil {
+		if _, err = client1.CreateRecord(context.Background(), info.ID, body2); err != nil {
 			t.Fatal(err)
 		}
 
@@ -392,10 +392,10 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
-	n, err := db.DefaultNetwork(
+	n, err := common.DefaultNetwork(
 		dir,
-		db.WithNetHostAddr(hostAddr),
-		db.WithNetDebug(true))
+		common.WithNetHostAddr(hostAddr),
+		common.WithNetDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,7 +438,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 
 func createThread(t *testing.T, client *Client) thread.Info {
 	id := thread.NewIDV1(thread.Raw, 32)
-	info, err := client.CreateThread(context.Background(), thread.NewDefaultCreds(id))
+	info, err := client.CreateThread(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
 	}

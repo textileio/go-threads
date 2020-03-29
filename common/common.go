@@ -1,4 +1,4 @@
-package db
+package common
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
-	corenet "github.com/textileio/go-threads/core/net"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/logstore/lstoreds"
 	"github.com/textileio/go-threads/net"
 	util "github.com/textileio/go-threads/util"
@@ -31,7 +31,7 @@ const (
 
 // DefaultNetwork is a boostrapable default Net with sane defaults.
 type NetBoostrapper interface {
-	corenet.Net
+	core.Net
 	GetIpfsLite() *ipfslite.Peer
 	Bootstrap(addrs []peer.AddrInfo)
 }
@@ -167,7 +167,7 @@ func WithNetGRPCOptions(opts ...grpc.ServerOption) NetOption {
 
 type netBoostrapper struct {
 	cancel context.CancelFunc
-	corenet.Net
+	core.Net
 	litepeer  *ipfslite.Peer
 	pstore    peerstore.Peerstore
 	logstore  datastore.Datastore

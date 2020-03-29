@@ -3,12 +3,15 @@ package db
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/textileio/go-threads/common"
+	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
 )
@@ -49,19 +52,19 @@ func TestManager_NewDB(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
+		_, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
 	})
 	t.Run("test multiple new dbs", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32)))
+		_, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
 		// NewDB with author
-		author, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32), thread.WithPrivKey(author)))
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithManagerCredentials(thread.NewPrivKeyAuth(sk)))
 		checkErr(t, err)
 	})
 }
@@ -72,7 +75,7 @@ func TestManager_GetDB(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir)
 	checkErr(t, err)
 	man, err := NewManager(n, WithRepoPath(dir), WithDebug(true))
 	checkErr(t, err)
@@ -80,10 +83,11 @@ func TestManager_GetDB(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
-	_, err = man.NewDB(ctx, creds)
+	id := thread.NewIDV1(thread.Raw, 32)
+	_, err = man.NewDB(ctx, id)
 	checkErr(t, err)
-	db := man.GetDB(creds)
+	db, err := man.GetDB(ctx, id)
+	checkErr(t, err)
 	if db == nil {
 		t.Fatal("db not found")
 	}
@@ -104,12 +108,13 @@ func TestManager_GetDB(t *testing.T) {
 	checkErr(t, err)
 
 	t.Run("test get db after restart", func(t *testing.T) {
-		n, err := DefaultNetwork(dir)
+		n, err := common.DefaultNetwork(dir)
 		checkErr(t, err)
 		man, err := NewManager(n, WithRepoPath(dir), WithDebug(true))
 		checkErr(t, err)
 
-		db := man.GetDB(creds)
+		db, err := man.GetDB(ctx, id)
+		checkErr(t, err)
 		if db == nil {
 			t.Fatal("db was not hydrated")
 		}
@@ -121,7 +126,7 @@ func TestManager_GetDB(t *testing.T) {
 		}
 		person2 := []byte(`{"ID": "", "Name": "Bar", "Age": 21}`)
 		person3 := []byte(`{"ID": "", "Name": "Baz", "Age": 21}`)
-		_, err = collection.Create(person2, person3)
+		_, err = collection.CreateMany([][]byte{person2, person3})
 		checkErr(t, err)
 
 		time.Sleep(time.Second)
@@ -139,8 +144,8 @@ func TestManager_DeleteDB(t *testing.T) {
 	man, clean := createTestManager(t)
 	defer clean()
 
-	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
-	db, err := man.NewDB(ctx, creds)
+	id := thread.NewIDV1(thread.Raw, 32)
+	db, err := man.NewDB(ctx, id)
 	checkErr(t, err)
 
 	// Register a schema and create an instance
@@ -152,10 +157,11 @@ func TestManager_DeleteDB(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	err = man.DeleteDB(ctx, creds)
+	err = man.DeleteDB(ctx, id)
 	checkErr(t, err)
 
-	if man.GetDB(creds) != nil {
+	_, err = man.GetDB(ctx, id)
+	if !errors.Is(err, lstore.ErrThreadNotFound) {
 		t.Fatal("db was not deleted")
 	}
 }
@@ -163,7 +169,7 @@ func TestManager_DeleteDB(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir)
 	checkErr(t, err)
 	m, err := NewManager(n, WithRepoPath(dir), WithDebug(true))
 	checkErr(t, err)

@@ -307,7 +307,7 @@ func TestVariadic(t *testing.T) {
 	p0 := util.JSONFromInstance(&Person{Name: "Foo1", Age: 42})
 	p1 := util.JSONFromInstance(&Person{Name: "Foo2", Age: 43})
 	p2 := util.JSONFromInstance(&Person{Name: "Foo3", Age: 44})
-	res, err := m.Create(p0, p1, p2)
+	res, err := m.CreateMany([][]byte{p0, p1, p2})
 	checkErr(t, err)
 	p0 = util.SetJSONID(res[0], p0)
 	p1 = util.SetJSONID(res[1], p1)
@@ -323,12 +323,12 @@ func TestVariadic(t *testing.T) {
 	pp2 := &Person{}
 	util.InstanceFromJSON(p2, pp2)
 	pp0.Age, pp1.Age, pp2.Age = 51, 52, 53
-	checkErr(t, m.Save(util.JSONFromInstance(pp0), util.JSONFromInstance(pp1), util.JSONFromInstance(pp2)))
+	checkErr(t, m.SaveMany([][]byte{util.JSONFromInstance(pp0), util.JSONFromInstance(pp1), util.JSONFromInstance(pp2)}))
 	assertPersonInCollection(t, m, util.JSONFromInstance(pp0))
 	assertPersonInCollection(t, m, util.JSONFromInstance(pp1))
 	assertPersonInCollection(t, m, util.JSONFromInstance(pp2))
 
-	checkErr(t, m.Delete(pp0.ID, pp1.ID, pp2.ID))
+	checkErr(t, m.DeleteMany([]core.InstanceID{pp0.ID, pp1.ID, pp2.ID}))
 	exist0, err := m.Has(pp0.ID)
 	checkErr(t, err)
 	exist1, err := m.Has(pp1.ID)
