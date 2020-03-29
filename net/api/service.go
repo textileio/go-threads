@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
@@ -61,15 +62,20 @@ func (s *Service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetH
 func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received create thread request")
 
-	creds, err := getCredentials(req.Credentials)
-	if err != nil {
-		return nil, err
-	}
-	opts, err := getKeyOptions(req.Keys)
+	id, err := thread.Cast(req.Body.ThreadID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	info, err := s.net.CreateThread(ctx, creds, opts...)
+	opts, err := getKeyOptions(req.Body.Keys)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, net.WithNewThreadAuth(auth))
+	info, err := s.net.CreateThread(ctx, id, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,25 +85,26 @@ func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received add thread request")
 
-	creds, err := getCredentials(req.Credentials)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := ma.NewMultiaddrBytes(req.Addr)
-	if err != nil {
-		return nil, err
-	}
-	opts, err := getKeyOptions(req.Keys)
+	addr, err := ma.NewMultiaddrBytes(req.Body.Addr)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	info, err := s.net.AddThread(ctx, creds, addr, opts...)
+	opts, err := getKeyOptions(req.Body.Keys)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, net.WithNewThreadAuth(auth))
+	info, err := s.net.AddThread(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
 	}
 	go func() {
-		if err := s.net.PullThread(ctx, creds); err != nil {
-			log.Errorf("error pulling thread %s: %s", creds.ThreadID(), err)
+		if err := s.net.PullThread(ctx, info.ID, net.WithThreadAuth(auth)); err != nil {
+			log.Errorf("error pulling thread %s: %s", info.ID, err)
 		}
 	}()
 	return threadInfoToProto(info)
@@ -106,11 +113,15 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received get thread request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.net.GetThread(ctx, creds)
+	info, err := s.net.GetThread(ctx, id, net.WithThreadAuth(auth))
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +131,15 @@ func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*pb.PullThreadReply, error) {
 	log.Debugf("received pull thread request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	if err = s.net.PullThread(ctx, creds); err != nil {
+	if err = s.net.PullThread(ctx, id, net.WithThreadAuth(auth)); err != nil {
 		return nil, err
 	}
 	return &pb.PullThreadReply{}, nil
@@ -133,11 +148,15 @@ func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*p
 func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest) (*pb.DeleteThreadReply, error) {
 	log.Debugf("received delete thread request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.net.DeleteThread(ctx, creds); err != nil {
+	if err := s.net.DeleteThread(ctx, id, net.WithThreadAuth(auth)); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteThreadReply{}, nil
@@ -146,15 +165,19 @@ func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest)
 func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorRequest) (*pb.AddReplicatorReply, error) {
 	log.Debugf("received add replicator request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	addr, err := ma.NewMultiaddrBytes(req.Body.Addr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	addr, err := ma.NewMultiaddrBytes(req.Addr)
-	if err != nil {
-		return nil, err
-	}
-	pid, err := s.net.AddReplicator(ctx, creds, addr)
+	pid, err := s.net.AddReplicator(ctx, id, addr, net.WithThreadAuth(auth))
 	if err != nil {
 		return nil, err
 	}
@@ -166,15 +189,19 @@ func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorReques
 func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest) (*pb.NewRecordReply, error) {
 	log.Debugf("received create record request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	body, err := cbornode.Decode(req.Body.Body, mh.SHA2_256, -1)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	body, err := cbornode.Decode(req.Body, mh.SHA2_256, -1)
-	if err != nil {
-		return nil, err
-	}
-	rec, err := s.net.CreateRecord(ctx, creds, body)
+	rec, err := s.net.CreateRecord(ctx, id, body, net.WithThreadAuth(auth))
 	if err != nil {
 		return nil, err
 	}
@@ -192,23 +219,27 @@ func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest)
 func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.AddRecordReply, error) {
 	log.Debugf("received add record request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.net.GetThread(ctx, creds)
+	info, err := s.net.GetThread(ctx, id, net.WithThreadAuth(auth))
 	if err != nil {
 		return nil, err
 	}
-	logID, err := peer.IDFromBytes(req.LogID)
+	logID, err := peer.IDFromBytes(req.Body.LogID)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	rec, err := cbor.RecordFromProto(util.RecToServiceRec(req.Record), info.Key.Service())
+	rec, err := cbor.RecordFromProto(util.RecToServiceRec(req.Body.Record), info.Key.Service())
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err = s.net.AddRecord(ctx, creds, logID, rec); err != nil {
+	if err = s.net.AddRecord(ctx, id, logID, rec, net.WithThreadAuth(auth)); err != nil {
 		return nil, err
 	}
 	return &pb.AddRecordReply{}, nil
@@ -217,15 +248,19 @@ func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.GetRecordReply, error) {
 	log.Debugf("received get record request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.Body.ThreadID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rid, err := cid.Cast(req.Body.RecordID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth, err := getAuth(req.Header, req.Body)
 	if err != nil {
 		return nil, err
 	}
-	id, err := cid.Cast(req.RecordID)
-	if err != nil {
-		return nil, err
-	}
-	rec, err := s.net.GetRecord(ctx, creds, id)
+	rec, err := s.net.GetRecord(ctx, id, rid, net.WithThreadAuth(auth))
 	if err != nil {
 		return nil, err
 	}
@@ -241,14 +276,20 @@ func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeServer) error {
 	log.Debugf("received subscribe request")
 
-	opts := make([]net.SubOption, len(req.Credentials))
-	for i, c := range req.Credentials {
-		creds, err := getCredentials(c)
+	opts := make([]net.SubOption, len(req.Body.ThreadIDs))
+	for i, id := range req.Body.ThreadIDs {
+		id, err := thread.Cast(id)
 		if err != nil {
-			return err
+			return status.Error(codes.InvalidArgument, err.Error())
 		}
-		opts[i] = net.WithCredentials(creds)
+		opts[i] = net.WithSubFilter(id)
 	}
+
+	auth, err := getAuth(req.Header, req.Body)
+	if err != nil {
+		return err
+	}
+	opts = append(opts, net.WithSubAuth(auth))
 
 	sub, err := s.net.Subscribe(server.Context(), opts...)
 	if err != nil {
@@ -275,8 +316,21 @@ func marshalPeerID(id peer.ID) []byte {
 	return b
 }
 
-func getCredentials(c *pb.Credentials) (thread.Credentials, error) {
-	return thread.NewSignedCredsFromBytes(c.ThreadID, c.PubKey, c.Signature)
+func getAuth(header *pb.Header, body proto.Message) (*thread.Auth, error) {
+	if header.PubKey == nil {
+		return nil, nil
+	}
+	pk, err := crypto.UnmarshalPublicKey(header.PubKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	auth := thread.NewAuthFromSignature(pk, header.Signature)
+	msg, err := proto.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	_, _, err = auth.Sign(msg) // Auth is already signed, but this will set the message for verification
+	return auth, err
 }
 
 func getKeyOptions(keys *pb.Keys) (opts []net.NewThreadOption, err error) {

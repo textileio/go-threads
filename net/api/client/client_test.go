@@ -210,8 +210,8 @@ func TestClient_AddRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	creds := thread.NewPrivKeyAuth(authorSk)
-	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewCredentials(creds))
+	auth := thread.NewAuthFromPrivKey(authorSk)
+	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewThreadAuth(auth))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestClient_Subscribe(t *testing.T) {
 	t.Run("test subscribe", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		sub, err := client2.Subscribe(ctx, core.WithSubFilter(core.ThreadFilter{ID: info.ID}))
+		sub, err := client2.Subscribe(ctx, core.WithSubFilter(info.ID))
 		if err != nil {
 			t.Fatalf("failed to subscribe to thread: %v", err)
 		}

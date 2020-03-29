@@ -6,10 +6,9 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
-message Credentials {
-    bytes threadID = 1;
-    bytes pubKey = 2;
-    bytes signature = 3;
+message Header {
+    bytes pubKey = 1;
+    bytes signature = 2;
 }
 
 message GetHostIDRequest {}
@@ -24,16 +23,21 @@ message Keys {
 }
 
 message CreateThreadRequest {
-    Credentials credentials = 1;
-    Keys keys = 2;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+        Keys keys = 2;
+    }
 }
 
 message LogInfo {
     bytes ID = 1;
     bytes pubKey = 2;
-	bytes privKey = 3;
-	repeated bytes addrs = 4;
-	bytes head = 5;
+    bytes privKey = 3;
+    repeated bytes addrs = 4;
+    bytes head = 5;
 }
 
 message ThreadInfoReply {
@@ -43,30 +47,54 @@ message ThreadInfoReply {
 }
 
 message AddThreadRequest {
-    Credentials credentials = 1;
-    bytes addr = 2;
-    Keys keys = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes addr = 1;
+        Keys keys = 2;
+    }
 }
 
 message GetThreadRequest {
-    Credentials credentials = 1;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+    }
 }
 
 message PullThreadRequest {
-    Credentials credentials = 1;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+    }
 }
 
 message PullThreadReply {}
 
 message DeleteThreadRequest {
-    Credentials credentials = 1;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+    }
 }
 
 message DeleteThreadReply {}
 
 message AddReplicatorRequest {
-    Credentials credentials = 1;
-    bytes addr = 2;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+        bytes addr = 2;
+    }
 }
 
 message AddReplicatorReply {
@@ -74,8 +102,13 @@ message AddReplicatorReply {
 }
 
 message CreateRecordRequest {
-    Credentials credentials = 1;
-    bytes body = 2;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+        bytes body = 2;
+    }
 }
 
 message Record {
@@ -92,16 +125,26 @@ message NewRecordReply {
 }
 
 message AddRecordRequest {
-    Credentials credentials = 1;
-    bytes logID = 2;
-    Record record = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+        bytes logID = 2;
+        Record record = 3;
+    }
 }
 
 message AddRecordReply {}
 
 message GetRecordRequest {
-    Credentials credentials = 1;
-    bytes recordID = 2;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes threadID = 1;
+        bytes recordID = 2;
+    }
 }
 
 message GetRecordReply {
@@ -109,7 +152,12 @@ message GetRecordReply {
 }
 
 message SubscribeRequest {
-    repeated Credentials credentials = 1;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        repeated bytes threadIDs = 1;
+    }
 }
 
 service API {

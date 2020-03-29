@@ -73,7 +73,7 @@ func runWriterPeer(repo string) {
 	}
 }
 
-func saveThreadMultiaddrForOtherPeer(n net.Net, creds thread.Credentials) {
+func saveThreadMultiaddrForOtherPeer(n net.Net, creds thread.Auth) {
 	tinfo, err := n.GetThread(context.Background(), creds)
 	checkErr(err)
 

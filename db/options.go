@@ -27,7 +27,7 @@ type Config struct {
 	Debug       bool
 	LowMem      bool
 	Collections []CollectionConfig
-	Credentials thread.Credentials
+	Auth        thread.Auth
 }
 
 func newDefaultEventCodec() core.EventCodec {
@@ -79,10 +79,10 @@ func WithEventCodec(ec core.EventCodec) Option {
 	}
 }
 
-// WithCredentials specifies credentials for cerating a new db.
-func WithCredentials(cr thread.Credentials) Option {
+// WithAuth provides authentication for cerating a new db.
+func WithAuth(cr thread.Auth) Option {
 	return func(sc *Config) error {
-		sc.Credentials = cr
+		sc.Auth = cr
 		return nil
 	}
 }
@@ -98,23 +98,23 @@ func WithCollections(cs ...CollectionConfig) Option {
 
 // TxnOptions defines options for a transaction.
 type TxnOptions struct {
-	Credentials thread.Credentials
+	Auth thread.Auth
 }
 
 // TxnOption specifies a transaction option.
 type TxnOption func(*TxnOptions)
 
-// WithTxnCredentials specifies credentials for the transaction.
-func WithTxnCredentials(cr thread.Credentials) TxnOption {
+// WithTxnAuth provides authentication for the transaction.
+func WithTxnAuth(cr thread.Auth) TxnOption {
 	return func(args *TxnOptions) {
-		args.Credentials = cr
+		args.Auth = cr
 	}
 }
 
 // ManagerOptions defines options for a db manager.
 type ManagerOptions struct {
 	Collections []CollectionConfig
-	Credentials thread.Credentials
+	Auth        thread.Auth
 }
 
 // ManagerOption specifies a manager option.
@@ -128,9 +128,9 @@ func WithManagerCollections(cs ...CollectionConfig) ManagerOption {
 	}
 }
 
-// WithManagerCredentials specifies credentials for interacting with a managed db.
-func WithManagerCredentials(cr thread.Credentials) ManagerOption {
+// WithManagerAuth provides authentication for interacting with a managed db.
+func WithManagerAuth(cr thread.Auth) ManagerOption {
 	return func(args *ManagerOptions) {
-		args.Credentials = cr
+		args.Auth = cr
 	}
 }

@@ -75,7 +75,7 @@ func NewDB(ctx context.Context, network core.Net, id thread.ID, opts ...Option) 
 		}
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewCredentials(config.Credentials)); err != nil {
+	if _, err := network.CreateThread(ctx, id, net.WithNewThreadAuth(config.Auth)); err != nil {
 		if !errors.Is(err, lstore.ErrThreadExists) {
 			return nil, err
 		}
@@ -94,7 +94,7 @@ func NewDBFromAddr(ctx context.Context, network core.Net, addr ma.Multiaddr, key
 		}
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewCredentials(config.Credentials))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadAuth(config.Auth))
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func NewDBFromAddr(ctx context.Context, network core.Net, addr ma.Multiaddr, key
 	}
 
 	go func() {
-		if err := network.PullThread(ctx, ti.ID, net.WithCredentials(config.Credentials)); err != nil {
+		if err := network.PullThread(ctx, ti.ID, net.WithThreadAuth(config.Auth)); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
@@ -382,7 +382,7 @@ func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) e
 	for _, opt := range opts {
 		opt(args)
 	}
-	txn := &Txn{collection: c, credentials: args.Credentials, readonly: true}
+	txn := &Txn{collection: c, auth: args.Auth, readonly: true}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err
@@ -398,7 +398,7 @@ func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) 
 	for _, opt := range opts {
 		opt(args)
 	}
-	txn := &Txn{collection: c, credentials: args.Credentials}
+	txn := &Txn{collection: c, auth: args.Auth}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err

@@ -263,11 +263,11 @@ var _ Indexer = (*Collection)(nil)
 // Txn represents a read/write transaction in the db. It allows for
 // serializable isolation level within the db.
 type Txn struct {
-	collection  *Collection
-	credentials thread.Credentials
-	discarded   bool
-	commited    bool
-	readonly    bool
+	collection *Collection
+	auth       thread.Auth
+	discarded  bool
+	commited   bool
+	readonly   bool
 
 	actions []core.Action
 }
@@ -435,7 +435,7 @@ func (t *Txn) Commit() error {
 	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
-	return t.collection.db.notifyTxnEvents(node, t.credentials)
+	return t.collection.db.notifyTxnEvents(node, t.auth)
 }
 
 // Discard discards all changes done in the current

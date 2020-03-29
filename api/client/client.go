@@ -87,7 +87,7 @@ func (c *Client) Close() error {
 }
 
 // NewDB creates a new DB with ID
-func (c *Client) NewDB(ctx context.Context, creds thread.Credentials) error {
+func (c *Client) NewDB(ctx context.Context, creds thread.Auth) error {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (c *Client) NewDB(ctx context.Context, creds thread.Credentials) error {
 }
 
 // NewDBFromAddr creates a new DB with address and keys.
-func (c *Client) NewDBFromAddr(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
+func (c *Client) NewDBFromAddr(ctx context.Context, creds thread.Auth, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 }
 
 // GetDBInfo retrives db addresses and keys.
-func (c *Client) GetDBInfo(ctx context.Context, creds thread.Credentials) (*pb.GetDBInfoReply, error) {
+func (c *Client) GetDBInfo(ctx context.Context, creds thread.Auth) (*pb.GetDBInfoReply, error) {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (c *Client) GetDBInfo(ctx context.Context, creds thread.Credentials) (*pb.G
 }
 
 // NewCollection creates a new collection
-func (c *Client) NewCollection(ctx context.Context, creds thread.Credentials, config db.CollectionConfig) error {
+func (c *Client) NewCollection(ctx context.Context, creds thread.Auth, config db.CollectionConfig) error {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (c *Client) NewCollection(ctx context.Context, creds thread.Credentials, co
 }
 
 // Create creates new instances of objects
-func (c *Client) Create(ctx context.Context, creds thread.Credentials, collectionName string, items ...interface{}) ([]string, error) {
+func (c *Client) Create(ctx context.Context, creds thread.Auth, collectionName string, items ...interface{}) ([]string, error) {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return nil, err
@@ -192,7 +192,7 @@ func (c *Client) Create(ctx context.Context, creds thread.Credentials, collectio
 }
 
 // Save saves existing instances
-func (c *Client) Save(ctx context.Context, creds thread.Credentials, collectionName string, instances ...interface{}) error {
+func (c *Client) Save(ctx context.Context, creds thread.Auth, collectionName string, instances ...interface{}) error {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return err
@@ -211,7 +211,7 @@ func (c *Client) Save(ctx context.Context, creds thread.Credentials, collectionN
 }
 
 // Delete deletes data
-func (c *Client) Delete(ctx context.Context, creds thread.Credentials, collectionName string, instanceIDs ...string) error {
+func (c *Client) Delete(ctx context.Context, creds thread.Auth, collectionName string, instanceIDs ...string) error {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return err
@@ -225,7 +225,7 @@ func (c *Client) Delete(ctx context.Context, creds thread.Credentials, collectio
 }
 
 // Has checks if the specified instances exist
-func (c *Client) Has(ctx context.Context, creds thread.Credentials, collectionName string, instanceIDs ...string) (bool, error) {
+func (c *Client) Has(ctx context.Context, creds thread.Auth, collectionName string, instanceIDs ...string) (bool, error) {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return false, err
@@ -242,7 +242,7 @@ func (c *Client) Has(ctx context.Context, creds thread.Credentials, collectionNa
 }
 
 // Find finds instances by query
-func (c *Client) Find(ctx context.Context, creds thread.Credentials, collectionName string, query *db.Query, dummySlice interface{}) (interface{}, error) {
+func (c *Client) Find(ctx context.Context, creds thread.Auth, collectionName string, query *db.Query, dummySlice interface{}) (interface{}, error) {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return nil, err
@@ -263,7 +263,7 @@ func (c *Client) Find(ctx context.Context, creds thread.Credentials, collectionN
 }
 
 // FindByID finds an instance by id
-func (c *Client) FindByID(ctx context.Context, creds thread.Credentials, collectionName, instanceID string, instance interface{}) error {
+func (c *Client) FindByID(ctx context.Context, creds thread.Auth, collectionName, instanceID string, instance interface{}) error {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return err
@@ -280,7 +280,7 @@ func (c *Client) FindByID(ctx context.Context, creds thread.Credentials, collect
 }
 
 // ReadTransaction returns a read transaction that can be started and used and ended
-func (c *Client) ReadTransaction(ctx context.Context, creds thread.Credentials, collectionName string) (*ReadTransaction, error) {
+func (c *Client) ReadTransaction(ctx context.Context, creds thread.Auth, collectionName string) (*ReadTransaction, error) {
 	client, err := c.c.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func (c *Client) ReadTransaction(ctx context.Context, creds thread.Credentials, 
 }
 
 // WriteTransaction returns a read transaction that can be started and used and ended
-func (c *Client) WriteTransaction(ctx context.Context, creds thread.Credentials, collectionName string) (*WriteTransaction, error) {
+func (c *Client) WriteTransaction(ctx context.Context, creds thread.Auth, collectionName string) (*WriteTransaction, error) {
 	client, err := c.c.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -306,7 +306,7 @@ func (c *Client) WriteTransaction(ctx context.Context, creds thread.Credentials,
 }
 
 // Listen provides an update whenever the specified db, collection, or instance is updated
-func (c *Client) Listen(ctx context.Context, creds thread.Credentials, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
+func (c *Client) Listen(ctx context.Context, creds thread.Auth, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
 	signed, err := signCreds(creds)
 	if err != nil {
 		return nil, err
@@ -406,7 +406,7 @@ func marshalItems(items []interface{}) ([][]byte, error) {
 	return values, nil
 }
 
-func signCreds(creds thread.Credentials) (pcreds *pb.Credentials, err error) {
+func signCreds(creds thread.Auth) (pcreds *pb.Credentials, err error) {
 	pcreds = &pb.Credentials{
 		ThreadID: creds.ThreadID().Bytes(),
 	}

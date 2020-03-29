@@ -259,7 +259,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return err
 	}
 
-	var creds thread.Credentials
+	var creds thread.Auth
 	var collectionName string
 	switch x := firstReq.Option.(type) {
 	case *pb.ReadTransactionRequest_StartTransactionRequest:
@@ -332,7 +332,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return err
 	}
 
-	var creds thread.Credentials
+	var creds thread.Auth
 	var collectionName string
 	switch x := firstReq.Option.(type) {
 	case *pb.WriteTransactionRequest_StartTransactionRequest:
@@ -581,7 +581,7 @@ func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.Qu
 	return &pb.FindReply{Instances: instances}, nil
 }
 
-func (s *Service) getDB(creds thread.Credentials) (*db.DB, error) {
+func (s *Service) getDB(creds thread.Auth) (*db.DB, error) {
 	d := s.manager.GetDB(creds)
 	if d == nil {
 		return nil, status.Error(codes.NotFound, "db not found")
@@ -589,7 +589,7 @@ func (s *Service) getDB(creds thread.Credentials) (*db.DB, error) {
 	return d, nil
 }
 
-func (s *Service) getCollection(creds thread.Credentials, collectionName string) (*db.Collection, error) {
+func (s *Service) getCollection(creds thread.Auth, collectionName string) (*db.Collection, error) {
 	d, err := s.getDB(creds)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, "db not found")
@@ -601,6 +601,6 @@ func (s *Service) getCollection(creds thread.Credentials, collectionName string)
 	return collection, nil
 }
 
-func getCredentials(c *pb.Credentials) (thread.Credentials, error) {
+func getCredentials(c *pb.Credentials) (thread.Auth, error) {
 	return thread.NewSignedCredsFromBytes(c.ThreadID, c.PubKey, c.Signature)
 }

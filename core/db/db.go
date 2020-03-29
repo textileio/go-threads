@@ -39,7 +39,7 @@ func NewLocalEventsBus() *LocalEventsBus {
 
 // Send an IPLD node and thread credentials into the bus.
 // These are received by the thead connector and written to the underlying thread.
-func (leb *LocalEventsBus) Send(node format.Node, creds thread.Credentials) error {
+func (leb *LocalEventsBus) Send(node format.Node, creds thread.Auth) error {
 	return leb.bus.SendWithTimeout(&LocalEvent{Node: node, Credentials: creds}, busTimeout)
 }
 
@@ -65,7 +65,7 @@ func (leb *LocalEventsBus) Discard() {
 
 // LocalEvent wraps a IPLD node and needed credentials for delivery to a thread.
 type LocalEvent struct {
-	Credentials thread.Credentials
+	Credentials thread.Auth
 	Node        format.Node
 }
 

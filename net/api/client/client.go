@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -50,7 +51,6 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// GetHostID returns the service's host peer ID.
 func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 	resp, err := c.c.GetHostID(ctx, &pb.GetHostIDRequest{})
 	if err != nil {
@@ -60,10 +60,6 @@ func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 }
 
 func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return
-	}
 	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -72,9 +68,17 @@ func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.Ne
 	if err != nil {
 		return
 	}
+	body := &pb.CreateThreadRequest_Body{
+		ThreadID: id.Bytes(),
+		Keys:     keys,
+	}
+	header, err := getHeader(args.Auth, body)
+	if err != nil {
+		return
+	}
 	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
-		Credentials: signed,
-		Keys:        keys,
+		Header: header,
+		Body:   body,
 	})
 	if err != nil {
 		return
@@ -83,10 +87,6 @@ func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.Ne
 }
 
 func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.NewThreadOption) (info thread.Info, err error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return
-	}
 	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -95,10 +95,17 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 	if err != nil {
 		return
 	}
+	body := &pb.AddThreadRequest_Body{
+		Addr: addr.Bytes(),
+		Keys: keys,
+	}
+	header, err := getHeader(args.Auth, body)
+	if err != nil {
+		return
+	}
 	resp, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
-		Credentials: signed,
-		Addr:        addr.Bytes(),
-		Keys:        keys,
+		Header: header,
+		Body:   body,
 	})
 	if err != nil {
 		return
@@ -107,12 +114,20 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 }
 
 func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
-	signed, err := signCreds(creds)
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	body := &pb.GetThreadRequest_Body{
+		ThreadID: id.Bytes(),
+	}
+	header, err := getHeader(args.Auth, body)
 	if err != nil {
 		return
 	}
 	resp, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
-		Credentials: signed,
+		Header: header,
+		Body:   body,
 	})
 	if err != nil {
 		return
@@ -121,35 +136,59 @@ func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.Threa
 }
 
 func (c *Client) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
-	signed, err := signCreds(creds)
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	body := &pb.PullThreadRequest_Body{
+		ThreadID: id.Bytes(),
+	}
+	header, err := getHeader(args.Auth, body)
 	if err != nil {
 		return err
 	}
 	_, err = c.c.PullThread(ctx, &pb.PullThreadRequest{
-		Credentials: signed,
+		Header: header,
+		Body:   body,
 	})
 	return err
 }
 
 func (c *Client) DeleteThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
-	signed, err := signCreds(creds)
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	body := &pb.DeleteThreadRequest_Body{
+		ThreadID: id.Bytes(),
+	}
+	header, err := getHeader(args.Auth, body)
 	if err != nil {
 		return err
 	}
 	_, err = c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
-		Credentials: signed,
+		Header: header,
+		Body:   body,
 	})
 	return err
 }
 
 func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
-	signed, err := signCreds(creds)
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	body := &pb.AddReplicatorRequest_Body{
+		ThreadID: id.Bytes(),
+		Addr:     paddr.Bytes(),
+	}
+	header, err := getHeader(args.Auth, body)
 	if err != nil {
 		return
 	}
 	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
-		Credentials: signed,
-		Addr:        paddr.Bytes(),
+		Header: header,
+		Body:   body,
 	})
 	if err != nil {
 		return
@@ -158,17 +197,25 @@ func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multi
 }
 
 func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (core.ThreadRecord, error) {
-	info, err := c.GetThread(ctx, creds)
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	info, err := c.GetThread(ctx, id, opts...)
 	if err != nil {
 		return nil, err
 	}
-	signed, err := signCreds(creds)
+	rbody := &pb.CreateRecordRequest_Body{
+		ThreadID: id.Bytes(),
+		Body:     body.RawData(),
+	}
+	header, err := getHeader(args.Auth, rbody)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := c.c.CreateRecord(ctx, &pb.CreateRecordRequest{
-		Credentials: signed,
-		Body:        body.RawData(),
+		Header: header,
+		Body:   rbody,
 	})
 	if err != nil {
 		return nil, err
@@ -177,35 +224,51 @@ func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Nod
 }
 
 func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, opts ...core.ThreadOption) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
 	lidb, _ := lid.Marshal()
 	prec, err := cbor.RecordToProto(ctx, nil, rec)
 	if err != nil {
 		return err
 	}
+	body := &pb.AddRecordRequest_Body{
+		ThreadID: id.Bytes(),
+		LogID:    lidb,
+		Record:   util.RecFromServiceRec(prec),
+	}
+	header, err := getHeader(args.Auth, body)
+	if err != nil {
+		return err
+	}
 	_, err = c.c.AddRecord(ctx, &pb.AddRecordRequest{
-		Credentials: signed,
-		LogID:       lidb,
-		Record:      util.RecFromServiceRec(prec),
+		Header: header,
+		Body:   body,
 	})
 	return err
 }
 
 func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...core.ThreadOption) (core.Record, error) {
-	info, err := c.GetThread(ctx, creds)
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	info, err := c.GetThread(ctx, id, opts...)
 	if err != nil {
 		return nil, err
 	}
-	signed, err := signCreds(creds)
+	body := &pb.GetRecordRequest_Body{
+		ThreadID: id.Bytes(),
+		RecordID: rid.Bytes(),
+	}
+	header, err := getHeader(args.Auth, body)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
-		Credentials: signed,
-		RecordID:    rid.Bytes(),
+		Header: header,
+		Body:   body,
 	})
 	if err != nil {
 		return nil, err
@@ -218,18 +281,21 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	for _, opt := range opts {
 		opt(args)
 	}
-	creds := make(map[thread.ID]thread.Credentials)
-	signed := make([]*pb.Credentials, len(args.Credentials))
+	ids := make([][]byte, len(args.ThreadIDs))
 	var err error
-	for i, c := range args.Credentials {
-		signed[i], err = signCreds(c)
-		if err != nil {
-			return nil, err
-		}
-		creds[c.ThreadID()] = c
+	for i, id := range args.ThreadIDs {
+		ids[i] = id.Bytes()
+	}
+	body := &pb.SubscribeRequest_Body{
+		ThreadIDs: ids,
+	}
+	header, err := getHeader(args.Auth, body)
+	if err != nil {
+		return nil, err
 	}
 	stream, err := c.c.Subscribe(ctx, &pb.SubscribeRequest{
-		Credentials: signed,
+		Header: header,
+		Body:   body,
 	})
 	if err != nil {
 		return nil, err
@@ -258,7 +324,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 			var sk *symmetric.Key
 			var ok bool
 			if sk, ok = threads[threadID]; !ok {
-				info, err := c.GetThread(ctx, creds[threadID])
+				info, err := c.GetThread(ctx, threadID, core.WithThreadAuth(args.Auth))
 				if err != nil {
 					log.Errorf("error getting thread: %v", err)
 					continue
@@ -281,23 +347,26 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	return channel, nil
 }
 
-func signCreds(creds thread.Credentials) (pcreds *pb.Credentials, err error) {
-	pcreds = &pb.Credentials{
-		ThreadID: creds.ThreadID().Bytes(),
+func getHeader(auth *thread.Auth, body proto.Message) (*pb.Header, error) {
+	if auth == nil {
+		return &pb.Header{}, nil
 	}
-	pk, sig, err := creds.Sign()
+	msg, err := proto.Marshal(body)
 	if err != nil {
-		return
+		return nil, err
 	}
-	if pk == nil {
-		return
-	}
-	pcreds.PubKey, err = ic.MarshalPublicKey(pk)
+	sig, pk, err := auth.Sign(msg)
 	if err != nil {
-		return
+		return nil, err
 	}
-	pcreds.Signature = sig
-	return pcreds, nil
+	pkb, err := ic.MarshalPublicKey(pk)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Header{
+		PubKey:    pkb,
+		Signature: sig,
+	}, nil
 }
 
 func getThreadKeys(args *core.NewThreadOptions) (*pb.Keys, error) {

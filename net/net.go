@@ -161,13 +161,19 @@ func (n *net) GetHostID(_ context.Context) (peer.ID, error) {
 }
 
 func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
-	if err = n.ensureUnique(id); err != nil {
-		return
-	}
-
 	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
+	}
+
+	// @todo: Verify identity and check against ACL.
+	//identity, err := args.Auth.Verify()
+	//if err != nil {
+	//	return
+	//}
+
+	if err = n.ensureUnique(id); err != nil {
+		return
 	}
 
 	info = thread.Info{
@@ -205,17 +211,16 @@ func (n *net) ensureUnique(id thread.ID) error {
 }
 
 func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.NewThreadOption) (info thread.Info, err error) {
+	args := &core.NewThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return
 	}
 	if err = n.ensureUnique(id); err != nil {
 		return
-	}
-
-	args := &core.NewThreadOptions{}
-	for _, opt := range opts {
-		opt(args)
 	}
 
 	if err = n.store.AddThread(thread.Info{
@@ -262,7 +267,11 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	return n.store.GetThread(id)
 }
 
-func (n *net) GetThread(_ context.Context, id thread.ID, _ ...core.ThreadOption) (thread.Info, error) {
+func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOption) (thread.Info, error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
 	return n.store.GetThread(id)
 }
 
@@ -587,9 +596,9 @@ func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 		opt(args)
 	}
 	filter := make(map[thread.ID]struct{})
-	for _, f := range args.Filters {
-		if f.ID.Defined() {
-			filter[f.ID] = struct{}{}
+	for _, id := range args.ThreadIDs {
+		if id.Defined() {
+			filter[id] = struct{}{}
 		}
 	}
 	return n.subscribe(ctx, filter)

@@ -12,7 +12,7 @@ import (
 // WriteTransaction encapsulates a write transaction
 type WriteTransaction struct {
 	client         pb.API_WriteTransactionClient
-	creds          thread.Credentials
+	creds          thread.Auth
 	collectionName string
 }
 

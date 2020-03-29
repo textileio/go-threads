@@ -98,7 +98,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...ManagerOption
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.CreateThread(ctx, id, net.WithNewCredentials(args.Credentials)); err != nil {
+	if _, err := m.network.CreateThread(ctx, id, net.WithNewThreadAuth(args.Auth)); err != nil {
 		return nil, err
 	}
 
@@ -125,7 +125,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewCredentials(args.Credentials)); err != nil {
+	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadAuth(args.Auth)); err != nil {
 		return nil, err
 	}
 
@@ -136,7 +136,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	m.dbs[id] = db
 
 	go func() {
-		if err := m.network.PullThread(ctx, id, net.WithCredentials(args.Credentials)); err != nil {
+		if err := m.network.PullThread(ctx, id, net.WithThreadAuth(args.Auth)); err != nil {
 			log.Errorf("error pulling thread %s", id)
 		}
 	}()
@@ -150,7 +150,7 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagerOption
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.GetThread(ctx, id, net.WithCredentials(args.Credentials)); err != nil {
+	if _, err := m.network.GetThread(ctx, id, net.WithThreadAuth(args.Auth)); err != nil {
 		return nil, err
 	}
 	return m.dbs[id], nil
@@ -162,7 +162,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagerOpt
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.GetThread(ctx, id, net.WithCredentials(args.Credentials)); err != nil {
+	if _, err := m.network.GetThread(ctx, id, net.WithThreadAuth(args.Auth)); err != nil {
 		return err
 	}
 	db := m.dbs[id]
@@ -173,7 +173,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagerOpt
 	if err := db.Close(); err != nil {
 		return err
 	}
-	if err := m.network.DeleteThread(ctx, id, net.WithCredentials(args.Credentials)); err != nil {
+	if err := m.network.DeleteThread(ctx, id, net.WithThreadAuth(args.Auth)); err != nil {
 		return err
 	}
 

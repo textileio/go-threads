@@ -7,9 +7,9 @@ import (
 
 // NewThreadOptions defines options to be used when creating / adding a thread.
 type NewThreadOptions struct {
-	ThreadKey   thread.Key
-	LogKey      crypto.Key
-	Credentials thread.Credentials
+	ThreadKey thread.Key
+	LogKey    crypto.Key
+	Auth      *thread.Auth
 }
 
 // NewThreadOption specifies new thread options.
@@ -32,37 +32,32 @@ func WithLogKey(key crypto.Key) NewThreadOption {
 	}
 }
 
-// WithNewCredentials specifies credentials for creating / adding a new thread.
-func WithNewCredentials(cr thread.Credentials) NewThreadOption {
+// WithNewThreadAuth provides authentication for creating / adding a new thread.
+func WithNewThreadAuth(a *thread.Auth) NewThreadOption {
 	return func(args *NewThreadOptions) {
-		args.Credentials = cr
+		args.Auth = a
 	}
 }
 
 // ThreadOptions defines options to be used interacting with a thread.
 type ThreadOptions struct {
-	Credentials thread.Credentials
+	Auth *thread.Auth
 }
 
 // ThreadOption specifies thread options.
 type ThreadOption func(*ThreadOptions)
 
-// WithCredentials specifies credentials for interacting with a thread.
-func WithCredentials(cr thread.Credentials) ThreadOption {
+// WithThreadAuth provides authentication for interacting with a thread.
+func WithThreadAuth(a *thread.Auth) ThreadOption {
 	return func(args *ThreadOptions) {
-		args.Credentials = cr
+		args.Auth = a
 	}
-}
-
-// ThreadFilter wraps a thread ID and credentials for a subscription filter.
-type ThreadFilter struct {
-	ID          thread.ID
-	Credentials thread.Credentials
 }
 
 // SubOptions defines options for a thread subscription.
 type SubOptions struct {
-	Filters []ThreadFilter
+	ThreadIDs thread.IDSlice
+	Auth      *thread.Auth
 }
 
 // SubOption is a thread subscription option.
@@ -70,8 +65,15 @@ type SubOption func(*SubOptions)
 
 // WithSubFilter restricts the subscription to a given thread.
 // Use this option multiple times to subscribe to multiple threads.
-func WithSubFilter(f ThreadFilter) SubOption {
+func WithSubFilter(id thread.ID) SubOption {
 	return func(args *SubOptions) {
-		args.Filters = append(args.Filters, f)
+		args.ThreadIDs = append(args.ThreadIDs, id)
+	}
+}
+
+// WithSubAuth provides authentication for interacting with a thread.
+func WithSubAuth(a *thread.Auth) SubOption {
+	return func(args *SubOptions) {
+		args.Auth = a
 	}
 }
