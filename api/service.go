@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/net"
@@ -40,7 +41,7 @@ type Config struct {
 
 // NewService starts and returns a new service with the given network.
 // The network is *not* managed by the server.
-func NewService(network core.Net, conf Config) (*Service, error) {
+func NewService(network app.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{

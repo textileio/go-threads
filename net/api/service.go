@@ -41,7 +41,7 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = tutil.SetLogLevels(map[string]logging.LogLevel{
-			"threadserviceapi": logging.LevelDebug,
+			"netapi": logging.LevelDebug,
 		})
 		if err != nil {
 			return nil, err

@@ -77,8 +77,8 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 	var err error
 	if conf.Debug {
 		if err = util.SetLogLevels(map[string]logging.LogLevel{
-			"threadnet": logging.LevelDebug,
-			"logstore":  logging.LevelDebug,
+			"net":      logging.LevelDebug,
+			"logstore": logging.LevelDebug,
 		}); err != nil {
 			return nil, err
 		}

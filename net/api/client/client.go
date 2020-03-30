@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 	"io"
+	"log"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -23,8 +23,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-var log = logging.Logger("netclient")
 
 // Client provides the client api.
 type Client struct {
@@ -312,34 +310,30 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 			if err != nil {
 				stat := status.Convert(err)
 				if stat.Code() != codes.Canceled {
-					log.Errorf("error in subscription stream: %v", err)
+					log.Fatalf("error in subscription stream: %v", err)
 				}
 				return
 			}
 			threadID, err := thread.Cast(resp.ThreadID)
 			if err != nil {
-				log.Errorf("error casting thread ID: %v", err)
-				continue
+				log.Fatalf("error casting thread ID: %v", err)
 			}
 			var sk *symmetric.Key
 			var ok bool
 			if sk, ok = threads[threadID]; !ok {
 				info, err := c.GetThread(ctx, threadID, core.WithThreadAuth(args.Auth))
 				if err != nil {
-					log.Errorf("error getting thread: %v", err)
-					continue
+					log.Fatalf("error getting thread: %v", err)
 				}
 				if info.Key.Service() == nil {
-					log.Error("service-key not found")
-					continue
+					log.Fatalf("service-key not found")
 				}
 				sk = info.Key.Service()
 				threads[threadID] = sk
 			}
 			rec, err := threadRecordFromProto(resp, sk)
 			if err != nil {
-				log.Errorf("error unpacking record: %v", err)
-				continue
+				log.Fatalf("error unpacking record: %v", err)
 			}
 			channel <- rec
 		}
