@@ -1,109 +1,10 @@
 package db
 
 import (
-	"io"
-	"time"
-
 	"github.com/google/uuid"
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/textileio/go-threads/broadcast"
-	"github.com/textileio/go-threads/core/net"
-	"github.com/textileio/go-threads/core/thread"
 )
-
-// NetDB is a thread-connectable DB.
-type NetDB interface {
-	// LocalEventListen returns a listener which notifies *locally generated*
-	// events in collections of the db. Caller should call .Discard() when done.
-	LocalEventListen() *LocalEventListener
-	// HandleNetRecord handles and inbound thread record from net.
-	// Records are unpacked and dispatched to all registered reducers.
-	HandleNetRecord(rec net.ThreadRecord, info thread.Info, lid peer.ID, timeout time.Duration) error
-}
-
-const (
-	busTimeout = time.Second * 10
-)
-
-// LocalEventsBus wraps a broadcaster for local events.
-type LocalEventsBus struct {
-	bus *broadcast.Broadcaster
-}
-
-// NewLocalEventsBus returns a new bus for local event.
-func NewLocalEventsBus() *LocalEventsBus {
-	return &LocalEventsBus{bus: broadcast.NewBroadcaster(0)}
-}
-
-// Send an IPLD node and thread auth into the bus.
-// These are received by the thead connector and written to the underlying thread.
-func (leb *LocalEventsBus) Send(node format.Node, auth *thread.Auth) error {
-	return leb.bus.SendWithTimeout(&LocalEvent{Node: node, Auth: auth}, busTimeout)
-}
-
-// Listen returns a local event listener.
-func (leb *LocalEventsBus) Listen() *LocalEventListener {
-	l := &LocalEventListener{
-		listener: leb.bus.Listen(),
-		c:        make(chan *LocalEvent),
-	}
-	go func() {
-		for v := range l.listener.Channel() {
-			events := v.(*LocalEvent)
-			l.c <- events
-		}
-		close(l.c)
-	}()
-	return l
-}
-
-func (leb *LocalEventsBus) Discard() {
-	leb.bus.Discard()
-}
-
-// LocalEvent wraps an IPLD node and auth for delivery to a thread.
-type LocalEvent struct {
-	Node format.Node
-	Auth *thread.Auth
-}
-
-// LocalEventListener notifies about new locally generated ipld.Nodes results
-// of transactions
-type LocalEventListener struct {
-	listener *broadcast.Listener
-	c        chan *LocalEvent
-}
-
-// Channel returns an unbuffered channel to receive local events
-func (l *LocalEventListener) Channel() <-chan *LocalEvent {
-	return l.c
-}
-
-// Discard indicates that no further events will be received
-// and ready for being garbage collected
-func (l *LocalEventListener) Discard() {
-	l.listener.Discard()
-}
-
-// Net adds the ability to connect a DB to an underlying thread.
-type Net interface {
-	net.Net
-
-	// ConnectDB returns a connector that connects a db to a thread.
-	ConnectDB(NetDB, thread.ID) Connector
-}
-
-// Connector handles the connection between a db and a thread.
-type Connector interface {
-	io.Closer
-
-	// Start the db connection.
-	// Inbound thread records are pushed to the DB.
-	// Inbound DB events are persisted to the thread as new records.
-	Start()
-}
 
 const (
 	// EmptyInstanceID represents an empty InstanceID.

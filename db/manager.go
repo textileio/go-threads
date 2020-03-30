@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/app"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
@@ -26,12 +26,12 @@ type Manager struct {
 
 	config *Config
 
-	network core.Net
+	network app.Net
 	dbs     map[thread.ID]*DB
 }
 
 // NewManager hydrates dbs from prefixes and starts them.
-func NewManager(network core.Net, opts ...Option) (*Manager, error) {
+func NewManager(network app.Net, opts ...Option) (*Manager, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {

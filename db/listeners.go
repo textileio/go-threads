@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 )
@@ -28,7 +29,7 @@ func (d *DB) Listen(los ...ListenOption) (Listener, error) {
 	return sl, nil
 }
 
-func (d *DB) LocalEventListen() *core.LocalEventListener {
+func (d *DB) LocalEventListen() *app.LocalEventListener {
 	return d.localEventsBus.Listen()
 }
 

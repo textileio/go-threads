@@ -22,7 +22,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/cbor"
-	coredb "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/app"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -73,7 +73,7 @@ type Config struct {
 }
 
 // NewNetwork creates an instance of net from the given host and thread store.
-func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (coredb.Net, error) {
+func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (app.Net, error) {
 	var err error
 	if conf.Debug {
 		if err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -563,7 +563,6 @@ func (n *net) getRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Re
 	return cbor.GetRecord(ctx, n, rid, sk)
 }
 
-// Record wraps a core.Record within a thread and log context.
 type Record struct {
 	core.Record
 	threadID thread.ID
@@ -575,17 +574,14 @@ func NewRecord(r core.Record, id thread.ID, lid peer.ID) core.ThreadRecord {
 	return &Record{Record: r, threadID: id, logID: lid}
 }
 
-// Value returns the underlying record.
 func (r *Record) Value() core.Record {
 	return r
 }
 
-// ThreadID returns the record's thread ID.
 func (r *Record) ThreadID() thread.ID {
 	return r.threadID
 }
 
-// LogID returns the record's log ID.
 func (r *Record) LogID() peer.ID {
 	return r.logID
 }
@@ -633,6 +629,14 @@ func (n *net) subscribe(ctx context.Context, filter map[thread.ID]struct{}) (<-c
 		}
 	}()
 	return channel, nil
+}
+
+func (n *net) ConnectApp(a app.App, threadID thread.ID) (*app.Connector, error) {
+	info, err := n.getThread(context.Background(), threadID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting thread %s: %v", threadID, err)
+	}
+	return app.NewConnector(a, n, info, n.subscribe)
 }
 
 // PutRecord adds an existing record. This method is thread-safe
@@ -716,11 +720,6 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	return nil
 }
 
-// getPrivKey returns the host's private key.
-func (n *net) getPrivKey() crypto.PrivKey {
-	return n.host.Peerstore().PrivKey(n.host.ID())
-}
-
 // newRecord creates a new record with the given body as a new event body.
 func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, body format.Node) (core.Record, error) {
 	if lg.PrivKey == nil {
@@ -752,6 +751,11 @@ func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, bo
 		AuthorKey:  n.getPrivKey(),
 		ServiceKey: sk,
 	})
+}
+
+// getPrivKey returns the host's private key.
+func (n *net) getPrivKey() crypto.PrivKey {
+	return n.host.Peerstore().PrivKey(n.host.ID())
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of

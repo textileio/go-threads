@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/textileio/go-threads/core/app"
+
 	"github.com/alecthomas/jsonschema"
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
@@ -50,8 +52,8 @@ var (
 type DB struct {
 	io.Closer
 
-	net       core.Net
-	connector core.Connector
+	net       app.Net
+	connector *app.Connector
 
 	datastore  ds.TxnDatastore
 	dispatcher *dispatcher
@@ -61,13 +63,13 @@ type DB struct {
 	collectionNames map[string]*Collection
 	closed          bool
 
-	localEventsBus      *core.LocalEventsBus
+	localEventsBus      *app.LocalEventsBus
 	stateChangedNotifee *stateChangedNotifee
 }
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network core.Net, id thread.ID, opts ...Option) (*DB, error) {
+func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -86,7 +88,7 @@ func NewDB(ctx context.Context, network core.Net, id thread.ID, opts ...Option) 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network core.Net, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
+func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -113,7 +115,7 @@ func NewDBFromAddr(ctx context.Context, network core.Net, addr ma.Multiaddr, key
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(n core.Net, id thread.ID, config *Config) (*DB, error) {
+func newDB(n app.Net, id thread.ID, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -139,7 +141,7 @@ func newDB(n core.Net, id thread.ID, config *Config) (*DB, error) {
 		dispatcher:          newDispatcher(config.Datastore),
 		eventcodec:          config.EventCodec,
 		collectionNames:     make(map[string]*Collection),
-		localEventsBus:      core.NewLocalEventsBus(),
+		localEventsBus:      app.NewLocalEventsBus(),
 		stateChangedNotifee: &stateChangedNotifee{},
 	}
 	if err := d.reCreateCollections(); err != nil {
@@ -153,9 +155,11 @@ func newDB(n core.Net, id thread.ID, config *Config) (*DB, error) {
 		}
 	}
 
-	connector := n.ConnectDB(d, id)
+	connector, err := n.ConnectApp(d, id)
+	if err != nil {
+		log.Fatalf("unable to connect app: %s", err)
+	}
 	d.connector = connector
-	connector.Start()
 
 	return d, nil
 }
@@ -296,7 +300,9 @@ func (d *DB) Close() error {
 	d.closed = true
 
 	if d.connector != nil {
-		_ = d.connector.Close()
+		if err := d.connector.Close(); err != nil {
+			return err
+		}
 	}
 	d.localEventsBus.Discard()
 	if !managedDatastore(d.datastore) {
@@ -308,7 +314,7 @@ func (d *DB) Close() error {
 	return nil
 }
 
-func (d *DB) HandleNetRecord(rec net.ThreadRecord, ti thread.Info, lid peer.ID, timeout time.Duration) error {
+func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, timeout time.Duration) error {
 	if rec.LogID() == lid {
 		return nil // Ignore our own events since DB already dispatches to DB reducers
 	}
@@ -325,9 +331,9 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, ti thread.Info, lid peer.ID, 
 			return fmt.Errorf("error when decoding block to event: %v", err)
 		}
 	}
-	node, err := event.GetBody(ctx, d.net, ti.Key.Read())
+	node, err := event.GetBody(ctx, d.net, key.Read())
 	if err != nil {
-		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", ti.ID, rec.LogID(), err)
+		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", d.connector.ThreadID(), rec.LogID(), err)
 	}
 	dbEvents, err := d.eventsFromBytes(node.RawData())
 	if err != nil {
