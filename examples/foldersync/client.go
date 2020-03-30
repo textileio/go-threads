@@ -16,6 +16,7 @@ import (
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	cid "github.com/ipfs/go-cid"
 	"github.com/mr-tron/base58"
+	"github.com/phayes/freeport"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -62,13 +63,15 @@ type file struct {
 }
 
 func newClient(name, sharedFolderPath, repoPath, inviteLink string) (*client, error) {
-	n, err := db.DefaultNetwork(repoPath)
+	hostPort, err := freeport.GetFreePort()
 	if err != nil {
 		return nil, err
 	}
-
-	id := thread.NewIDV1(thread.Raw, 32)
-	creds := thread.NewDefaultCreds(id)
+	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
+	n, err := db.DefaultNetwork(repoPath, db.WithNetHostAddr(hostAddr))
+	if err != nil {
+		return nil, err
+	}
 
 	cc := db.CollectionConfig{
 		Name:   "sharedFolder",
@@ -77,19 +80,22 @@ func newClient(name, sharedFolderPath, repoPath, inviteLink string) (*client, er
 
 	var d *db.DB
 	if inviteLink == "" {
+		id := thread.NewIDV1(thread.Raw, 32)
+		creds := thread.NewDefaultCreds(id)
 		d, err = db.NewDB(context.Background(), n, creds, db.WithRepoPath(repoPath), db.WithCollections(cc))
 		if err != nil {
 			return nil, fmt.Errorf("error when creating db: %v", err)
 		}
 	} else {
-		addr, key := parseInviteLink(inviteLink)
+		threadID, addr, key := parseInviteLink(inviteLink)
+		creds := thread.NewDefaultCreds(threadID)
 		d, err = db.NewDBFromAddr(context.Background(), n, creds, addr, key, db.WithRepoPath(repoPath), db.WithCollections(cc))
+		if err != nil {
+			return nil, fmt.Errorf("error when creating db from addr: %v", err)
+		}
 	}
 
 	ipfspeer := n.GetIpfsLite()
-	if err != nil {
-		return nil, fmt.Errorf("error when creating ipfs lite peer: %v", err)
-	}
 
 	return &client{
 		closeIpfsLite: func() error { return nil },
@@ -116,7 +122,10 @@ func (c *client) close() error {
 	if err := c.closeIpfsLite(); err != nil {
 		return err
 	}
-	c.db.Close()
+	if err := c.db.Close(); err != nil {
+		fmt.Printf("client %v error closing db: %v\n", c.userName, err)
+		return err
+	}
 	if err := c.net.Close(); err != nil {
 		return err
 	}
@@ -142,13 +151,13 @@ func (c *client) getDirectoryTree() ([]*userFolder, error) {
 }
 
 func (c *client) inviteLinks() ([]string, error) {
-	addrs, key, err := c.db.GetInviteInfo()
+	threadID, addrs, key, err := c.db.GetInviteInfo()
 	if err != nil {
 		return nil, err
 	}
 	res := make([]string, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].String() + "?" + base58.Encode(key.Bytes())
+		res[i] = addrs[i].String() + "?" + base58.Encode(key.Bytes()) + "&" + threadID.String()
 	}
 	return res, nil
 }
@@ -188,7 +197,7 @@ func (c *client) startListeningExternalChanges() error {
 		for {
 			select {
 			case <-c.closeCh:
-				log.Info("shutting down external changes listener")
+				log.Infof("shutting down external changes listener - %v", c.userName)
 				return
 			case a := <-l.Channel():
 				instanceBytes, err := c.collection.FindByID(a.ID)
@@ -243,6 +252,7 @@ func (c *client) startFileSystemWatcher() error {
 		<-c.closeCh
 		watcher.Close()
 		c.wg.Done()
+		log.Infof("shut down folder watcher - %v", c.userName)
 	}()
 	return nil
 }

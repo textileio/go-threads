@@ -94,25 +94,36 @@ func TestNUsersBootstrap(t *testing.T) {
 			t.Parallel()
 			var clients []*client
 
-			for i := 0; i < tt.totalClients; i++ {
-				c, clean := createClient(t, fmt.Sprintf("user%d", i))
-				defer clean()
-				clients = append(clients, c)
-			}
-			err := clients[0].start()
+			client0, clean0 := createClient(t, fmt.Sprintf("user%d", 0), "")
+			defer clean0()
+			clients = append(clients, client0)
+
+			// maybe start c0 here?
+
+			invlink0s, err := client0.inviteLinks()
 			checkErr(t, err)
-			invlink0s, err := clients[0].inviteLinks()
-			checkErr(t, err)
+
 			invlink0 := invlink0s[0]
+
 			for i := 1; i < tt.totalCorePeers; i++ {
-				checkErr(t, clients[i].StartFromInvitation(invlink0))
+				client, clean := createClient(t, fmt.Sprintf("user%d", i), invlink0)
+				defer clean()
+				clients = append(clients, client)
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
 				rotatedInvLinks, err := clients[i%tt.totalCorePeers].inviteLinks()
-				rotatedInvLink := rotatedInvLinks[0]
 				checkErr(t, err)
-				checkErr(t, clients[i].StartFromInvitation(rotatedInvLink))
+				rotatedInvLink := rotatedInvLinks[0]
+
+				client, clean := createClient(t, fmt.Sprintf("user%d", i), rotatedInvLink)
+				defer clean()
+				clients = append(clients, client)
+			}
+
+			for i := 0; i < tt.totalClients; i++ {
+				err := clients[i].start()
+				checkErr(t, err)
 			}
 
 			blk := make([]byte, tt.randFileSize)
@@ -278,10 +289,11 @@ func createClient(t *testing.T, name, inviteLink string) (*client, func()) {
 	client, err := newClient(name, shrFolder, repoPath, inviteLink)
 	checkErr(t, err)
 	return client, func() {
-		fmt.Println("Closing client")
+		fmt.Printf("Closing client %v\n", client.userName)
 		client.close()
 		os.RemoveAll(shrFolder)
 		os.RemoveAll(repoPath)
+		fmt.Printf("Client %v closed\n", client.userName)
 	}
 }
 

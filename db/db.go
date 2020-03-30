@@ -286,18 +286,18 @@ func (d *DB) Reduce(events []core.Event) error {
 }
 
 // GetInviteInfo returns the addresses and key that can be used to join the DB thread
-func (d *DB) GetInviteInfo() ([]ma.Multiaddr, thread.Key, error) {
+func (d *DB) GetInviteInfo() (thread.ID, []ma.Multiaddr, thread.Key, error) {
 	ctx := context.Background()
 	creds := d.adapter.threadCreds
 	addresses, err := d.adapter.net.GetThreadAddresses(ctx, creds)
 	if err != nil {
-		return nil, thread.Key{}, err
+		return thread.ID{}, nil, thread.Key{}, err
 	}
 	tinfo, err := d.adapter.net.GetThread(ctx, creds)
 	if err != nil {
-		return nil, thread.Key{}, err
+		return thread.ID{}, nil, thread.Key{}, err
 	}
-	return addresses, tinfo.Key, nil
+	return d.adapter.threadCreds.ThreadID(), addresses, tinfo.Key, nil
 }
 
 // Close closes the db.

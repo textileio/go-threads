@@ -14,13 +14,14 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 )
 
-func parseInviteLink(inviteLink string) (ma.Multiaddr, thread.Key) {
-	addrKey := strings.Split(inviteLink, "?")
-	addr, err := ma.NewMultiaddr(addrKey[0])
+func parseInviteLink(inviteLink string) (thread.ID, ma.Multiaddr, thread.Key) {
+	addrRest := strings.Split(inviteLink, "?")
+	addr, err := ma.NewMultiaddr(addrRest[0])
 	if err != nil {
 		panic("invalid invite link")
 	}
-	keyBytes, err := base58.Decode(addrKey[1])
+	keyThreadID := strings.Split(addrRest[1], "&")
+	keyBytes, err := base58.Decode(keyThreadID[0])
 	if err != nil {
 		panic("invalid key")
 	}
@@ -28,7 +29,11 @@ func parseInviteLink(inviteLink string) (ma.Multiaddr, thread.Key) {
 	if err != nil {
 		panic("invalid key")
 	}
-	return addr, key
+	threadID, err := thread.Decode(keyThreadID[1])
+	if err != nil {
+		panic("invalid thread id")
+	}
+	return threadID, addr, key
 }
 
 func createIPFSLite(h host.Host) (*ipfslite.Peer, func() error, error) {

@@ -132,7 +132,7 @@ func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoReques
 		return nil, err
 	}
 	d, err := s.getDB(creds)
-	addrs, key, err := d.GetInviteInfo()
+	_, addrs, key, err := d.GetInviteInfo()
 	if err != nil {
 		return nil, err
 	}
