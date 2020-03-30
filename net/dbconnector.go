@@ -131,7 +131,7 @@ func (a *dbConnector) dbToThread(wg *sync.WaitGroup) {
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := a.net.CreateRecord(ctx, a.threadID, event.Node, core.WithThreadAuth(event.Credentials)); err != nil {
+			if _, err := a.net.CreateRecord(ctx, a.threadID, event.Node, core.WithThreadAuth(event.Auth)); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()

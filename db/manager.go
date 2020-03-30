@@ -90,11 +90,11 @@ func NewManager(network core.Net, opts ...Option) (*Manager, error) {
 }
 
 // NewDB creates a new db and prefixes its datastore with base key.
-func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...ManagerOption) (*DB, error) {
+func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBOption) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	args := &ManagerOptions{}
+	args := &NewManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -113,7 +113,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...ManagerOption
 // NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
 // Unlike NewDB, this method takes a list of collections added to the original db that
 // should also be added to this host.
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, opts ...ManagerOption) (*DB, error) {
+func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, opts ...NewManagedDBOption) (*DB, error) {
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	if _, ok := m.dbs[id]; ok {
 		return nil, fmt.Errorf("db %s already exists", id)
 	}
-	args := &ManagerOptions{}
+	args := &NewManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -145,8 +145,8 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 }
 
 // GetDB returns a db by id.
-func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagerOption) (*DB, error) {
-	args := &ManagerOptions{}
+func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedDBOption) (*DB, error) {
+	args := &ManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -157,8 +157,8 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagerOption
 }
 
 // DeleteDB deletes a db by id.
-func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagerOption) error {
-	args := &ManagerOptions{}
+func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBOption) error {
+	args := &ManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}

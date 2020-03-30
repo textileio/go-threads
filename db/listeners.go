@@ -36,8 +36,8 @@ func (d *DB) notifyStateChanged(actions []Action) {
 	d.stateChangedNotifee.notify(actions)
 }
 
-func (d *DB) notifyTxnEvents(node format.Node, creds thread.Auth) error {
-	return d.localEventsBus.Send(node, creds)
+func (d *DB) notifyTxnEvents(node format.Node, auth *thread.Auth) error {
+	return d.localEventsBus.Send(node, auth)
 }
 
 type ActionType int

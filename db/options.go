@@ -27,7 +27,7 @@ type Config struct {
 	Debug       bool
 	LowMem      bool
 	Collections []CollectionConfig
-	Auth        thread.Auth
+	Auth        *thread.Auth
 }
 
 func newDefaultEventCodec() core.EventCodec {
@@ -79,17 +79,17 @@ func WithEventCodec(ec core.EventCodec) Option {
 	}
 }
 
-// WithAuth provides authentication for cerating a new db.
-func WithAuth(cr thread.Auth) Option {
+// WithDBAuth provides authentication for interacting with a db.
+func WithDBAuth(a *thread.Auth) Option {
 	return func(sc *Config) error {
-		sc.Auth = cr
+		sc.Auth = a
 		return nil
 	}
 }
 
-// WithCollections is used to specify collections that
+// WithDBCollections is used to specify collections that
 // will be created.
-func WithCollections(cs ...CollectionConfig) Option {
+func WithDBCollections(cs ...CollectionConfig) Option {
 	return func(sc *Config) error {
 		sc.Collections = cs
 		return nil
@@ -98,39 +98,54 @@ func WithCollections(cs ...CollectionConfig) Option {
 
 // TxnOptions defines options for a transaction.
 type TxnOptions struct {
-	Auth thread.Auth
+	Auth *thread.Auth
 }
 
 // TxnOption specifies a transaction option.
 type TxnOption func(*TxnOptions)
 
 // WithTxnAuth provides authentication for the transaction.
-func WithTxnAuth(cr thread.Auth) TxnOption {
+func WithTxnAuth(a *thread.Auth) TxnOption {
 	return func(args *TxnOptions) {
-		args.Auth = cr
+		args.Auth = a
 	}
 }
 
-// ManagerOptions defines options for a db manager.
-type ManagerOptions struct {
+// NewManagedDBOptions defines options for creating a new managed db.
+type NewManagedDBOptions struct {
 	Collections []CollectionConfig
-	Auth        thread.Auth
+	Auth        *thread.Auth
 }
 
-// ManagerOption specifies a manager option.
-type ManagerOption func(*ManagerOptions)
+// NewManagedDBOption specifies a new managed db option.
+type NewManagedDBOption func(*NewManagedDBOptions)
 
-// WithManagerCollections is used to specify collections that
+// WithNewManagedDBCollections is used to specify collections that
 // will be created in a managed db.
-func WithManagerCollections(cs ...CollectionConfig) ManagerOption {
-	return func(args *ManagerOptions) {
+func WithNewManagedDBCollections(cs ...CollectionConfig) NewManagedDBOption {
+	return func(args *NewManagedDBOptions) {
 		args.Collections = cs
 	}
 }
 
-// WithManagerAuth provides authentication for interacting with a managed db.
-func WithManagerAuth(cr thread.Auth) ManagerOption {
-	return func(args *ManagerOptions) {
-		args.Auth = cr
+// WithNewManagedDBAuth provides authentication for interacting with a managed db.
+func WithNewManagedDBAuth(a *thread.Auth) NewManagedDBOption {
+	return func(args *NewManagedDBOptions) {
+		args.Auth = a
+	}
+}
+
+// ManagedDBOptions defines options for interacting with a managed db.
+type ManagedDBOptions struct {
+	Auth *thread.Auth
+}
+
+// ManagedDBOption specifies a managed db option.
+type ManagedDBOption func(*ManagedDBOptions)
+
+// WithManagedDBAuth provides authentication for interacting with a managed db.
+func WithManagedDBAuth(a *thread.Auth) ManagedDBOption {
+	return func(args *ManagedDBOptions) {
+		args.Auth = a
 	}
 }

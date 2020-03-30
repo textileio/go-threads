@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -23,11 +24,11 @@ type myCounter struct {
 func runWriterPeer(repo string) {
 	fmt.Printf("I'm a writer\n")
 
-	n, err := db.DefaultNetwork(repo)
+	n, err := common.DefaultNetwork(repo)
 	checkErr(err)
 	defer n.Close()
-	creds := thread.NewDefaultCreds(thread.NewIDV1(thread.Raw, 32))
-	d, err := db.NewDB(context.Background(), n, creds, db.WithRepoPath(repo))
+	id := thread.NewIDV1(thread.Raw, 32)
+	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(repo))
 	checkErr(err)
 	defer d.Close()
 
@@ -54,7 +55,7 @@ func runWriterPeer(repo string) {
 		checkErr(err)
 	}
 
-	saveThreadMultiaddrForOtherPeer(n, creds)
+	saveThreadMultiaddrForOtherPeer(n, id)
 
 	ticker1 := time.NewTicker(time.Millisecond * 1000)
 	for range ticker1.C {
@@ -73,13 +74,13 @@ func runWriterPeer(repo string) {
 	}
 }
 
-func saveThreadMultiaddrForOtherPeer(n net.Net, creds thread.Auth) {
-	tinfo, err := n.GetThread(context.Background(), creds)
+func saveThreadMultiaddrForOtherPeer(n net.Net, threadID thread.ID) {
+	tinfo, err := n.GetThread(context.Background(), threadID)
 	checkErr(err)
 
 	// Create listen addr
 	id, _ := multiaddr.NewComponent("p2p", n.Host().ID().String())
-	threadComp, _ := multiaddr.NewComponent("thread", creds.ThreadID().String())
+	threadComp, _ := multiaddr.NewComponent("thread", threadID.String())
 
 	listenAddr := n.Host().Addrs()[0].Encapsulate(id).Encapsulate(threadComp).String()
 	key := tinfo.Key.String()

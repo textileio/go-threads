@@ -9,38 +9,58 @@ import (
 	"github.com/textileio/go-threads/db"
 )
 
-// WriteTransaction encapsulates a write transaction
+// WriteTransaction encapsulates a write transaction.
 type WriteTransaction struct {
 	client         pb.API_WriteTransactionClient
-	creds          thread.Auth
+	dbID           thread.ID
+	auth           *thread.Auth
 	collectionName string
 }
 
-// Start starts the write transaction
+// Start starts the write transaction.
 func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
-	signed, err := signCreds(t.creds)
+	body := &pb.StartTransactionRequest_Body{
+		DbID:           t.dbID.Bytes(),
+		CollectionName: t.collectionName,
+	}
+	header, err := getHeader(t.auth, body)
 	if err != nil {
 		return nil, err
 	}
 	innerReq := &pb.StartTransactionRequest{
-		Credentials:    signed,
-		CollectionName: t.collectionName,
+		Header: header,
+		Body:   body,
 	}
 	option := &pb.WriteTransactionRequest_StartTransactionRequest{
 		StartTransactionRequest: innerReq,
 	}
-	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	if err := t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return nil, err
 	}
 	return t.end, nil
 }
 
-// Has runs a has query in the active transaction
+// Has runs a has query in the active transaction.
 func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
-	innerReq := &pb.HasRequest{InstanceIDs: instanceIDs}
-	option := &pb.WriteTransactionRequest_HasRequest{HasRequest: innerReq}
-	var err error
-	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	body := &pb.HasRequest_Body{
+		InstanceIDs: instanceIDs,
+	}
+	header, err := getHeader(t.auth, body)
+	if err != nil {
+		return false, err
+	}
+	innerReq := &pb.HasRequest{
+		Header: header,
+		Body:   body,
+	}
+	option := &pb.WriteTransactionRequest_HasRequest{
+		HasRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return false, err
 	}
 	var resp *pb.WriteTransactionReply
@@ -55,12 +75,25 @@ func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
 	}
 }
 
-// FindByID gets the instance with the specified ID
+// FindByID gets the instance with the specified ID.
 func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) error {
-	innerReq := &pb.FindByIDRequest{InstanceID: instanceID}
-	option := &pb.WriteTransactionRequest_FindByIDRequest{FindByIDRequest: innerReq}
-	var err error
-	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	body := &pb.FindByIDRequest_Body{
+		InstanceID: instanceID,
+	}
+	header, err := getHeader(t.auth, body)
+	if err != nil {
+		return err
+	}
+	innerReq := &pb.FindByIDRequest{
+		Header: header,
+		Body:   body,
+	}
+	option := &pb.WriteTransactionRequest_FindByIDRequest{
+		FindByIDRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return err
 	}
 	var resp *pb.WriteTransactionReply
@@ -76,15 +109,29 @@ func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) err
 	}
 }
 
-// Find finds instances by query
-func (t *WriteTransaction) Find(query *db.Query, dummySlice interface{}) (interface{}, error) {
+// Find finds instances by query.
+func (t *WriteTransaction) Find(query *db.Query, dummy interface{}) (interface{}, error) {
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
-	innerReq := &pb.FindRequest{QueryJSON: queryBytes}
-	option := &pb.WriteTransactionRequest_FindRequest{FindRequest: innerReq}
-	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	body := &pb.FindRequest_Body{
+		QueryJSON: queryBytes,
+	}
+	header, err := getHeader(t.auth, body)
+	if err != nil {
+		return nil, err
+	}
+	innerReq := &pb.FindRequest{
+		Header: header,
+		Body:   body,
+	}
+	option := &pb.WriteTransactionRequest_FindRequest{
+		FindRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return nil, err
 	}
 	var resp *pb.WriteTransactionReply
@@ -93,23 +140,35 @@ func (t *WriteTransaction) Find(query *db.Query, dummySlice interface{}) (interf
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_FindReply:
-		return processFindReply(x.FindReply, dummySlice)
+		return processFindReply(x.FindReply, dummy)
 	default:
 		return nil, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 
-// Create creates new instances of objects
+// Create creates new instances of objects.
 func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	values, err := marshalItems(items)
 	if err != nil {
 		return nil, err
 	}
-	innerReq := &pb.CreateRequest{
+	body := &pb.CreateRequest_Body{
 		Instances: values,
 	}
-	option := &pb.WriteTransactionRequest_CreateRequest{CreateRequest: innerReq}
-	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	header, err := getHeader(t.auth, body)
+	if err != nil {
+		return nil, err
+	}
+	innerReq := &pb.CreateRequest{
+		Header: header,
+		Body:   body,
+	}
+	option := &pb.WriteTransactionRequest_CreateRequest{
+		CreateRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return nil, err
 	}
 	var resp *pb.WriteTransactionReply
@@ -124,17 +183,29 @@ func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	}
 }
 
-// Save saves existing instances
+// Save saves existing instances.
 func (t *WriteTransaction) Save(items ...interface{}) error {
 	values, err := marshalItems(items)
 	if err != nil {
 		return err
 	}
-	innerReq := &pb.SaveRequest{
+	body := &pb.SaveRequest_Body{
 		Instances: values,
 	}
-	option := &pb.WriteTransactionRequest_SaveRequest{SaveRequest: innerReq}
-	if err = t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	header, err := getHeader(t.auth, body)
+	if err != nil {
+		return err
+	}
+	innerReq := &pb.SaveRequest{
+		Header: header,
+		Body:   body,
+	}
+	option := &pb.WriteTransactionRequest_SaveRequest{
+		SaveRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return err
 	}
 	var resp *pb.WriteTransactionReply
@@ -149,17 +220,28 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 	}
 }
 
-// Delete deletes data
+// Delete deletes data.
 func (t *WriteTransaction) Delete(instanceIDs ...string) error {
-	innerReq := &pb.DeleteRequest{
+	body := &pb.DeleteRequest_Body{
 		InstanceIDs: instanceIDs,
 	}
-	option := &pb.WriteTransactionRequest_DeleteRequest{DeleteRequest: innerReq}
-	if err := t.client.Send(&pb.WriteTransactionRequest{Option: option}); err != nil {
+	header, err := getHeader(t.auth, body)
+	if err != nil {
+		return err
+	}
+	innerReq := &pb.DeleteRequest{
+		Header: header,
+		Body:   body,
+	}
+	option := &pb.WriteTransactionRequest_DeleteRequest{
+		DeleteRequest: innerReq,
+	}
+	if err := t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
 		return err
 	}
 	var resp *pb.WriteTransactionReply
-	var err error
 	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
@@ -171,7 +253,7 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 	}
 }
 
-// end ends the active transaction
+// end ends the active transaction.
 func (t *WriteTransaction) end() error {
 	return t.client.CloseSend()
 }

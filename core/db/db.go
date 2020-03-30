@@ -37,10 +37,10 @@ func NewLocalEventsBus() *LocalEventsBus {
 	return &LocalEventsBus{bus: broadcast.NewBroadcaster(0)}
 }
 
-// Send an IPLD node and thread credentials into the bus.
+// Send an IPLD node and thread auth into the bus.
 // These are received by the thead connector and written to the underlying thread.
-func (leb *LocalEventsBus) Send(node format.Node, creds thread.Auth) error {
-	return leb.bus.SendWithTimeout(&LocalEvent{Node: node, Credentials: creds}, busTimeout)
+func (leb *LocalEventsBus) Send(node format.Node, auth *thread.Auth) error {
+	return leb.bus.SendWithTimeout(&LocalEvent{Node: node, Auth: auth}, busTimeout)
 }
 
 // Listen returns a local event listener.
@@ -63,10 +63,10 @@ func (leb *LocalEventsBus) Discard() {
 	leb.bus.Discard()
 }
 
-// LocalEvent wraps a IPLD node and needed credentials for delivery to a thread.
+// LocalEvent wraps an IPLD node and auth for delivery to a thread.
 type LocalEvent struct {
-	Credentials thread.Auth
-	Node        format.Node
+	Node format.Node
+	Auth *thread.Auth
 }
 
 // LocalEventListener notifies about new locally generated ipld.Nodes results

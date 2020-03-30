@@ -149,7 +149,7 @@ func find(id thread.ID, collection string) {
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	rawResults, err := apiClient.Find(ctx, thread.NewDefaultCreds(id), collection, &db.Query{}, []*any{})
+	rawResults, err := apiClient.Find(ctx, id, collection, &db.Query{}, &any{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -169,7 +169,7 @@ func findByID(id thread.ID, collection string, instanceID string) {
 	defer cancel()
 
 	instance := &any{}
-	err := apiClient.FindByID(ctx, thread.NewDefaultCreds(id), collection, instanceID, instance)
+	err := apiClient.FindByID(ctx, id, collection, instanceID, instance)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -179,7 +179,7 @@ func findByID(id thread.ID, collection string, instanceID string) {
 }
 
 func backgroundListen(ctx context.Context, id thread.ID) {
-	channel, err := apiClient.Listen(ctx, thread.NewDefaultCreds(id))
+	channel, err := apiClient.Listen(ctx, id, []client.ListenOption{})
 	if err != nil {
 		fmt.Println(err.Error())
 		resetPrefix()

@@ -61,10 +61,10 @@ func TestManager_NewDB(t *testing.T) {
 		defer clean()
 		_, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
-		// NewDB with author
+		// NewDB with auth
 		sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithManagerAuth(thread.NewPrivKeyAuth(sk)))
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedDBAuth(thread.NewAuthFromPrivKey(sk)))
 		checkErr(t, err)
 	})
 }

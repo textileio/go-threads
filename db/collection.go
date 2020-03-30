@@ -264,7 +264,7 @@ var _ Indexer = (*Collection)(nil)
 // serializable isolation level within the db.
 type Txn struct {
 	collection *Collection
-	auth       thread.Auth
+	auth       *thread.Auth
 	discarded  bool
 	commited   bool
 	readonly   bool

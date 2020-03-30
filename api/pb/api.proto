@@ -6,14 +6,9 @@ option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THREADS";
 
-message Credentials {
-    bytes threadID = 1;
-    bytes pubKey = 2;
-    bytes signature = 3;
-}
-
-message NewDBRequest {
-    Credentials credentials = 1;
+message Header {
+    bytes pubKey = 1;
+    bytes signature = 2;
 }
 
 message CollectionConfig {
@@ -27,35 +22,64 @@ message CollectionConfig {
     }
 }
 
+message NewDBRequest {
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        repeated CollectionConfig collections = 2;
+    }
+}
+
 message NewDBFromAddrRequest {
-    Credentials credentials = 1;
-    string addr = 2;
-    bytes key = 3;
-    repeated CollectionConfig collections = 4;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes addr = 1;
+        bytes key = 2;
+        repeated CollectionConfig collections = 3;
+    }
 }
 
 message NewDBReply {}
 
 message GetDBInfoRequest {
-    Credentials credentials = 1;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+    }
 }
 
 message GetDBInfoReply {
-    repeated string addresses = 1;
+    repeated bytes addrs = 1;
     bytes key = 2;
 }
 
 message NewCollectionRequest {
-    Credentials credentials = 1;
-    CollectionConfig config = 2;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        CollectionConfig config = 2;
+    }
 }
 
 message NewCollectionReply {}
 
 message CreateRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
-    repeated bytes instances = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+        repeated bytes instances = 3;
+    }
 }
 
 message CreateReply {
@@ -63,25 +87,40 @@ message CreateReply {
 }
 
 message SaveRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
-    repeated bytes instances = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+        repeated bytes instances = 3;
+    }
 }
 
 message SaveReply {}
 
 message DeleteRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
-    repeated string instanceIDs = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+        repeated string instanceIDs = 3;
+    }
 }
 
 message DeleteReply {}
 
 message HasRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
-    repeated string instanceIDs = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+        repeated string instanceIDs = 3;
+    }
 }
 
 message HasReply {
@@ -89,9 +128,14 @@ message HasReply {
 }
 
 message FindRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
-    bytes queryJSON = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+        bytes queryJSON = 3;
+    }
 }
 
 message FindReply {
@@ -99,9 +143,14 @@ message FindReply {
 }
 
 message FindByIDRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
-    string instanceID = 3;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+        string instanceID = 3;
+    }
 }
 
 message FindByIDReply {
@@ -109,8 +158,13 @@ message FindByIDReply {
 }
 
 message StartTransactionRequest {
-    Credentials credentials = 1;
-    string collectionName = 2;
+    Header header = 1;
+    Body body = 2;
+
+    message Body {
+        bytes dbID = 1;
+        string collectionName = 2;
+    }
 }
 
 message ReadTransactionRequest {
@@ -154,19 +208,24 @@ message WriteTransactionReply {
 }
 
 message ListenRequest {
-    Credentials credentials = 1;
-    repeated Filter filters = 2;
+    Header header = 1;
+    Body body = 2;
 
-    message Filter {
-        string collectionName = 1;
-        string instanceID = 2;
-        enum Action {
-            ALL = 0;
-            CREATE = 1;
-            SAVE = 2;
-            DELETE = 3;
+    message Body {
+        bytes dbID = 1;
+        repeated Filter filters = 2;
+
+        message Filter {
+            string collectionName = 1;
+            string instanceID = 2;
+            enum Action {
+                ALL = 0;
+                CREATE = 1;
+                SAVE = 2;
+                DELETE = 3;
+            }
+            Action action = 3;
         }
-        Action action = 3;
     }
 }
 

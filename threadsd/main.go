@@ -15,7 +15,7 @@ import (
 	"github.com/namsral/flag"
 	"github.com/textileio/go-threads/api"
 	pb "github.com/textileio/go-threads/api/pb"
-	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/common"
 	netapi "github.com/textileio/go-threads/net/api"
 	netpb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
@@ -62,7 +62,7 @@ func main() {
 	log.Debugf("apiProxyAddr: %v", *apiProxyAddrStr)
 	log.Debugf("debug: %v", *debug)
 
-	n, err := db.DefaultNetwork(*repo, db.WithNetHostAddr(hostAddr), db.WithNetDebug(*debug))
+	n, err := common.DefaultNetwork(*repo, common.WithNetHostAddr(hostAddr), common.WithNetDebug(*debug))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
@@ -47,7 +48,7 @@ func main() {
 			Author: "Author1",
 			Meta:   bookStats{TotalReads: 150, Rating: 4.1},
 		}
-		_, err := collection.Create(util.JSONFromInstance(book1), util.JSONFromInstance(book2)) // Note you can create multiple books at the same time (variadic)
+		_, err := collection.CreateMany([][]byte{util.JSONFromInstance(book1), util.JSONFromInstance(book2)})
 		checkErr(err)
 
 		// Create book for Author2
@@ -178,10 +179,10 @@ func main() {
 func createMemDB() (*db.DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	n, err := db.DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir)
 	checkErr(err)
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := db.NewDB(context.Background(), n, thread.NewDefaultCreds(id), db.WithRepoPath(dir))
+	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(dir))
 	checkErr(err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work
