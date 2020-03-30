@@ -38,8 +38,8 @@ type Config struct {
 	Debug    bool
 }
 
-// NewService starts and returns a new service with the given threadservice.
-// The threadnet is *not* managed by the server.
+// NewService starts and returns a new service with the given network.
+// The network is *not* managed by the server.
 func NewService(network core.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {

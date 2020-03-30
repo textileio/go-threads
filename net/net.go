@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	log = logging.Logger("threadnet")
+	log = logging.Logger("net")
 
 	// MaxPullLimit is the maximum page size for pulling records.
 	MaxPullLimit = 10000

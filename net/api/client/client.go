@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var log = logging.Logger("threadserviceclient")
+var log = logging.Logger("netclient")
 
 // Client provides the client api.
 type Client struct {

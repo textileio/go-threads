@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	log = logging.Logger("threadserviceapi")
+	log = logging.Logger("netapi")
 )
 
 // Service is a gRPC service for a thread network.
