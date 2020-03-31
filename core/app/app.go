@@ -44,7 +44,7 @@ func NewLocalEventsBus() *LocalEventsBus {
 
 // Send an IPLD node and thread auth into the bus.
 // These are received by the app connector and written to the underlying thread.
-func (leb *LocalEventsBus) Send(node format.Node, auth *thread.Auth) error {
+func (leb *LocalEventsBus) Send(node format.Node, auth thread.Auth) error {
 	return leb.bus.SendWithTimeout(&LocalEvent{Node: node, Auth: auth}, busTimeout)
 }
 
@@ -71,7 +71,7 @@ func (leb *LocalEventsBus) Discard() {
 // LocalEvent wraps an IPLD node and auth for delivery to a thread.
 type LocalEvent struct {
 	Node format.Node
-	Auth *thread.Auth
+	Auth thread.Auth
 }
 
 // LocalEventListener notifies about new locally generated events.

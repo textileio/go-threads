@@ -210,8 +210,7 @@ func TestClient_AddRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	auth := thread.NewAuthFromPrivKey(authorSk)
-	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewThreadAuth(auth))
+	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewThreadIdentity(authorSk))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +351,7 @@ func TestClient_Close(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := NewClient(target, grpc.WithInsecure())
+	client, err := NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +369,7 @@ func setup(t *testing.T) (ma.Multiaddr, *Client, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := NewClient(target, grpc.WithInsecure())
+	client, err := NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
 	if err != nil {
 		t.Fatal(err)
 	}

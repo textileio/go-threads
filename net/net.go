@@ -165,12 +165,17 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	for _, opt := range opts {
 		opt(args)
 	}
-
-	// @todo: Verify identity and check against ACL.
-	//identity, err := args.Auth.Verify()
-	//if err != nil {
-	//	return
-	//}
+	identity, err := args.Auth.Verify(thread.CreateThread, id, args)
+	if err != nil {
+		return
+	}
+	if identity != nil {
+		iid, err := peer.IDFromPublicKey(identity)
+		if err != nil {
+			return info, err
+		}
+		log.Debugf("👋 %s", iid)
+	}
 
 	if err = n.ensureUnique(id); err != nil {
 		return

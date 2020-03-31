@@ -27,7 +27,7 @@ type Config struct {
 	Debug       bool
 	LowMem      bool
 	Collections []CollectionConfig
-	Auth        *thread.Auth
+	Auth        thread.Auth
 }
 
 func newDefaultEventCodec() core.EventCodec {
@@ -79,8 +79,8 @@ func WithEventCodec(ec core.EventCodec) Option {
 	}
 }
 
-// WithDBAuth provides authentication for interacting with a db.
-func WithDBAuth(a *thread.Auth) Option {
+// WithDBAuth provides authorization for interacting with a db.
+func WithDBAuth(a thread.Auth) Option {
 	return func(sc *Config) error {
 		sc.Auth = a
 		return nil
@@ -98,14 +98,14 @@ func WithDBCollections(cs ...CollectionConfig) Option {
 
 // TxnOptions defines options for a transaction.
 type TxnOptions struct {
-	Auth *thread.Auth
+	Auth thread.Auth
 }
 
 // TxnOption specifies a transaction option.
 type TxnOption func(*TxnOptions)
 
-// WithTxnAuth provides authentication for the transaction.
-func WithTxnAuth(a *thread.Auth) TxnOption {
+// WithTxnAuth provides authorization for the transaction.
+func WithTxnAuth(a thread.Auth) TxnOption {
 	return func(args *TxnOptions) {
 		args.Auth = a
 	}
@@ -114,7 +114,7 @@ func WithTxnAuth(a *thread.Auth) TxnOption {
 // NewManagedDBOptions defines options for creating a new managed db.
 type NewManagedDBOptions struct {
 	Collections []CollectionConfig
-	Auth        *thread.Auth
+	Auth        thread.Auth
 }
 
 // NewManagedDBOption specifies a new managed db option.
@@ -128,8 +128,8 @@ func WithNewManagedDBCollections(cs ...CollectionConfig) NewManagedDBOption {
 	}
 }
 
-// WithNewManagedDBAuth provides authentication for interacting with a managed db.
-func WithNewManagedDBAuth(a *thread.Auth) NewManagedDBOption {
+// WithNewManagedDBAuth provides authorization for interacting with a managed db.
+func WithNewManagedDBAuth(a thread.Auth) NewManagedDBOption {
 	return func(args *NewManagedDBOptions) {
 		args.Auth = a
 	}
@@ -137,14 +137,14 @@ func WithNewManagedDBAuth(a *thread.Auth) NewManagedDBOption {
 
 // ManagedDBOptions defines options for interacting with a managed db.
 type ManagedDBOptions struct {
-	Auth *thread.Auth
+	Auth thread.Auth
 }
 
 // ManagedDBOption specifies a managed db option.
 type ManagedDBOption func(*ManagedDBOptions)
 
-// WithManagedDBAuth provides authentication for interacting with a managed db.
-func WithManagedDBAuth(a *thread.Auth) ManagedDBOption {
+// WithManagedDBAuth provides authorization for interacting with a managed db.
+func WithManagedDBAuth(a thread.Auth) ManagedDBOption {
 	return func(args *ManagedDBOptions) {
 		args.Auth = a
 	}

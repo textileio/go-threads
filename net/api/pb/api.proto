@@ -6,11 +6,6 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
-message Header {
-    bytes pubKey = 1;
-    bytes signature = 2;
-}
-
 message GetHostIDRequest {}
 
 message GetHostIDReply {
@@ -23,13 +18,8 @@ message Keys {
 }
 
 message CreateThreadRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-        Keys keys = 2;
-    }
+    bytes threadID = 1;
+    Keys keys = 2;
 }
 
 message LogInfo {
@@ -47,54 +37,29 @@ message ThreadInfoReply {
 }
 
 message AddThreadRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes addr = 1;
-        Keys keys = 2;
-    }
+    bytes addr = 1;
+    Keys keys = 2;
 }
 
 message GetThreadRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-    }
+    bytes threadID = 1;
 }
 
 message PullThreadRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-    }
+    bytes threadID = 1;
 }
 
 message PullThreadReply {}
 
 message DeleteThreadRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-    }
+    bytes threadID = 1;
 }
 
 message DeleteThreadReply {}
 
 message AddReplicatorRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-        bytes addr = 2;
-    }
+    bytes threadID = 1;
+    bytes addr = 2;
 }
 
 message AddReplicatorReply {
@@ -102,13 +67,8 @@ message AddReplicatorReply {
 }
 
 message CreateRecordRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-        bytes body = 2;
-    }
+    bytes threadID = 1;
+    bytes body = 2;
 }
 
 message Record {
@@ -125,26 +85,16 @@ message NewRecordReply {
 }
 
 message AddRecordRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-        bytes logID = 2;
-        Record record = 3;
-    }
+    bytes threadID = 1;
+    bytes logID = 2;
+    Record record = 3;
 }
 
 message AddRecordReply {}
 
 message GetRecordRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes threadID = 1;
-        bytes recordID = 2;
-    }
+    bytes threadID = 1;
+    bytes recordID = 2;
 }
 
 message GetRecordReply {
@@ -152,12 +102,7 @@ message GetRecordReply {
 }
 
 message SubscribeRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        repeated bytes threadIDs = 1;
-    }
+    repeated bytes threadIDs = 1;
 }
 
 service API {
