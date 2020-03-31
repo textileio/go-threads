@@ -165,6 +165,13 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	for _, opt := range opts {
 		opt(args)
 	}
+	// @todo: Add this override check to all methods.
+	if args.Identity != nil {
+		args.Auth, err = thread.NewAuth(args.Identity, thread.CreateThread, id, args)
+		if err != nil {
+			return
+		}
+	}
 	if _, err = args.Auth.Verify(thread.CreateThread, id, args); err != nil {
 		return
 	}

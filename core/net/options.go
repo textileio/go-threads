@@ -54,7 +54,6 @@ func WithNewThreadIdentity(i thread.Identity) NewThreadOption {
 }
 
 // WithNewThreadAuth provides authentication for creating / adding a new thread.
-// This option should only be used directly by apps that receive auth over an API.
 func WithNewThreadAuth(a thread.Auth) NewThreadOption {
 	return func(args *NewThreadOptions) {
 		args.Auth = a
@@ -83,7 +82,6 @@ func WithThreadIdentity(i thread.Identity) ThreadOption {
 }
 
 // WithThreadAuth provides authorization for interacting with a thread.
-// This option should only be used directly by apps that receive auth over an API.
 func WithThreadAuth(a thread.Auth) ThreadOption {
 	return func(args *ThreadOptions) {
 		args.Auth = a

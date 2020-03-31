@@ -27,7 +27,7 @@ type Config struct {
 	Debug       bool
 	LowMem      bool
 	Collections []CollectionConfig
-	Auth        thread.Auth
+	Identity    thread.Identity
 }
 
 func newDefaultEventCodec() core.EventCodec {
@@ -48,24 +48,24 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 
 // WithLowMem specifies whether or not to use low memory settings.
 func WithLowMem(low bool) Option {
-	return func(sc *Config) error {
-		sc.LowMem = low
+	return func(c *Config) error {
+		c.LowMem = low
 		return nil
 	}
 }
 
 // WithRepoPath sets the repo path.
 func WithRepoPath(path string) Option {
-	return func(sc *Config) error {
-		sc.RepoPath = path
+	return func(c *Config) error {
+		c.RepoPath = path
 		return nil
 	}
 }
 
 // WithDebug indicate to output debug information.
 func WithDebug(enable bool) Option {
-	return func(sc *Config) error {
-		sc.Debug = enable
+	return func(c *Config) error {
+		c.Debug = enable
 		return nil
 	}
 }
@@ -73,16 +73,16 @@ func WithDebug(enable bool) Option {
 // WithEventCodec configure to use ec as the EventCodec
 // for transforming actions in events, and viceversa.
 func WithEventCodec(ec core.EventCodec) Option {
-	return func(sc *Config) error {
-		sc.EventCodec = ec
+	return func(c *Config) error {
+		c.EventCodec = ec
 		return nil
 	}
 }
 
-// WithDBAuth provides authorization for interacting with a db.
-func WithDBAuth(a thread.Auth) Option {
-	return func(sc *Config) error {
-		sc.Auth = a
+// WithDBIdentity provides a signing identity for interacting with a db.
+func WithDBIdentity(i thread.Identity) Option {
+	return func(c *Config) error {
+		c.Identity = i
 		return nil
 	}
 }
@@ -90,19 +90,28 @@ func WithDBAuth(a thread.Auth) Option {
 // WithDBCollections is used to specify collections that
 // will be created.
 func WithDBCollections(cs ...CollectionConfig) Option {
-	return func(sc *Config) error {
-		sc.Collections = cs
+	return func(c *Config) error {
+		c.Collections = cs
 		return nil
 	}
 }
 
 // TxnOptions defines options for a transaction.
 type TxnOptions struct {
-	Auth thread.Auth
+	Identity thread.Identity
+	Auth     thread.Auth
 }
 
 // TxnOption specifies a transaction option.
 type TxnOption func(*TxnOptions)
+
+// WithTxnIdentity provides a signing identity for the transaction.
+// This option will overwrite WithTxnAuth.
+func WithTxnIdentity(i thread.Identity) TxnOption {
+	return func(args *TxnOptions) {
+		args.Identity = i
+	}
+}
 
 // WithTxnAuth provides authorization for the transaction.
 func WithTxnAuth(a thread.Auth) TxnOption {
@@ -114,6 +123,7 @@ func WithTxnAuth(a thread.Auth) TxnOption {
 // NewManagedDBOptions defines options for creating a new managed db.
 type NewManagedDBOptions struct {
 	Collections []CollectionConfig
+	Identity    thread.Identity
 	Auth        thread.Auth
 }
 
@@ -128,7 +138,15 @@ func WithNewManagedDBCollections(cs ...CollectionConfig) NewManagedDBOption {
 	}
 }
 
-// WithNewManagedDBAuth provides authorization for interacting with a managed db.
+// WithNewManagedDBIdentity provides a signing identity for creating a new managed db.
+// This option will overwrite WithNewManagedDBAuth.
+func WithNewManagedDBIdentity(i thread.Identity) NewManagedDBOption {
+	return func(args *NewManagedDBOptions) {
+		args.Identity = i
+	}
+}
+
+// WithNewManagedDBAuth provides authorization for creating a new managed db.
 func WithNewManagedDBAuth(a thread.Auth) NewManagedDBOption {
 	return func(args *NewManagedDBOptions) {
 		args.Auth = a
@@ -137,11 +155,20 @@ func WithNewManagedDBAuth(a thread.Auth) NewManagedDBOption {
 
 // ManagedDBOptions defines options for interacting with a managed db.
 type ManagedDBOptions struct {
-	Auth thread.Auth
+	Identity thread.Identity
+	Auth     thread.Auth
 }
 
 // ManagedDBOption specifies a managed db option.
 type ManagedDBOption func(*ManagedDBOptions)
+
+// WithManagedDBIdentity provides a signing identity for interacting with a managed db.
+// This option will overwrite WithManagedDBAuth.
+func WithManagedDBIdentity(i thread.Identity) ManagedDBOption {
+	return func(args *ManagedDBOptions) {
+		args.Identity = i
+	}
+}
 
 // WithManagedDBAuth provides authorization for interacting with a managed db.
 func WithManagedDBAuth(a thread.Auth) ManagedDBOption {

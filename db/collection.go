@@ -270,6 +270,7 @@ var _ Indexer = (*Collection)(nil)
 // serializable isolation level within the db.
 type Txn struct {
 	collection *Collection
+	identity   thread.Identity
 	auth       thread.Auth
 	discarded  bool
 	commited   bool
@@ -441,7 +442,7 @@ func (t *Txn) Commit() error {
 	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
-	return t.collection.db.notifyTxnEvents(node, t.auth)
+	return t.collection.db.notifyTxnEvents(node, t.auth, t.identity)
 }
 
 // Discard discards all changes done in the current
