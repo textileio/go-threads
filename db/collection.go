@@ -170,10 +170,16 @@ func (c *Collection) FindByID(id core.InstanceID, opts ...TxnOption) (instance [
 }
 
 // Create creates an instance in the collection.
-func (c *Collection) Create(v []byte, opts ...TxnOption) (ids []core.InstanceID, err error) {
+func (c *Collection) Create(v []byte, opts ...TxnOption) (id core.InstanceID, err error) {
 	_ = c.WriteTxn(func(txn *Txn) error {
-		ids, err = txn.Create(v)
-		return err
+		ids, err := txn.Create(v)
+		if err != nil {
+			return err
+		}
+		if len(ids) > 0 {
+			id = ids[0]
+		}
+		return nil
 	}, opts...)
 	return
 }

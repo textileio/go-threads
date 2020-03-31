@@ -122,7 +122,7 @@ func BenchmarkNoIndexSave(b *testing.B) {
 	checkBenchErr(b, err)
 
 	var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
-	res, err := collection.Create(benchItem)
+	res, err := collection.CreateMany([][]byte{benchItem})
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -157,7 +157,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	checkBenchErr(b, err)
 
 	var benchItem = []byte(`{"ID": "", "Name": "Lucas", "Age": 7}`)
-	res, err := collection.Create(benchItem)
+	res, err := collection.CreateMany([][]byte{benchItem})
 	checkBenchErr(b, err)
 
 	b.ResetTimer()

@@ -64,6 +64,7 @@ func (leb *LocalEventsBus) Listen() *LocalEventListener {
 	return l
 }
 
+// Discard the bus, closing all listeners.
 func (leb *LocalEventsBus) Discard() {
 	leb.bus.Discard()
 }

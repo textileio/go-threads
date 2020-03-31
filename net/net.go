@@ -165,16 +165,8 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	for _, opt := range opts {
 		opt(args)
 	}
-	identity, err := args.Auth.Verify(thread.CreateThread, id, args)
-	if err != nil {
+	if _, err = args.Auth.Verify(thread.CreateThread, id, args); err != nil {
 		return
-	}
-	if identity != nil {
-		iid, err := peer.IDFromPublicKey(identity)
-		if err != nil {
-			return info, err
-		}
-		log.Debugf("👋 %s", iid)
 	}
 
 	if err = n.ensureUnique(id); err != nil {
@@ -220,6 +212,10 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	for _, opt := range opts {
 		opt(args)
 	}
+	if _, err = args.Auth.Verify(thread.AddThread, addr, args); err != nil {
+		return
+	}
+
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return
@@ -272,10 +268,13 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	return n.store.GetThread(id)
 }
 
-func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOption) (thread.Info, error) {
+func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
 	args := &core.ThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
+	}
+	if _, err = args.Auth.Verify(thread.GetThread, id, args); err != nil {
+		return
 	}
 	return n.store.GetThread(id)
 }
@@ -296,7 +295,14 @@ func (n *net) getThreadSemaphore(id thread.ID) chan struct{} {
 	return ptl
 }
 
-func (n *net) PullThread(ctx context.Context, id thread.ID, _ ...core.ThreadOption) error {
+func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := args.Auth.Verify(thread.PullThread, id, args); err != nil {
+		return err
+	}
 	return n.pullThread(ctx, id)
 }
 
@@ -371,7 +377,15 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-func (n *net) DeleteThread(ctx context.Context, id thread.ID, _ ...core.ThreadOption) error {
+func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := args.Auth.Verify(thread.DeleteThread, id, args); err != nil {
+		return err
+	}
+
 	log.Debugf("deleting thread %s...", id)
 	ptl := n.getThreadSemaphore(id)
 	select {
@@ -414,7 +428,15 @@ func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
 	return n.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
-func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, _ ...core.ThreadOption) (pid peer.ID, err error) {
+func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err = args.Auth.Verify(thread.AddReplicator, id, paddr, args); err != nil {
+		return
+	}
+
 	info, err := n.store.GetThread(id)
 	if err != nil {
 		return
@@ -505,7 +527,15 @@ func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return ma.NewMultiaddr(parts[0])
 }
 
-func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, _ ...core.ThreadOption) (r core.ThreadRecord, err error) {
+func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (r core.ThreadRecord, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err = args.Auth.Verify(thread.CreateRecord, id, thread.NewBinaryNode(body), args); err != nil {
+		return
+	}
+
 	lg, err := n.getOrCreateOwnLog(id)
 	if err != nil {
 		return
@@ -530,7 +560,15 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	return r, nil
 }
 
-func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, _ ...core.ThreadOption) error {
+func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := args.Auth.Verify(thread.AddRecord, id, lid, thread.NewBinaryNode(rec), args); err != nil {
+		return err
+	}
+
 	logpk, err := n.store.PubKey(id, lid)
 	if err != nil {
 		return err
@@ -553,7 +591,14 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	return n.PutRecord(ctx, id, lid, rec)
 }
 
-func (n *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, _ ...core.ThreadOption) (core.Record, error) {
+func (n *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...core.ThreadOption) (core.Record, error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := args.Auth.Verify(thread.GetRecord, id, rid, args); err != nil {
+		return nil, err
+	}
 	return n.getRecord(ctx, id, rid)
 }
 
@@ -596,6 +641,10 @@ func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 	for _, opt := range opts {
 		opt(args)
 	}
+	if _, err := args.Auth.Verify(thread.Subscribe, args); err != nil {
+		return nil, err
+	}
+
 	filter := make(map[thread.ID]struct{})
 	for _, id := range args.ThreadIDs {
 		if id.Defined() {

@@ -319,11 +319,11 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 	})
 	checkErr(t, err)
 	for i := range data {
-		ids, err := c.Create(util.JSONFromInstance(data[i]))
+		id, err := c.Create(util.JSONFromInstance(data[i]))
 		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
-		data[i].ID = ids[0]
+		data[i].ID = id
 	}
 	return c, clean
 }

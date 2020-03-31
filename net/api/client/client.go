@@ -175,14 +175,6 @@ func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multi
 	return peer.IDFromBytes(resp.PeerID)
 }
 
-type bnode struct {
-	format.Node
-}
-
-func (n bnode) MarshalBinary() ([]byte, error) {
-	return n.RawData(), nil
-}
-
 func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (core.ThreadRecord, error) {
 	args := &core.ThreadOptions{}
 	for _, opt := range opts {
@@ -192,7 +184,7 @@ func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Nod
 	if err != nil {
 		return nil, err
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.CreateRecord, id, bnode{body}, args)
+	auth, err := thread.NewAuth(args.Identity, thread.CreateRecord, id, thread.NewBinaryNode(body), args)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +209,7 @@ func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec c
 	if err != nil {
 		return err
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.AddRecord, id, lid, bnode{rec}, args)
+	auth, err := thread.NewAuth(args.Identity, thread.AddRecord, id, lid, thread.NewBinaryNode(rec), args)
 	if err != nil {
 		return err
 	}

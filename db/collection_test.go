@@ -144,7 +144,7 @@ func TestCreateInstance(t *testing.T) {
 			newPerson := util.JSONFromInstance(Person{Name: "Foo", Age: 42})
 			res, err := collection.Create(newPerson)
 			checkErr(t, err)
-			newPerson = util.SetJSONID(res[0], newPerson)
+			newPerson = util.SetJSONID(res, newPerson)
 			assertPersonInCollection(t, collection, newPerson)
 		})
 		t.Run("WithTx", func(t *testing.T) {
@@ -224,7 +224,7 @@ func TestCreateInstance(t *testing.T) {
 		p := util.JSONFromInstance(Person{Name: "Foo1", Age: 42})
 		res, err := m.Create(p)
 		checkErr(t, err)
-		p2 := util.JSONFromInstance(Person{ID: res[0], Name: "Fool2", Age: 43})
+		p2 := util.JSONFromInstance(Person{ID: res, Name: "Fool2", Age: 43})
 		_, err = m.Create(p2)
 		if !errors.Is(err, errCantCreateExistingInstance) {
 			t.Fatal("shouldn't create already existing instance")
@@ -264,7 +264,7 @@ func TestReadTxnValidation(t *testing.T) {
 		p := util.JSONFromInstance(Person{Name: "Foo1", Age: 42})
 		res, err := m.Create(p)
 		checkErr(t, err)
-		p = util.SetJSONID(res[0], p)
+		p = util.SetJSONID(res, p)
 		err = m.ReadTxn(func(txn *Txn) error {
 			return txn.Save(p)
 		})
@@ -285,7 +285,7 @@ func TestReadTxnValidation(t *testing.T) {
 		res, err := m.Create(p)
 		checkErr(t, err)
 		err = m.ReadTxn(func(txn *Txn) error {
-			return txn.Delete(res[0])
+			return txn.Delete(res)
 		})
 		if !errors.Is(err, ErrReadonlyTx) {
 			t.Fatal("shouldn't write on read-only transaction")

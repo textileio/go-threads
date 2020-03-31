@@ -42,7 +42,7 @@ func TestE2EWithThreads(t *testing.T) {
 	dummyJSON := util.JSONFromInstance(dummy{Name: "Textile", Counter: 0})
 	res, err := c1.Create(dummyJSON)
 	checkErr(t, err)
-	dummyJSON = util.SetJSONID(res[0], dummyJSON)
+	dummyJSON = util.SetJSONID(res, dummyJSON)
 	dummyJSON = util.SetJSONProperty("Counter", 42, dummyJSON)
 	checkErr(t, c1.Save(dummyJSON))
 
@@ -78,7 +78,7 @@ func TestE2EWithThreads(t *testing.T) {
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
-	dummy2JSON, err := c2.FindByID(res[0])
+	dummy2JSON, err := c2.FindByID(res)
 	checkErr(t, err)
 
 	dummyInstance := &dummy{}
@@ -315,13 +315,13 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	j1 = util.SetJSONProperty("Name", "Textile33", j1)
 	checkErr(t, c2.Save(j1))
 
-	checkErr(t, c1.DeleteMany(i1Ids))
+	checkErr(t, c1.Delete(i1Ids))
 
 	// Collection2 Delete
-	checkErr(t, c2.DeleteMany(j1Ids))
+	checkErr(t, c2.Delete(j1Ids))
 
 	// Collection2 Delete i2
-	checkErr(t, c1.DeleteMany(i2Ids))
+	checkErr(t, c1.Delete(i2Ids))
 
 	l.Close()
 	cls()
