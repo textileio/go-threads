@@ -114,7 +114,7 @@ type Connector struct {
 }
 
 // Connection receives new thread records, which are pumped to the app.
-type Connection func(context.Context, map[thread.ID]struct{}) (<-chan net.ThreadRecord, error)
+type Connection func(context.Context, thread.ID) (<-chan net.ThreadRecord, error)
 
 // NewConnector creates bidirectional connection between an app and a thread.
 func NewConnector(app App, net Net, tinfo thread.Info, conn Connection) (*Connector, error) {
@@ -164,8 +164,7 @@ func (c *Connector) threadToApp(con Connection, wg *sync.WaitGroup) {
 	defer c.goRoutines.Done()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	filter := map[thread.ID]struct{}{c.threadID: {}}
-	sub, err := con(ctx, filter)
+	sub, err := con(ctx, c.threadID)
 	if err != nil {
 		log.Fatalf("error getting thread subscription: %v", err)
 	}

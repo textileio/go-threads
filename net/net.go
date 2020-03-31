@@ -641,7 +641,9 @@ func (n *net) ConnectApp(a app.App, threadID thread.ID) (*app.Connector, error) 
 	if err != nil {
 		return nil, fmt.Errorf("error getting thread %s: %v", threadID, err)
 	}
-	return app.NewConnector(a, n, info, n.subscribe)
+	return app.NewConnector(a, n, info, func(ctx context.Context, id thread.ID) (<-chan core.ThreadRecord, error) {
+		return n.subscribe(ctx, map[thread.ID]struct{}{id: {}})
+	})
 }
 
 // PutRecord adds an existing record. This method is thread-safe
