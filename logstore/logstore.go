@@ -55,12 +55,8 @@ func (ls *logstore) Close() (err error) {
 
 // Threads returns a list of the thread IDs in the store.
 func (ls *logstore) Threads() (thread.IDSlice, error) {
-	fmt.Printf("xxx Threads %p en\n", ls)
 	ls.RLock()
-	defer func() {
-		fmt.Printf("xxx Threads %p ex\n", ls)
-		ls.RUnlock()
-	}()
+	defer ls.RUnlock()
 
 	set := map[thread.ID]struct{}{}
 	threadsFromKeys, err := ls.ThreadsFromKeys()
@@ -87,12 +83,8 @@ func (ls *logstore) Threads() (thread.IDSlice, error) {
 
 // AddThread adds a thread with keys.
 func (ls *logstore) AddThread(info thread.Info) error {
-	fmt.Printf("xxx AddThread %p en\n", ls)
 	ls.Lock()
-	defer func() {
-		fmt.Printf("xxx AddThread %p ex\n", ls)
-		ls.Unlock()
-	}()
+	defer ls.Unlock()
 
 	if info.Key.Service() == nil {
 		return fmt.Errorf("a service-key is required to add a thread")
@@ -110,14 +102,9 @@ func (ls *logstore) AddThread(info thread.Info) error {
 
 // GetThread returns thread info of the given id.
 func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
-	fmt.Printf("xxx GetThread %p en\n", ls)
 	ls.RLock()
-	defer func() {
-		fmt.Printf("xxx GetThread %p ex\n", ls)
-		ls.RUnlock()
-	}()
+	defer ls.RUnlock()
 
-	fmt.Printf("xxx GetThread %p 1 ServiceKey\n", ls)
 	sk, err := ls.ServiceKey(id)
 	if err != nil {
 		return
@@ -125,13 +112,11 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 	if sk == nil {
 		return info, core.ErrThreadNotFound
 	}
-	fmt.Printf("xxx GetThread %p 2 ReadKey\n", ls)
 	rk, err := ls.ReadKey(id)
 	if err != nil {
 		return
 	}
 
-	fmt.Printf("xxx GetThread %p 3 getLogIDs\n", ls)
 	set, err := ls.getLogIDs(id)
 	if err != nil {
 		return
@@ -140,8 +125,7 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 	logs := make([]thread.LogInfo, 0, len(set))
 	count := 0
 	for l := range set {
-		fmt.Printf("xxx GetThread %p 4.%v GetLog\n", ls, count)
-		i, err := ls.GetLog(id, l)
+		i, err := ls.getLog(id, l)
 		if err != nil {
 			return info, err
 		}
@@ -177,12 +161,8 @@ func (ls *logstore) getLogIDs(id thread.ID) (map[peer.ID]struct{}, error) {
 
 // DeleteThread deletes a thread.
 func (ls *logstore) DeleteThread(id thread.ID) error {
-	fmt.Printf("xxx DeleteThread %p en\n", ls)
 	ls.Lock()
-	defer func() {
-		fmt.Printf("xxx DeleteThread %p ex\n", ls)
-		ls.Unlock()
-	}()
+	defer ls.Unlock()
 
 	if err := ls.ClearKeys(id); err != nil {
 		return err
@@ -205,12 +185,8 @@ func (ls *logstore) DeleteThread(id thread.ID) error {
 
 // AddLog adds a log under the given thread.
 func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
-	fmt.Printf("xxx AddLog %p en\n", ls)
 	ls.Lock()
-	defer func() {
-		fmt.Printf("xxx AddLog %p ex\n", ls)
-		ls.Unlock()
-	}()
+	defer ls.Unlock()
 
 	err := ls.AddPubKey(id, lg.ID, lg.PubKey)
 	if err != nil {
@@ -234,13 +210,13 @@ func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 
 // GetLog returns info about the given thread.
 func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	fmt.Printf("xxx GetLog %p en\n", ls)
 	ls.RLock()
-	defer func() {
-		fmt.Printf("xxx GetLog %p ex\n", ls)
-		ls.RUnlock()
-	}()
+	defer ls.RUnlock()
 
+	return ls.getLog(id, lid)
+}
+
+func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
 	pk, err := ls.PubKey(id, lid)
 	if err != nil {
 		return
@@ -260,7 +236,6 @@ func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	if err != nil {
 		return
 	}
-
 	info.ID = lid
 	info.PubKey = pk
 	info.PrivKey = sk
@@ -273,12 +248,8 @@ func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 
 // DeleteLog deletes a log.
 func (ls *logstore) DeleteLog(id thread.ID, lid peer.ID) (err error) {
-	fmt.Printf("xxx DeleteLog %p en\n", ls)
 	ls.Lock()
-	defer func() {
-		fmt.Printf("xxx DeleteLog %p ex\n", ls)
-		ls.Unlock()
-	}()
+	defer ls.Unlock()
 
 	if err = ls.ClearLogKeys(id, lid); err != nil {
 		return
