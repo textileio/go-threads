@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -277,10 +278,13 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	l, err := d.Listen(los...)
 	checkErr(t, err)
 	var actions []Action
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		for a := range l.Channel() {
 			actions = append(actions, a)
 		}
+		wg.Done()
 	}()
 
 	// Collection1 Save i1
@@ -321,6 +325,7 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 
 	l.Close()
 	cls()
+	wg.Wait()
 	// Expected generated actions:
 	// Collection1 Save i1
 	// Collection1 Create i2
