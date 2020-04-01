@@ -1,4 +1,4 @@
-package main
+package foldersync
 
 import (
 	"context"
@@ -22,7 +22,7 @@ import (
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
-	"github.com/textileio/go-threads/examples/foldersync/watcher"
+	"github.com/textileio/go-threads/integrationtests/foldersync/watcher"
 	"github.com/textileio/go-threads/util"
 )
 

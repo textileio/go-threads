@@ -1,4 +1,4 @@
-package main
+package foldersync
 
 import (
 	"bytes"
@@ -22,14 +22,14 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	logging.SetLogLevel("main", "info")
+	logging.SetLogLevel("foldersync", "info")
 	// logging.SetLogLevel("store", "debug")
 	// logging.SetLogLevel("threads", "debug")
 	// logging.SetLogLevel("threadstore", "debug")
 	os.Exit(m.Run())
 }
 
-func TestIt(t *testing.T) {
+func TestSimple(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
 	creds := thread.NewDefaultCreds(id)
 
