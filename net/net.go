@@ -116,11 +116,6 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 }
 
 func (t *net) Close() (err error) {
-	fmt.Printf("entering net.Close for %p\n", t)
-	defer func() {
-		fmt.Printf("exiting net.Close for %p\n", t)
-	}()
-
 	t.rpc.GracefulStop()
 
 	var errs []error

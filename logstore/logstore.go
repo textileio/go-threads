@@ -123,14 +123,12 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 	}
 
 	logs := make([]thread.LogInfo, 0, len(set))
-	count := 0
 	for l := range set {
 		i, err := ls.getLog(id, l)
 		if err != nil {
 			return info, err
 		}
 		logs = append(logs, i)
-		count++
 	}
 
 	return thread.Info{
