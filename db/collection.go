@@ -172,7 +172,8 @@ func (c *Collection) FindByID(id core.InstanceID, opts ...TxnOption) (instance [
 // Create creates an instance in the collection.
 func (c *Collection) Create(v []byte, opts ...TxnOption) (id core.InstanceID, err error) {
 	_ = c.WriteTxn(func(txn *Txn) error {
-		ids, err := txn.Create(v)
+		var ids []core.InstanceID
+		ids, err = txn.Create(v)
 		if err != nil {
 			return err
 		}
@@ -270,8 +271,7 @@ var _ Indexer = (*Collection)(nil)
 // serializable isolation level within the db.
 type Txn struct {
 	collection *Collection
-	identity   thread.Identity
-	auth       thread.Auth
+	token      thread.Token
 	discarded  bool
 	commited   bool
 	readonly   bool
@@ -442,7 +442,7 @@ func (t *Txn) Commit() error {
 	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
-	return t.collection.db.notifyTxnEvents(node, t.auth, t.identity)
+	return t.collection.db.notifyTxnEvents(node, t.token)
 }
 
 // Discard discards all changes done in the current

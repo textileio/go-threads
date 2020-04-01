@@ -6,9 +6,29 @@ option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THREADS";
 
-message Header {
-    bytes pubKey = 1;
-    bytes signature = 2;
+message GetTokenRequest {
+    oneof payload {
+        string key = 1;
+        bytes signature = 2;
+    }
+}
+
+message GetTokenReply {
+    oneof payload {
+        bytes challenge = 1;
+        string token = 2;
+    }
+}
+
+message NewDBRequest {
+    bytes dbID = 1;
+    repeated CollectionConfig collections = 2;
+}
+
+message NewDBFromAddrRequest {
+    bytes addr = 1;
+    bytes key = 2;
+    repeated CollectionConfig collections = 3;
 }
 
 message CollectionConfig {
@@ -22,36 +42,10 @@ message CollectionConfig {
     }
 }
 
-message NewDBRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        repeated CollectionConfig collections = 2;
-    }
-}
-
-message NewDBFromAddrRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes addr = 1;
-        bytes key = 2;
-        repeated CollectionConfig collections = 3;
-    }
-}
-
 message NewDBReply {}
 
 message GetDBInfoRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-    }
+    bytes dbID = 1;
 }
 
 message GetDBInfoReply {
@@ -60,26 +54,16 @@ message GetDBInfoReply {
 }
 
 message NewCollectionRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        CollectionConfig config = 2;
-    }
+    bytes dbID = 1;
+    CollectionConfig config = 2;
 }
 
 message NewCollectionReply {}
 
 message CreateRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-        repeated bytes instances = 3;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
+    repeated bytes instances = 3;
 }
 
 message CreateReply {
@@ -87,40 +71,25 @@ message CreateReply {
 }
 
 message SaveRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-        repeated bytes instances = 3;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
+    repeated bytes instances = 3;
 }
 
 message SaveReply {}
 
 message DeleteRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-        repeated string instanceIDs = 3;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
+    repeated string instanceIDs = 3;
 }
 
 message DeleteReply {}
 
 message HasRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-        repeated string instanceIDs = 3;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
+    repeated string instanceIDs = 3;
 }
 
 message HasReply {
@@ -128,14 +97,9 @@ message HasReply {
 }
 
 message FindRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-        bytes queryJSON = 3;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
+    bytes queryJSON = 3;
 }
 
 message FindReply {
@@ -143,14 +107,9 @@ message FindReply {
 }
 
 message FindByIDRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-        string instanceID = 3;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
+    string instanceID = 3;
 }
 
 message FindByIDReply {
@@ -158,13 +117,8 @@ message FindByIDReply {
 }
 
 message StartTransactionRequest {
-    Header header = 1;
-    Body body = 2;
-
-    message Body {
-        bytes dbID = 1;
-        string collectionName = 2;
-    }
+    bytes dbID = 1;
+    string collectionName = 2;
 }
 
 message ReadTransactionRequest {
@@ -208,24 +162,19 @@ message WriteTransactionReply {
 }
 
 message ListenRequest {
-    Header header = 1;
-    Body body = 2;
+    bytes dbID = 1;
+    repeated Filter filters = 2;
 
-    message Body {
-        bytes dbID = 1;
-        repeated Filter filters = 2;
-
-        message Filter {
-            string collectionName = 1;
-            string instanceID = 2;
-            enum Action {
-                ALL = 0;
-                CREATE = 1;
-                SAVE = 2;
-                DELETE = 3;
-            }
-            Action action = 3;
+    message Filter {
+        string collectionName = 1;
+        string instanceID = 2;
+        enum Action {
+            ALL = 0;
+            CREATE = 1;
+            SAVE = 2;
+            DELETE = 3;
         }
+        Action action = 3;
     }
 }
 
@@ -243,6 +192,7 @@ message ListenReply {
 }
 
 service API {
+    rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
     rpc GetDBInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}

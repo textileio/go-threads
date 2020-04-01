@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/golang/protobuf/proto"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -90,6 +88,60 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// GetToken gets a db token for use with the rest of the API.
+func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
+	stream, err := c.c.GetToken(ctx)
+	if err != nil {
+		return
+	}
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Key{
+			Key: identity.GetPublic().String(),
+		},
+	}); err != nil {
+		return
+	}
+
+	rep, err := stream.Recv()
+	if err != nil {
+		return
+	}
+	var challenge []byte
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Challenge:
+		challenge = payload.Challenge
+	default:
+		return tok, fmt.Errorf("challenge was not received")
+	}
+
+	sig, err := identity.Sign(challenge)
+	if err != nil {
+		return
+	}
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Signature{
+			Signature: sig,
+		},
+	}); err != nil {
+		return
+	}
+
+	rep, err = stream.Recv()
+	if err != nil {
+		return
+	}
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Token:
+		tok = thread.Token(payload.Token)
+	default:
+		return tok, fmt.Errorf("token was not received")
+	}
+	if err = stream.CloseSend(); err != nil {
+		return
+	}
+	return tok, nil
+}
+
 // NewDB creates a new DB with ID.
 func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManagedDBOption) error {
 	args := &db.NewManagedDBOptions{}
@@ -104,17 +156,10 @@ func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManage
 		}
 		pbcollections[i] = cc
 	}
-	body := &pb.NewDBRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.NewDB(ctx, &pb.NewDBRequest{
 		DbID:        dbID.Bytes(),
 		Collections: pbcollections,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return err
-	}
-	_, err = c.c.NewDB(ctx, &pb.NewDBRequest{
-		Header: header,
-		Body:   body,
 	})
 	return err
 }
@@ -133,18 +178,11 @@ func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey t
 		}
 		pbcollections[i] = cc
 	}
-	body := &pb.NewDBFromAddrRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
 		Addr:        dbAddr.Bytes(),
 		Key:         dbKey.Bytes(),
 		Collections: pbcollections,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return err
-	}
-	_, err = c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
-		Header: header,
-		Body:   body,
 	})
 	return err
 }
@@ -174,20 +212,14 @@ func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.Manag
 	for _, opt := range opts {
 		opt(args)
 	}
-	body := &pb.GetDBInfoRequest_Body{
-		DbID: dbID.Bytes(),
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return nil, err
-	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	return c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
-		Header: header,
-		Body:   body,
+		DbID: dbID.Bytes(),
 	})
 }
 
 // NewCollection creates a new collection.
+// @todo: This should take some thread auth, but collections currently do not involve a thread.
 func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedDBOption) error {
 	args := &db.ManagedDBOptions{}
 	for _, opt := range opts {
@@ -197,17 +229,9 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 	if err != nil {
 		return err
 	}
-	body := &pb.NewCollectionRequest_Body{
+	_, err = c.c.NewCollection(ctx, &pb.NewCollectionRequest{
 		DbID:   dbID.Bytes(),
 		Config: cc,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return err
-	}
-	_, err = c.c.NewCollection(ctx, &pb.NewCollectionRequest{
-		Header: header,
-		Body:   body,
 	})
 	return err
 }
@@ -222,18 +246,11 @@ func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName stri
 	if err != nil {
 		return nil, err
 	}
-	body := &pb.CreateRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	resp, err := c.c.Create(ctx, &pb.CreateRequest{
 		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		Instances:      values,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.c.Create(ctx, &pb.CreateRequest{
-		Header: header,
-		Body:   body,
 	})
 	if err != nil {
 		return nil, err
@@ -251,18 +268,11 @@ func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string
 	if err != nil {
 		return err
 	}
-	body := &pb.SaveRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err = c.c.Save(ctx, &pb.SaveRequest{
 		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		Instances:      values,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return err
-	}
-	_, err = c.c.Save(ctx, &pb.SaveRequest{
-		Header: header,
-		Body:   body,
 	})
 	return err
 }
@@ -273,18 +283,11 @@ func (c *Client) Delete(ctx context.Context, dbID thread.ID, collectionName stri
 	for _, opt := range opts {
 		opt(args)
 	}
-	body := &pb.DeleteRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.Delete(ctx, &pb.DeleteRequest{
 		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return err
-	}
-	_, err = c.c.Delete(ctx, &pb.DeleteRequest{
-		Header: header,
-		Body:   body,
 	})
 	return err
 }
@@ -295,18 +298,11 @@ func (c *Client) Has(ctx context.Context, dbID thread.ID, collectionName string,
 	for _, opt := range opts {
 		opt(args)
 	}
-	body := &pb.HasRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	resp, err := c.c.Has(ctx, &pb.HasRequest{
 		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return false, err
-	}
-	resp, err := c.c.Has(ctx, &pb.HasRequest{
-		Header: header,
-		Body:   body,
 	})
 	if err != nil {
 		return false, err
@@ -324,18 +320,11 @@ func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string
 	if err != nil {
 		return nil, err
 	}
-	body := &pb.FindRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	resp, err := c.c.Find(ctx, &pb.FindRequest{
 		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		QueryJSON:      queryBytes,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.c.Find(ctx, &pb.FindRequest{
-		Header: header,
-		Body:   body,
 	})
 	if err != nil {
 		return nil, err
@@ -349,18 +338,11 @@ func (c *Client) FindByID(ctx context.Context, dbID thread.ID, collectionName, i
 	for _, opt := range opts {
 		opt(args)
 	}
-	body := &pb.FindByIDRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	resp, err := c.c.FindByID(ctx, &pb.FindByIDRequest{
 		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		InstanceID:     instanceID,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return err
-	}
-	resp, err := c.c.FindByID(ctx, &pb.FindByIDRequest{
-		Header: header,
-		Body:   body,
 	})
 	if err != nil {
 		return err
@@ -374,6 +356,7 @@ func (c *Client) ReadTransaction(ctx context.Context, dbID thread.ID, collection
 	for _, opt := range opts {
 		opt(args)
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	client, err := c.c.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -381,7 +364,6 @@ func (c *Client) ReadTransaction(ctx context.Context, dbID thread.ID, collection
 	return &ReadTransaction{
 		client:         client,
 		dbID:           dbID,
-		auth:           args.Auth,
 		collectionName: collectionName,
 	}, nil
 }
@@ -392,6 +374,7 @@ func (c *Client) WriteTransaction(ctx context.Context, dbID thread.ID, collectio
 	for _, opt := range opts {
 		opt(args)
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	client, err := c.c.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
@@ -399,7 +382,6 @@ func (c *Client) WriteTransaction(ctx context.Context, dbID thread.ID, collectio
 	return &WriteTransaction{
 		client:         client,
 		dbID:           dbID,
-		auth:           args.Auth,
 		collectionName: collectionName,
 	}, nil
 }
@@ -411,38 +393,31 @@ func (c *Client) Listen(ctx context.Context, dbID thread.ID, listenOptions []Lis
 		opt(args)
 	}
 	channel := make(chan ListenEvent)
-	filters := make([]*pb.ListenRequest_Body_Filter, len(listenOptions))
+	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
 	for i, listenOption := range listenOptions {
-		var action pb.ListenRequest_Body_Filter_Action
+		var action pb.ListenRequest_Filter_Action
 		switch listenOption.Type {
 		case ListenAll:
-			action = pb.ListenRequest_Body_Filter_ALL
+			action = pb.ListenRequest_Filter_ALL
 		case ListenCreate:
-			action = pb.ListenRequest_Body_Filter_CREATE
+			action = pb.ListenRequest_Filter_CREATE
 		case ListenDelete:
-			action = pb.ListenRequest_Body_Filter_DELETE
+			action = pb.ListenRequest_Filter_DELETE
 		case ListenSave:
-			action = pb.ListenRequest_Body_Filter_SAVE
+			action = pb.ListenRequest_Filter_SAVE
 		default:
 			return nil, fmt.Errorf("unknown ListenOption.Type %v", listenOption.Type)
 		}
-		filters[i] = &pb.ListenRequest_Body_Filter{
+		filters[i] = &pb.ListenRequest_Filter{
 			CollectionName: listenOption.Collection,
 			InstanceID:     listenOption.InstanceID,
 			Action:         action,
 		}
 	}
-	body := &pb.ListenRequest_Body{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	stream, err := c.c.Listen(ctx, &pb.ListenRequest{
 		DbID:    dbID.Bytes(),
 		Filters: filters,
-	}
-	header, err := getHeader(args.Auth, body)
-	if err != nil {
-		return nil, err
-	}
-	stream, err := c.c.Listen(ctx, &pb.ListenRequest{
-		Header: header,
-		Body:   body,
 	})
 	if err != nil {
 		return nil, err
@@ -511,26 +486,4 @@ func marshalItems(items []interface{}) ([][]byte, error) {
 		values[i] = bytes
 	}
 	return values, nil
-}
-
-func getHeader(auth *thread.Auth, body proto.Message) (*pb.Header, error) {
-	if auth == nil {
-		return &pb.Header{}, nil
-	}
-	msg, err := proto.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	sig, pk, err := auth.Sign(msg)
-	if err != nil {
-		return nil, err
-	}
-	pkb, err := ic.MarshalPublicKey(pk)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.Header{
-		PubKey:    pkb,
-		Signature: sig,
-	}, nil
 }

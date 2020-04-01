@@ -76,7 +76,7 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...Option) (
 		}
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewThreadIdentity(config.Identity)); err != nil {
+	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(config.Token)); err != nil {
 		if !errors.Is(err, lstore.ErrThreadExists) {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 		}
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadIdentity(config.Identity))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(config.Token))
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 	}
 
 	go func() {
-		if err := network.PullThread(ctx, ti.ID, net.WithThreadIdentity(config.Identity)); err != nil {
+		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(config.Token)); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
@@ -338,7 +338,7 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 	if err != nil {
 		return fmt.Errorf("error when unmarshaling event from bytes: %v", err)
 	}
-	log.Debugf("dispatching to db external new record: %s/%s", rec.ThreadID(), rec.LogID())
+	log.Debugf("dispatching new record: %s/%s", rec.ThreadID(), rec.LogID())
 	return d.dispatch(dbEvents)
 }
 
@@ -387,7 +387,7 @@ func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) e
 	for _, opt := range opts {
 		opt(args)
 	}
-	txn := &Txn{collection: c, auth: args.Auth, identity: args.Identity, readonly: true}
+	txn := &Txn{collection: c, token: args.Token, readonly: true}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err
@@ -403,7 +403,7 @@ func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) 
 	for _, opt := range opts {
 		opt(args)
 	}
-	txn := &Txn{collection: c, auth: args.Auth, identity: args.Identity}
+	txn := &Txn{collection: c, token: args.Token}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err

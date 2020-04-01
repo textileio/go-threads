@@ -27,7 +27,7 @@ type Config struct {
 	Debug       bool
 	LowMem      bool
 	Collections []CollectionConfig
-	Identity    thread.Identity
+	Token       thread.Token
 }
 
 func newDefaultEventCodec() core.EventCodec {
@@ -79,10 +79,10 @@ func WithEventCodec(ec core.EventCodec) Option {
 	}
 }
 
-// WithDBIdentity provides a signing identity for interacting with a db.
-func WithDBIdentity(i thread.Identity) Option {
+// WithDBToken provides authorization for interacting with a db.
+func WithDBToken(t thread.Token) Option {
 	return func(c *Config) error {
-		c.Identity = i
+		c.Token = t
 		return nil
 	}
 }
@@ -98,33 +98,23 @@ func WithDBCollections(cs ...CollectionConfig) Option {
 
 // TxnOptions defines options for a transaction.
 type TxnOptions struct {
-	Identity thread.Identity
-	Auth     thread.Auth
+	Token thread.Token
 }
 
 // TxnOption specifies a transaction option.
 type TxnOption func(*TxnOptions)
 
-// WithTxnIdentity provides a signing identity for the transaction.
-// This option will overwrite WithTxnAuth.
-func WithTxnIdentity(i thread.Identity) TxnOption {
+// WithTxnToken provides authorization for the transaction.
+func WithTxnToken(t thread.Token) TxnOption {
 	return func(args *TxnOptions) {
-		args.Identity = i
-	}
-}
-
-// WithTxnAuth provides authorization for the transaction.
-func WithTxnAuth(a thread.Auth) TxnOption {
-	return func(args *TxnOptions) {
-		args.Auth = a
+		args.Token = t
 	}
 }
 
 // NewManagedDBOptions defines options for creating a new managed db.
 type NewManagedDBOptions struct {
 	Collections []CollectionConfig
-	Identity    thread.Identity
-	Auth        thread.Auth
+	Token       thread.Token
 }
 
 // NewManagedDBOption specifies a new managed db option.
@@ -138,41 +128,24 @@ func WithNewManagedDBCollections(cs ...CollectionConfig) NewManagedDBOption {
 	}
 }
 
-// WithNewManagedDBIdentity provides a signing identity for creating a new managed db.
-// This option will overwrite WithNewManagedDBAuth.
-func WithNewManagedDBIdentity(i thread.Identity) NewManagedDBOption {
+// WithNewManagedDBToken provides authorization for creating a new managed db.
+func WithNewManagedDBToken(t thread.Token) NewManagedDBOption {
 	return func(args *NewManagedDBOptions) {
-		args.Identity = i
-	}
-}
-
-// WithNewManagedDBAuth provides authorization for creating a new managed db.
-func WithNewManagedDBAuth(a thread.Auth) NewManagedDBOption {
-	return func(args *NewManagedDBOptions) {
-		args.Auth = a
+		args.Token = t
 	}
 }
 
 // ManagedDBOptions defines options for interacting with a managed db.
 type ManagedDBOptions struct {
-	Identity thread.Identity
-	Auth     thread.Auth
+	Token thread.Token
 }
 
 // ManagedDBOption specifies a managed db option.
 type ManagedDBOption func(*ManagedDBOptions)
 
-// WithManagedDBIdentity provides a signing identity for interacting with a managed db.
-// This option will overwrite WithManagedDBAuth.
-func WithManagedDBIdentity(i thread.Identity) ManagedDBOption {
+// WithManagedDBToken provides authorization for interacting with a managed db.
+func WithManagedDBToken(t thread.Token) ManagedDBOption {
 	return func(args *ManagedDBOptions) {
-		args.Identity = i
-	}
-}
-
-// WithManagedDBAuth provides authorization for interacting with a managed db.
-func WithManagedDBAuth(a thread.Auth) ManagedDBOption {
-	return func(args *ManagedDBOptions) {
-		args.Auth = a
+		args.Token = t
 	}
 }

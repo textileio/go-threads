@@ -12,14 +12,34 @@ message GetHostIDReply {
     bytes peerID = 1;
 }
 
-message Keys {
-    bytes threadKey = 1;
-    bytes logKey = 2;
+message GetTokenRequest {
+    oneof payload {
+        string key = 1;
+        bytes signature = 2;
+    }
+}
+
+message GetTokenReply {
+    oneof payload {
+        bytes challenge = 1;
+        string token = 2;
+    }
 }
 
 message CreateThreadRequest {
     bytes threadID = 1;
     Keys keys = 2;
+}
+
+message Keys {
+    bytes threadKey = 1;
+    bytes logKey = 2;
+}
+
+message ThreadInfoReply {
+    bytes threadID = 1;
+    bytes threadKey = 2;
+    repeated LogInfo logs = 3;
 }
 
 message LogInfo {
@@ -28,12 +48,6 @@ message LogInfo {
     bytes privKey = 3;
     repeated bytes addrs = 4;
     bytes head = 5;
-}
-
-message ThreadInfoReply {
-    bytes threadID = 1;
-    bytes threadKey = 2;
-    repeated LogInfo logs = 3;
 }
 
 message AddThreadRequest {
@@ -71,13 +85,6 @@ message CreateRecordRequest {
     bytes body = 2;
 }
 
-message Record {
-    bytes recordNode = 1;
-    bytes eventNode = 2;
-    bytes headerNode = 3;
-    bytes bodyNode = 4;
-}
-
 message NewRecordReply {
     bytes threadID = 1;
     bytes logID = 2;
@@ -88,6 +95,13 @@ message AddRecordRequest {
     bytes threadID = 1;
     bytes logID = 2;
     Record record = 3;
+}
+
+message Record {
+    bytes recordNode = 1;
+    bytes eventNode = 2;
+    bytes headerNode = 3;
+    bytes bodyNode = 4;
 }
 
 message AddRecordReply {}
@@ -107,6 +121,7 @@ message SubscribeRequest {
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
+    rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
     rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
     rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}

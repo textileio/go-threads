@@ -61,11 +61,6 @@ var (
 	ErrInvalidSortingField = errors.New("sorting field doesn't correspond to instance type")
 )
 
-type marshaledValue struct {
-	value   map[string]interface{}
-	rawJSON []byte
-}
-
 // Where starts to create a query condition for a field
 func Where(field string) *Criterion {
 	return &Criterion{

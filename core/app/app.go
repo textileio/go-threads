@@ -71,9 +71,8 @@ func (leb *LocalEventsBus) Discard() {
 
 // LocalEvent wraps an IPLD node and auth for delivery to a thread.
 type LocalEvent struct {
-	Node     format.Node
-	Identity thread.Identity
-	Auth     thread.Auth
+	Node  format.Node
+	Token thread.Token
 }
 
 // LocalEventListener notifies about new locally generated events.
@@ -205,7 +204,7 @@ func (c *Connector) appToThread(wg *sync.WaitGroup) {
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := c.net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadIdentity(event.Identity), net.WithThreadAuth(event.Auth)); err != nil {
+			if _, err := c.net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadToken(event.Token)); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()

@@ -46,6 +46,9 @@ var (
 
 	// notifyTimeout is the duration to wait for a subscriber to read a new record.
 	notifyTimeout = time.Second * 5
+
+	// tokenChallengeBytes is the byte length of token challenges.
+	tokenChallengeBytes = 32
 )
 
 // net is an implementation of core.DBNet.
@@ -160,21 +163,33 @@ func (n *net) GetHostID(_ context.Context) (peer.ID, error) {
 	return n.host.ID(), nil
 }
 
+func (n *net) GetToken(_ context.Context, identity thread.Identity) (tok thread.Token, err error) {
+	msg := make([]byte, tokenChallengeBytes)
+	if _, err = rand.Read(msg); err != nil {
+		return
+	}
+	sig, err := identity.Sign(msg)
+	if err != nil {
+		return
+	}
+	key := identity.GetPublic()
+	if ok, err := key.Verify(msg, sig); !ok || err != nil {
+		return tok, fmt.Errorf("bad signature")
+	}
+	return thread.NewToken(n.getPrivKey(), key)
+}
+
 func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
 	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
-	// @todo: Add this override check to all methods.
-	if args.Identity != nil {
-		args.Auth, err = thread.NewAuth(args.Identity, thread.CreateThread, id, args)
-		if err != nil {
-			return
-		}
-	}
-	if _, err = args.Auth.Verify(thread.CreateThread, id, args); err != nil {
+	// @todo: Check identity key against ACL.
+	identity, err := thread.ValidateToken(n.getPrivKey(), args.Token)
+	if err != nil {
 		return
 	}
+	log.Debugf("creating thread with identity: %s", identity)
 
 	if err = n.ensureUnique(id); err != nil {
 		return
@@ -219,7 +234,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = args.Auth.Verify(thread.AddThread, addr, args); err != nil {
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return
 	}
 
@@ -280,7 +295,7 @@ func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOpti
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = args.Auth.Verify(thread.GetThread, id, args); err != nil {
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return
 	}
 	return n.store.GetThread(id)
@@ -307,7 +322,7 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := args.Auth.Verify(thread.PullThread, id, args); err != nil {
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return err
 	}
 	return n.pullThread(ctx, id)
@@ -341,9 +356,12 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	// Gather offsets for each log
 	offsets := make(map[peer.ID]cid.Cid)
 	for _, lg := range info.Logs {
-		has, err := n.bstore.Has(lg.Head)
-		if err != nil {
-			return err
+		var has bool
+		if lg.Head.Defined() {
+			has, err = n.bstore.Has(lg.Head)
+			if err != nil {
+				return err
+			}
 		}
 		if has {
 			offsets[lg.ID] = lg.Head
@@ -389,7 +407,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := args.Auth.Verify(thread.DeleteThread, id, args); err != nil {
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return err
 	}
 
@@ -440,7 +458,7 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = args.Auth.Verify(thread.AddReplicator, id, paddr, args); err != nil {
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return
 	}
 
@@ -539,7 +557,7 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = args.Auth.Verify(thread.CreateRecord, id, thread.NewBinaryNode(body), args); err != nil {
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return
 	}
 
@@ -572,7 +590,7 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := args.Auth.Verify(thread.AddRecord, id, lid, thread.NewBinaryNode(rec), args); err != nil {
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return err
 	}
 
@@ -603,7 +621,7 @@ func (n *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := args.Auth.Verify(thread.GetRecord, id, rid, args); err != nil {
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return nil, err
 	}
 	return n.getRecord(ctx, id, rid)
@@ -648,7 +666,7 @@ func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := args.Auth.Verify(thread.Subscribe, args); err != nil {
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return nil, err
 	}
 
@@ -811,7 +829,7 @@ func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, bo
 		Block:      event,
 		Prev:       lg.Head,
 		Key:        lg.PrivKey,
-		AuthorKey:  n.getPrivKey(),
+		AuthorKey:  thread.NewLibp2pIdentity(n.getPrivKey()),
 		ServiceKey: sk,
 	})
 }

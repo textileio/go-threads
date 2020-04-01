@@ -9,6 +9,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger v1.6.0
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/gogo/googleapis v1.3.1 // indirect

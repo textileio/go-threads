@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -56,6 +57,59 @@ func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 	return peer.IDFromBytes(resp.PeerID)
 }
 
+func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
+	stream, err := c.c.GetToken(ctx)
+	if err != nil {
+		return
+	}
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Key{
+			Key: identity.GetPublic().String(),
+		},
+	}); err != nil {
+		return
+	}
+
+	rep, err := stream.Recv()
+	if err != nil {
+		return
+	}
+	var challenge []byte
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Challenge:
+		challenge = payload.Challenge
+	default:
+		return tok, fmt.Errorf("challenge was not received")
+	}
+
+	sig, err := identity.Sign(challenge)
+	if err != nil {
+		return
+	}
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Signature{
+			Signature: sig,
+		},
+	}); err != nil {
+		return
+	}
+
+	rep, err = stream.Recv()
+	if err != nil {
+		return
+	}
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Token:
+		tok = thread.Token(payload.Token)
+	default:
+		return tok, fmt.Errorf("token was not received")
+	}
+	if err = stream.CloseSend(); err != nil {
+		return
+	}
+	return tok, nil
+}
+
 func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
 	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
@@ -65,11 +119,7 @@ func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.Ne
 	if err != nil {
 		return
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.CreateThread, id, args)
-	if err != nil {
-		return
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
 		ThreadID: id.Bytes(),
 		Keys:     keys,
@@ -89,11 +139,7 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 	if err != nil {
 		return
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.AddThread, addr, args)
-	if err != nil {
-		return
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
 		Addr: addr.Bytes(),
 		Keys: keys,
@@ -109,11 +155,7 @@ func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.GetThread, id, args)
-	if err != nil {
-		return
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
 		ThreadID: id.Bytes(),
 	})
@@ -128,12 +170,8 @@ func (c *Client) PullThread(ctx context.Context, id thread.ID, opts ...core.Thre
 	for _, opt := range opts {
 		opt(args)
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.PullThread, id, args)
-	if err != nil {
-		return nil
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
-	_, err = c.c.PullThread(ctx, &pb.PullThreadRequest{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.PullThread(ctx, &pb.PullThreadRequest{
 		ThreadID: id.Bytes(),
 	})
 	return err
@@ -144,12 +182,8 @@ func (c *Client) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Th
 	for _, opt := range opts {
 		opt(args)
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.DeleteThread, id, args)
-	if err != nil {
-		return nil
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
-	_, err = c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
 		ThreadID: id.Bytes(),
 	})
 	return err
@@ -160,11 +194,7 @@ func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multi
 	for _, opt := range opts {
 		opt(args)
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.AddReplicator, id, paddr, args)
-	if err != nil {
-		return
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
 		ThreadID: id.Bytes(),
 		Addr:     paddr.Bytes(),
@@ -184,11 +214,7 @@ func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Nod
 	if err != nil {
 		return nil, err
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.CreateRecord, id, thread.NewBinaryNode(body), args)
-	if err != nil {
-		return nil, err
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.CreateRecord(ctx, &pb.CreateRecordRequest{
 		ThreadID: id.Bytes(),
 		Body:     body.RawData(),
@@ -209,11 +235,7 @@ func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec c
 	if err != nil {
 		return err
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.AddRecord, id, lid, thread.NewBinaryNode(rec), args)
-	if err != nil {
-		return err
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	_, err = c.c.AddRecord(ctx, &pb.AddRecordRequest{
 		ThreadID: id.Bytes(),
 		LogID:    lidb,
@@ -231,11 +253,7 @@ func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts 
 	if err != nil {
 		return nil, err
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.GetRecord, id, rid, args)
-	if err != nil {
-		return nil, err
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
 		ThreadID: id.Bytes(),
 		RecordID: rid.Bytes(),
@@ -256,11 +274,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	for i, id := range args.ThreadIDs {
 		ids[i] = id.Bytes()
 	}
-	auth, err := thread.NewAuth(args.Identity, thread.Subscribe, args)
-	if err != nil {
-		return nil, err
-	}
-	ctx = thread.NewAuthContext(ctx, auth)
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	stream, err := c.c.Subscribe(ctx, &pb.SubscribeRequest{
 		ThreadIDs: ids,
 	})
@@ -290,7 +304,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 			var sk *symmetric.Key
 			var ok bool
 			if sk, ok = threads[threadID]; !ok {
-				info, err := c.GetThread(ctx, threadID, core.WithThreadAuth(args.Auth))
+				info, err := c.GetThread(ctx, threadID, core.WithThreadToken(args.Token))
 				if err != nil {
 					log.Fatalf("error getting thread: %v", err)
 				}

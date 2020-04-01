@@ -49,13 +49,74 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 	return &Service{net: network}, nil
 }
 
-// NewStore adds a new store into the manager.
 func (s *Service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetHostIDReply, error) {
 	log.Debugf("received get host ID request")
 
 	return &pb.GetHostIDReply{
 		PeerID: marshalPeerID(s.net.Host().ID()),
 	}, nil
+}
+
+type remoteIdentity struct {
+	pk     thread.PubKey
+	server pb.API_GetTokenServer
+}
+
+func (i *remoteIdentity) Sign(msg []byte) ([]byte, error) {
+	if err := i.server.Send(&pb.GetTokenReply{
+		Payload: &pb.GetTokenReply_Challenge{
+			Challenge: msg,
+		},
+	}); err != nil {
+		return nil, err
+	}
+
+	req, err := i.server.Recv()
+	if err != nil {
+		return nil, err
+	}
+	var sig []byte
+	switch payload := req.Payload.(type) {
+	case *pb.GetTokenRequest_Signature:
+		sig = payload.Signature
+	default:
+		return nil, status.Error(codes.InvalidArgument, "Signature is required")
+	}
+	return sig, nil
+}
+
+func (i *remoteIdentity) GetPublic() thread.PubKey {
+	return i.pk
+}
+
+func (s *Service) GetToken(server pb.API_GetTokenServer) error {
+	log.Debugf("received get token request")
+
+	req, err := server.Recv()
+	if err != nil {
+		return err
+	}
+	key := &thread.Libp2pPubKey{}
+	switch payload := req.Payload.(type) {
+	case *pb.GetTokenRequest_Key:
+		err = key.UnmarshalString(payload.Key)
+	default:
+		return status.Error(codes.InvalidArgument, "Key is required")
+	}
+
+	identity := &remoteIdentity{
+		pk:     key,
+		server: server,
+	}
+	tok, err := s.net.GetToken(server.Context(), identity)
+	if err != nil {
+		return err
+	}
+	return server.Send(&pb.GetTokenReply{
+		Payload: &pb.GetTokenReply_Token{
+			Token: string(tok),
+		},
+	})
 }
 
 func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
@@ -69,11 +130,11 @@ func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, net.WithNewThreadAuth(auth))
+	opts = append(opts, net.WithNewThreadToken(token))
 	info, err := s.net.CreateThread(ctx, id, opts...)
 	if err != nil {
 		return nil, err
@@ -92,17 +153,17 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, net.WithNewThreadAuth(auth))
+	opts = append(opts, net.WithNewThreadToken(token))
 	info, err := s.net.AddThread(ctx, addr, opts...)
 	if err != nil {
 		return nil, err
 	}
 	go func() {
-		if err := s.net.PullThread(ctx, info.ID, net.WithThreadAuth(auth)); err != nil {
+		if err := s.net.PullThread(ctx, info.ID, net.WithThreadToken(token)); err != nil {
 			log.Errorf("error pulling thread %s: %s", info.ID, err)
 		}
 	}()
@@ -116,11 +177,11 @@ func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.net.GetThread(ctx, id, net.WithThreadAuth(auth))
+	info, err := s.net.GetThread(ctx, id, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +195,11 @@ func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*p
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err = s.net.PullThread(ctx, id, net.WithThreadAuth(auth)); err != nil {
+	if err = s.net.PullThread(ctx, id, net.WithThreadToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.PullThreadReply{}, nil
@@ -151,11 +212,11 @@ func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.net.DeleteThread(ctx, id, net.WithThreadAuth(auth)); err != nil {
+	if err := s.net.DeleteThread(ctx, id, net.WithThreadToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteThreadReply{}, nil
@@ -172,11 +233,11 @@ func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorReques
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pid, err := s.net.AddReplicator(ctx, id, addr, net.WithThreadAuth(auth))
+	pid, err := s.net.AddReplicator(ctx, id, addr, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -196,11 +257,11 @@ func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rec, err := s.net.CreateRecord(ctx, id, body, net.WithThreadAuth(auth))
+	rec, err := s.net.CreateRecord(ctx, id, body, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -222,11 +283,11 @@ func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	info, err := s.net.GetThread(ctx, id, net.WithThreadAuth(auth))
+	info, err := s.net.GetThread(ctx, id, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +299,7 @@ func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err = s.net.AddRecord(ctx, id, logID, rec, net.WithThreadAuth(auth)); err != nil {
+	if err = s.net.AddRecord(ctx, id, logID, rec, net.WithThreadToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.AddRecordReply{}, nil
@@ -255,11 +316,11 @@ func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	auth, err := thread.NewAuthFromMD(ctx)
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rec, err := s.net.GetRecord(ctx, id, rid, net.WithThreadAuth(auth))
+	rec, err := s.net.GetRecord(ctx, id, rid, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -284,11 +345,11 @@ func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 		opts[i] = net.WithSubFilter(id)
 	}
 
-	auth, err := thread.NewAuthFromMD(server.Context())
+	token, err := thread.NewTokenFromMD(server.Context())
 	if err != nil {
 		return err
 	}
-	opts = append(opts, net.WithSubAuth(auth))
+	opts = append(opts, net.WithSubToken(token))
 
 	sub, err := s.net.Subscribe(server.Context(), opts...)
 	if err != nil {

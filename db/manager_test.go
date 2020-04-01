@@ -45,6 +45,21 @@ var (
 	}`
 )
 
+func TestManager_GetToken(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	man, clean := createTestManager(t)
+	defer clean()
+
+	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	checkErr(t, err)
+	tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
+	checkErr(t, err)
+	if tok == "" {
+		t.Fatal("bad token")
+	}
+}
+
 func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -61,10 +76,12 @@ func TestManager_NewDB(t *testing.T) {
 		defer clean()
 		_, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32))
 		checkErr(t, err)
-		// NewDB with auth
+		// NewDB with token
 		sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedDBAuth(thread.NewAuthFromPrivKey(sk)))
+		tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
+		checkErr(t, err)
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedDBToken(tok))
 		checkErr(t, err)
 	})
 }

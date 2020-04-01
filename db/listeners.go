@@ -37,11 +37,10 @@ func (d *DB) notifyStateChanged(actions []Action) {
 	d.stateChangedNotifee.notify(actions)
 }
 
-func (d *DB) notifyTxnEvents(node format.Node, auth thread.Auth, identity thread.Identity) error {
+func (d *DB) notifyTxnEvents(node format.Node, token thread.Token) error {
 	return d.localEventsBus.Send(&app.LocalEvent{
-		Node:     node,
-		Auth:     auth,
-		Identity: identity,
+		Node:  node,
+		Token: token,
 	})
 }
 

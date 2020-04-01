@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/api"
@@ -25,6 +27,24 @@ import (
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
+
+func TestClient_GetToken(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	identity := createIdentity(t)
+
+	t.Run("test get token", func(t *testing.T) {
+		tok, err := client.GetToken(context.Background(), identity)
+		if err != nil {
+			t.Fatalf("failed to get token: %v", err)
+		}
+		if tok == "" {
+			t.Fatal("emtpy token")
+		}
+	})
+}
 
 func TestNewDB(t *testing.T) {
 	t.Parallel()
@@ -630,6 +650,14 @@ func checkErr(t *testing.T, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func createIdentity(t *testing.T) thread.Identity {
+	sk, _, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return thread.NewLibp2pIdentity(sk)
 }
 
 func createPerson() *Person {

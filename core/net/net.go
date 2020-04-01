@@ -30,6 +30,9 @@ type API interface {
 	// GetHostID returns the host's peer id.
 	GetHostID(ctx context.Context) (peer.ID, error)
 
+	// GetToken returns a signed token representing an identity.
+	GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error)
+
 	// CreateThread with credentials.
 	CreateThread(ctx context.Context, id thread.ID, opts ...NewThreadOption) (thread.Info, error)
 

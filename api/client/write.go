@@ -13,23 +13,14 @@ import (
 type WriteTransaction struct {
 	client         pb.API_WriteTransactionClient
 	dbID           thread.ID
-	auth           *thread.Auth
 	collectionName string
 }
 
 // Start starts the write transaction.
 func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
-	body := &pb.StartTransactionRequest_Body{
+	innerReq := &pb.StartTransactionRequest{
 		DbID:           t.dbID.Bytes(),
 		CollectionName: t.collectionName,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return nil, err
-	}
-	innerReq := &pb.StartTransactionRequest{
-		Header: header,
-		Body:   body,
 	}
 	option := &pb.WriteTransactionRequest_StartTransactionRequest{
 		StartTransactionRequest: innerReq,
@@ -44,26 +35,19 @@ func (t *WriteTransaction) Start() (EndTransactionFunc, error) {
 
 // Has runs a has query in the active transaction.
 func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
-	body := &pb.HasRequest_Body{
-		InstanceIDs: instanceIDs,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return false, err
-	}
 	innerReq := &pb.HasRequest{
-		Header: header,
-		Body:   body,
+		InstanceIDs: instanceIDs,
 	}
 	option := &pb.WriteTransactionRequest_HasRequest{
 		HasRequest: innerReq,
 	}
-	if err = t.client.Send(&pb.WriteTransactionRequest{
+	if err := t.client.Send(&pb.WriteTransactionRequest{
 		Option: option,
 	}); err != nil {
 		return false, err
 	}
 	var resp *pb.WriteTransactionReply
+	var err error
 	if resp, err = t.client.Recv(); err != nil {
 		return false, err
 	}
@@ -77,26 +61,19 @@ func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
 
 // FindByID gets the instance with the specified ID.
 func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) error {
-	body := &pb.FindByIDRequest_Body{
-		InstanceID: instanceID,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return err
-	}
 	innerReq := &pb.FindByIDRequest{
-		Header: header,
-		Body:   body,
+		InstanceID: instanceID,
 	}
 	option := &pb.WriteTransactionRequest_FindByIDRequest{
 		FindByIDRequest: innerReq,
 	}
-	if err = t.client.Send(&pb.WriteTransactionRequest{
+	if err := t.client.Send(&pb.WriteTransactionRequest{
 		Option: option,
 	}); err != nil {
 		return err
 	}
 	var resp *pb.WriteTransactionReply
+	var err error
 	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
@@ -115,16 +92,8 @@ func (t *WriteTransaction) Find(query *db.Query, dummy interface{}) (interface{}
 	if err != nil {
 		return nil, err
 	}
-	body := &pb.FindRequest_Body{
-		QueryJSON: queryBytes,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return nil, err
-	}
 	innerReq := &pb.FindRequest{
-		Header: header,
-		Body:   body,
+		QueryJSON: queryBytes,
 	}
 	option := &pb.WriteTransactionRequest_FindRequest{
 		FindRequest: innerReq,
@@ -152,16 +121,8 @@ func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	body := &pb.CreateRequest_Body{
-		Instances: values,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return nil, err
-	}
 	innerReq := &pb.CreateRequest{
-		Header: header,
-		Body:   body,
+		Instances: values,
 	}
 	option := &pb.WriteTransactionRequest_CreateRequest{
 		CreateRequest: innerReq,
@@ -189,16 +150,8 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	body := &pb.SaveRequest_Body{
-		Instances: values,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return err
-	}
 	innerReq := &pb.SaveRequest{
-		Header: header,
-		Body:   body,
+		Instances: values,
 	}
 	option := &pb.WriteTransactionRequest_SaveRequest{
 		SaveRequest: innerReq,
@@ -222,16 +175,8 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 
 // Delete deletes data.
 func (t *WriteTransaction) Delete(instanceIDs ...string) error {
-	body := &pb.DeleteRequest_Body{
-		InstanceIDs: instanceIDs,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return err
-	}
 	innerReq := &pb.DeleteRequest{
-		Header: header,
-		Body:   body,
+		InstanceIDs: instanceIDs,
 	}
 	option := &pb.WriteTransactionRequest_DeleteRequest{
 		DeleteRequest: innerReq,
@@ -242,6 +187,7 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 		return err
 	}
 	var resp *pb.WriteTransactionReply
+	var err error
 	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}

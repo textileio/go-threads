@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/textileio/go-threads/core/thread"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
@@ -30,7 +32,7 @@ type CreateRecordConfig struct {
 	Block      format.Node
 	Prev       cid.Cid
 	Key        ic.PrivKey
-	AuthorKey  ic.PrivKey
+	AuthorKey  thread.Identity
 	ServiceKey crypto.EncryptionKey
 }
 

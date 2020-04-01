@@ -44,6 +44,24 @@ func TestClient_GetHostID(t *testing.T) {
 	})
 }
 
+func TestClient_GetToken(t *testing.T) {
+	t.Parallel()
+	_, client, done := setup(t)
+	defer done()
+
+	identity := createIdentity(t)
+
+	t.Run("test get token", func(t *testing.T) {
+		tok, err := client.GetToken(context.Background(), identity)
+		if err != nil {
+			t.Fatalf("failed to get token: %v", err)
+		}
+		if tok == "" {
+			t.Fatal("emtpy token")
+		}
+	})
+}
+
 func TestClient_CreateThread(t *testing.T) {
 	t.Parallel()
 	_, client, done := setup(t)
@@ -206,11 +224,12 @@ func TestClient_AddRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	authorSk, _, err := crypto.GenerateEd25519Key(crand.Reader)
+	identity := createIdentity(t)
+	tok, err := client.GetToken(context.Background(), identity)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewThreadIdentity(authorSk))
+	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewThreadToken(tok))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +251,7 @@ func TestClient_AddRecord(t *testing.T) {
 			Block:      event,
 			Prev:       cid.Undef,
 			Key:        logSk,
-			AuthorKey:  authorSk,
+			AuthorKey:  identity,
 			ServiceKey: tk.Service(),
 		})
 		if err != nil {
@@ -433,6 +452,14 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 		}
 		_ = os.RemoveAll(dir)
 	}
+}
+
+func createIdentity(t *testing.T) thread.Identity {
+	sk, _, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return thread.NewLibp2pIdentity(sk)
 }
 
 func createThread(t *testing.T, client *Client) thread.Info {

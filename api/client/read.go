@@ -13,7 +13,6 @@ import (
 type ReadTransaction struct {
 	client         pb.API_ReadTransactionClient
 	dbID           thread.ID
-	auth           *thread.Auth
 	collectionName string
 }
 
@@ -22,17 +21,9 @@ type EndTransactionFunc = func() error
 
 // Start starts the read transaction.
 func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
-	body := &pb.StartTransactionRequest_Body{
+	innerReq := &pb.StartTransactionRequest{
 		DbID:           t.dbID.Bytes(),
 		CollectionName: t.collectionName,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return nil, err
-	}
-	innerReq := &pb.StartTransactionRequest{
-		Header: header,
-		Body:   body,
 	}
 	option := &pb.ReadTransactionRequest_StartTransactionRequest{
 		StartTransactionRequest: innerReq,
@@ -47,26 +38,19 @@ func (t *ReadTransaction) Start() (EndTransactionFunc, error) {
 
 // Has runs a has query in the active transaction.
 func (t *ReadTransaction) Has(instanceIDs ...string) (bool, error) {
-	body := &pb.HasRequest_Body{
-		InstanceIDs: instanceIDs,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return false, err
-	}
 	innerReq := &pb.HasRequest{
-		Header: header,
-		Body:   body,
+		InstanceIDs: instanceIDs,
 	}
 	option := &pb.ReadTransactionRequest_HasRequest{
 		HasRequest: innerReq,
 	}
-	var resp *pb.ReadTransactionReply
-	if err = t.client.Send(&pb.ReadTransactionRequest{
+	if err := t.client.Send(&pb.ReadTransactionRequest{
 		Option: option,
 	}); err != nil {
 		return false, err
 	}
+	var resp *pb.ReadTransactionReply
+	var err error
 	if resp, err = t.client.Recv(); err != nil {
 		return false, err
 	}
@@ -80,26 +64,19 @@ func (t *ReadTransaction) Has(instanceIDs ...string) (bool, error) {
 
 // FindByID gets the instance with the specified ID.
 func (t *ReadTransaction) FindByID(instanceID string, instance interface{}) error {
-	body := &pb.FindByIDRequest_Body{
-		InstanceID: instanceID,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return err
-	}
 	innerReq := &pb.FindByIDRequest{
-		Header: header,
-		Body:   body,
+		InstanceID: instanceID,
 	}
 	option := &pb.ReadTransactionRequest_FindByIDRequest{
 		FindByIDRequest: innerReq,
 	}
-	var resp *pb.ReadTransactionReply
-	if err = t.client.Send(&pb.ReadTransactionRequest{
+	if err := t.client.Send(&pb.ReadTransactionRequest{
 		Option: option,
 	}); err != nil {
 		return err
 	}
+	var resp *pb.ReadTransactionReply
+	var err error
 	if resp, err = t.client.Recv(); err != nil {
 		return err
 	}
@@ -118,26 +95,18 @@ func (t *ReadTransaction) Find(query *db.Query, dummy interface{}) (interface{},
 	if err != nil {
 		return nil, err
 	}
-	body := &pb.FindRequest_Body{
-		QueryJSON: queryBytes,
-	}
-	header, err := getHeader(t.auth, body)
-	if err != nil {
-		return nil, err
-	}
 	innerReq := &pb.FindRequest{
-		Header: header,
-		Body:   body,
+		QueryJSON: queryBytes,
 	}
 	option := &pb.ReadTransactionRequest_FindRequest{
 		FindRequest: innerReq,
 	}
-	var resp *pb.ReadTransactionReply
-	if err = t.client.Send(&pb.ReadTransactionRequest{
+	if err := t.client.Send(&pb.ReadTransactionRequest{
 		Option: option,
 	}); err != nil {
 		return nil, err
 	}
+	var resp *pb.ReadTransactionReply
 	if resp, err = t.client.Recv(); err != nil {
 		return nil, err
 	}

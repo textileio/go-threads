@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	rand "crypto/rand"
 	"testing"
 
 	bserv "github.com/ipfs/go-blockservice"
@@ -24,7 +25,26 @@ import (
 	"github.com/textileio/go-threads/util"
 )
 
-func TestService_CreateThreadAndRecords(t *testing.T) {
+func TestNet_GetToken(t *testing.T) {
+	t.Parallel()
+	n := makeNetwork(t)
+	defer n.Close()
+	ctx := context.Background()
+
+	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := n.GetToken(ctx, thread.NewLibp2pIdentity(sk))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tok == "" {
+		t.Fatal("bad token")
+	}
+}
+
+func TestNet_CreateRecord(t *testing.T) {
 	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()
@@ -85,7 +105,7 @@ func TestService_CreateThreadAndRecords(t *testing.T) {
 	})
 }
 
-func TestService_AddThread(t *testing.T) {
+func TestNet_AddThread(t *testing.T) {
 	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
@@ -143,7 +163,7 @@ func TestService_AddThread(t *testing.T) {
 	}
 }
 
-func TestService_AddReplicator(t *testing.T) {
+func TestNet_AddReplicator(t *testing.T) {
 	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
@@ -197,7 +217,7 @@ func TestService_AddReplicator(t *testing.T) {
 	}
 }
 
-func TestService_DeleteThread(t *testing.T) {
+func TestNet_DeleteThread(t *testing.T) {
 	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()

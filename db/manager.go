@@ -89,6 +89,11 @@ func NewManager(network app.Net, opts ...Option) (*Manager, error) {
 	return m, nil
 }
 
+// GetToken provides access to thread network tokens.
+func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error) {
+	return m.network.GetToken(ctx, identity)
+}
+
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBOption) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
@@ -98,7 +103,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBO
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.CreateThread(ctx, id, net.WithNewThreadIdentity(args.Identity), net.WithNewThreadAuth(args.Auth)); err != nil {
+	if _, err := m.network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
 
@@ -125,7 +130,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadIdentity(args.Identity), net.WithNewThreadAuth(args.Auth)); err != nil {
+	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
 
@@ -136,7 +141,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	m.dbs[id] = db
 
 	go func() {
-		if err := m.network.PullThread(ctx, id, net.WithThreadAuth(args.Auth)); err != nil {
+		if err := m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 			log.Errorf("error pulling thread %s", id)
 		}
 	}()
@@ -150,7 +155,7 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedDBOpti
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.GetThread(ctx, id, net.WithThreadIdentity(args.Identity), net.WithThreadAuth(args.Auth)); err != nil {
+	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
 	return m.dbs[id], nil
@@ -162,7 +167,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBO
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := m.network.GetThread(ctx, id, net.WithThreadIdentity(args.Identity), net.WithThreadAuth(args.Auth)); err != nil {
+	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return err
 	}
 	db := m.dbs[id]
@@ -173,7 +178,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBO
 	if err := db.Close(); err != nil {
 		return err
 	}
-	if err := m.network.DeleteThread(ctx, id, net.WithThreadIdentity(args.Identity), net.WithThreadAuth(args.Auth)); err != nil {
+	if err := m.network.DeleteThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return err
 	}
 
