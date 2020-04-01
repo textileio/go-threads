@@ -13,7 +13,7 @@ The main components of the applications are:
 The `DB` will hold all files metadata, which is a JSON document derived from 
 the following structure:
 ```
-type userFolder struct {
+type folder struct {
 	ID    core.InstanceID
 	Owner string
 	Files []file
@@ -28,7 +28,7 @@ type file struct {
 	Files       []file
 }
 ```
-In summary, each folder is represented by a `userFolder` which is owned by a 
+In summary, each folder is represented by a `folder` which is owned by a 
 user. This folder has a list of `file` which has file metadata such as:
 - A unique uuid
 - A relative path from the root of the shared folder: `userXXX/file.txt`

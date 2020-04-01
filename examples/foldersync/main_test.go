@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
+	"path"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,10 +94,10 @@ func TestIt(t *testing.T) {
 
 	// Add some data
 
-	folder0 := userFolder{ID: core.NewInstanceID(), Owner: "user0", Files: []file{}}
-	folder1 := userFolder{ID: core.NewInstanceID(), Owner: "user1", Files: []file{}}
-	folder2 := userFolder{ID: core.NewInstanceID(), Owner: "user2", Files: []file{}}
-	folder3 := userFolder{ID: core.NewInstanceID(), Owner: "user3", Files: []file{}}
+	folder0 := folder{ID: core.NewInstanceID(), Owner: "client0", Files: []file{}}
+	folder1 := folder{ID: core.NewInstanceID(), Owner: "client1", Files: []file{}}
+	folder2 := folder{ID: core.NewInstanceID(), Owner: "client2", Files: []file{}}
+	folder3 := folder{ID: core.NewInstanceID(), Owner: "client3", Files: []file{}}
 
 	_, err = c0.Create(util.JSONFromInstance(folder0))
 	checkErr(t, err)
@@ -103,10 +108,34 @@ func TestIt(t *testing.T) {
 	_, err = c3.Create(util.JSONFromInstance(folder3))
 	checkErr(t, err)
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 15)
+
+	instances0, err := c0.Find(nil)
+	checkErr(t, err)
+	if len(instances0) != 4 {
+		t.Fatalf("expected 4 instances, but got %v", len(instances0))
+	}
+
+	instances1, err := c1.Find(nil)
+	checkErr(t, err)
+	if len(instances1) != 4 {
+		t.Fatalf("expected 4 instances, but got %v", len(instances1))
+	}
+
+	instances2, err := c2.Find(nil)
+	checkErr(t, err)
+	if len(instances2) != 4 {
+		t.Fatalf("expected 4 instances, but got %v", len(instances2))
+	}
+
+	instances3, err := c3.Find(nil)
+	checkErr(t, err)
+	if len(instances3) != 4 {
+		t.Fatalf("expected 4 instances, but got %v", len(instances3))
+	}
 }
 
-func TestThat(t *testing.T) {
+func TestNUsersBootstrap(t *testing.T) {
 	tests := []struct {
 		totalClients     int
 		totalCorePeers   int
@@ -128,73 +157,223 @@ func TestThat(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("Total%dCore%d", tt.totalClients, tt.totalCorePeers), func(t *testing.T) {
 			t.Parallel()
-			var users []*user
+			var clients []*client
 
-			user0, clean0 := createRootUser(t, fmt.Sprintf("user%d", 0))
+			client0, clean0 := createRootClient(t, fmt.Sprintf("client%d", 0))
 			defer clean0()
-			users = append(users, user0)
+			clients = append(clients, client0)
 
-			tid, addr, key, err := user0.getInviteInfo()
+			tid, addr, key, err := client0.getInviteInfo()
 			checkErr(t, err)
 
 			for i := 1; i < tt.totalCorePeers; i++ {
-				user, clean := createJoinerUser(t, fmt.Sprintf("user%d", i), tid, addr, key)
+				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), tid, addr, key)
 				defer clean()
-				users = append(users, user)
+				clients = append(clients, client)
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
-				tid, addr, key, err := users[i%tt.totalCorePeers].getInviteInfo()
+				index := i % tt.totalCorePeers
+				fmt.Printf("using index %v for client %v\n", index, i)
+				tid, addr, key, err := clients[i%tt.totalCorePeers].getInviteInfo()
 				checkErr(t, err)
 
-				user, clean := createJoinerUser(t, fmt.Sprintf("user%d", i), tid, addr, key)
+				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), tid, addr, key)
 				defer clean()
-				users = append(users, user)
+				clients = append(clients, client)
 			}
 
 			for i := 0; i < tt.totalClients; i++ {
-				createFolder := false
-				if i == 0 || i == 3 || i == 2 {
-					createFolder = true
-				}
-				err := users[i].start(createFolder)
+				err := clients[i].start()
 				checkErr(t, err)
 			}
 
+			blk := make([]byte, tt.randFileSize)
+			for i := 0; i < tt.randFilesGen; i++ {
+				for j, c := range clients {
+					rf, err := ioutil.TempFile(path.Join(c.folderPath, c.name), fmt.Sprintf("client%d-", j))
+					checkErr(t, err)
+					_, err = rand.Read(blk)
+					checkErr(t, err)
+					_, err = rf.Write(blk)
+					checkErr(t, err)
+					time.Sleep(time.Millisecond * time.Duration(rand.Intn(300)))
+				}
+			}
+
 			time.Sleep(tt.syncTimeout)
+			assertClientsEqualTrees(t, clients)
 		})
 	}
 }
 
-func createRootUser(t *testing.T, name string) (*user, func()) {
-	repoPath, err := ioutil.TempDir("", "")
-	checkErr(t, err)
-	folderPath, err := ioutil.TempDir("", "")
-	checkErr(t, err)
-	user, err := newRootUser(name, folderPath, repoPath)
-	checkErr(t, err)
-	return user, func() {
-		fmt.Printf("Closing root user %v\n", user.name)
-		err := user.close()
+func assertClientsEqualTrees(t *testing.T, clients []*client) {
+	totalClients := len(clients)
+	dtrees := make([]clientFolders, totalClients)
+	for i := range clients {
+		folders, err := clients[i].getDirectoryTree()
 		checkErr(t, err)
-		os.RemoveAll(repoPath)
-		fmt.Printf("Root user %v closed\n", user.name)
+		dtrees[i] = clientFolders{client: clients[i], folders: folders}
+	}
+	if !EqualTrees(totalClients, dtrees...) {
+		for i := range dtrees {
+			printTree(i, dtrees[i].folders)
+		}
+		t.Fatalf("trees from clients aren't equal")
 	}
 }
 
-func createJoinerUser(t *testing.T, name string, threadID thread.ID, addr ma.Multiaddr, key thread.Key) (*user, func()) {
+type clientFolders struct {
+	client  *client
+	folders []*folder
+}
+
+func printTree(i int, folders []*folder) {
+	sort.Slice(folders, func(i, j int) bool {
+		return strings.Compare(folders[i].Owner, folders[j].Owner) < 0
+	})
+
+	fmt.Printf("Tree of client %d\n", i)
+	for _, sf := range folders {
+		fmt.Printf("\t%s %s\n", sf.ID, sf.Owner)
+		for _, f := range sf.Files {
+			fmt.Printf("\t\t %s %s\n", f.FileRelativePath, f.CID)
+		}
+	}
+	fmt.Println()
+}
+
+func EqualTrees(numClients int, trees ...clientFolders) bool {
+	base := trees[0]
+	if len(base.folders) != numClients {
+		return false
+	}
+	for i := 1; i < len(trees); i++ {
+		if len(base.folders) != len(trees[i].folders) {
+			return false
+		}
+		for _, baseFolder := range base.folders {
+			for _, targetFolder := range trees[i].folders {
+				if targetFolder.ID == baseFolder.ID && targetFolder.Owner == baseFolder.Owner {
+					if !EqualFileList(base.client, baseFolder.Files, trees[i].client, targetFolder.Files) {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
+}
+
+func EqualFileList(c1 *client, f1s []file, c2 *client, f2s []file) bool {
+	if len(f1s) != len(f2s) {
+		return false
+	}
+	for _, f := range f1s {
+		exist := false
+		for _, f2 := range f2s {
+			if f.ID == f2.ID {
+				if !EqualFiles(c1, f, c2, f2) {
+					return false
+				}
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			return false
+		}
+	}
+	return true
+}
+
+func EqualFiles(c1 *client, f1 file, c2 *client, f2 file) bool {
+	if f1.FileRelativePath != f2.FileRelativePath || f1.IsDirectory != f2.IsDirectory ||
+		f1.CID != f2.CID || len(f1.Files) != len(f2.Files) {
+		return false
+	}
+
+	if !f1.IsDirectory {
+		f1FullPath := c1.fullPath(f1)
+		f2FullPath := c2.fullPath(f2)
+		if _, err := os.Stat(f1FullPath); err != nil {
+			return false
+		}
+		if _, err := os.Stat(f2FullPath); err != nil {
+			return false
+		}
+		r, err := os.Open(f1FullPath)
+		if err != nil {
+			panic(err)
+		}
+		defer r.Close()
+		r2, err := os.Open(f2FullPath)
+		if err != nil {
+			panic(err)
+		}
+		defer r.Close()
+		b1, err := ioutil.ReadAll(r)
+		if err != nil {
+			panic(err)
+		}
+		b2, err := ioutil.ReadAll(r2)
+		if err != nil {
+			panic(err)
+		}
+		if !bytes.Equal(b1, b2) {
+			return false
+		}
+	} else {
+		for _, ff := range f1.Files {
+			exist := false
+			for _, ff2 := range f2.Files {
+				if ff.ID == ff2.ID {
+					if !EqualFiles(c1, ff, c2, ff2) {
+						return false
+					}
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func createRootClient(t *testing.T, name string) (*client, func()) {
 	repoPath, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	folderPath, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	user, err := newJoinerUser(name, folderPath, repoPath, threadID, addr, key)
+	client, err := newRootClient(name, folderPath, repoPath)
 	checkErr(t, err)
-	return user, func() {
-		fmt.Printf("Closing joiner user %v\n", user.name)
-		err := user.close()
+	return client, func() {
+		fmt.Printf("Closing root client %v\n", client.name)
+		err := client.close()
 		checkErr(t, err)
 		os.RemoveAll(repoPath)
-		fmt.Printf("Joiner user %v closed\n", user.name)
+		os.RemoveAll(folderPath)
+		fmt.Printf("Root client %v closed\n", client.name)
+	}
+}
+
+func createJoinerClient(t *testing.T, name string, threadID thread.ID, addr ma.Multiaddr, key thread.Key) (*client, func()) {
+	repoPath, err := ioutil.TempDir("", "")
+	checkErr(t, err)
+	folderPath, err := ioutil.TempDir("", "")
+	checkErr(t, err)
+	client, err := newJoinerClient(name, folderPath, repoPath, threadID, addr, key)
+	checkErr(t, err)
+	return client, func() {
+		fmt.Printf("Closing joiner client %v\n", client.name)
+		err := client.close()
+		checkErr(t, err)
+		os.RemoveAll(repoPath)
+		os.RemoveAll(folderPath)
+		fmt.Printf("Joiner client %v closed\n", client.name)
 	}
 }
 

@@ -302,30 +302,23 @@ func (d *DB) GetInviteInfo() (thread.ID, []ma.Multiaddr, thread.Key, error) {
 
 // Close closes the db.
 func (d *DB) Close() error {
-	fmt.Printf("entering db.Close %p\n", d)
 	d.lock.Lock()
-	defer func() {
-		fmt.Printf("exiting db.Close %p\n", d)
-		d.lock.Unlock()
-	}()
+	defer d.lock.Unlock()
+
 	if d.closed {
 		return nil
 	}
 	d.closed = true
 
 	if d.adapter != nil {
-		fmt.Printf("db.Close %p close adapter\n", d)
 		d.adapter.Close()
 	}
-	fmt.Printf("db.Close %p bus discard\n", d)
 	d.localEventsBus.bus.Discard()
 	if !managedDatastore(d.datastore) {
-		fmt.Printf("db.Close %p datastore close\n", d)
 		if err := d.datastore.Close(); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("db.Close %p close stateChangedNotifee\n", d)
 	d.stateChangedNotifee.close()
 	return nil
 }

@@ -1,7 +1,6 @@
 package watcher
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -44,14 +43,10 @@ func New(path string, onCreate Handler) (*FolderWatcher, error) {
 }
 
 func (fw *FolderWatcher) Close() {
-	fmt.Printf("entering FolderWatcher.Close %p\n", fw)
 	fw.lock.Lock()
-	defer func() {
-		fmt.Printf("exiting FolderWatcher.Close %p\n", fw)
-		fw.lock.Unlock()
-	}()
-	if !fw.started || fw.closed {
+	defer fw.lock.Unlock()
 
+	if !fw.started || fw.closed {
 		return
 	}
 	fw.closed = true

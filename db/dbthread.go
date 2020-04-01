@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -46,20 +45,13 @@ func newSingleThreadAdapter(db *DB, n net.Net, creds thread.Credentials) *single
 // Close closes the db thread and stops listening both directions
 // of thread<->db
 func (a *singleThreadAdapter) Close() {
-	fmt.Printf("dbthread.Close waiting for lock %p\n", a.db)
 	a.lock.Lock()
-	fmt.Printf("dbthread.Close aquired lock %p\n", a.db)
-	defer func() {
-		fmt.Printf("dbthread.Close exiting %p\n", a.db)
-		a.lock.Unlock()
-	}()
+	defer a.lock.Unlock()
 	if a.closed {
 		return
 	}
 	a.closed = true
-	fmt.Printf("dbthread.Close closeChan %p\n", a.db)
 	close(a.closeChan)
-	fmt.Printf("dbthread.Close waiting for goRoutines %p\n", a.db)
 	a.goRoutines.Wait()
 }
 
@@ -112,36 +104,36 @@ func (a *singleThreadAdapter) threadToDB(wg *sync.WaitGroup) {
 				continue // Ignore our own events since DB already dispatches to DB reducers
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), fetchEventTimeout)
-			_, err := threadcbor.EventFromRecord(ctx, a.net, rec.Value())
+			event, err := threadcbor.EventFromRecord(ctx, a.net, rec.Value())
 			if err != nil {
 				block, err := a.getBlockWithRetry(ctx, rec.Value(), 3, time.Millisecond*500)
 				if err != nil { // @todo: Buffer them and retry...
 					log.Fatalf("error when getting block from record: %v", err)
 				}
-				_, err = threadcbor.EventFromNode(block)
+				event, err = threadcbor.EventFromNode(block)
 				if err != nil {
 					log.Fatalf("error when decoding block to event: %v", err)
 				}
 			}
-			_, err = a.net.GetThread(ctx, a.threadCreds)
+			info, err := a.net.GetThread(ctx, a.threadCreds)
 			if err != nil {
 				log.Fatalf("error when getting info for thread %s: %v", a.threadCreds.ThreadID(), err)
 			}
-			// if !info.Key.CanRead() {
-			// 	log.Fatalf("read key not found for thread %s/%s", a.threadCreds.ThreadID(), rec.LogID())
-			// }
-			// node, err := event.GetBody(ctx, a.net, info.Key.Read())
-			// if err != nil {
-			// 	log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadCreds.ThreadID(), rec.LogID(), err)
-			// }
-			// dbEvents, err := a.db.eventsFromBytes(node.RawData())
-			// if err != nil {
-			// 	log.Fatalf("error when unmarshaling event from bytes: %v", err)
-			// }
-			// log.Debugf("dispatching to db external new record: %s/%s", rec.ThreadID(), rec.LogID())
-			// if err := a.db.dispatch(dbEvents); err != nil {
-			// 	log.Fatal(err)
-			// }
+			if !info.Key.CanRead() {
+				log.Fatalf("read key not found for thread %s/%s", a.threadCreds.ThreadID(), rec.LogID())
+			}
+			node, err := event.GetBody(ctx, a.net, info.Key.Read())
+			if err != nil {
+				log.Fatalf("error when getting body of event on thread %s/%s: %v", a.threadCreds.ThreadID(), rec.LogID(), err)
+			}
+			dbEvents, err := a.db.eventsFromBytes(node.RawData())
+			if err != nil {
+				log.Fatalf("error when unmarshaling event from bytes: %v", err)
+			}
+			log.Debugf("dispatching to db external new record: %s/%s", rec.ThreadID(), rec.LogID())
+			if err := a.db.dispatch(dbEvents); err != nil {
+				log.Fatal(err)
+			}
 			cancel()
 		}
 	}
