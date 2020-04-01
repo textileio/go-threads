@@ -107,7 +107,6 @@ func TestIt(t *testing.T) {
 }
 
 func TestThat(t *testing.T) {
-	t.SkipNow()
 	tests := []struct {
 		totalClients     int
 		totalCorePeers   int
