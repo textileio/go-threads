@@ -140,7 +140,9 @@ func (s *PubSub) watch(ctx context.Context, id thread.ID, topic *topic) {
 // subscribe to a topic for thread updates.
 func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 	var err error
+	s.Lock()
 	topic.s, err = topic.t.Subscribe()
+	s.Unlock()
 	if err != nil {
 		log.Errorf("error subscribing to topic %s: %s", id, err)
 		return

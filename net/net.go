@@ -329,6 +329,7 @@ func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 			offsets[lg.ID] = cid.Undef
 		}
 	}
+	var lock sync.Mutex
 	var fetchedRcs []map[peer.ID][]core.Record
 	wg := sync.WaitGroup{}
 	for _, lg := range info.Logs {
@@ -341,7 +342,9 @@ func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 				log.Error(err)
 				return
 			}
+			lock.Lock()
 			fetchedRcs = append(fetchedRcs, recs)
+			lock.Unlock()
 		}(lg)
 	}
 	wg.Wait()
