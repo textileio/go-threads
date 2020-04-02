@@ -9,9 +9,9 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.MethodSorters;
-import java.util.logging.Logger;
 
-import io.textile.threads_grpc.Credentials;
+import java.util.ArrayList;
+import java.util.logging.Logger;
 
 import static org.junit.Assert.assertEquals;
 
@@ -46,8 +46,6 @@ public class ClientTest {
         }
 
         String dbId = "AVXwYdq9KAKa/qBCJulxduX3IuaiRjB6R68=";
-        Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
-        client.NewDBSync(creds.build());
+        client.NewDBSync(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)), new ArrayList<>());
     }
 }
