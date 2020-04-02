@@ -173,8 +173,6 @@ func TestNUsersBootstrap(t *testing.T) {
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
-				index := i % tt.totalCorePeers
-				fmt.Printf("using index %v for client %v\n", index, i)
 				tid, addr, key, err := clients[i%tt.totalCorePeers].getInviteInfo()
 				checkErr(t, err)
 
