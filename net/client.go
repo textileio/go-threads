@@ -269,6 +269,10 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 						log.Error(err)
 						return
 					}
+					if err = rec.Verify(lg.PubKey); err != nil {
+						log.Error(err)
+						return
+					}
 					recs.Store(lg.ID, rec.Cid(), rec)
 				}
 			}

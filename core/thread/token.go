@@ -2,6 +2,7 @@ package thread
 
 import (
 	"context"
+	"encoding"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -47,6 +48,9 @@ func (p *Libp2pIdentity) GetPublic() PubKey {
 
 // Pubkey can be anything that provides a verify method.
 type PubKey interface {
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+
 	// String encodes the public key into a base64 string.
 	fmt.Stringer
 	// UnmarshalString decodes a public key from a base64 string.
@@ -63,6 +67,18 @@ type Libp2pPubKey struct {
 // NewLibp2pPubKey returns a new PubKey.
 func NewLibp2pPubKey(key crypto.PubKey) PubKey {
 	return &Libp2pPubKey{PubKey: key}
+}
+
+func (p *Libp2pPubKey) MarshalBinary() ([]byte, error) {
+	return crypto.MarshalPublicKey(p)
+}
+
+func (p *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
+	p.PubKey, err = crypto.UnmarshalPublicKey(bytes)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 func (p *Libp2pPubKey) String() string {

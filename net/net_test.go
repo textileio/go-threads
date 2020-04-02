@@ -141,7 +141,7 @@ func TestNet_AddThread(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(info2.Logs) != 2 {
-		t.Fatalf("expected 2 log got %d", len(info2.Logs))
+		t.Fatalf("expected 2 logs got %d", len(info2.Logs))
 	}
 
 	body2, err := cbornode.WrapObject(map[string]interface{}{

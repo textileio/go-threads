@@ -220,7 +220,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return &pb.PushRecordReply{}, nil
 	}
 
-	if err = rec.Verify(logpk, rec.Sig()); err != nil {
+	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
 	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec); err != nil {
