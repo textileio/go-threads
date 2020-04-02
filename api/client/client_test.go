@@ -75,7 +75,8 @@ func TestNewDBFromAddr(t *testing.T) {
 		addr, err := ma.NewMultiaddrBytes(info.Addrs[0])
 		checkErr(t, err)
 		key, err := thread.KeyFromBytes(info.Key)
-		if err := client2.NewDBFromAddr(context.Background(), addr, key); err != nil {
+		checkErr(t, err)
+		if err = client2.NewDBFromAddr(context.Background(), addr, key); err != nil {
 			t.Fatalf("failed to create new db from address: %v", err)
 		}
 	})

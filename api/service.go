@@ -66,7 +66,7 @@ type remoteIdentity struct {
 	server pb.API_GetTokenServer
 }
 
-func (i *remoteIdentity) Sign(msg []byte) ([]byte, error) {
+func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
 	if err := i.server.Send(&pb.GetTokenReply{
 		Payload: &pb.GetTokenReply_Challenge{
 			Challenge: msg,
@@ -75,10 +75,26 @@ func (i *remoteIdentity) Sign(msg []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	req, err := i.server.Recv()
-	if err != nil {
-		return nil, err
+	var req *pb.GetTokenRequest
+	done := make(chan error)
+	go func() {
+		defer close(done)
+		var err error
+		req, err = i.server.Recv()
+		if err != nil {
+			done <- err
+			return
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, status.Error(codes.DeadlineExceeded, "Challenge deadline exceeded")
+	case err, ok := <-done:
+		if ok {
+			return nil, err
+		}
 	}
+
 	var sig []byte
 	switch payload := req.Payload.(type) {
 	case *pb.GetTokenRequest_Signature:
@@ -104,6 +120,9 @@ func (s *Service) GetToken(server pb.API_GetTokenServer) error {
 	switch payload := req.Payload.(type) {
 	case *pb.GetTokenRequest_Key:
 		err = key.UnmarshalString(payload.Key)
+		if err != nil {
+			return err
+		}
 	default:
 		return status.Error(codes.InvalidArgument, "Key is required")
 	}

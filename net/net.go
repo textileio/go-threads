@@ -49,6 +49,9 @@ var (
 
 	// tokenChallengeBytes is the byte length of token challenges.
 	tokenChallengeBytes = 32
+
+	// tokenChallengeTimeout is the duration of time given to an identity to complete a token challenge.
+	tokenChallengeTimeout = time.Minute
 )
 
 // net is an implementation of core.DBNet.
@@ -163,12 +166,14 @@ func (n *net) GetHostID(_ context.Context) (peer.ID, error) {
 	return n.host.ID(), nil
 }
 
-func (n *net) GetToken(_ context.Context, identity thread.Identity) (tok thread.Token, err error) {
+func (n *net) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
 	msg := make([]byte, tokenChallengeBytes)
 	if _, err = rand.Read(msg); err != nil {
 		return
 	}
-	sig, err := identity.Sign(msg)
+	sctx, cancel := context.WithTimeout(ctx, tokenChallengeTimeout)
+	defer cancel()
+	sig, err := identity.Sign(sctx, msg)
 	if err != nil {
 		return
 	}

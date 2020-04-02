@@ -21,7 +21,9 @@ import (
 // In many cases, this will just be a private key, but callers
 // can use any setup that suits their needs.
 type Identity interface {
-	Sign([]byte) ([]byte, error)
+	// Sign the given bytes cryptographically.
+	Sign(context.Context, []byte) ([]byte, error)
+	// Return a public key paired with this identity.
 	GetPublic() PubKey
 }
 
@@ -33,6 +35,10 @@ type Libp2pIdentity struct {
 // NewLibp2pIdentity returns a new Libp2pIdentity.
 func NewLibp2pIdentity(key crypto.PrivKey) Identity {
 	return &Libp2pIdentity{PrivKey: key}
+}
+
+func (p *Libp2pIdentity) Sign(_ context.Context, msg []byte) ([]byte, error) {
+	return p.PrivKey.Sign(msg)
 }
 
 func (p *Libp2pIdentity) GetPublic() PubKey {

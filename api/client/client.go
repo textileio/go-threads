@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 
 	ma "github.com/multiformats/go-multiaddr"
@@ -94,11 +95,19 @@ func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok th
 	if err != nil {
 		return
 	}
+	defer func() {
+		if e := stream.CloseSend(); e != nil && err == nil {
+			err = e
+		}
+	}()
 	if err = stream.Send(&pb.GetTokenRequest{
 		Payload: &pb.GetTokenRequest_Key{
 			Key: identity.GetPublic().String(),
 		},
-	}); err != nil {
+	}); err == io.EOF {
+		var noOp interface{}
+		return tok, stream.RecvMsg(noOp)
+	} else if err != nil {
 		return
 	}
 
@@ -114,7 +123,7 @@ func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok th
 		return tok, fmt.Errorf("challenge was not received")
 	}
 
-	sig, err := identity.Sign(challenge)
+	sig, err := identity.Sign(ctx, challenge)
 	if err != nil {
 		return
 	}
@@ -122,7 +131,10 @@ func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok th
 		Payload: &pb.GetTokenRequest_Signature{
 			Signature: sig,
 		},
-	}); err != nil {
+	}); err == io.EOF {
+		var noOp interface{}
+		return tok, stream.RecvMsg(noOp)
+	} else if err != nil {
 		return
 	}
 
@@ -135,9 +147,6 @@ func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok th
 		tok = thread.Token(payload.Token)
 	default:
 		return tok, fmt.Errorf("token was not received")
-	}
-	if err = stream.CloseSend(); err != nil {
-		return
 	}
 	return tok, nil
 }

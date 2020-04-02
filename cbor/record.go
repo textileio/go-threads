@@ -46,7 +46,7 @@ func CreateRecord(ctx context.Context, dag format.DAGService, config CreateRecor
 	if err != nil {
 		return nil, err
 	}
-	asig, err := config.AuthorKey.Sign(payload)
+	asig, err := config.AuthorKey.Sign(ctx, payload)
 	if err != nil {
 		return nil, err
 	}
