@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	// EmptyInstanceID represents an empty InstanceID
+	// EmptyInstanceID represents an empty InstanceID.
 	EmptyInstanceID = InstanceID("")
 )
 
-// InstanceID is the type used in instance identities
+// InstanceID is the type used in instance identities.
 type InstanceID string
 
-// NewInstanceID generates a new identity for an instance
+// NewInstanceID generates a new identity for an instance.
 func NewInstanceID() InstanceID {
 	return InstanceID(uuid.New().String())
 }
@@ -38,52 +38,52 @@ type Event interface {
 	Collection() string
 }
 
-// ActionType is the type used by actions done in a txn
+// ActionType is the type used by actions done in a txn.
 type ActionType int
 
 const (
-	// Create indicates the creation of an instance in a txn
+	// Create indicates the creation of an instance in a txn.
 	Create ActionType = iota
-	// Save indicates the mutation of an instance in a txn
+	// Save indicates the mutation of an instance in a txn.
 	Save
-	// Delete indicates the deletion of an instance by ID in a txn
+	// Delete indicates the deletion of an instance by ID in a txn.
 	Delete
 )
 
-// Action is a operation done in the collection
+// Action is a operation done in the collection.
 type Action struct {
-	// Type of the action
+	// Type of the action.
 	Type ActionType
-	// InstanceID of the instance in action
+	// InstanceID of the instance in action.
 	InstanceID InstanceID
-	// CollectionName of the instance in action
+	// CollectionName of the instance in action.
 	CollectionName string
-	// Previous is the instance before the action
+	// Previous is the instance before the action.
 	Previous []byte
-	// Current is the instance after the action was done
+	// Current is the instance after the action was done.
 	Current []byte
 }
 
 type ReduceAction struct {
-	// Type of the reduced action
+	// Type of the reduced action.
 	Type ActionType
-	// Collection in which action was made
+	// Collection in which action was made.
 	Collection string
-	// InstanceID of the instance in reduced action
+	// InstanceID of the instance in reduced action.
 	InstanceID InstanceID
 }
 
 // EventCodec transforms actions generated in collections to
 // events dispatched to thread logs, and viceversa.
 type EventCodec interface {
-	// Reduce applies generated events into state
+	// Reduce applies generated events into state.
 	Reduce(
 		events []Event,
 		datastore ds.TxnDatastore,
 		baseKey ds.Key,
 		indexFunc func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
 	) ([]ReduceAction, error)
-	// Create corresponding events to be dispatched
+	// Create corresponding events to be dispatched.
 	Create(ops []Action) ([]Event, format.Node, error)
 	// EventsFromBytes deserializes a format.Node bytes payload into
 	// Events.

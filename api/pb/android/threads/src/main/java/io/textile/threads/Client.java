@@ -72,21 +72,26 @@ public class Client implements LifecycleObserver {
         });
     }
 
-    public void NewDBSync (Credentials creds) {
+    public void NewDBSync (ByteString dbID, List<CollectionConfig> collections) {
         NewDBRequest.Builder request = NewDBRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
+        for (int i = 0; i < collections.size(); i++) {
+            request.setCollections(i, collections.get(i));
+        }
         blockingStub.newDB(request.build());
     }
 
-    public void NewDB (Credentials creds, StreamObserver<NewDBReply> responseObserver) {
+    public void NewDB (ByteString dbID, List<CollectionConfig> collections, StreamObserver<NewDBReply> responseObserver) {
         NewDBRequest.Builder request = NewDBRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
+        for (int i = 0; i < collections.size(); i++) {
+            request.setCollections(i, collections.get(i));
+        }
         asyncStub.newDB(request.build(), responseObserver);
     }
 
-    public void NewDBFromAddrSync (Credentials creds, String address, ByteString key, List<CollectionConfig> collections) {
+    public void NewDBFromAddrSync (ByteString address, ByteString key, List<CollectionConfig> collections) {
         NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
-        request.setCredentials(creds);
         request.setAddr(address);
         request.setKey(key);
         for (int i = 0; i < collections.size(); i++) {
@@ -95,9 +100,8 @@ public class Client implements LifecycleObserver {
         blockingStub.newDBFromAddr(request.build());
     }
 
-    public void NewDBFromAddr (Credentials creds, String address, ByteString key, List<CollectionConfig> collections, StreamObserver<NewDBReply> responseObserver) {
+    public void NewDBFromAddr (ByteString address, ByteString key, List<CollectionConfig> collections, StreamObserver<NewDBReply> responseObserver) {
         NewDBFromAddrRequest.Builder request = NewDBFromAddrRequest.newBuilder();
-        request.setCredentials(creds);
         request.setAddr(address);
         request.setKey(key);
         for (int i = 0; i < collections.size(); i++) {
@@ -106,6 +110,7 @@ public class Client implements LifecycleObserver {
         asyncStub.newDBFromAddr(request.build(), responseObserver);
     }
 
+<<<<<<< HEAD
     public GetInviteInfoReply GetInviteInfoSync (Credentials creds) {
         GetInviteInfoRequest.Builder request = GetInviteInfoRequest.newBuilder();
         request.setCredentials(creds);
@@ -116,46 +121,58 @@ public class Client implements LifecycleObserver {
         GetInviteInfoRequest.Builder request = GetInviteInfoRequest.newBuilder();
         request.setCredentials(creds);
         asyncStub.GetInviteInfo(request.build(), responseObserver);
+=======
+    public GetDBInfoReply GetDBInfoSync (ByteString dbID) {
+        GetDBInfoRequest.Builder request = GetDBInfoRequest.newBuilder();
+        request.setDbID(dbID);
+        return blockingStub.getDBInfo(request.build());
     }
 
-    public CreateReply CreateSync (Credentials creds, String collectionName, ByteString[] instances) {
+    public void GetDBInfo (ByteString dbID, StreamObserver<GetDBInfoReply> responseObserver) {
+        GetDBInfoRequest.Builder request = GetDBInfoRequest.newBuilder();
+        request.setDbID(dbID);
+        asyncStub.getDBInfo(request.build(), responseObserver);
+>>>>>>> origin/master
+    }
+
+    public CreateReply CreateSync (ByteString dbID, String collectionName, ByteString[] instances) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllInstances(Arrays.asList(instances));
         CreateReply reply = blockingStub.create(request.build());
         return reply;
     }
 
-    public void Create (Credentials creds, String collectionName, ByteString[] instances, StreamObserver<CreateReply> responseObserver) {
+    public void Create (ByteString dbID, String collectionName, ByteString[] instances, StreamObserver<CreateReply> responseObserver) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllInstances(Arrays.asList(instances));
         asyncStub.create(request.build(), responseObserver);
     }
 
-    public SaveReply SaveSync (Credentials creds, String collectionName, ByteString[] instances) {
+    public SaveReply SaveSync (ByteString dbID, String collectionName, ByteString[] instances) {
         SaveRequest.Builder request = SaveRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllInstances(Arrays.asList(instances));
         SaveReply reply = blockingStub.save(request.build());
         return reply;
     }
 
-    public void Save (Credentials creds, String collectionName, ByteString[] instances, StreamObserver<SaveReply> responseObserver) {
+    public void Save (ByteString dbID, String collectionName, ByteString[] instances, StreamObserver<SaveReply> responseObserver) {
         SaveRequest.Builder request = SaveRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.addAllInstances(Arrays.asList(instances));
         SaveReply reply = blockingStub.save(request.build());
         asyncStub.save(request.build(), responseObserver);
     }
 
-    public boolean HasSync (Credentials creds, String collectionName, String[] instanceIDs) {
+    public boolean HasSync (ByteString dbID, String collectionName, String[] instanceIDs) {
         HasRequest.Builder request = HasRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         for (int i = 1; i < instanceIDs.length; i++) {
             request.setInstanceIDs(i, instanceIDs[i]);
@@ -164,9 +181,9 @@ public class Client implements LifecycleObserver {
         return reply.getExists();
     }
 
-    public void Has (Credentials creds, String collectionName, String[] instanceIDs, StreamObserver<HasReply> responseObserver) {
+    public void Has (ByteString dbID, String collectionName, String[] instanceIDs, StreamObserver<HasReply> responseObserver) {
         HasRequest.Builder request = HasRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         for (int i = 1; i < instanceIDs.length; i++) {
             request.setInstanceIDs(i, instanceIDs[i]);
@@ -174,43 +191,43 @@ public class Client implements LifecycleObserver {
         asyncStub.has(request.build(), responseObserver);
     }
 
-    public FindByIDReply FindByIDSync (Credentials creds, String collectionName, String instanceID) {
+    public FindByIDReply FindByIDSync (ByteString dbID, String collectionName, String instanceID) {
         FindByIDRequest.Builder request = FindByIDRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setInstanceID(instanceID);
         FindByIDReply reply = blockingStub.findByID(request.build());
         return reply;
     }
   
-    public void FindByID (Credentials creds, String collectionName, String instanceID, StreamObserver<FindByIDReply> responseObserver) {
+    public void FindByID (ByteString dbID, String collectionName, String instanceID, StreamObserver<FindByIDReply> responseObserver) {
         FindByIDRequest.Builder request = FindByIDRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setInstanceID(instanceID);
         asyncStub.findByID(request.build(), responseObserver);
     }
 
-    public FindReply FindSync (Credentials creds, String collectionName, ByteString query) {
+    public FindReply FindSync (ByteString dbID, String collectionName, ByteString query) {
         FindRequest.Builder request = FindRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setQueryJSON(query);
         FindReply reply = blockingStub.find(request.build());
         return reply;
     }
 
-    public void Find (Credentials creds, String collectionName, ByteString query, StreamObserver<FindReply> responseObserver) {
+    public void Find (ByteString dbID, String collectionName, ByteString query, StreamObserver<FindReply> responseObserver) {
         FindRequest.Builder request = FindRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         request.setCollectionName(collectionName);
         request.setQueryJSON(query);
         asyncStub.find(request.build(), responseObserver);
     }
 
-    public void NewCollectionSync (Credentials creds, String name, ByteString schema) {
+    public void NewCollectionSync (ByteString dbID, String name, ByteString schema) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         CollectionConfig.Builder config = CollectionConfig.newBuilder();
         config.setName(name);
         config.setSchema(schema);
@@ -218,9 +235,9 @@ public class Client implements LifecycleObserver {
         blockingStub.newCollection(request.build());
     }
 
-    public void NewCollection (Credentials creds, String name, ByteString schema, StreamObserver<NewCollectionReply> responseObserver) {
+    public void NewCollection (ByteString dbID, String name, ByteString schema, StreamObserver<NewCollectionReply> responseObserver) {
         NewCollectionRequest.Builder request = NewCollectionRequest.newBuilder();
-        request.setCredentials(creds);
+        request.setDbID(dbID);
         CollectionConfig.Builder config = CollectionConfig.newBuilder();
         config.setName(name);
         config.setSchema(schema);

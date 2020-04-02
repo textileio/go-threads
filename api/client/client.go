@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 
-	ic "github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -16,19 +16,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ActionType describes the type of event action when subscribing to data updates
+// ActionType describes the type of event action when subscribing to data updates.
 type ActionType int
 
 const (
-	// ActionCreate represents an event for creating a new instance
+	// ActionCreate represents an event for creating a new instance.
 	ActionCreate ActionType = iota + 1
-	// ActionSave represents an event for saving changes to an existing instance
+	// ActionSave represents an event for saving changes to an existing instance.
 	ActionSave
-	// ActionDelete represents an event for deleting existing instance
+	// ActionDelete represents an event for deleting existing instance.
 	ActionDelete
 )
 
-// Action represents a data event delivered to a listener
+// Action represents a data event delivered to a listener.
 type Action struct {
 	Collection string
 	Type       ActionType
@@ -36,40 +36,43 @@ type Action struct {
 	Instance   []byte
 }
 
-// ListenActionType describes the type of event action when receiving data updates
+// ListenActionType describes the type of event action when receiving data updates.
 type ListenActionType int
 
 const (
-	// ListenAll specifies that Create, Save, and Delete events should be listened for
+	// ListenAll specifies that Create, Save, and Delete events should be listened for.
 	ListenAll ListenActionType = iota
-	// ListenCreate specifies that Create events should be listened for
+	// ListenCreate specifies that Create events should be listened for.
 	ListenCreate
-	// ListenSave specifies that Save events should be listened for
+	// ListenSave specifies that Save events should be listened for.
 	ListenSave
-	// ListenDelete specifies that Delete events should be listened for
+	// ListenDelete specifies that Delete events should be listened for.
 	ListenDelete
 )
 
-// ListenOption represents a filter to apply when listening for data updates
+// ListenOption represents a filter to apply when listening for data updates.
 type ListenOption struct {
 	Type       ListenActionType
 	Collection string
 	InstanceID string
 }
 
-// ListenEvent is used to send data or error values for Listen
+// ListenEvent is used to send data or error values for Listen.
 type ListenEvent struct {
 	Action Action
 	Err    error
 }
 
-// Client provides the client api
+// Client provides the client api.
 type Client struct {
 	c    pb.APIClient
 	conn *grpc.ClientConn
 }
 
-// NewClient starts the client
+// Instances is a list of collection instances.
+type Instances []interface{}
+
+// NewClient starts the client.
 func NewClient(target string, opts ...grpc.DialOption) (*Client, error) {
 	conn, err := grpc.Dial(target, opts...)
 	if err != nil {
@@ -81,41 +84,113 @@ func NewClient(target string, opts ...grpc.DialOption) (*Client, error) {
 	}, nil
 }
 
-// Close closes the client's grpc connection and cancels any active requests
+// Close closes the client's grpc connection and cancels any active requests.
 func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// NewDB creates a new DB with ID
-func (c *Client) NewDB(ctx context.Context, creds thread.Credentials) error {
-	signed, err := signCreds(creds)
+// GetToken gets a db token for use with the rest of the API.
+func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
+	stream, err := c.c.GetToken(ctx)
 	if err != nil {
-		return err
+		return
 	}
-	_, err = c.c.NewDB(ctx, &pb.NewDBRequest{
-		Credentials: signed,
-	})
-	return err
+	defer func() {
+		if e := stream.CloseSend(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Key{
+			Key: identity.GetPublic().String(),
+		},
+	}); err == io.EOF {
+		var noOp interface{}
+		return tok, stream.RecvMsg(noOp)
+	} else if err != nil {
+		return
+	}
+
+	rep, err := stream.Recv()
+	if err != nil {
+		return
+	}
+	var challenge []byte
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Challenge:
+		challenge = payload.Challenge
+	default:
+		return tok, fmt.Errorf("challenge was not received")
+	}
+
+	sig, err := identity.Sign(ctx, challenge)
+	if err != nil {
+		return
+	}
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Signature{
+			Signature: sig,
+		},
+	}); err == io.EOF {
+		var noOp interface{}
+		return tok, stream.RecvMsg(noOp)
+	} else if err != nil {
+		return
+	}
+
+	rep, err = stream.Recv()
+	if err != nil {
+		return
+	}
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Token:
+		tok = thread.Token(payload.Token)
+	default:
+		return tok, fmt.Errorf("token was not received")
+	}
+	return tok, nil
 }
 
-// NewDBFromAddr creates a new DB with address and keys.
-func (c *Client) NewDBFromAddr(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, collections ...db.CollectionConfig) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+// NewDB creates a new DB with ID.
+func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManagedDBOption) error {
+	args := &db.NewManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
-	pbcollections := make([]*pb.CollectionConfig, len(collections))
-	for i, c := range collections {
+	pbcollections := make([]*pb.CollectionConfig, len(args.Collections))
+	for i, c := range args.Collections {
 		cc, err := collectionConfigToPb(c)
 		if err != nil {
 			return err
 		}
 		pbcollections[i] = cc
 	}
-	_, err = c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
-		Credentials: signed,
-		Addr:        addr.String(),
-		Key:         key.Bytes(),
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.NewDB(ctx, &pb.NewDBRequest{
+		DbID:        dbID.Bytes(),
+		Collections: pbcollections,
+	})
+	return err
+}
+
+// NewDBFromAddr creates a new DB with address and keys.
+func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey thread.Key, opts ...db.NewManagedDBOption) error {
+	args := &db.NewManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	pbcollections := make([]*pb.CollectionConfig, len(args.Collections))
+	for i, c := range args.Collections {
+		cc, err := collectionConfigToPb(c)
+		if err != nil {
+			return err
+		}
+		pbcollections[i] = cc
+	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
+		Addr:        dbAddr.Bytes(),
+		Key:         dbKey.Bytes(),
 		Collections: pbcollections,
 	})
 	return err
@@ -140,98 +215,101 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 	}, nil
 }
 
-// GetInviteInfo retrives db addresses and keys.
-func (c *Client) GetInviteInfo(ctx context.Context, creds thread.Credentials) (*pb.GetInviteInfoReply, error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return nil, err
+// GetDBInfo retrives db addresses and keys.
+func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) (*pb.GetDBInfoReply, error) {
+	args := &db.ManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
-	return c.c.GetInviteInfo(ctx, &pb.GetInviteInfoRequest{
-		Credentials: signed,
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	return c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
+		DbID: dbID.Bytes(),
 	})
 }
 
-// NewCollection creates a new collection
-func (c *Client) NewCollection(ctx context.Context, creds thread.Credentials, config db.CollectionConfig) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+// NewCollection creates a new collection.
+// @todo: This should take some thread auth, but collections currently do not involve a thread.
+func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedDBOption) error {
+	args := &db.ManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
 	cc, err := collectionConfigToPb(config)
 	if err != nil {
 		return err
 	}
 	_, err = c.c.NewCollection(ctx, &pb.NewCollectionRequest{
-		Credentials: signed,
-		Config:      cc,
+		DbID:   dbID.Bytes(),
+		Config: cc,
 	})
 	return err
 }
 
-// Create creates new instances of objects
-func (c *Client) Create(ctx context.Context, creds thread.Credentials, collectionName string, items ...interface{}) ([]string, error) {
-	signed, err := signCreds(creds)
+// Create creates new instances of objects.
+func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName string, instances Instances, opts ...db.TxnOption) ([]string, error) {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	values, err := marshalItems(instances)
 	if err != nil {
 		return nil, err
 	}
-	instances, err := marshalItems(items)
-	if err != nil {
-		return nil, err
-	}
-
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.Create(ctx, &pb.CreateRequest{
-		Credentials:    signed,
+		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
-		Instances:      instances,
+		Instances:      values,
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	return resp.GetInstanceIDs(), nil
 }
 
-// Save saves existing instances
-func (c *Client) Save(ctx context.Context, creds thread.Credentials, collectionName string, instances ...interface{}) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+// Save saves existing instances.
+func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string, instances Instances, opts ...db.TxnOption) error {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
 	values, err := marshalItems(instances)
 	if err != nil {
 		return err
 	}
-
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	_, err = c.c.Save(ctx, &pb.SaveRequest{
-		Credentials:    signed,
+		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		Instances:      values,
 	})
 	return err
 }
 
-// Delete deletes data
-func (c *Client) Delete(ctx context.Context, creds thread.Credentials, collectionName string, instanceIDs ...string) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+// Delete deletes data.
+func (c *Client) Delete(ctx context.Context, dbID thread.ID, collectionName string, instanceIDs []string, opts ...db.TxnOption) error {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
-	_, err = c.c.Delete(ctx, &pb.DeleteRequest{
-		Credentials:    signed,
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.Delete(ctx, &pb.DeleteRequest{
+		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
 	})
 	return err
 }
 
-// Has checks if the specified instances exist
-func (c *Client) Has(ctx context.Context, creds thread.Credentials, collectionName string, instanceIDs ...string) (bool, error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return false, err
+// Has checks if the specified instances exist.
+func (c *Client) Has(ctx context.Context, dbID thread.ID, collectionName string, instanceIDs []string, opts ...db.TxnOption) (bool, error) {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.Has(ctx, &pb.HasRequest{
-		Credentials:    signed,
+		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		InstanceIDs:    instanceIDs,
 	})
@@ -241,35 +319,37 @@ func (c *Client) Has(ctx context.Context, creds thread.Credentials, collectionNa
 	return resp.GetExists(), nil
 }
 
-// Find finds instances by query
-func (c *Client) Find(ctx context.Context, creds thread.Credentials, collectionName string, query *db.Query, dummySlice interface{}) (interface{}, error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return nil, err
+// Find finds instances by query.
+func (c *Client) Find(ctx context.Context, dbID thread.ID, collectionName string, query *db.Query, dummy interface{}, opts ...db.TxnOption) (interface{}, error) {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
 	queryBytes, err := json.Marshal(query)
 	if err != nil {
 		return nil, err
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.Find(ctx, &pb.FindRequest{
-		Credentials:    signed,
+		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		QueryJSON:      queryBytes,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return processFindReply(resp, dummySlice)
+	return processFindReply(resp, dummy)
 }
 
-// FindByID finds an instance by id
-func (c *Client) FindByID(ctx context.Context, creds thread.Credentials, collectionName, instanceID string, instance interface{}) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+// FindByID finds an instance by id.
+func (c *Client) FindByID(ctx context.Context, dbID thread.ID, collectionName, instanceID string, instance interface{}, opts ...db.TxnOption) error {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.FindByID(ctx, &pb.FindByIDRequest{
-		Credentials:    signed,
+		DbID:           dbID.Bytes(),
 		CollectionName: collectionName,
 		InstanceID:     instanceID,
 	})
@@ -279,37 +359,47 @@ func (c *Client) FindByID(ctx context.Context, creds thread.Credentials, collect
 	return json.Unmarshal(resp.GetInstance(), instance)
 }
 
-// ReadTransaction returns a read transaction that can be started and used and ended
-func (c *Client) ReadTransaction(ctx context.Context, creds thread.Credentials, collectionName string) (*ReadTransaction, error) {
+// ReadTransaction returns a read transaction that can be started and used and ended.
+func (c *Client) ReadTransaction(ctx context.Context, dbID thread.ID, collectionName string, opts ...db.TxnOption) (*ReadTransaction, error) {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	client, err := c.c.ReadTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &ReadTransaction{
 		client:         client,
-		creds:          creds,
+		dbID:           dbID,
 		collectionName: collectionName,
 	}, nil
 }
 
-// WriteTransaction returns a read transaction that can be started and used and ended
-func (c *Client) WriteTransaction(ctx context.Context, creds thread.Credentials, collectionName string) (*WriteTransaction, error) {
+// WriteTransaction returns a read transaction that can be started and used and ended.
+func (c *Client) WriteTransaction(ctx context.Context, dbID thread.ID, collectionName string, opts ...db.TxnOption) (*WriteTransaction, error) {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	client, err := c.c.WriteTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return &WriteTransaction{
 		client:         client,
-		creds:          creds,
+		dbID:           dbID,
 		collectionName: collectionName,
 	}, nil
 }
 
-// Listen provides an update whenever the specified db, collection, or instance is updated
-func (c *Client) Listen(ctx context.Context, creds thread.Credentials, listenOptions ...ListenOption) (<-chan ListenEvent, error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return nil, err
+// Listen provides an update whenever the specified db, collection, or instance is updated.
+func (c *Client) Listen(ctx context.Context, dbID thread.ID, listenOptions []ListenOption, opts ...db.TxnOption) (<-chan ListenEvent, error) {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
 	channel := make(chan ListenEvent)
 	filters := make([]*pb.ListenRequest_Filter, len(listenOptions))
@@ -333,9 +423,10 @@ func (c *Client) Listen(ctx context.Context, creds thread.Credentials, listenOpt
 			Action:         action,
 		}
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	stream, err := c.c.Listen(ctx, &pb.ListenRequest{
-		Credentials: signed,
-		Filters:     filters,
+		DbID:    dbID.Bytes(),
+		Filters: filters,
 	})
 	if err != nil {
 		return nil, err
@@ -377,11 +468,11 @@ func (c *Client) Listen(ctx context.Context, creds thread.Credentials, listenOpt
 	return channel, nil
 }
 
-func processFindReply(reply *pb.FindReply, dummySlice interface{}) (interface{}, error) {
-	sliceType := reflect.TypeOf(dummySlice)
-	elementType := sliceType.Elem().Elem()
+func processFindReply(reply *pb.FindReply, dummy interface{}) (interface{}, error) {
+	sliceType := reflect.TypeOf(dummy)
+	elementType := sliceType.Elem()
 	length := len(reply.GetInstances())
-	results := reflect.MakeSlice(sliceType, length, length)
+	results := reflect.MakeSlice(reflect.SliceOf(sliceType), length, length)
 	for i, result := range reply.GetInstances() {
 		target := reflect.New(elementType).Interface()
 		err := json.Unmarshal(result, target)
@@ -404,23 +495,4 @@ func marshalItems(items []interface{}) ([][]byte, error) {
 		values[i] = bytes
 	}
 	return values, nil
-}
-
-func signCreds(creds thread.Credentials) (pcreds *pb.Credentials, err error) {
-	pcreds = &pb.Credentials{
-		ThreadID: creds.ThreadID().Bytes(),
-	}
-	pk, sig, err := creds.Sign()
-	if err != nil {
-		return
-	}
-	if pk == nil {
-		return
-	}
-	pcreds.PubKey, err = ic.MarshalPublicKey(pk)
-	if err != nil {
-		return
-	}
-	pcreds.Signature = sig
-	return pcreds, nil
 }

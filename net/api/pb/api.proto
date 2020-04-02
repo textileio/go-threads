@@ -6,34 +6,34 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
-message Credentials {
-    bytes threadID = 1;
-    bytes pubKey = 2;
-    bytes signature = 3;
-}
-
 message GetHostIDRequest {}
 
 message GetHostIDReply {
     bytes peerID = 1;
 }
 
-message Keys {
-    bytes threadKey = 1;
-    bytes logKey = 2;
+message GetTokenRequest {
+    oneof payload {
+        string key = 1;
+        bytes signature = 2;
+    }
+}
+
+message GetTokenReply {
+    oneof payload {
+        bytes challenge = 1;
+        string token = 2;
+    }
 }
 
 message CreateThreadRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
     Keys keys = 2;
 }
 
-message LogInfo {
-    bytes ID = 1;
-    bytes pubKey = 2;
-	bytes privKey = 3;
-	repeated bytes addrs = 4;
-	bytes head = 5;
+message Keys {
+    bytes threadKey = 1;
+    bytes logKey = 2;
 }
 
 message ThreadInfoReply {
@@ -42,30 +42,37 @@ message ThreadInfoReply {
     repeated LogInfo logs = 3;
 }
 
+message LogInfo {
+    bytes ID = 1;
+    bytes pubKey = 2;
+    bytes privKey = 3;
+    repeated bytes addrs = 4;
+    bytes head = 5;
+}
+
 message AddThreadRequest {
-    Credentials credentials = 1;
-    bytes addr = 2;
-    Keys keys = 3;
+    bytes addr = 1;
+    Keys keys = 2;
 }
 
 message GetThreadRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
 }
 
 message PullThreadRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
 }
 
 message PullThreadReply {}
 
 message DeleteThreadRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
 }
 
 message DeleteThreadReply {}
 
 message AddReplicatorRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
     bytes addr = 2;
 }
 
@@ -74,15 +81,8 @@ message AddReplicatorReply {
 }
 
 message CreateRecordRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
     bytes body = 2;
-}
-
-message Record {
-    bytes recordNode = 1;
-    bytes eventNode = 2;
-    bytes headerNode = 3;
-    bytes bodyNode = 4;
 }
 
 message NewRecordReply {
@@ -92,15 +92,22 @@ message NewRecordReply {
 }
 
 message AddRecordRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
     bytes logID = 2;
     Record record = 3;
+}
+
+message Record {
+    bytes recordNode = 1;
+    bytes eventNode = 2;
+    bytes headerNode = 3;
+    bytes bodyNode = 4;
 }
 
 message AddRecordReply {}
 
 message GetRecordRequest {
-    Credentials credentials = 1;
+    bytes threadID = 1;
     bytes recordID = 2;
 }
 
@@ -109,11 +116,12 @@ message GetRecordReply {
 }
 
 message SubscribeRequest {
-    repeated Credentials credentials = 1;
+    repeated bytes threadIDs = 1;
 }
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
+    rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
     rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
     rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}

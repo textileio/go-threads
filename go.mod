@@ -9,6 +9,7 @@ require (
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger v1.6.0
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/fsnotify/fsnotify v1.4.7
@@ -17,6 +18,7 @@ require (
 	github.com/gogo/status v1.1.0
 	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1
+	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/golang-lru v0.5.3
 	github.com/hsanjuan/ipfs-lite v0.1.8

@@ -25,10 +25,10 @@ type Book struct {
 
 var (
 	data = []Book{
-		Book{Title: "Title1", Banned: true, Author: "Author1", Meta: Meta{TotalReads: 100, Rating: 3.2}},
-		Book{Title: "Title2", Banned: false, Author: "Author1", Meta: Meta{TotalReads: 150, Rating: 4.1}},
-		Book{Title: "Title3", Banned: false, Author: "Author2", Meta: Meta{TotalReads: 120, Rating: 4.6}},
-		Book{Title: "Title4", Banned: true, Author: "Author3", Meta: Meta{TotalReads: 1000, Rating: 2.6}},
+		{Title: "Title1", Banned: true, Author: "Author1", Meta: Meta{TotalReads: 100, Rating: 3.2}},
+		{Title: "Title2", Banned: false, Author: "Author1", Meta: Meta{TotalReads: 150, Rating: 4.1}},
+		{Title: "Title3", Banned: false, Author: "Author2", Meta: Meta{TotalReads: 120, Rating: 4.6}},
+		{Title: "Title4", Banned: true, Author: "Author3", Meta: Meta{TotalReads: 1000, Rating: 2.6}},
 	}
 
 	boolTrue   = true
@@ -319,11 +319,11 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 	})
 	checkErr(t, err)
 	for i := range data {
-		ids, err := c.Create(util.JSONFromInstance(data[i]))
+		id, err := c.Create(util.JSONFromInstance(data[i]))
 		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
-		data[i].ID = ids[0]
+		data[i].ID = id
 	}
 	return c, clean
 }

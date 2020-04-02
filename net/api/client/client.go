@@ -2,11 +2,12 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log"
 
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -22,8 +23,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-var log = logging.Logger("threadserviceclient")
 
 // Client provides the client api.
 type Client struct {
@@ -50,7 +49,6 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// GetHostID returns the service's host peer ID.
 func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 	resp, err := c.c.GetHostID(ctx, &pb.GetHostIDRequest{})
 	if err != nil {
@@ -59,12 +57,69 @@ func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 	return peer.IDFromBytes(resp.PeerID)
 }
 
-func (c *Client) CreateThread(ctx context.Context, creds thread.Credentials, opts ...core.KeyOption) (info thread.Info, err error) {
-	signed, err := signCreds(creds)
+func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
+	stream, err := c.c.GetToken(ctx)
 	if err != nil {
 		return
 	}
-	args := &core.KeyOptions{}
+	defer func() {
+		if e := stream.CloseSend(); e != nil && err == nil {
+			err = e
+		}
+	}()
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Key{
+			Key: identity.GetPublic().String(),
+		},
+	}); err == io.EOF {
+		var noOp interface{}
+		return tok, stream.RecvMsg(noOp)
+	} else if err != nil {
+		return
+	}
+
+	rep, err := stream.Recv()
+	if err != nil {
+		return
+	}
+	var challenge []byte
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Challenge:
+		challenge = payload.Challenge
+	default:
+		return tok, fmt.Errorf("challenge was not received")
+	}
+
+	sig, err := identity.Sign(ctx, challenge)
+	if err != nil {
+		return
+	}
+	if err = stream.Send(&pb.GetTokenRequest{
+		Payload: &pb.GetTokenRequest_Signature{
+			Signature: sig,
+		},
+	}); err == io.EOF {
+		var noOp interface{}
+		return tok, stream.RecvMsg(noOp)
+	} else if err != nil {
+		return
+	}
+
+	rep, err = stream.Recv()
+	if err != nil {
+		return
+	}
+	switch payload := rep.Payload.(type) {
+	case *pb.GetTokenReply_Token:
+		tok = thread.Token(payload.Token)
+	default:
+		return tok, fmt.Errorf("token was not received")
+	}
+	return tok, nil
+}
+
+func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
+	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -72,9 +127,10 @@ func (c *Client) CreateThread(ctx context.Context, creds thread.Credentials, opt
 	if err != nil {
 		return
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
-		Credentials: signed,
-		Keys:        keys,
+		ThreadID: id.Bytes(),
+		Keys:     keys,
 	})
 	if err != nil {
 		return
@@ -82,12 +138,8 @@ func (c *Client) CreateThread(ctx context.Context, creds thread.Credentials, opt
 	return threadInfoFromProto(resp)
 }
 
-func (c *Client) AddThread(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return
-	}
-	args := &core.KeyOptions{}
+func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.NewThreadOption) (info thread.Info, err error) {
+	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -95,10 +147,10 @@ func (c *Client) AddThread(ctx context.Context, creds thread.Credentials, addr m
 	if err != nil {
 		return
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
-		Credentials: signed,
-		Addr:        addr.Bytes(),
-		Keys:        keys,
+		Addr: addr.Bytes(),
+		Keys: keys,
 	})
 	if err != nil {
 		return
@@ -106,13 +158,14 @@ func (c *Client) AddThread(ctx context.Context, creds thread.Credentials, addr m
 	return threadInfoFromProto(resp)
 }
 
-func (c *Client) GetThread(ctx context.Context, creds thread.Credentials) (info thread.Info, err error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return
+func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
-		Credentials: signed,
+		ThreadID: id.Bytes(),
 	})
 	if err != nil {
 		return
@@ -120,36 +173,39 @@ func (c *Client) GetThread(ctx context.Context, creds thread.Credentials) (info 
 	return threadInfoFromProto(resp)
 }
 
-func (c *Client) PullThread(ctx context.Context, creds thread.Credentials) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+func (c *Client) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
-	_, err = c.c.PullThread(ctx, &pb.PullThreadRequest{
-		Credentials: signed,
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.PullThread(ctx, &pb.PullThreadRequest{
+		ThreadID: id.Bytes(),
 	})
 	return err
 }
 
-func (c *Client) DeleteThread(ctx context.Context, creds thread.Credentials) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+func (c *Client) DeleteThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
-	_, err = c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
-		Credentials: signed,
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
+		ThreadID: id.Bytes(),
 	})
 	return err
 }
 
-func (c *Client) AddReplicator(ctx context.Context, creds thread.Credentials, paddr ma.Multiaddr) (pid peer.ID, err error) {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return
+func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
-		Credentials: signed,
-		Addr:        paddr.Bytes(),
+		ThreadID: id.Bytes(),
+		Addr:     paddr.Bytes(),
 	})
 	if err != nil {
 		return
@@ -157,18 +213,19 @@ func (c *Client) AddReplicator(ctx context.Context, creds thread.Credentials, pa
 	return peer.IDFromBytes(resp.PeerID)
 }
 
-func (c *Client) CreateRecord(ctx context.Context, creds thread.Credentials, body format.Node) (core.ThreadRecord, error) {
-	info, err := c.GetThread(ctx, creds)
+func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (core.ThreadRecord, error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	info, err := c.GetThread(ctx, id, opts...)
 	if err != nil {
 		return nil, err
 	}
-	signed, err := signCreds(creds)
-	if err != nil {
-		return nil, err
-	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.CreateRecord(ctx, &pb.CreateRecordRequest{
-		Credentials: signed,
-		Body:        body.RawData(),
+		ThreadID: id.Bytes(),
+		Body:     body.RawData(),
 	})
 	if err != nil {
 		return nil, err
@@ -176,36 +233,38 @@ func (c *Client) CreateRecord(ctx context.Context, creds thread.Credentials, bod
 	return threadRecordFromProto(resp, info.Key.Service())
 }
 
-func (c *Client) AddRecord(ctx context.Context, creds thread.Credentials, lid peer.ID, rec core.Record) error {
-	signed, err := signCreds(creds)
-	if err != nil {
-		return err
+func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
 	}
 	lidb, _ := lid.Marshal()
 	prec, err := cbor.RecordToProto(ctx, nil, rec)
 	if err != nil {
 		return err
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	_, err = c.c.AddRecord(ctx, &pb.AddRecordRequest{
-		Credentials: signed,
-		LogID:       lidb,
-		Record:      util.RecFromServiceRec(prec),
+		ThreadID: id.Bytes(),
+		LogID:    lidb,
+		Record:   util.RecFromServiceRec(prec),
 	})
 	return err
 }
 
-func (c *Client) GetRecord(ctx context.Context, creds thread.Credentials, rid cid.Cid) (core.Record, error) {
-	info, err := c.GetThread(ctx, creds)
+func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...core.ThreadOption) (core.Record, error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	info, err := c.GetThread(ctx, id, opts...)
 	if err != nil {
 		return nil, err
 	}
-	signed, err := signCreds(creds)
-	if err != nil {
-		return nil, err
-	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
-		Credentials: signed,
-		RecordID:    rid.Bytes(),
+		ThreadID: id.Bytes(),
+		RecordID: rid.Bytes(),
 	})
 	if err != nil {
 		return nil, err
@@ -218,18 +277,14 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	for _, opt := range opts {
 		opt(args)
 	}
-	creds := make(map[thread.ID]thread.Credentials)
-	signed := make([]*pb.Credentials, len(args.Credentials))
+	ids := make([][]byte, len(args.ThreadIDs))
 	var err error
-	for i, c := range args.Credentials {
-		signed[i], err = signCreds(c)
-		if err != nil {
-			return nil, err
-		}
-		creds[c.ThreadID()] = c
+	for i, id := range args.ThreadIDs {
+		ids[i] = id.Bytes()
 	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
 	stream, err := c.c.Subscribe(ctx, &pb.SubscribeRequest{
-		Credentials: signed,
+		ThreadIDs: ids,
 	})
 	if err != nil {
 		return nil, err
@@ -246,34 +301,30 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 			if err != nil {
 				stat := status.Convert(err)
 				if stat.Code() != codes.Canceled {
-					log.Errorf("error in subscription stream: %v", err)
+					log.Fatalf("error in subscription stream: %v", err)
 				}
 				return
 			}
 			threadID, err := thread.Cast(resp.ThreadID)
 			if err != nil {
-				log.Errorf("error casting thread ID: %v", err)
-				continue
+				log.Fatalf("error casting thread ID: %v", err)
 			}
 			var sk *symmetric.Key
 			var ok bool
 			if sk, ok = threads[threadID]; !ok {
-				info, err := c.GetThread(ctx, creds[threadID])
+				info, err := c.GetThread(ctx, threadID, core.WithThreadToken(args.Token))
 				if err != nil {
-					log.Errorf("error getting thread: %v", err)
-					continue
+					log.Fatalf("error getting thread: %v", err)
 				}
 				if info.Key.Service() == nil {
-					log.Error("service-key not found")
-					continue
+					log.Fatalf("service-key not found")
 				}
 				sk = info.Key.Service()
 				threads[threadID] = sk
 			}
 			rec, err := threadRecordFromProto(resp, sk)
 			if err != nil {
-				log.Errorf("error unpacking record: %v", err)
-				continue
+				log.Fatalf("error unpacking record: %v", err)
 			}
 			channel <- rec
 		}
@@ -281,26 +332,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	return channel, nil
 }
 
-func signCreds(creds thread.Credentials) (pcreds *pb.Credentials, err error) {
-	pcreds = &pb.Credentials{
-		ThreadID: creds.ThreadID().Bytes(),
-	}
-	pk, sig, err := creds.Sign()
-	if err != nil {
-		return
-	}
-	if pk == nil {
-		return
-	}
-	pcreds.PubKey, err = ic.MarshalPublicKey(pk)
-	if err != nil {
-		return
-	}
-	pcreds.Signature = sig
-	return pcreds, nil
-}
-
-func getThreadKeys(args *core.KeyOptions) (*pb.Keys, error) {
+func getThreadKeys(args *core.NewThreadOptions) (*pb.Keys, error) {
 	keys := &pb.Keys{
 		ThreadKey: args.ThreadKey.Bytes(),
 	}

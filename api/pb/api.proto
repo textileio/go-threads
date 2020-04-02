@@ -6,14 +6,29 @@ option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THREADS";
 
-message Credentials {
-    bytes threadID = 1;
-    bytes pubKey = 2;
-    bytes signature = 3;
+message GetTokenRequest {
+    oneof payload {
+        string key = 1;
+        bytes signature = 2;
+    }
+}
+
+message GetTokenReply {
+    oneof payload {
+        bytes challenge = 1;
+        string token = 2;
+    }
 }
 
 message NewDBRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
+    repeated CollectionConfig collections = 2;
+}
+
+message NewDBFromAddrRequest {
+    bytes addr = 1;
+    bytes key = 2;
+    repeated CollectionConfig collections = 3;
 }
 
 message CollectionConfig {
@@ -27,33 +42,26 @@ message CollectionConfig {
     }
 }
 
-message NewDBFromAddrRequest {
-    Credentials credentials = 1;
-    string addr = 2;
-    bytes key = 3;
-    repeated CollectionConfig collections = 4;
-}
-
 message NewDBReply {}
 
-message GetInviteInfoRequest {
-    Credentials credentials = 1;
+message GetDBInfoRequest {
+    bytes dbID = 1;
 }
 
-message GetInviteInfoReply {
-    repeated string addresses = 1;
+message GetDBInfoReply {
+    repeated bytes addrs = 1;
     bytes key = 2;
 }
 
 message NewCollectionRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     CollectionConfig config = 2;
 }
 
 message NewCollectionReply {}
 
 message CreateRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
     repeated bytes instances = 3;
 }
@@ -63,7 +71,7 @@ message CreateReply {
 }
 
 message SaveRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
     repeated bytes instances = 3;
 }
@@ -71,7 +79,7 @@ message SaveRequest {
 message SaveReply {}
 
 message DeleteRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
     repeated string instanceIDs = 3;
 }
@@ -79,7 +87,7 @@ message DeleteRequest {
 message DeleteReply {}
 
 message HasRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
     repeated string instanceIDs = 3;
 }
@@ -89,7 +97,7 @@ message HasReply {
 }
 
 message FindRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
     bytes queryJSON = 3;
 }
@@ -99,7 +107,7 @@ message FindReply {
 }
 
 message FindByIDRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
     string instanceID = 3;
 }
@@ -109,7 +117,7 @@ message FindByIDReply {
 }
 
 message StartTransactionRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     string collectionName = 2;
 }
 
@@ -154,7 +162,7 @@ message WriteTransactionReply {
 }
 
 message ListenRequest {
-    Credentials credentials = 1;
+    bytes dbID = 1;
     repeated Filter filters = 2;
 
     message Filter {
@@ -184,9 +192,10 @@ message ListenReply {
 }
 
 service API {
+    rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
-    rpc GetInviteInfo(GetInviteInfoRequest) returns (GetInviteInfoReply) {}
+    rpc GetInviteInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}

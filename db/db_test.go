@@ -12,6 +12,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
@@ -25,13 +26,12 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
 
-	n1, err := DefaultNetwork(tmpDir1)
+	n1, err := common.DefaultNetwork(tmpDir1)
 	checkErr(t, err)
 	defer n1.Close()
 
 	id1 := thread.NewIDV1(thread.Raw, 32)
-	creds1 := thread.NewDefaultCreds(id1)
-	d1, err := NewDB(context.Background(), n1, creds1, WithRepoPath(tmpDir1))
+	d1, err := NewDB(context.Background(), n1, id1, WithRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollection(CollectionConfig{
@@ -42,7 +42,7 @@ func TestE2EWithThreads(t *testing.T) {
 	dummyJSON := util.JSONFromInstance(dummy{Name: "Textile", Counter: 0})
 	res, err := c1.Create(dummyJSON)
 	checkErr(t, err)
-	dummyJSON = util.SetJSONID(res[0], dummyJSON)
+	dummyJSON = util.SetJSONID(res, dummyJSON)
 	dummyJSON = util.SetJSONProperty("Counter", 42, dummyJSON)
 	checkErr(t, c1.Save(dummyJSON))
 
@@ -60,17 +60,17 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	n2, err := DefaultNetwork(tmpDir2)
+	n2, err := common.DefaultNetwork(tmpDir2)
 	checkErr(t, err)
 	defer n2.Close()
 
-	ti, err := n1.GetThread(context.Background(), creds1)
+	ti, err := n1.GetThread(context.Background(), id1)
 	checkErr(t, err)
 	cc := CollectionConfig{
 		Name:   "dummy",
 		Schema: util.SchemaFromInstance(&dummy{}, false),
 	}
-	d2, err := NewDBFromAddr(context.Background(), n2, thread.NewDefaultCreds(id1), addr, ti.Key, WithRepoPath(tmpDir2), WithCollections(cc))
+	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithRepoPath(tmpDir2), WithDBCollections(cc))
 	checkErr(t, err)
 	defer d2.Close()
 	c2 := d1.GetCollection("dummy")
@@ -78,7 +78,7 @@ func TestE2EWithThreads(t *testing.T) {
 
 	time.Sleep(time.Second * 3) // Wait a bit for sync
 
-	dummy2JSON, err := c2.FindByID(res[0])
+	dummy2JSON, err := c2.FindByID(res)
 	checkErr(t, err)
 
 	dummyInstance := &dummy{}
@@ -97,12 +97,12 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	n, err := DefaultNetwork(tmpDir)
+	n, err := common.DefaultNetwork(tmpDir)
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, thread.NewDefaultCreds(id), WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err := NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollection(CollectionConfig{
@@ -122,10 +122,10 @@ func TestOptions(t *testing.T) {
 	checkErr(t, d.Close())
 
 	time.Sleep(time.Second * 3)
-	n, err = DefaultNetwork(tmpDir)
+	n, err = common.DefaultNetwork(tmpDir)
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, thread.NewDefaultCreds(id), WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err = NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }
@@ -315,13 +315,13 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	j1 = util.SetJSONProperty("Name", "Textile33", j1)
 	checkErr(t, c2.Save(j1))
 
-	checkErr(t, c1.Delete(i1Ids...))
+	checkErr(t, c1.Delete(i1Ids))
 
 	// Collection2 Delete
-	checkErr(t, c2.Delete(j1Ids...))
+	checkErr(t, c2.Delete(j1Ids))
 
 	// Collection2 Delete i2
-	checkErr(t, c1.Delete(i2Ids...))
+	checkErr(t, c1.Delete(i2Ids))
 
 	l.Close()
 	cls()

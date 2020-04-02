@@ -155,11 +155,11 @@ func createCollectionWithData(t *testing.T) (*Collection, func()) {
 	checkErr(t, err)
 	for i := range sampleData {
 		sampleDataJSON := util.JSONFromInstance(sampleData[i])
-		ids, err := c.Create(sampleDataJSON)
+		id, err := c.Create(sampleDataJSON)
 		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
-		sampleDataJSON = util.SetJSONID(ids[0], sampleDataJSON)
+		sampleDataJSON = util.SetJSONID(id, sampleDataJSON)
 		updated := book{}
 		util.InstanceFromJSON(sampleDataJSON, &updated)
 		sampleData[i] = updated

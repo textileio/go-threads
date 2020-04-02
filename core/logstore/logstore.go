@@ -13,6 +13,9 @@ import (
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
+// ErrThreadExists indicates a thread already exists.
+var ErrThreadExists = fmt.Errorf("thread already exists")
+
 // ErrThreadNotFound indicates a requested thread was not found.
 var ErrThreadNotFound = fmt.Errorf("thread not found")
 

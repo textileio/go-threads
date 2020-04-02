@@ -14,9 +14,12 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
+	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/textileio/go-threads/broadcast"
+	threadcbor "github.com/textileio/go-threads/cbor"
+	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/net"
@@ -25,8 +28,9 @@ import (
 )
 
 const (
-	idFieldName = "ID"
-	busTimeout  = time.Second * 10
+	idFieldName            = "ID"
+	getBlockRetries        = 3
+	getBlockInitialTimeout = time.Millisecond * 500
 )
 
 var (
@@ -47,22 +51,24 @@ var (
 type DB struct {
 	io.Closer
 
+	net       app.Net
+	connector *app.Connector
+
 	datastore  ds.TxnDatastore
 	dispatcher *dispatcher
 	eventcodec core.EventCodec
-	adapter    *singleThreadAdapter
 
 	lock            sync.RWMutex
 	collectionNames map[string]*Collection
 	closed          bool
 
-	localEventsBus      *localEventsBus
+	localEventsBus      *app.LocalEventsBus
 	stateChangedNotifee *stateChangedNotifee
 }
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network net.Net, creds thread.Credentials, opts ...Option) (*DB, error) {
+func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -70,22 +76,18 @@ func NewDB(ctx context.Context, network net.Net, creds thread.Credentials, opts 
 		}
 	}
 
-	if _, err := network.GetThread(ctx, creds); err != nil {
-		if errors.Is(err, lstore.ErrThreadNotFound) {
-			if _, err = network.CreateThread(ctx, creds); err != nil {
-				return nil, err
-			}
-		} else {
+	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(config.Token)); err != nil {
+		if !errors.Is(err, lstore.ErrThreadExists) {
 			return nil, err
 		}
 	}
-	return newDB(network, creds, config)
+	return newDB(network, id, config)
 }
 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network net.Net, creds thread.Credentials, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
+func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
 	config := &Config{}
 	for _, opt := range opts {
 		if err := opt(config); err != nil {
@@ -93,17 +95,17 @@ func NewDBFromAddr(ctx context.Context, network net.Net, creds thread.Credential
 		}
 	}
 
-	ti, err := network.AddThread(ctx, creds, addr, net.WithThreadKey(key))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(config.Token))
 	if err != nil {
 		return nil, err
 	}
-	d, err := newDB(network, creds, config)
+	d, err := newDB(network, ti.ID, config)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		if err := network.PullThread(ctx, creds); err != nil {
+		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(config.Token)); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
@@ -112,7 +114,7 @@ func NewDBFromAddr(ctx context.Context, network net.Net, creds thread.Credential
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(n net.Net, creds thread.Credentials, config *Config) (*DB, error) {
+func newDB(n app.Net, id thread.ID, config *Config) (*DB, error) {
 	if config.Datastore == nil {
 		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
 		if err != nil {
@@ -138,7 +140,7 @@ func newDB(n net.Net, creds thread.Credentials, config *Config) (*DB, error) {
 		dispatcher:          newDispatcher(config.Datastore),
 		eventcodec:          config.EventCodec,
 		collectionNames:     make(map[string]*Collection),
-		localEventsBus:      &localEventsBus{bus: broadcast.NewBroadcaster(0)},
+		localEventsBus:      app.NewLocalEventsBus(),
 		stateChangedNotifee: &stateChangedNotifee{},
 	}
 	if err := d.reCreateCollections(); err != nil {
@@ -152,9 +154,11 @@ func newDB(n net.Net, creds thread.Credentials, config *Config) (*DB, error) {
 		}
 	}
 
-	adapter := newSingleThreadAdapter(d, n, creds)
-	d.adapter = adapter
-	adapter.Start()
+	connector, err := n.ConnectApp(d, id)
+	if err != nil {
+		log.Fatalf("unable to connect app: %s", err)
+	}
+	d.connector = connector
 
 	return d, nil
 }
@@ -310,10 +314,12 @@ func (d *DB) Close() error {
 	}
 	d.closed = true
 
-	if d.adapter != nil {
-		d.adapter.Close()
+	if d.connector != nil {
+		if err := d.connector.Close(); err != nil {
+			return err
+		}
 	}
-	d.localEventsBus.bus.Discard()
+	d.localEventsBus.Discard()
 	if !managedDatastore(d.datastore) {
 		if err := d.datastore.Close(); err != nil {
 			return err
@@ -321,6 +327,51 @@ func (d *DB) Close() error {
 	}
 	d.stateChangedNotifee.close()
 	return nil
+}
+
+func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, timeout time.Duration) error {
+	if rec.LogID() == lid {
+		return nil // Ignore our own events since DB already dispatches to DB reducers
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	event, err := threadcbor.EventFromRecord(ctx, d.net, rec.Value())
+	if err != nil {
+		block, err := d.getBlockWithRetry(ctx, rec.Value())
+		if err != nil {
+			return fmt.Errorf("error when getting block from record: %v", err)
+		}
+		event, err = threadcbor.EventFromNode(block)
+		if err != nil {
+			return fmt.Errorf("error when decoding block to event: %v", err)
+		}
+	}
+	node, err := event.GetBody(ctx, d.net, key.Read())
+	if err != nil {
+		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", d.connector.ThreadID(), rec.LogID(), err)
+	}
+	dbEvents, err := d.eventsFromBytes(node.RawData())
+	if err != nil {
+		return fmt.Errorf("error when unmarshaling event from bytes: %v", err)
+	}
+	log.Debugf("dispatching new record: %s/%s", rec.ThreadID(), rec.LogID())
+	return d.dispatch(dbEvents)
+}
+
+// getBlockWithRetry gets a record block with exponential backoff.
+func (d *DB) getBlockWithRetry(ctx context.Context, rec net.Record) (format.Node, error) {
+	backoff := getBlockInitialTimeout
+	var err error
+	for i := 1; i <= getBlockRetries; i++ {
+		n, err := rec.GetBlock(ctx, d.net)
+		if err == nil {
+			return n, nil
+		}
+		log.Warnf("error when fetching block %s in retry %d", rec.Cid(), i)
+		time.Sleep(backoff)
+		backoff *= 2
+	}
+	return nil, err
 }
 
 // dispatch applies external events to the db. This function guarantee
@@ -337,18 +388,6 @@ func (d *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
 	return d.eventcodec.EventsFromBytes(data)
 }
 
-func (d *DB) readTxn(c *Collection, f func(txn *Txn) error) error {
-	d.lock.RLock()
-	defer d.lock.RUnlock()
-
-	txn := &Txn{collection: c, readonly: true}
-	defer txn.Discard()
-	if err := f(txn); err != nil {
-		return err
-	}
-	return nil
-}
-
 // managedDatastore returns whether or not the datastore is
 // being wrapped by an external datastore.
 func managedDatastore(ds ds.Datastore) bool {
@@ -356,11 +395,31 @@ func managedDatastore(ds ds.Datastore) bool {
 	return ok
 }
 
-func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error) error {
+func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
+	args := &TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	txn := &Txn{collection: c, token: args.Token, readonly: true}
+	defer txn.Discard()
+	if err := f(txn); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	txn := &Txn{collection: c}
+	args := &TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	txn := &Txn{collection: c, token: args.Token}
 	defer txn.Discard()
 	if err := f(txn); err != nil {
 		return err
