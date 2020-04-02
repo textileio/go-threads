@@ -49,17 +49,9 @@ public class ClientUnitTest {
     }
 
     @Test
-<<<<<<< HEAD
-    public void t04_GetInviteInfo() throws Exception {
-        Credentials.Builder creds = Credentials.newBuilder();
-        creds.setThreadID(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
-        GetInviteInfoReply reply = client.GetInviteInfoSync(creds.build());
-        assertNotEquals(0, reply.getAddressesCount());
-=======
     public void t04_GetDBInfo() throws Exception {
         GetDBInfoReply reply = client.GetDBInfoSync(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         assertNotEquals(0, reply.getAddrsCount());
->>>>>>> origin/master
     }
 
     @Test
