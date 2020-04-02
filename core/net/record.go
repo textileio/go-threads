@@ -26,11 +26,11 @@ type Record interface {
 	// Sig returns a signature from the log key.
 	Sig() []byte
 
-	// AuthorSig returns a signature from the author's key.
-	AuthorSig() []byte
+	// PubKey of the identity used to author this record.
+	PubKey() []byte
 
 	// Verify returns a nil error if the node signature is valid.
-	Verify(key crypto.PubKey, sig []byte) error
+	Verify(key crypto.PubKey) error
 }
 
 // ThreadRecord wraps Record within a thread and log context.

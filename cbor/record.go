@@ -22,39 +22,42 @@ func init() {
 
 // record defines the node structure of a record.
 type record struct {
-	Block     cid.Cid
-	Sig       []byte
-	AuthorSig []byte
-	Prev      cid.Cid `refmt:",omitempty"`
+	Block  cid.Cid
+	Sig    []byte
+	PubKey []byte
+	Prev   cid.Cid `refmt:",omitempty"`
 }
 
+// CreateRecordConfig wraps all the elements needed for creating a new record.
 type CreateRecordConfig struct {
 	Block      format.Node
 	Prev       cid.Cid
 	Key        ic.PrivKey
-	AuthorKey  thread.Identity
+	PubKey     thread.PubKey
 	ServiceKey crypto.EncryptionKey
 }
 
 // CreateRecord returns a new record from the given block and log private key.
 func CreateRecord(ctx context.Context, dag format.DAGService, config CreateRecordConfig) (net.Record, error) {
-	payload := config.Block.Cid().Bytes()
+	pkb, err := config.PubKey.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	var payload []byte
 	if config.Prev.Defined() {
-		payload = append(payload, config.Prev.Bytes()...)
+		payload = append(config.Block.Cid().Bytes(), config.Prev.Bytes()...)
+	} else {
+		payload = pkb
 	}
 	sig, err := config.Key.Sign(payload)
 	if err != nil {
 		return nil, err
 	}
-	asig, err := config.AuthorKey.Sign(ctx, payload)
-	if err != nil {
-		return nil, err
-	}
 	obj := &record{
-		Block:     config.Block.Cid(),
-		Sig:       sig,
-		AuthorSig: asig,
-		Prev:      config.Prev,
+		Block:  config.Block.Cid(),
+		Sig:    sig,
+		PubKey: pkb,
+		Prev:   config.Prev,
 	}
 	node, err := cbornode.WrapObject(obj, mh.SHA2_256, -1)
 	if err != nil {
@@ -198,12 +201,10 @@ type Record struct {
 	block format.Node
 }
 
-// BlockID returns the cid of the block.
 func (r *Record) BlockID() cid.Cid {
 	return r.obj.Block
 }
 
-// GetBlock returns the block.
 func (r *Record) GetBlock(ctx context.Context, dag format.DAGService) (format.Node, error) {
 	if r.block != nil {
 		return r.block, nil
@@ -217,31 +218,29 @@ func (r *Record) GetBlock(ctx context.Context, dag format.DAGService) (format.No
 	return r.block, nil
 }
 
-// PrevID returns the cid of the previous linked record.
 func (r *Record) PrevID() cid.Cid {
 	return r.obj.Prev
 }
 
-// Sig returns the node's log key signature.
 func (r *Record) Sig() []byte {
 	return r.obj.Sig
 }
 
-// AuthorSig returns the node's author key signature.
-func (r *Record) AuthorSig() []byte {
-	return r.obj.AuthorSig
+func (r *Record) PubKey() []byte {
+	return r.obj.PubKey
 }
 
-// Verify returns a nil error if the node signature is valid.
-func (r *Record) Verify(key ic.PubKey, sig []byte) error {
+func (r *Record) Verify(key ic.PubKey) error {
 	if r.block == nil {
 		return fmt.Errorf("block not loaded")
 	}
-	payload := r.block.Cid().Bytes()
+	var payload []byte
 	if r.PrevID().Defined() {
-		payload = append(payload, r.PrevID().Bytes()...)
+		payload = append(r.block.Cid().Bytes(), r.PrevID().Bytes()...)
+	} else {
+		payload = r.PubKey()
 	}
-	ok, err := key.Verify(payload, sig)
+	ok, err := key.Verify(payload, r.Sig())
 	if !ok || err != nil {
 		return fmt.Errorf("bad signature")
 	}

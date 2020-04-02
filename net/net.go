@@ -617,7 +617,7 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		return nil
 	}
 
-	if err = rec.Verify(logpk, rec.Sig()); err != nil {
+	if err = rec.Verify(logpk); err != nil {
 		return err
 	}
 	return n.PutRecord(ctx, id, lid, rec)
@@ -836,7 +836,7 @@ func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, bo
 		Block:      event,
 		Prev:       lg.Head,
 		Key:        lg.PrivKey,
-		AuthorKey:  thread.NewLibp2pIdentity(n.getPrivKey()),
+		PubKey:     thread.NewLibp2pPubKey(n.getPrivKey().GetPublic()),
 		ServiceKey: sk,
 	})
 }
@@ -1037,7 +1037,7 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		log.Error(err)
 		return
 	}
-	for lid, rs := range recs { // @todo: verify if they're ordered since this will optimize
+	for lid, rs := range recs {
 		for _, r := range rs {
 			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
 				log.Error(err)
