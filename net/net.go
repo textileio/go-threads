@@ -189,7 +189,9 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	if err != nil {
 		return
 	}
-	log.Debugf("creating thread with identity: %s", identity)
+	if identity != nil {
+		log.Debugf("creating thread with identity: %s", identity)
+	}
 
 	if err = n.ensureUnique(id); err != nil {
 		return

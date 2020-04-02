@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -333,9 +334,12 @@ func TestClient_Subscribe(t *testing.T) {
 		}
 
 		var rcount int
+		var lock sync.Mutex
 		go func() {
 			for rec := range sub {
+				lock.Lock()
 				rcount++
+				lock.Unlock()
 				t.Logf("got record %s", rec.Value().Cid())
 			}
 		}()
@@ -355,10 +359,11 @@ func TestClient_Subscribe(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		time.Sleep(time.Second)
+		lock.Lock()
 		if rcount != 2 {
 			t.Fatalf("expected 2 records got %d", rcount)
 		}
+		lock.Unlock()
 	})
 }
 
