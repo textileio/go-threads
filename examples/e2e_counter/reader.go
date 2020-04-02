@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
@@ -16,7 +17,7 @@ func runReaderPeer(repo string) {
 	fmt.Printf("I'm a collection reader.\n")
 	writerAddr, key := getWriterAddr()
 
-	n, err := db.DefaultNetwork(repo)
+	n, err := common.DefaultNetwork(repo)
 	checkErr(err)
 	defer n.Close()
 
@@ -25,9 +26,7 @@ func runReaderPeer(repo string) {
 		Schema: util.SchemaFromInstance(&myCounter{}, false),
 	}
 
-	id, err := thread.FromAddr(writerAddr)
-	checkErr(err)
-	d, err := db.NewDBFromAddr(context.Background(), n, thread.NewDefaultCreds(id), writerAddr, key, db.WithRepoPath(repo), db.WithCollections(cc))
+	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, key, db.WithRepoPath(repo), db.WithDBCollections(cc))
 	checkErr(err)
 	defer d.Close()
 

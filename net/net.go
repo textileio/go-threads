@@ -22,6 +22,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/cbor"
+	"github.com/textileio/go-threads/core/app"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -32,7 +33,7 @@ import (
 )
 
 var (
-	log = logging.Logger("threadnet")
+	log = logging.Logger("net")
 
 	// MaxPullLimit is the maximum page size for pulling records.
 	MaxPullLimit = 10000
@@ -45,9 +46,15 @@ var (
 
 	// notifyTimeout is the duration to wait for a subscriber to read a new record.
 	notifyTimeout = time.Second * 5
+
+	// tokenChallengeBytes is the byte length of token challenges.
+	tokenChallengeBytes = 32
+
+	// tokenChallengeTimeout is the duration of time given to an identity to complete a token challenge.
+	tokenChallengeTimeout = time.Minute
 )
 
-// net is an implementation of core.Net.
+// net is an implementation of core.DBNet.
 type net struct {
 	format.DAGService
 	host   host.Host
@@ -72,12 +79,12 @@ type Config struct {
 }
 
 // NewNetwork creates an instance of net from the given host and thread store.
-func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (core.Net, error) {
+func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (app.Net, error) {
 	var err error
 	if conf.Debug {
 		if err = util.SetLogLevels(map[string]logging.LogLevel{
-			"threadnet": logging.LevelDebug,
-			"logstore":  logging.LevelDebug,
+			"net":      logging.LevelDebug,
+			"logstore": logging.LevelDebug,
 		}); err != nil {
 			return nil, err
 		}
@@ -115,8 +122,8 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 	return t, nil
 }
 
-func (t *net) Close() (err error) {
-	t.rpc.GracefulStop()
+func (n *net) Close() (err error) {
+	n.rpc.GracefulStop()
 
 	var errs []error
 	weakClose := func(name string, c interface{}) {
@@ -127,47 +134,72 @@ func (t *net) Close() (err error) {
 		}
 	}
 
-	weakClose("DAGService", t.DAGService)
-	weakClose("host", t.host)
-	weakClose("threadstore", t.store)
+	weakClose("DAGService", n.DAGService)
+	weakClose("host", n.host)
+	weakClose("threadstore", n.store)
 
-	t.bus.Discard()
-	t.cancel()
+	n.bus.Discard()
+	n.cancel()
 
 	if len(errs) > 0 {
 		return fmt.Errorf("failed while closing net; err(s): %q", errs)
 	}
 
-	t.pullLock.Lock()
-	defer t.pullLock.Unlock()
+	n.pullLock.Lock()
+	defer n.pullLock.Unlock()
 	// Wait for all thread pulls to finish
-	for _, semaph := range t.pullLocks {
+	for _, semaph := range n.pullLocks {
 		semaph <- struct{}{}
 	}
 	return nil
 }
 
-func (t *net) Host() host.Host {
-	return t.host
+func (n *net) Host() host.Host {
+	return n.host
 }
 
-func (t *net) Store() lstore.Logstore {
-	return t.store
+func (n *net) Store() lstore.Logstore {
+	return n.store
 }
 
-func (t *net) GetHostID(_ context.Context) (peer.ID, error) {
-	return t.host.ID(), nil
+func (n *net) GetHostID(_ context.Context) (peer.ID, error) {
+	return n.host.ID(), nil
 }
 
-func (t *net) CreateThread(_ context.Context, creds thread.Credentials, opts ...core.KeyOption) (info thread.Info, err error) {
-	id := creds.ThreadID()
-	if err = t.ensureUnique(id); err != nil {
+func (n *net) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
+	msg := make([]byte, tokenChallengeBytes)
+	if _, err = rand.Read(msg); err != nil {
 		return
 	}
+	sctx, cancel := context.WithTimeout(ctx, tokenChallengeTimeout)
+	defer cancel()
+	sig, err := identity.Sign(sctx, msg)
+	if err != nil {
+		return
+	}
+	key := identity.GetPublic()
+	if ok, err := key.Verify(msg, sig); !ok || err != nil {
+		return tok, fmt.Errorf("bad signature")
+	}
+	return thread.NewToken(n.getPrivKey(), key)
+}
 
-	args := &core.KeyOptions{}
+func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
+	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
+	}
+	// @todo: Check identity key against ACL.
+	identity, err := thread.ValidateToken(n.getPrivKey(), args.Token)
+	if err != nil {
+		return
+	}
+	if identity != nil {
+		log.Debugf("creating thread with identity: %s", identity)
+	}
+
+	if err = n.ensureUnique(id); err != nil {
+		return
 	}
 
 	info = thread.Info{
@@ -177,26 +209,26 @@ func (t *net) CreateThread(_ context.Context, creds thread.Credentials, opts ...
 	if !info.Key.Defined() {
 		info.Key = thread.NewRandomKey()
 	}
-	if err = t.store.AddThread(info); err != nil {
+	if err = n.store.AddThread(info); err != nil {
 		return
 	}
-	linfo, err := createLog(t.host.ID(), args.LogKey)
+	linfo, err := createLog(n.host.ID(), args.LogKey)
 	if err != nil {
 		return
 	}
-	if err = t.store.AddLog(id, linfo); err != nil {
+	if err = n.store.AddLog(id, linfo); err != nil {
 		return
 	}
-	if err = t.server.ps.Add(id); err != nil {
+	if err = n.server.ps.Add(id); err != nil {
 		return
 	}
-	return t.store.GetThread(id)
+	return n.store.GetThread(id)
 }
 
-func (t *net) ensureUnique(id thread.ID) error {
-	_, err := t.store.GetThread(id)
+func (n *net) ensureUnique(id thread.ID) error {
+	_, err := n.store.GetThread(id)
 	if err == nil {
-		return fmt.Errorf("thread %s already exists", id)
+		return lstore.ErrThreadExists
 	}
 	if !errors.Is(err, lstore.ErrThreadNotFound) {
 		return err
@@ -204,25 +236,24 @@ func (t *net) ensureUnique(id thread.ID) error {
 	return nil
 }
 
-func (t *net) AddThread(ctx context.Context, creds thread.Credentials, addr ma.Multiaddr, opts ...core.KeyOption) (info thread.Info, err error) {
-	id := creds.ThreadID()
-	addrID, err := thread.FromAddr(addr)
-	if err != nil {
-		return
-	}
-	if addrID != id {
-		err = fmt.Errorf("address does not match thread ID")
-	}
-	if err = t.ensureUnique(id); err != nil {
-		return
-	}
-
-	args := &core.KeyOptions{}
+func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.NewThreadOption) (info thread.Info, err error) {
+	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return
+	}
 
-	if err = t.store.AddThread(thread.Info{
+	id, err := thread.FromAddr(addr)
+	if err != nil {
+		return
+	}
+	if err = n.ensureUnique(id); err != nil {
+		return
+	}
+
+	if err = n.store.AddThread(thread.Info{
 		ID:  id,
 		Key: args.ThreadKey,
 	}); err != nil {
@@ -230,11 +261,11 @@ func (t *net) AddThread(ctx context.Context, creds thread.Credentials, addr ma.M
 	}
 	if args.ThreadKey.CanRead() {
 		var linfo thread.LogInfo
-		linfo, err = createLog(t.host.ID(), args.LogKey)
+		linfo, err = createLog(n.host.ID(), args.LogKey)
 		if err != nil {
 			return
 		}
-		if err = t.store.AddLog(id, linfo); err != nil {
+		if err = n.store.AddLog(id, linfo); err != nil {
 			return
 		}
 	}
@@ -248,50 +279,68 @@ func (t *net) AddThread(ctx context.Context, creds thread.Credentials, addr ma.M
 	if err != nil {
 		return
 	}
-	if err = t.Host().Connect(ctx, *addri); err != nil {
+	if err = n.Host().Connect(ctx, *addri); err != nil {
 		return
 	}
-	lgs, err := t.server.getLogs(ctx, id, addri.ID)
+	lgs, err := n.server.getLogs(ctx, id, addri.ID)
 	if err != nil {
 		return
 	}
 	for _, l := range lgs {
-		if err = t.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
+		if err = n.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
 			return
 		}
 	}
-	if err = t.server.ps.Add(id); err != nil {
+	if err = n.server.ps.Add(id); err != nil {
 		return
 	}
-	return t.store.GetThread(id)
+	return n.store.GetThread(id)
 }
 
-func (t *net) GetThread(_ context.Context, creds thread.Credentials) (thread.Info, error) {
-	return t.store.GetThread(creds.ThreadID())
+func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return
+	}
+	return n.store.GetThread(id)
 }
 
-func (t *net) getThreadSemaphore(id thread.ID) chan struct{} {
+func (n *net) getThread(_ context.Context, id thread.ID) (thread.Info, error) {
+	return n.store.GetThread(id)
+}
+
+func (n *net) getThreadSemaphore(id thread.ID) chan struct{} {
 	var ptl chan struct{}
 	var ok bool
-	t.pullLock.Lock()
-	defer t.pullLock.Unlock()
-	if ptl, ok = t.pullLocks[id]; !ok {
+	n.pullLock.Lock()
+	defer n.pullLock.Unlock()
+	if ptl, ok = n.pullLocks[id]; !ok {
 		ptl = make(chan struct{}, 1)
-		t.pullLocks[id] = ptl
+		n.pullLocks[id] = ptl
 	}
 	return ptl
 }
 
-func (t *net) PullThread(ctx context.Context, creds thread.Credentials) error {
-	return t.pullThread(ctx, creds.ThreadID())
+func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return err
+	}
+	return n.pullThread(ctx, id)
 }
 
-func (t *net) pullThread(ctx context.Context, id thread.ID) error {
+func (n *net) pullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id)
-	ptl := t.getThreadSemaphore(id)
+	ptl := n.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}:
-		err := t.pullThreadUnsafe(ctx, id)
+		err := n.pullThreadUnsafe(ctx, id)
 		if err != nil {
 			<-ptl
 			return err
@@ -305,8 +354,8 @@ func (t *net) pullThread(ctx context.Context, id thread.ID) error {
 
 // pullThreadUnsafe for new records.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
-func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
-	info, err := t.store.GetThread(id)
+func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
+	info, err := n.store.GetThread(id)
 	if err != nil {
 		return err
 	}
@@ -314,9 +363,12 @@ func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	// Gather offsets for each log
 	offsets := make(map[peer.ID]cid.Cid)
 	for _, lg := range info.Logs {
-		has, err := t.bstore.Has(lg.Head)
-		if err != nil {
-			return err
+		var has bool
+		if lg.Head.Defined() {
+			has, err = n.bstore.Has(lg.Head)
+			if err != nil {
+				return err
+			}
 		}
 		if has {
 			offsets[lg.ID] = lg.Head
@@ -332,7 +384,7 @@ func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 		go func(lg thread.LogInfo) {
 			defer wg.Done()
 			// Pull from addresses
-			recs, err := t.server.getRecords(ctx, id, lg.ID, offsets, MaxPullLimit)
+			recs, err := n.server.getRecords(ctx, id, lg.ID, offsets, MaxPullLimit)
 			if err != nil {
 				log.Error(err)
 				return
@@ -346,7 +398,7 @@ func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	for _, recs := range fetchedRcs {
 		for lid, rs := range recs {
 			for _, r := range rs {
-				if err = t.putRecord(ctx, id, lid, r); err != nil {
+				if err = n.putRecord(ctx, id, lid, r); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -357,13 +409,20 @@ func (t *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	return nil
 }
 
-func (t *net) DeleteThread(ctx context.Context, creds thread.Credentials) error {
-	id := creds.ThreadID()
+func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return err
+	}
+
 	log.Debugf("deleting thread %s...", id)
-	ptl := t.getThreadSemaphore(id)
+	ptl := n.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}: // Must block in case the thread is being pulled
-		err := t.deleteThread(ctx, id)
+		err := n.deleteThread(ctx, id)
 		if err != nil {
 			<-ptl
 			return err
@@ -379,30 +438,38 @@ func (t *net) DeleteThread(ctx context.Context, creds thread.Credentials) error 
 // - Cancelling the pubsub subscription and topic.
 // Local subscriptions will not be cancelled and will simply stop reporting.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
-func (t *net) deleteThread(ctx context.Context, id thread.ID) error {
-	if err := t.server.ps.Remove(id); err != nil {
+func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
+	if err := n.server.ps.Remove(id); err != nil {
 		return err
 	}
 
-	info, err := t.store.GetThread(id)
+	info, err := n.store.GetThread(id)
 	if err != nil {
 		return err
 	}
 	for _, lg := range info.Logs { // Walk logs, removing record and event nodes
 		head := lg.Head
 		for head.Defined() {
-			head, err = t.deleteRecord(ctx, head, info.Key.Service())
+			head, err = n.deleteRecord(ctx, head, info.Key.Service())
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	return t.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
+	return n.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
-func (t *net) AddReplicator(ctx context.Context, creds thread.Credentials, paddr ma.Multiaddr) (pid peer.ID, err error) {
-	info, err := t.store.GetThread(creds.ThreadID())
+func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return
+	}
+
+	info, err := n.store.GetThread(id)
 	if err != nil {
 		return
 	}
@@ -422,14 +489,14 @@ func (t *net) AddReplicator(ctx context.Context, creds thread.Credentials, paddr
 	if err != nil {
 		return
 	}
-	ownlg, err := t.getOwnLog(info.ID)
+	ownlg, err := n.getOwnLog(info.ID)
 	if err != nil {
 		return
 	}
-	if err = t.store.AddAddr(info.ID, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+	if err = n.store.AddAddr(info.ID, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return
 	}
-	info, err = t.store.GetThread(info.ID) // Update info
+	info, err = n.store.GetThread(info.ID) // Update info
 	if err != nil {
 		return
 	}
@@ -437,15 +504,15 @@ func (t *net) AddReplicator(ctx context.Context, creds thread.Credentials, paddr
 	// Update peerstore address
 	dialable, err := getDialable(paddr)
 	if err == nil {
-		t.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
+		n.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
 	} else {
 		log.Warnf("peer %s address requires a DHT lookup", pid)
 	}
 
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
-		if err = t.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			if err := t.store.SetAddrs(info.ID, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
+		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
+			if err := n.store.SetAddrs(info.ID, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
 				log.Errorf("error rolling back log address change: %s", err)
 			}
 			return
@@ -473,11 +540,11 @@ func (t *net) AddReplicator(ctx context.Context, creds thread.Credentials, paddr
 				log.Error(err)
 				return
 			}
-			if pid.String() == t.host.ID().String() {
+			if pid.String() == n.host.ID().String() {
 				return
 			}
 
-			if err = t.server.pushLog(ctx, info.ID, ownlg, pid, nil, nil); err != nil {
+			if err = n.server.pushLog(ctx, info.ID, ownlg, pid, nil, nil); err != nil {
 				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
 			}
 		}(addr)
@@ -492,35 +559,49 @@ func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return ma.NewMultiaddr(parts[0])
 }
 
-func (t *net) CreateRecord(ctx context.Context, creds thread.Credentials, body format.Node) (r core.ThreadRecord, err error) {
-	id := creds.ThreadID()
-	lg, err := t.getOrCreateOwnLog(id)
+func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (r core.ThreadRecord, err error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return
+	}
+
+	lg, err := n.getOrCreateOwnLog(id)
 	if err != nil {
 		return
 	}
-	rec, err := t.createRecord(ctx, id, lg, body)
+	rec, err := n.newRecord(ctx, id, lg, body)
 	if err != nil {
 		return
 	}
-	if err = t.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
+	if err = n.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
 		return nil, err
 	}
 
 	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid(), id, lg.ID)
 
 	r = NewRecord(rec, id, lg.ID)
-	if err = t.bus.SendWithTimeout(r, notifyTimeout); err != nil {
+	if err = n.bus.SendWithTimeout(r, notifyTimeout); err != nil {
 		return
 	}
-	if err = t.server.pushRecord(ctx, id, lg.ID, rec); err != nil {
+	if err = n.server.pushRecord(ctx, id, lg.ID, rec); err != nil {
 		return
 	}
 	return r, nil
 }
 
-func (t *net) AddRecord(ctx context.Context, creds thread.Credentials, lid peer.ID, rec core.Record) error {
-	id := creds.ThreadID()
-	logpk, err := t.store.PubKey(id, lid)
+func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, opts ...core.ThreadOption) error {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return err
+	}
+
+	logpk, err := n.store.PubKey(id, lid)
 	if err != nil {
 		return err
 	}
@@ -528,7 +609,7 @@ func (t *net) AddRecord(ctx context.Context, creds thread.Credentials, lid peer.
 		return fmt.Errorf("log not found")
 	}
 
-	knownRecord, err := t.bstore.Has(rec.Cid())
+	knownRecord, err := n.bstore.Has(rec.Cid())
 	if err != nil {
 		return err
 	}
@@ -539,25 +620,31 @@ func (t *net) AddRecord(ctx context.Context, creds thread.Credentials, lid peer.
 	if err = rec.Verify(logpk, rec.Sig()); err != nil {
 		return err
 	}
-	return t.PutRecord(ctx, id, lid, rec)
+	return n.PutRecord(ctx, id, lid, rec)
 }
 
-func (t *net) GetRecord(ctx context.Context, creds thread.Credentials, rid cid.Cid) (core.Record, error) {
-	return t.getRecord(ctx, creds.ThreadID(), rid)
+func (n *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...core.ThreadOption) (core.Record, error) {
+	args := &core.ThreadOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return nil, err
+	}
+	return n.getRecord(ctx, id, rid)
 }
 
-func (t *net) getRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
-	sk, err := t.store.ServiceKey(id)
+func (n *net) getRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Record, error) {
+	sk, err := n.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
 	if sk == nil {
 		return nil, fmt.Errorf("a service-key is required to get records")
 	}
-	return cbor.GetRecord(ctx, t, rid, sk)
+	return cbor.GetRecord(ctx, n, rid, sk)
 }
 
-// Record wraps a core.Record within a thread and log context.
 type Record struct {
 	core.Record
 	threadID thread.ID
@@ -569,36 +656,41 @@ func NewRecord(r core.Record, id thread.ID, lid peer.ID) core.ThreadRecord {
 	return &Record{Record: r, threadID: id, logID: lid}
 }
 
-// Value returns the underlying record.
 func (r *Record) Value() core.Record {
 	return r
 }
 
-// ThreadID returns the record's thread ID.
 func (r *Record) ThreadID() thread.ID {
 	return r.threadID
 }
 
-// LogID returns the record's log ID.
 func (r *Record) LogID() peer.ID {
 	return r.logID
 }
 
-func (t *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan core.ThreadRecord, error) {
+func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan core.ThreadRecord, error) {
 	args := &core.SubOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
+	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+		return nil, err
+	}
+
 	filter := make(map[thread.ID]struct{})
-	for _, creds := range args.Credentials {
-		if creds.ThreadID().Defined() {
-			filter[creds.ThreadID()] = struct{}{}
+	for _, id := range args.ThreadIDs {
+		if id.Defined() {
+			filter[id] = struct{}{}
 		}
 	}
+	return n.subscribe(ctx, filter)
+}
+
+func (n *net) subscribe(ctx context.Context, filter map[thread.ID]struct{}) (<-chan core.ThreadRecord, error) {
 	channel := make(chan core.ThreadRecord)
 	go func() {
 		defer close(channel)
-		listener := t.bus.Listen()
+		listener := n.bus.Listen()
 		defer listener.Discard()
 		for {
 			select {
@@ -625,21 +717,31 @@ func (t *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 	return channel, nil
 }
 
+func (n *net) ConnectApp(a app.App, threadID thread.ID) (*app.Connector, error) {
+	info, err := n.getThread(context.Background(), threadID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting thread %s: %v", threadID, err)
+	}
+	return app.NewConnector(a, n, info, func(ctx context.Context, id thread.ID) (<-chan core.ThreadRecord, error) {
+		return n.subscribe(ctx, map[thread.ID]struct{}{id: {}})
+	})
+}
+
 // PutRecord adds an existing record. This method is thread-safe
-func (t *net) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
-	tsph := t.getThreadSemaphore(id)
+func (n *net) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
+	tsph := n.getThreadSemaphore(id)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
-	return t.putRecord(ctx, id, lid, rec)
+	return n.putRecord(ctx, id, lid, rec)
 }
 
 // putRecord adds an existing record. See PutOption for more.This method
 // *should be thread-guarded*
-func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
+func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	var unknownRecords []core.Record
 	c := rec.Cid()
 	for c.Defined() {
-		exist, err := t.bstore.Has(c)
+		exist, err := n.bstore.Has(c)
 		if err != nil {
 			return err
 		}
@@ -648,7 +750,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		}
 		var r core.Record
 		if c.String() != rec.Cid().String() {
-			r, err = t.getRecord(ctx, id, c)
+			r, err = n.getRecord(ctx, id, c)
 			if err != nil {
 				return err
 			}
@@ -662,7 +764,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		return nil
 	}
 	// Get or create a log for the new rec
-	lg, err := t.getLog(id, lid)
+	lg, err := n.getLog(id, lid)
 	if err != nil {
 		return err
 	}
@@ -671,7 +773,7 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		r := unknownRecords[i]
 		// Save the record locally
 		// Note: These get methods will return cached nodes.
-		block, err := r.GetBlock(ctx, t)
+		block, err := r.GetBlock(ctx, n)
 		if err != nil {
 			return err
 		}
@@ -682,81 +784,81 @@ func (t *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 				return fmt.Errorf("invalid event: %v", err)
 			}
 		}
-		header, err := event.GetHeader(ctx, t, nil)
+		header, err := event.GetHeader(ctx, n, nil)
 		if err != nil {
 			return err
 		}
-		body, err := event.GetBody(ctx, t, nil)
+		body, err := event.GetBody(ctx, n, nil)
 		if err != nil {
 			return err
 		}
-		if err = t.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
+		if err = n.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
 			return err
 		}
 
 		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
-		if err = t.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
+		if err = n.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
 			return err
 		}
-		if err = t.store.SetHead(id, lg.ID, r.Cid()); err != nil {
+		if err = n.store.SetHead(id, lg.ID, r.Cid()); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// getPrivKey returns the host's private key.
-func (t *net) getPrivKey() crypto.PrivKey {
-	return t.host.Peerstore().PrivKey(t.host.ID())
-}
-
-// createRecord creates a new record with the given body as a new event body.
-func (t *net) createRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, body format.Node) (core.Record, error) {
+// newRecord creates a new record with the given body as a new event body.
+func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, body format.Node) (core.Record, error) {
 	if lg.PrivKey == nil {
 		return nil, fmt.Errorf("a private-key is required to create records")
 	}
-	sk, err := t.store.ServiceKey(id)
+	sk, err := n.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
 	if sk == nil {
 		return nil, fmt.Errorf("a service-key is required to create records")
 	}
-	rk, err := t.store.ReadKey(id)
+	rk, err := n.store.ReadKey(id)
 	if err != nil {
 		return nil, err
 	}
 	if rk == nil {
 		return nil, fmt.Errorf("a read-key is required to create records")
 	}
-	event, err := cbor.CreateEvent(ctx, t, body, rk)
+	event, err := cbor.CreateEvent(ctx, n, body, rk)
 	if err != nil {
 		return nil, err
 	}
 
-	return cbor.CreateRecord(ctx, t, cbor.CreateRecordConfig{
+	return cbor.CreateRecord(ctx, n, cbor.CreateRecordConfig{
 		Block:      event,
 		Prev:       lg.Head,
 		Key:        lg.PrivKey,
-		AuthorKey:  t.getPrivKey(),
+		AuthorKey:  thread.NewLibp2pIdentity(n.getPrivKey()),
 		ServiceKey: sk,
 	})
+}
+
+// getPrivKey returns the host's private key.
+func (n *net) getPrivKey() crypto.PrivKey {
+	return n.host.Peerstore().PrivKey(n.host.ID())
 }
 
 // getLocalRecords returns local records from the given thread that are ahead of
 // offset but not farther than limit.
 // It is possible to reach limit before offset, meaning that the caller
 // will be responsible for the remaining traversal.
-func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]core.Record, error) {
-	lg, err := t.store.GetLog(id, lid)
+func (n *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, offset cid.Cid, limit int) ([]core.Record, error) {
+	lg, err := n.store.GetLog(id, lid)
 	if err != nil {
 		return nil, err
 	}
 	if lg.PubKey == nil {
 		return nil, fmt.Errorf("log not found")
 	}
-	sk, err := t.store.ServiceKey(id)
+	sk, err := n.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +876,7 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
-		r, err := cbor.GetRecord(ctx, t, cursor, sk) // Important invariant: heads are always in blockstore
+		r, err := cbor.GetRecord(ctx, n, cursor, sk) // Important invariant: heads are always in blockstore
 		if err != nil {
 			return nil, err
 		}
@@ -789,35 +891,35 @@ func (t *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 }
 
 // deleteRecord remove a record from the dag service.
-func (t *net) deleteRecord(ctx context.Context, rid cid.Cid, sk *sym.Key) (prev cid.Cid, err error) {
-	rec, err := cbor.GetRecord(ctx, t, rid, sk)
+func (n *net) deleteRecord(ctx context.Context, rid cid.Cid, sk *sym.Key) (prev cid.Cid, err error) {
+	rec, err := cbor.GetRecord(ctx, n, rid, sk)
 	if err != nil {
 		return
 	}
-	if err = cbor.RemoveRecord(ctx, t, rec); err != nil {
+	if err = cbor.RemoveRecord(ctx, n, rec); err != nil {
 		return
 	}
-	event, err := cbor.EventFromRecord(ctx, t, rec)
+	event, err := cbor.EventFromRecord(ctx, n, rec)
 	if err != nil {
 		return
 	}
-	if err = cbor.RemoveEvent(ctx, t, event); err != nil {
+	if err = cbor.RemoveEvent(ctx, n, event); err != nil {
 		return
 	}
 	return rec.PrevID(), nil
 }
 
 // startPulling periodically pulls on all threads.
-func (t *net) startPulling() {
+func (n *net) startPulling() {
 	pull := func() {
-		ts, err := t.store.Threads()
+		ts, err := n.store.Threads()
 		if err != nil {
 			log.Errorf("error listing threads: %s", err)
 			return
 		}
 		for _, id := range ts {
 			go func(id thread.ID) {
-				if err := t.pullThread(t.ctx, id); err != nil {
+				if err := n.pullThread(n.ctx, id); err != nil {
 					log.Errorf("error pulling thread %s: %s", id, err)
 				}
 			}(id)
@@ -827,7 +929,7 @@ func (t *net) startPulling() {
 	select {
 	case <-timer.C:
 		pull()
-	case <-t.ctx.Done():
+	case <-n.ctx.Done():
 		return
 	}
 
@@ -838,15 +940,15 @@ func (t *net) startPulling() {
 		select {
 		case <-tick.C:
 			pull()
-		case <-t.ctx.Done():
+		case <-n.ctx.Done():
 			return
 		}
 	}
 }
 
 // getLog returns the log with the given thread and log id.
-func (t *net) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = t.store.GetLog(id, lid)
+func (n *net) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
+	info, err = n.store.GetLog(id, lid)
 	if err != nil {
 		return
 	}
@@ -857,18 +959,18 @@ func (t *net) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error)
 }
 
 // getOwnLoad returns the log owned by the host under the given thread.
-func (t *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := t.store.LogsWithKeys(id)
+func (n *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	logs, err := n.store.LogsWithKeys(id)
 	if err != nil {
 		return
 	}
 	for _, lid := range logs {
-		sk, err := t.store.PrivKey(id, lid)
+		sk, err := n.store.PrivKey(id, lid)
 		if err != nil {
 			return info, err
 		}
 		if sk != nil {
-			return t.store.GetLog(id, lid)
+			return n.store.GetLog(id, lid)
 		}
 	}
 	return info, nil
@@ -876,30 +978,30 @@ func (t *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 
 // getOrCreateOwnLoad returns the log owned by the host under the given thread.
 // If no log exists, a new one is created under the given thread.
-func (t *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	info, err = t.getOwnLog(id)
+func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	info, err = n.getOwnLog(id)
 	if err != nil {
 		return info, err
 	}
 	if info.PubKey != nil {
 		return
 	}
-	info, err = createLog(t.host.ID(), nil)
+	info, err = createLog(n.host.ID(), nil)
 	if err != nil {
 		return
 	}
-	err = t.store.AddLog(id, info)
+	err = n.store.AddLog(id, info)
 	return info, err
 }
 
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
-func (t *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey,
+func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey,
 	privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
-	tsph := t.getThreadSemaphore(tid)
+	tsph := n.getThreadSemaphore(tid)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
-	currHeads, err := t.Store().Heads(tid, lid)
+	currHeads, err := n.Store().Heads(tid, lid)
 	if err != nil {
 		return err
 	}
@@ -911,7 +1013,7 @@ func (t *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 			Addrs:   addrs,
 			Head:    cid.Undef,
 		}
-		if err := t.store.AddLog(tid, lginfo); err != nil {
+		if err := n.store.AddLog(tid, lginfo); err != nil {
 			return err
 		}
 	}
@@ -920,13 +1022,13 @@ func (t *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
 // and will add them in the local peer store. It assumes  Is thread-safe.
-func (t *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
-	tsph := t.getThreadSemaphore(tid)
+func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
+	tsph := n.getThreadSemaphore(tid)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
 	// Get log records for this new log
-	recs, err := t.server.getRecords(
-		t.ctx,
+	recs, err := n.server.getRecords(
+		n.ctx,
 		tid,
 		lid,
 		map[peer.ID]cid.Cid{lid: cid.Undef},
@@ -937,7 +1039,7 @@ func (t *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 	}
 	for lid, rs := range recs { // @todo: verify if they're ordered since this will optimize
 		for _, r := range rs {
-			if err = t.putRecord(t.ctx, tid, lid, r); err != nil {
+			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
 				log.Error(err)
 				return
 			}

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -10,7 +11,9 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
+	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
+	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
@@ -34,9 +37,9 @@ type Config struct {
 	Debug    bool
 }
 
-// NewService starts and returns a new service with the given threadservice.
-// The threadnet is *not* managed by the server.
-func NewService(network net.Net, conf Config) (*Service, error) {
+// NewService starts and returns a new service with the given network.
+// The network is *not* managed by the server.
+func NewService(network app.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -47,60 +50,147 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 		}
 	}
 
-	manager, err := db.NewManager(
-		network,
-		db.WithRepoPath(conf.RepoPath),
-		db.WithDebug(conf.Debug))
+	manager, err := db.NewManager(network, db.WithRepoPath(conf.RepoPath), db.WithDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}
 	return &Service{manager: manager}, nil
 }
 
-// Close the service and the db manager.
 func (s *Service) Close() error {
 	return s.manager.Close()
 }
 
-// NewDB adds a new db into the manager.
+type remoteIdentity struct {
+	pk     thread.PubKey
+	server pb.API_GetTokenServer
+}
+
+func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
+	if err := i.server.Send(&pb.GetTokenReply{
+		Payload: &pb.GetTokenReply_Challenge{
+			Challenge: msg,
+		},
+	}); err != nil {
+		return nil, err
+	}
+
+	var req *pb.GetTokenRequest
+	done := make(chan error)
+	go func() {
+		defer close(done)
+		var err error
+		req, err = i.server.Recv()
+		if err != nil {
+			done <- err
+			return
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, status.Error(codes.DeadlineExceeded, "Challenge deadline exceeded")
+	case err, ok := <-done:
+		if ok {
+			return nil, err
+		}
+	}
+
+	var sig []byte
+	switch payload := req.Payload.(type) {
+	case *pb.GetTokenRequest_Signature:
+		sig = payload.Signature
+	default:
+		return nil, status.Error(codes.InvalidArgument, "Signature is required")
+	}
+	return sig, nil
+}
+
+func (i *remoteIdentity) GetPublic() thread.PubKey {
+	return i.pk
+}
+
+func (s *Service) GetToken(server pb.API_GetTokenServer) error {
+	log.Debugf("received get token request")
+
+	req, err := server.Recv()
+	if err != nil {
+		return err
+	}
+	key := &thread.Libp2pPubKey{}
+	switch payload := req.Payload.(type) {
+	case *pb.GetTokenRequest_Key:
+		err = key.UnmarshalString(payload.Key)
+		if err != nil {
+			return err
+		}
+	default:
+		return status.Error(codes.InvalidArgument, "Key is required")
+	}
+
+	identity := &remoteIdentity{
+		pk:     key,
+		server: server,
+	}
+	tok, err := s.manager.GetToken(server.Context(), identity)
+	if err != nil {
+		return err
+	}
+	return server.Send(&pb.GetTokenReply{
+		Payload: &pb.GetTokenReply_Token{
+			Token: string(tok),
+		},
+	})
+}
+
 func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBReply, error) {
 	log.Debugf("received new db request")
 
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.DbID)
 	if err != nil {
-		return nil, err
-	}
-	if _, err = s.manager.NewDB(ctx, creds); err != nil {
-		return nil, err
-	}
-	return &pb.NewDBReply{}, nil
-}
-
-// NewDBFromAddr adds a new db into the manager from an existing address.
-func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrRequest) (*pb.NewDBReply, error) {
-	log.Debugf("received new db from address request")
-
-	creds, err := getCredentials(req.Credentials)
-	if err != nil {
-		return nil, err
-	}
-	addr, err := ma.NewMultiaddr(req.Addr)
-	if err != nil {
-		return nil, err
-	}
-	key, err := thread.KeyFromBytes(req.Key)
-	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	collections := make([]db.CollectionConfig, len(req.Collections))
 	for i, c := range req.Collections {
 		cc, err := collectionConfigFromPb(c)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		collections[i] = cc
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, creds, addr, key, collections...); err != nil {
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = s.manager.NewDB(ctx, id, db.WithNewManagedDBToken(token), db.WithNewManagedDBCollections(collections...)); err != nil {
+		return nil, err
+	}
+	return &pb.NewDBReply{}, nil
+}
+
+func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrRequest) (*pb.NewDBReply, error) {
+	log.Debugf("received new db from address request")
+
+	addr, err := ma.NewMultiaddrBytes(req.Addr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	key, err := thread.KeyFromBytes(req.Key)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	collections := make([]db.CollectionConfig, len(req.Collections))
+	for i, c := range req.Collections {
+		cc, err := collectionConfigFromPb(c)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		collections[i] = cc
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, db.WithNewManagedDBToken(token), db.WithNewManagedDBCollections(collections...)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -125,13 +215,16 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 	}, nil
 }
 
-// GetDBInfo returns db addresses and keys.
 func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := s.manager.Net().GetThread(ctx, creds)
+	tinfo, err := s.manager.Net().GetThread(ctx, id, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -139,26 +232,27 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	peerID, _ := ma.NewComponent("p2p", host.ID().String())
 	threadID, _ := ma.NewComponent("thread", tinfo.ID.String())
 	addrs := host.Addrs()
-	res := make([]string, len(addrs))
+	res := make([][]byte, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).String()
+		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).Bytes()
 	}
 	reply := &pb.GetDBInfoReply{
-		Addresses: res,
-		Key:       tinfo.Key.Bytes(),
+		Addrs: res,
+		Key:   tinfo.Key.Bytes(),
 	}
 	return reply, nil
 }
 
-// NewCollection registers a JSON schema with a db.
-func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("received new collection request in db %s", creds.ThreadID())
-
-	d, err := s.getDB(creds)
+	d, err := s.getDB(ctx, id, token)
 	if err != nil {
 		return nil, err
 	}
@@ -172,100 +266,115 @@ func (s *Service) NewCollection(_ context.Context, req *pb.NewCollectionRequest)
 	return &pb.NewCollectionReply{}, nil
 }
 
-// Create adds a new instance of a collection to a db.
-func (s *Service) Create(_ context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("received collection create %s request in db %s", req.CollectionName, creds.ThreadID())
-
-	collection, err := s.getCollection(creds, req.CollectionName)
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
 	if err != nil {
 		return nil, err
 	}
-	return s.processCreateRequest(req, collection.Create)
+	return s.processCreateRequest(req, token, collection.CreateMany)
 }
 
-// Save saves instances
-func (s *Service) Save(_ context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) Save(ctx context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	collection, err := s.getCollection(creds, req.CollectionName)
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
 	if err != nil {
 		return nil, err
 	}
-	return s.processSaveRequest(req, collection.Save)
+	return s.processSaveRequest(req, token, collection.SaveMany)
 }
 
-// Delete deletes instances
-func (s *Service) Delete(_ context.Context, req *pb.DeleteRequest) (*pb.DeleteReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	collection, err := s.getCollection(creds, req.CollectionName)
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
 	if err != nil {
 		return nil, err
 	}
-	return s.processDeleteRequest(req, collection.Delete)
+	return s.processDeleteRequest(req, token, collection.DeleteMany)
 }
 
-// Has determines if the collection inclides instances with the specified ids
-func (s *Service) Has(_ context.Context, req *pb.HasRequest) (*pb.HasReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) Has(ctx context.Context, req *pb.HasRequest) (*pb.HasReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	collection, err := s.getCollection(creds, req.CollectionName)
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
 	if err != nil {
 		return nil, err
 	}
-	return s.processHasRequest(req, collection.Has)
+	return s.processHasRequest(req, token, collection.HasMany)
 }
 
-// Find executes a query against the db
-func (s *Service) Find(_ context.Context, req *pb.FindRequest) (*pb.FindReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) Find(ctx context.Context, req *pb.FindRequest) (*pb.FindReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	collection, err := s.getCollection(creds, req.CollectionName)
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
 	if err != nil {
 		return nil, err
 	}
-	return s.processFindRequest(req, collection.Find)
+	return s.processFindRequest(req, token, collection.Find)
 }
 
-// FindByID searces for an instance by id
-func (s *Service) FindByID(_ context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {
-	creds, err := getCredentials(req.Credentials)
+func (s *Service) FindByID(ctx context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	collection, err := s.getCollection(creds, req.CollectionName)
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
 	if err != nil {
 		return nil, err
 	}
-	return s.processFindByIDRequest(req, collection.FindByID)
+	return s.processFindByIDRequest(req, token, collection.FindByID)
 }
 
-// ReadTransaction runs a read transaction
 func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 	firstReq, err := stream.Recv()
 	if err != nil {
 		return err
 	}
 
-	var creds thread.Credentials
+	var id thread.ID
 	var collectionName string
 	switch x := firstReq.Option.(type) {
 	case *pb.ReadTransactionRequest_StartTransactionRequest:
-		creds, err = getCredentials(x.StartTransactionRequest.Credentials)
+		id, err = thread.Cast(x.StartTransactionRequest.DbID)
 		if err != nil {
-			return err
+			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		collectionName = x.StartTransactionRequest.CollectionName
 	case nil:
@@ -274,7 +383,11 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	collection, err := s.getCollection(creds, collectionName)
+	token, err := thread.NewTokenFromMD(stream.Context())
+	if err != nil {
+		return err
+	}
+	collection, err := s.getCollection(stream.Context(), collectionName, id, token)
 	if err != nil {
 		return err
 	}
@@ -290,7 +403,9 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 			}
 			switch x := req.Option.(type) {
 			case *pb.ReadTransactionRequest_HasRequest:
-				innerReply, err := s.processHasRequest(x.HasRequest, txn.Has)
+				innerReply, err := s.processHasRequest(x.HasRequest, token, func(ids []core.InstanceID, _ ...db.TxnOption) (bool, error) {
+					return txn.Has(ids...)
+				})
 				if err != nil {
 					return err
 				}
@@ -299,7 +414,9 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 					return err
 				}
 			case *pb.ReadTransactionRequest_FindByIDRequest:
-				innerReply, err := s.processFindByIDRequest(x.FindByIDRequest, txn.FindByID)
+				innerReply, err := s.processFindByIDRequest(x.FindByIDRequest, token, func(id core.InstanceID, _ ...db.TxnOption) ([]byte, error) {
+					return txn.FindByID(id)
+				})
 				if err != nil {
 					return err
 				}
@@ -308,7 +425,9 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 					return err
 				}
 			case *pb.ReadTransactionRequest_FindRequest:
-				innerReply, err := s.processFindRequest(x.FindRequest, txn.Find)
+				innerReply, err := s.processFindRequest(x.FindRequest, token, func(q *db.Query, _ ...db.TxnOption) (ret [][]byte, err error) {
+					return txn.Find(q)
+				})
 				if err != nil {
 					return err
 				}
@@ -322,23 +441,22 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 				return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
 			}
 		}
-	})
+	}, db.WithTxnToken(token))
 }
 
-// WriteTransaction runs a write transaction
 func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 	firstReq, err := stream.Recv()
 	if err != nil {
 		return err
 	}
 
-	var creds thread.Credentials
+	var id thread.ID
 	var collectionName string
 	switch x := firstReq.Option.(type) {
 	case *pb.WriteTransactionRequest_StartTransactionRequest:
-		creds, err = getCredentials(x.StartTransactionRequest.Credentials)
+		id, err = thread.Cast(x.StartTransactionRequest.DbID)
 		if err != nil {
-			return err
+			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		collectionName = x.StartTransactionRequest.CollectionName
 	case nil:
@@ -347,7 +465,11 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	collection, err := s.getCollection(creds, collectionName)
+	token, err := thread.NewTokenFromMD(stream.Context())
+	if err != nil {
+		return err
+	}
+	collection, err := s.getCollection(stream.Context(), collectionName, id, token)
 	if err != nil {
 		return err
 	}
@@ -363,7 +485,9 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 			}
 			switch x := req.Option.(type) {
 			case *pb.WriteTransactionRequest_HasRequest:
-				innerReply, err := s.processHasRequest(x.HasRequest, txn.Has)
+				innerReply, err := s.processHasRequest(x.HasRequest, token, func(ids []core.InstanceID, _ ...db.TxnOption) (bool, error) {
+					return txn.Has(ids...)
+				})
 				if err != nil {
 					return err
 				}
@@ -372,7 +496,9 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_FindByIDRequest:
-				innerReply, err := s.processFindByIDRequest(x.FindByIDRequest, txn.FindByID)
+				innerReply, err := s.processFindByIDRequest(x.FindByIDRequest, token, func(id core.InstanceID, _ ...db.TxnOption) ([]byte, error) {
+					return txn.FindByID(id)
+				})
 				if err != nil {
 					return err
 				}
@@ -381,7 +507,9 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_FindRequest:
-				innerReply, err := s.processFindRequest(x.FindRequest, txn.Find)
+				innerReply, err := s.processFindRequest(x.FindRequest, token, func(q *db.Query, _ ...db.TxnOption) (ret [][]byte, err error) {
+					return txn.Find(q)
+				})
 				if err != nil {
 					return err
 				}
@@ -390,7 +518,9 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_CreateRequest:
-				innerReply, err := s.processCreateRequest(x.CreateRequest, txn.Create)
+				innerReply, err := s.processCreateRequest(x.CreateRequest, token, func(new [][]byte, _ ...db.TxnOption) ([]core.InstanceID, error) {
+					return txn.Create(new...)
+				})
 				if err != nil {
 					return err
 				}
@@ -399,7 +529,10 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_SaveRequest:
-				innerReply, err := s.processSaveRequest(x.SaveRequest, txn.Save)
+				// @todo: This needs to be a different auth.
+				innerReply, err := s.processSaveRequest(x.SaveRequest, token, func(ids [][]byte, _ ...db.TxnOption) error {
+					return txn.Save(ids...)
+				})
 				if err != nil {
 					return err
 				}
@@ -408,7 +541,9 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_DeleteRequest:
-				innerReply, err := s.processDeleteRequest(x.DeleteRequest, txn.Delete)
+				innerReply, err := s.processDeleteRequest(x.DeleteRequest, token, func(ids []core.InstanceID, _ ...db.TxnOption) error {
+					return txn.Delete(ids...)
+				})
 				if err != nil {
 					return err
 				}
@@ -422,16 +557,19 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 				return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
 			}
 		}
-	})
+	}, db.WithTxnToken(token))
 }
 
-// Listen returns a stream of instances, trigged by a local or remote state change.
 func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
-	creds, err := getCredentials(req.Credentials)
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(server.Context())
 	if err != nil {
 		return err
 	}
-	d, err := s.getDB(creds)
+	d, err := s.getDB(server.Context(), id, token)
 	if err != nil {
 		return err
 	}
@@ -515,8 +653,8 @@ func (s *Service) instanceForAction(db *db.DB, action db.Action) ([]byte, error)
 	return res, nil
 }
 
-func (s *Service) processCreateRequest(req *pb.CreateRequest, createFunc func(...[]byte) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
-	res, err := createFunc(req.Instances...)
+func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token, createFunc func([][]byte, ...db.TxnOption) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
+	res, err := createFunc(req.Instances, db.WithTxnToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -530,77 +668,77 @@ func (s *Service) processCreateRequest(req *pb.CreateRequest, createFunc func(..
 	return reply, nil
 }
 
-func (s *Service) processSaveRequest(req *pb.SaveRequest, saveFunc func(...[]byte) error) (*pb.SaveReply, error) {
-	if err := saveFunc(req.Instances...); err != nil {
+func (s *Service) processSaveRequest(req *pb.SaveRequest, token thread.Token, saveFunc func([][]byte, ...db.TxnOption) error) (*pb.SaveReply, error) {
+	if err := saveFunc(req.Instances, db.WithTxnToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.SaveReply{}, nil
 }
 
-func (s *Service) processDeleteRequest(req *pb.DeleteRequest, deleteFunc func(...core.InstanceID) error) (*pb.DeleteReply, error) {
+func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token, deleteFunc func([]core.InstanceID, ...db.TxnOption) error) (*pb.DeleteReply, error) {
 	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
 	}
-	if err := deleteFunc(instanceIDs...); err != nil {
+	if err := deleteFunc(instanceIDs, db.WithTxnToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteReply{}, nil
 }
 
-func (s *Service) processHasRequest(req *pb.HasRequest, hasFunc func(...core.InstanceID) (bool, error)) (*pb.HasReply, error) {
+func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasFunc func([]core.InstanceID, ...db.TxnOption) (bool, error)) (*pb.HasReply, error) {
 	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
 	}
-	exists, err := hasFunc(instanceIDs...)
+	exists, err := hasFunc(instanceIDs, db.WithTxnToken(token))
 	if err != nil {
 		return nil, err
 	}
 	return &pb.HasReply{Exists: exists}, nil
 }
 
-func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, findFunc func(id core.InstanceID) ([]byte, error)) (*pb.FindByIDReply, error) {
+func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, token thread.Token, findFunc func(id core.InstanceID, opts ...db.TxnOption) ([]byte, error)) (*pb.FindByIDReply, error) {
 	instanceID := core.InstanceID(req.InstanceID)
-	found, err := findFunc(instanceID)
+	found, err := findFunc(instanceID, db.WithTxnToken(token))
 	if err != nil {
 		return nil, err
 	}
 	return &pb.FindByIDReply{Instance: found}, nil
 }
 
-func (s *Service) processFindRequest(req *pb.FindRequest, findFunc func(q *db.Query) (ret [][]byte, err error)) (*pb.FindReply, error) {
+func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, findFunc func(q *db.Query, opts ...db.TxnOption) (ret [][]byte, err error)) (*pb.FindReply, error) {
 	q := &db.Query{}
 	if err := json.Unmarshal(req.QueryJSON, q); err != nil {
 		return nil, err
 	}
-	instances, err := findFunc(q)
+	instances, err := findFunc(q, db.WithTxnToken(token))
 	if err != nil {
 		return nil, err
 	}
 	return &pb.FindReply{Instances: instances}, nil
 }
 
-func (s *Service) getDB(creds thread.Credentials) (*db.DB, error) {
-	d := s.manager.GetDB(creds)
-	if d == nil {
-		return nil, status.Error(codes.NotFound, "db not found")
+func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (*db.DB, error) {
+	d, err := s.manager.GetDB(ctx, id, db.WithManagedDBToken(token))
+	if err != nil {
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			return nil, status.Error(codes.NotFound, "db not found")
+		} else {
+			return nil, err
+		}
 	}
 	return d, nil
 }
 
-func (s *Service) getCollection(creds thread.Credentials, collectionName string) (*db.Collection, error) {
-	d, err := s.getDB(creds)
+func (s *Service) getCollection(ctx context.Context, collectionName string, id thread.ID, token thread.Token) (*db.Collection, error) {
+	d, err := s.getDB(ctx, id, token)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, "db not found")
+		return nil, err
 	}
 	collection := d.GetCollection(collectionName)
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, "collection not found")
 	}
 	return collection, nil
-}
-
-func getCredentials(c *pb.Credentials) (thread.Credentials, error) {
-	return thread.NewSignedCredsFromBytes(c.ThreadID, c.PubKey, c.Signature)
 }

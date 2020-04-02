@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/textileio/go-threads/core/thread"
+
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
@@ -30,7 +32,7 @@ type CreateRecordConfig struct {
 	Block      format.Node
 	Prev       cid.Cid
 	Key        ic.PrivKey
-	AuthorKey  ic.PrivKey
+	AuthorKey  thread.Identity
 	ServiceKey crypto.EncryptionKey
 }
 
@@ -44,7 +46,7 @@ func CreateRecord(ctx context.Context, dag format.DAGService, config CreateRecor
 	if err != nil {
 		return nil, err
 	}
-	asig, err := config.AuthorKey.Sign(payload)
+	asig, err := config.AuthorKey.Sign(ctx, payload)
 	if err != nil {
 		return nil, err
 	}

@@ -388,7 +388,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	return nil
 }
 
-// dial attempts to open a GRPC connection over libp2p to a peer.
+// dial attempts to open a gRPC connection over libp2p to a peer.
 func (s *server) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
 	return grpc.DialContext(ctx, peerID.Pretty(), opts...)
