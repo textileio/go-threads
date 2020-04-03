@@ -222,7 +222,7 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	if err = n.server.ps.Add(id); err != nil {
 		return
 	}
-	return n.store.GetThread(id)
+	return n.getThreadWithAddrs(id)
 }
 
 func (n *net) ensureUnique(id thread.ID) error {
@@ -294,7 +294,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	if err = n.server.ps.Add(id); err != nil {
 		return
 	}
-	return n.store.GetThread(id)
+	return n.getThreadWithAddrs(id)
 }
 
 func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
@@ -305,11 +305,32 @@ func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOpti
 	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
 		return
 	}
-	return n.store.GetThread(id)
+	return n.getThreadWithAddrs(id)
 }
 
-func (n *net) getThread(_ context.Context, id thread.ID) (thread.Info, error) {
-	return n.store.GetThread(id)
+func (n *net) getThreadWithAddrs(id thread.ID) (info thread.Info, err error) {
+	var tinfo thread.Info
+	var peerID *ma.Component
+	var threadID *ma.Component
+	tinfo, err = n.store.GetThread(id)
+	if err != nil {
+		return
+	}
+	peerID, err = ma.NewComponent("p2p", n.host.ID().String())
+	if err != nil {
+		return
+	}
+	threadID, err = ma.NewComponent("thread", tinfo.ID.String())
+	if err != nil {
+		return
+	}
+	addrs := n.host.Addrs()
+	res := make([]ma.Multiaddr, len(addrs))
+	for i := range addrs {
+		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID)
+	}
+	tinfo.Addrs = res
+	return tinfo, nil
 }
 
 func (n *net) getThreadSemaphore(id thread.ID) chan struct{} {
@@ -458,27 +479,6 @@ func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
 	}
 
 	return n.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
-}
-
-func (n *net) GetThreadAddresses(ctx context.Context, id thread.ID, opts ...core.ThreadOption) ([]ma.Multiaddr, error) {
-	tinfo, err := n.GetThread(ctx, id, opts...)
-	if err != nil {
-		return nil, err
-	}
-	peerID, err := ma.NewComponent("p2p", n.host.ID().String())
-	if err != nil {
-		return nil, err
-	}
-	threadID, err := ma.NewComponent("thread", tinfo.ID.String())
-	if err != nil {
-		return nil, err
-	}
-	addrs := n.host.Addrs()
-	res := make([]ma.Multiaddr, len(addrs))
-	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID)
-	}
-	return res, nil
 }
 
 func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
@@ -739,7 +739,7 @@ func (n *net) subscribe(ctx context.Context, filter map[thread.ID]struct{}) (<-c
 }
 
 func (n *net) ConnectApp(a app.App, threadID thread.ID) (*app.Connector, error) {
-	info, err := n.getThread(context.Background(), threadID)
+	info, err := n.getThreadWithAddrs(threadID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting thread %s: %v", threadID, err)
 	}

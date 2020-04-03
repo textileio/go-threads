@@ -102,8 +102,9 @@ type Net interface {
 
 // Connector connects an app to a thread.
 type Connector struct {
+	Net Net
+
 	app        App
-	net        Net
 	threadID   thread.ID
 	threadKey  thread.Key
 	logID      peer.ID
@@ -127,8 +128,8 @@ func NewConnector(app App, net Net, tinfo thread.Info, conn Connection) (*Connec
 		return nil, fmt.Errorf("own log for thread %s does not exist", tinfo.ID)
 	}
 	a := &Connector{
+		Net:       net,
 		app:       app,
-		net:       net,
 		threadID:  tinfo.ID,
 		threadKey: tinfo.Key,
 		logID:     lg.ID,
@@ -204,7 +205,7 @@ func (c *Connector) appToThread(wg *sync.WaitGroup) {
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := c.net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadToken(event.Token)); err != nil {
+			if _, err := c.Net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadToken(event.Token)); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()

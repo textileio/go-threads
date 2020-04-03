@@ -14,7 +14,6 @@ import (
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	lstore "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
@@ -225,12 +224,12 @@ func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoReques
 		return nil, err
 	}
 
-	db, err := s.getDB(ctx, id, token)
+	d, err := s.getDB(ctx, id, token)
 	if err != nil {
 		return nil, err
 	}
 
-	addrs, key, err := db.GetInviteInfo(net.WithThreadToken(token))
+	addrs, key, err := d.GetInviteInfo(db.WithInviteInfoToken(token))
 	if err != nil {
 		return nil, err
 	}

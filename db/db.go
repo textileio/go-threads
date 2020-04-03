@@ -51,7 +51,6 @@ var (
 type DB struct {
 	io.Closer
 
-	net       app.Net
 	connector *app.Connector
 
 	datastore  ds.TxnDatastore
@@ -136,7 +135,6 @@ func newDB(n app.Net, id thread.ID, options *NewDBOptions) (*DB, error) {
 	}
 
 	d := &DB{
-		net:                 n,
 		datastore:           options.Datastore,
 		dispatcher:          newDispatcher(options.Datastore),
 		eventcodec:          options.EventCodec,
@@ -297,16 +295,11 @@ func (d *DB) GetInviteInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key
 		opt(options)
 	}
 
-	ctx := context.Background()
-	addresses, err := d.net.GetThreadAddresses(ctx, d.connector.ThreadID(), net.WithThreadToken(options.Token))
+	tinfo, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
 	if err != nil {
 		return nil, thread.Key{}, err
 	}
-	tinfo, err := d.net.GetThread(ctx, d.connector.ThreadID(), net.WithThreadToken(options.Token))
-	if err != nil {
-		return nil, thread.Key{}, err
-	}
-	return addresses, tinfo.Key, nil
+	return tinfo.Addrs, tinfo.Key, nil
 }
 
 // Close closes the db.
@@ -340,7 +333,7 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	event, err := threadcbor.EventFromRecord(ctx, d.net, rec.Value())
+	event, err := threadcbor.EventFromRecord(ctx, d.connector.Net, rec.Value())
 	if err != nil {
 		block, err := d.getBlockWithRetry(ctx, rec.Value())
 		if err != nil {
@@ -351,7 +344,7 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 			return fmt.Errorf("error when decoding block to event: %v", err)
 		}
 	}
-	node, err := event.GetBody(ctx, d.net, key.Read())
+	node, err := event.GetBody(ctx, d.connector.Net, key.Read())
 	if err != nil {
 		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", d.connector.ThreadID(), rec.LogID(), err)
 	}
@@ -368,7 +361,7 @@ func (d *DB) getBlockWithRetry(ctx context.Context, rec net.Record) (format.Node
 	backoff := getBlockInitialTimeout
 	var err error
 	for i := 1; i <= getBlockRetries; i++ {
-		n, err := rec.GetBlock(ctx, d.net)
+		n, err := rec.GetBlock(ctx, d.connector.Net)
 		if err == nil {
 			return n, nil
 		}

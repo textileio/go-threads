@@ -68,7 +68,7 @@ func TestNewDBFromAddr(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
 	err := client1.NewDB(context.Background(), id)
 	checkErr(t, err)
-	info, err := client1.GetDBInfo(context.Background(), id)
+	info, err := client1.GetInviteInfo(context.Background(), id)
 	checkErr(t, err)
 
 	t.Run("test new db from address", func(t *testing.T) {
@@ -127,7 +127,7 @@ func TestGetInviteInfo(t *testing.T) {
 		err := client.NewDB(context.Background(), id)
 		checkErr(t, err)
 
-		info, err := client.GetDBInfo(context.Background(), id)
+		info, err := client.GetInviteInfo(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}

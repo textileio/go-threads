@@ -58,7 +58,7 @@ func checkBenchErr(b *testing.B, err error) {
 	}
 }
 
-func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
+func createBenchDB(b *testing.B, opts ...NewDBOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
 	n, err := common.DefaultNetwork(dir)

@@ -51,9 +51,6 @@ type API interface {
 	// DeleteThread with credentials.
 	DeleteThread(ctx context.Context, id thread.ID, opts ...ThreadOption) error
 
-	// GetThreadAddresses returns the host addresses augmented with peerID and threadID components
-	GetThreadAddresses(ctx context.Context, id thread.ID, opts ...ThreadOption) ([]ma.Multiaddr, error)
-
 	// AddReplicator with credentials.
 	// The thread service key and all records will be pushed to paddr.
 	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...ThreadOption) (peer.ID, error)
