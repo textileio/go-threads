@@ -144,7 +144,7 @@ func TestNUsersBootstrap(t *testing.T) {
 		checkSyncedFiles bool
 	}{
 		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 5},
-		// {totalClients: 5, totalCorePeers: 1, syncTimeout: time.Second * 15},
+		{totalClients: 3, totalCorePeers: 1, syncTimeout: time.Second * 15},
 
 		// {totalClients: 5, totalCorePeers: 2, syncTimeout: time.Second * 20},
 
