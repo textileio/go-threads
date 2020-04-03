@@ -31,7 +31,7 @@ func TestE2EWithThreads(t *testing.T) {
 	defer n1.Close()
 
 	id1 := thread.NewIDV1(thread.Raw, 32)
-	d1, err := NewDB(context.Background(), n1, id1, WithRepoPath(tmpDir1))
+	d1, err := NewDB(context.Background(), n1, id1, WithNewDBRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollection(CollectionConfig{
@@ -70,7 +70,7 @@ func TestE2EWithThreads(t *testing.T) {
 		Name:   "dummy",
 		Schema: util.SchemaFromInstance(&dummy{}, false),
 	}
-	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithRepoPath(tmpDir2), WithDBCollections(cc))
+	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithNewDBRepoPath(tmpDir2), WithNewDBCollections(cc))
 	checkErr(t, err)
 	defer d2.Close()
 	c2 := d1.GetCollection("dummy")
@@ -102,7 +102,7 @@ func TestOptions(t *testing.T) {
 
 	ec := &mockEventCodec{}
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err := NewDB(context.Background(), n, id, WithNewDBRepoPath(tmpDir), WithNewDBEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollection(CollectionConfig{
@@ -125,7 +125,7 @@ func TestOptions(t *testing.T) {
 	n, err = common.DefaultNetwork(tmpDir)
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, id, WithRepoPath(tmpDir), WithEventCodec(ec))
+	d, err = NewDB(context.Background(), n, id, WithNewDBRepoPath(tmpDir), WithNewDBEventCodec(ec))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }

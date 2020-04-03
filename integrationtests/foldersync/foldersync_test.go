@@ -31,7 +31,6 @@ func TestMain(m *testing.M) {
 
 func TestSimple(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
-	creds := thread.NewDefaultCreds(id)
 
 	// db0
 
@@ -41,13 +40,13 @@ func TestSimple(t *testing.T) {
 	network0, err := newNetwork(repoPath0)
 	checkErr(t, err)
 
-	db0, err := db.NewDB(context.Background(), network0, creds, db.WithRepoPath(repoPath0), db.WithCollections(cc))
+	db0, err := db.NewDB(context.Background(), network0, id, db.WithNewDBRepoPath(repoPath0), db.WithNewDBCollections(cc))
 	checkErr(t, err)
 	defer db0.Close()
 
 	c0 := db0.GetCollection(collectionName)
 
-	_, addrs0, key0, err := db0.GetInviteInfo()
+	addrs0, key0, err := db0.GetInviteInfo()
 	checkErr(t, err)
 
 	// db1
@@ -58,7 +57,7 @@ func TestSimple(t *testing.T) {
 	network1, err := newNetwork(repoPath1)
 	checkErr(t, err)
 
-	db1, err := db.NewDBFromAddr(context.Background(), network1, creds, addrs0[0], key0, db.WithRepoPath(repoPath1), db.WithCollections(cc))
+	db1, err := db.NewDBFromAddr(context.Background(), network1, addrs0[0], key0, db.WithNewDBRepoPath(repoPath1), db.WithNewDBCollections(cc))
 	checkErr(t, err)
 	defer db1.Close()
 
@@ -72,7 +71,7 @@ func TestSimple(t *testing.T) {
 	network2, err := newNetwork(repoPath2)
 	checkErr(t, err)
 
-	db2, err := db.NewDBFromAddr(context.Background(), network2, creds, addrs0[0], key0, db.WithRepoPath(repoPath2), db.WithCollections(cc))
+	db2, err := db.NewDBFromAddr(context.Background(), network2, addrs0[0], key0, db.WithNewDBRepoPath(repoPath2), db.WithNewDBCollections(cc))
 	checkErr(t, err)
 	defer db2.Close()
 
@@ -86,7 +85,7 @@ func TestSimple(t *testing.T) {
 	network3, err := newNetwork(repoPath3)
 	checkErr(t, err)
 
-	db3, err := db.NewDBFromAddr(context.Background(), network3, creds, addrs0[0], key0, db.WithRepoPath(repoPath3), db.WithCollections(cc))
+	db3, err := db.NewDBFromAddr(context.Background(), network3, addrs0[0], key0, db.WithNewDBRepoPath(repoPath3), db.WithNewDBCollections(cc))
 	checkErr(t, err)
 	defer db3.Close()
 
@@ -163,20 +162,20 @@ func TestNUsersBootstrap(t *testing.T) {
 			defer clean0()
 			clients = append(clients, client0)
 
-			tid, addr, key, err := client0.getInviteInfo()
+			addr, key, err := client0.getInviteInfo()
 			checkErr(t, err)
 
 			for i := 1; i < tt.totalCorePeers; i++ {
-				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), tid, addr, key)
+				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), addr, key)
 				defer clean()
 				clients = append(clients, client)
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
-				tid, addr, key, err := clients[i%tt.totalCorePeers].getInviteInfo()
+				addr, key, err := clients[i%tt.totalCorePeers].getInviteInfo()
 				checkErr(t, err)
 
-				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), tid, addr, key)
+				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), addr, key)
 				defer clean()
 				clients = append(clients, client)
 			}
@@ -358,12 +357,12 @@ func createRootClient(t *testing.T, name string) (*client, func()) {
 	}
 }
 
-func createJoinerClient(t *testing.T, name string, threadID thread.ID, addr ma.Multiaddr, key thread.Key) (*client, func()) {
+func createJoinerClient(t *testing.T, name string, addr ma.Multiaddr, key thread.Key) (*client, func()) {
 	repoPath, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	folderPath, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	client, err := newJoinerClient(name, folderPath, repoPath, threadID, addr, key)
+	client, err := newJoinerClient(name, folderPath, repoPath, addr, key)
 	checkErr(t, err)
 	return client, func() {
 		fmt.Printf("Closing joiner client %v\n", client.name)

@@ -63,7 +63,7 @@ func createBenchDB(b *testing.B, opts ...Option) (*DB, func()) {
 	checkBenchErr(b, err)
 	n, err := common.DefaultNetwork(dir)
 	checkBenchErr(b, err)
-	opts = append(opts, WithRepoPath(dir))
+	opts = append(opts, WithNewDBRepoPath(dir))
 	d, err := NewDB(context.Background(), n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkBenchErr(b, err)
 	return d, func() {

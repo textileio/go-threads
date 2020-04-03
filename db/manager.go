@@ -24,29 +24,29 @@ var (
 type Manager struct {
 	io.Closer
 
-	config *Config
+	newDBOptions *NewDBOptions
 
 	network app.Net
 	dbs     map[thread.ID]*DB
 }
 
 // NewManager hydrates and starts dbs from prefixes.
-func NewManager(network app.Net, opts ...Option) (*Manager, error) {
-	config := &Config{}
+func NewManager(network app.Net, opts ...NewDBOption) (*Manager, error) {
+	options := &NewDBOptions{}
 	for _, opt := range opts {
-		if err := opt(config); err != nil {
+		if err := opt(options); err != nil {
 			return nil, err
 		}
 	}
 
-	if config.Datastore == nil {
-		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
+	if options.Datastore == nil {
+		datastore, err := newDefaultDatastore(options.RepoPath, options.LowMem)
 		if err != nil {
 			return nil, err
 		}
-		config.Datastore = datastore
+		options.Datastore = datastore
 	}
-	if config.Debug {
+	if options.Debug {
 		if err := util.SetLogLevels(map[string]logging.LogLevel{
 			"db": logging.LevelDebug,
 		}); err != nil {
@@ -55,12 +55,12 @@ func NewManager(network app.Net, opts ...Option) (*Manager, error) {
 	}
 
 	m := &Manager{
-		config:  config,
-		network: network,
-		dbs:     make(map[thread.ID]*DB),
+		newDBOptions: options,
+		network:      network,
+		dbs:          make(map[thread.ID]*DB),
 	}
 
-	results, err := m.config.Datastore.Query(query.Query{
+	results, err := m.newDBOptions.Datastore.Query(query.Query{
 		Prefix:   dsDBManagerBaseKey.String(),
 		KeysOnly: true,
 	})
@@ -80,7 +80,7 @@ func NewManager(network app.Net, opts ...Option) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		s, err := newDB(m.network, id, getDBConfig(id, m.config))
+		s, err := newDB(m.network, id, getDBOptions(id, m.newDBOptions))
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBO
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config, args.Collections...))
+	db, err := newDB(m.network, id, getDBOptions(id, m.newDBOptions, args.Collections...))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBConfig(id, m.config, args.Collections...))
+	db, err := newDB(m.network, id, getDBOptions(id, m.newDBOptions, args.Collections...))
 	if err != nil {
 		return nil, err
 	}
@@ -185,13 +185,13 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBO
 	// Cleanup keys used by the db
 	pre := dsDBManagerBaseKey.ChildString(id.String())
 	q := query.Query{Prefix: pre.String(), KeysOnly: true}
-	results, err := m.config.Datastore.Query(q)
+	results, err := m.newDBOptions.Datastore.Query(q)
 	if err != nil {
 		return err
 	}
 	defer results.Close()
 	for result := range results.Next() {
-		if err := m.config.Datastore.Delete(ds.NewKey(result.Key)); err != nil {
+		if err := m.newDBOptions.Datastore.Delete(ds.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
@@ -212,14 +212,14 @@ func (m *Manager) Close() error {
 			log.Error("error when closing manager datastore: %v", err)
 		}
 	}
-	return m.config.Datastore.Close()
+	return m.newDBOptions.Datastore.Close()
 }
 
-// getDBConfig copies the manager's base config,
+// getDBOptions copies the manager's base config,
 // wraps the datastore with an id prefix,
 // and merges specified collection configs with those from base
-func getDBConfig(id thread.ID, base *Config, collections ...CollectionConfig) *Config {
-	return &Config{
+func getDBOptions(id thread.ID, base *NewDBOptions, collections ...CollectionConfig) *NewDBOptions {
+	return &NewDBOptions{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
 			Prefix: dsDBManagerBaseKey.ChildString(id.String()),

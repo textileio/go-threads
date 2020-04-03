@@ -18,6 +18,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
+	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -71,14 +72,13 @@ type client struct {
 
 func newRootClient(name, folderPath, repoPath string) (*client, error) {
 	id := thread.NewIDV1(thread.Raw, 32)
-	creds := thread.NewDefaultCreds(id)
 
 	network, err := newNetwork(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
-	d, err := db.NewDB(context.Background(), network, creds, db.WithRepoPath(repoPath), db.WithCollections(cc))
+	d, err := db.NewDB(context.Background(), network, id, db.WithNewDBRepoPath(repoPath), db.WithNewDBCollections(cc))
 	if err != nil {
 		return nil, err
 	}
@@ -94,15 +94,13 @@ func newRootClient(name, folderPath, repoPath string) (*client, error) {
 	}, nil
 }
 
-func newJoinerClient(name, folderPath, repoPath string, threadID thread.ID, addr ma.Multiaddr, key thread.Key) (*client, error) {
-	creds := thread.NewDefaultCreds(threadID)
-
+func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key thread.Key) (*client, error) {
 	network, err := newNetwork(repoPath)
 	if err != nil {
 		return nil, err
 	}
 
-	d, err := db.NewDBFromAddr(context.Background(), network, creds, addr, key, db.WithRepoPath(repoPath), db.WithCollections(cc))
+	d, err := db.NewDBFromAddr(context.Background(), network, addr, key, db.WithNewDBRepoPath(repoPath), db.WithNewDBCollections(cc))
 	if err != nil {
 		return nil, err
 	}
@@ -118,29 +116,29 @@ func newJoinerClient(name, folderPath, repoPath string, threadID thread.ID, addr
 	}, nil
 }
 
-func newNetwork(repoPath string) (db.NetBoostrapper, error) {
+func newNetwork(repoPath string) (common.NetBoostrapper, error) {
 	hostPort, err := freeport.GetFreePort()
 	if err != nil {
 		return nil, err
 	}
 	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
 
-	network, err := db.DefaultNetwork(repoPath, db.WithNetHostAddr(hostAddr))
+	network, err := common.DefaultNetwork(repoPath, common.WithNetHostAddr(hostAddr))
 	if err != nil {
 		return nil, err
 	}
 	return network, nil
 }
 
-func (c *client) getInviteInfo() (thread.ID, ma.Multiaddr, thread.Key, error) {
-	id, addrs, key, err := c.db.GetInviteInfo()
+func (c *client) getInviteInfo() (ma.Multiaddr, thread.Key, error) {
+	addrs, key, err := c.db.GetInviteInfo()
 	if err != nil {
-		return thread.ID{}, nil, thread.Key{}, err
+		return nil, thread.Key{}, err
 	}
 	if len(addrs) < 1 {
-		return thread.ID{}, nil, thread.Key{}, errors.New("unable to get thread address")
+		return nil, thread.Key{}, errors.New("unable to get thread address")
 	}
-	return id, addrs[0], key, nil
+	return addrs[0], key, nil
 }
 
 func (c *client) getOrCreateMyFolderInstance(path string) (*folder, error) {

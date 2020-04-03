@@ -44,11 +44,11 @@ message CollectionConfig {
 
 message NewDBReply {}
 
-message GetDBInfoRequest {
+message GetInviteInfoRequest {
     bytes dbID = 1;
 }
 
-message GetDBInfoReply {
+message GetInviteInfoReply {
     repeated bytes addrs = 1;
     bytes key = 2;
 }
@@ -195,7 +195,7 @@ service API {
     rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
-    rpc GetInviteInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}
+    rpc GetInviteInfo(GetInviteInfoRequest) returns (GetInviteInfoReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}

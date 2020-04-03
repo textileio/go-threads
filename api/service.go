@@ -50,7 +50,7 @@ func NewService(network app.Net, conf Config) (*Service, error) {
 		}
 	}
 
-	manager, err := db.NewManager(network, db.WithRepoPath(conf.RepoPath), db.WithDebug(conf.Debug))
+	manager, err := db.NewManager(network, db.WithNewDBRepoPath(conf.RepoPath), db.WithNewDBDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 	}, nil
 }
 
-func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
+func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoRequest) (*pb.GetInviteInfoReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -224,21 +224,24 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := s.manager.Net().GetThread(ctx, id, net.WithThreadToken(token))
+
+	db, err := s.getDB(ctx, id, token)
 	if err != nil {
 		return nil, err
 	}
-	host := s.manager.Net().Host()
-	peerID, _ := ma.NewComponent("p2p", host.ID().String())
-	threadID, _ := ma.NewComponent("thread", tinfo.ID.String())
-	addrs := host.Addrs()
+
+	addrs, key, err := db.GetInviteInfo(net.WithThreadToken(token))
+	if err != nil {
+		return nil, err
+	}
+
 	res := make([][]byte, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).Bytes()
+		res[i] = addrs[i].Bytes()
 	}
-	reply := &pb.GetDBInfoReply{
+	reply := &pb.GetInviteInfoReply{
 		Addrs: res,
-		Key:   tinfo.Key.Bytes(),
+		Key:   key.Bytes(),
 	}
 	return reply, nil
 }
