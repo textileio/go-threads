@@ -49,8 +49,8 @@ public class ClientUnitTest {
     }
 
     @Test
-    public void t04_GetDBInfo() throws Exception {
-        GetDBInfoReply reply = client.GetDBInfoSync(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
+    public void t04_GetInviteInfo() throws Exception {
+        GetInviteInfoReply reply = client.GetInviteInfoSync(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)));
         assertNotEquals(0, reply.getAddrsCount());
     }
 

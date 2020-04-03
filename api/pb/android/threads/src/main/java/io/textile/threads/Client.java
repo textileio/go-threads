@@ -110,16 +110,16 @@ public class Client implements LifecycleObserver {
         asyncStub.newDBFromAddr(request.build(), responseObserver);
     }
 
-    public GetDBInfoReply GetDBInfoSync (ByteString dbID) {
-        GetDBInfoRequest.Builder request = GetDBInfoRequest.newBuilder();
+    public GetInviteInfoReply GetInviteInfoSync (ByteString dbID) {
+        GetInviteInfoRequest.Builder request = GetInviteInfoRequest.newBuilder();
         request.setDbID(dbID);
-        return blockingStub.getDBInfo(request.build());
+        return blockingStub.getInviteInfo(request.build());
     }
 
-    public void GetDBInfo (ByteString dbID, StreamObserver<GetDBInfoReply> responseObserver) {
-        GetDBInfoRequest.Builder request = GetDBInfoRequest.newBuilder();
+    public void GetInviteInfo (ByteString dbID, StreamObserver<GetInviteInfoReply> responseObserver) {
+        GetInviteInfoRequest.Builder request = GetInviteInfoRequest.newBuilder();
         request.setDbID(dbID);
-        asyncStub.getDBInfo(request.build(), responseObserver);
+        asyncStub.getInviteInfo(request.build(), responseObserver);
     }
 
     public CreateReply CreateSync (ByteString dbID, String collectionName, ByteString[] instances) {
