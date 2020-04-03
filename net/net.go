@@ -784,7 +784,6 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	if len(unknownRecords) == 0 {
 		return nil
 	}
-	// Get or create a log for the new rec
 	lg, err := n.store.GetLog(id, lid)
 	if err != nil {
 		return err

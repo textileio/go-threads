@@ -215,14 +215,14 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 	}, nil
 }
 
-// GetInviteInfo retrives db addresses and keys.
-func (c *Client) GetInviteInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) ([]ma.Multiaddr, thread.Key, error) {
+// GetDBInfo retrives db addresses and keys.
+func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) ([]ma.Multiaddr, thread.Key, error) {
 	args := &db.ManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 	ctx = thread.NewTokenContext(ctx, args.Token)
-	res, err := c.c.GetInviteInfo(ctx, &pb.GetInviteInfoRequest{
+	res, err := c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
 		DbID: dbID.Bytes(),
 	})
 	if err != nil {

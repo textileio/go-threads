@@ -130,8 +130,8 @@ func newNetwork(repoPath string) (common.NetBoostrapper, error) {
 	return network, nil
 }
 
-func (c *client) getInviteInfo() (ma.Multiaddr, thread.Key, error) {
-	addrs, key, err := c.db.GetInviteInfo()
+func (c *client) getDBInfo() (ma.Multiaddr, thread.Key, error) {
+	addrs, key, err := c.db.GetDBInfo()
 	if err != nil {
 		return nil, thread.Key{}, err
 	}

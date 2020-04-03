@@ -288,8 +288,8 @@ func (d *DB) Reduce(events []core.Event) error {
 	return nil
 }
 
-// GetInviteInfo returns the addresses and key that can be used to join the DB thread
-func (d *DB) GetInviteInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key, error) {
+// GetDBInfo returns the addresses and key that can be used to join the DB thread
+func (d *DB) GetDBInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key, error) {
 	options := &InviteInfoOptions{}
 	for _, opt := range opts {
 		opt(options)

@@ -46,7 +46,7 @@ func TestSimple(t *testing.T) {
 
 	c0 := db0.GetCollection(collectionName)
 
-	addrs0, key0, err := db0.GetInviteInfo()
+	addrs0, key0, err := db0.GetDBInfo()
 	checkErr(t, err)
 
 	// db1
@@ -162,7 +162,7 @@ func TestNUsersBootstrap(t *testing.T) {
 			defer clean0()
 			clients = append(clients, client0)
 
-			addr, key, err := client0.getInviteInfo()
+			addr, key, err := client0.getDBInfo()
 			checkErr(t, err)
 
 			for i := 1; i < tt.totalCorePeers; i++ {
@@ -172,7 +172,7 @@ func TestNUsersBootstrap(t *testing.T) {
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
-				addr, key, err := clients[i%tt.totalCorePeers].getInviteInfo()
+				addr, key, err := clients[i%tt.totalCorePeers].getDBInfo()
 				checkErr(t, err)
 
 				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), addr, key)

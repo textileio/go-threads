@@ -214,7 +214,7 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 	}, nil
 }
 
-func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoRequest) (*pb.GetInviteInfoReply, error) {
+func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -229,7 +229,7 @@ func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoReques
 		return nil, err
 	}
 
-	addrs, key, err := d.GetInviteInfo(db.WithInviteInfoToken(token))
+	addrs, key, err := d.GetDBInfo(db.WithInviteInfoToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (s *Service) GetInviteInfo(ctx context.Context, req *pb.GetInviteInfoReques
 	for i := range addrs {
 		res[i] = addrs[i].Bytes()
 	}
-	reply := &pb.GetInviteInfoReply{
+	reply := &pb.GetDBInfoReply{
 		Addrs: res,
 		Key:   key.Bytes(),
 	}
