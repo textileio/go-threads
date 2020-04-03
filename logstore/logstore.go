@@ -124,7 +124,7 @@ func (ls *logstore) GetThread(id thread.ID) (info thread.Info, err error) {
 
 	logs := make([]thread.LogInfo, 0, len(set))
 	for l := range set {
-		i, err := ls.GetLog(id, l)
+		i, err := ls.getLog(id, l)
 		if err != nil {
 			return info, err
 		}
@@ -211,6 +211,10 @@ func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	ls.RLock()
 	defer ls.RUnlock()
 
+	return ls.getLog(id, lid)
+}
+
+func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
 	pk, err := ls.PubKey(id, lid)
 	if err != nil {
 		return
@@ -230,7 +234,6 @@ func (ls *logstore) GetLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	if err != nil {
 		return
 	}
-
 	info.ID = lid
 	info.PubKey = pk
 	info.PrivKey = sk

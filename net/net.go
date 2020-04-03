@@ -606,7 +606,7 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		return err
 	}
 	if logpk == nil {
-		return fmt.Errorf("log not found")
+		return lstore.ErrLogNotFound
 	}
 
 	knownRecord, err := n.bstore.Has(rec.Cid())
@@ -763,8 +763,7 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	if len(unknownRecords) == 0 {
 		return nil
 	}
-	// Get or create a log for the new rec
-	lg, err := n.getLog(id, lid)
+	lg, err := n.store.GetLog(id, lid)
 	if err != nil {
 		return err
 	}
@@ -855,9 +854,6 @@ func (n *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 	if err != nil {
 		return nil, err
 	}
-	if lg.PubKey == nil {
-		return nil, fmt.Errorf("log not found")
-	}
 	sk, err := n.store.ServiceKey(id)
 	if err != nil {
 		return nil, err
@@ -944,18 +940,6 @@ func (n *net) startPulling() {
 			return
 		}
 	}
-}
-
-// getLog returns the log with the given thread and log id.
-func (n *net) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err error) {
-	info, err = n.store.GetLog(id, lid)
-	if err != nil {
-		return
-	}
-	if info.PubKey != nil {
-		return
-	}
-	return info, fmt.Errorf("log %s doesn't exist for thread %s", lid, id)
 }
 
 // getOwnLoad returns the log owned by the host under the given thread.
