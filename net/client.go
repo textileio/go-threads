@@ -16,6 +16,7 @@ import (
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
+	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
