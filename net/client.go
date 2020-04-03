@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	nnet "net"
 	"sync"
@@ -202,9 +203,6 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 	if err != nil {
 		return nil, err
 	}
-	if lg.PubKey == nil {
-		return nil, fmt.Errorf("log not found")
-	}
 
 	// Pull from each address
 	recs := newRecords()
@@ -246,7 +244,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				log.Debugf("received %d records in log %s from %s", len(l.Records), l.LogID.ID, p)
 
 				lg, err := s.net.store.GetLog(id, l.LogID.ID)
-				if err != nil {
+				if err != nil && !errors.Is(err, lstore.ErrLogNotFound) {
 					log.Error(err)
 					return
 				}
