@@ -146,10 +146,10 @@ func TestNUsersBootstrap(t *testing.T) {
 		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 5},
 		{totalClients: 3, totalCorePeers: 1, syncTimeout: time.Second * 15},
 
-		// {totalClients: 5, totalCorePeers: 2, syncTimeout: time.Second * 20},
+		{totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 20},
 
 		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 10, randFilesGen: 4, randFileSize: 10},
-		// {totalClients: 5, totalCorePeers: 4, syncTimeout: time.Second * 20, randFilesGen: 4, randFileSize: 10},
+		{totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 20, randFilesGen: 4, randFileSize: 10},
 	}
 
 	for _, tt := range tests {
