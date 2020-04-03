@@ -216,15 +216,31 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 }
 
 // GetInviteInfo retrives db addresses and keys.
-func (c *Client) GetInviteInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) (*pb.GetInviteInfoReply, error) {
+func (c *Client) GetInviteInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) ([]ma.Multiaddr, thread.Key, error) {
 	args := &db.ManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 	ctx = thread.NewTokenContext(ctx, args.Token)
-	return c.c.GetInviteInfo(ctx, &pb.GetInviteInfoRequest{
+	res, err := c.c.GetInviteInfo(ctx, &pb.GetInviteInfoRequest{
 		DbID: dbID.Bytes(),
 	})
+	if err != nil {
+		return nil, thread.Key{}, err
+	}
+	addrs := make([]ma.Multiaddr, len(res.Addrs))
+	for i, bytes := range res.Addrs {
+		addr, err := ma.NewMultiaddrBytes(bytes)
+		if err != nil {
+			return nil, thread.Key{}, err
+		}
+		addrs[i] = addr
+	}
+	key, err := thread.KeyFromBytes(res.Key)
+	if err != nil {
+		return nil, thread.Key{}, err
+	}
+	return addrs, key, nil
 }
 
 // NewCollection creates a new collection.
