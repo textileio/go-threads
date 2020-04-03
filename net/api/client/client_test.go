@@ -252,7 +252,7 @@ func TestClient_AddRecord(t *testing.T) {
 			Block:      event,
 			Prev:       cid.Undef,
 			Key:        logSk,
-			AuthorKey:  identity,
+			PubKey:     identity.GetPublic(),
 			ServiceKey: tk.Service(),
 		})
 		if err != nil {

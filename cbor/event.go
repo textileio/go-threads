@@ -129,12 +129,10 @@ type Event struct {
 	body   format.Node
 }
 
-// HeaderID returns the cid of the header.
 func (e *Event) HeaderID() cid.Cid {
 	return e.obj.Header
 }
 
-// GetHeader returns the header node.
 func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (net.EventHeader, error) {
 	if e.header == nil {
 		coded, err := dag.Get(ctx, e.obj.Header)
@@ -164,12 +162,10 @@ func (e *Event) GetHeader(ctx context.Context, dag format.DAGService, key crypto
 	return e.header, nil
 }
 
-// BodyID returns the cid of the body.
 func (e *Event) BodyID() cid.Cid {
 	return e.obj.Body
 }
 
-// GetBody returns the body node.
 func (e *Event) GetBody(ctx context.Context, dag format.DAGService, key crypto.DecryptionKey) (format.Node, error) {
 	var k crypto.DecryptionKey
 	if key != nil {
@@ -205,7 +201,6 @@ type EventHeader struct {
 	obj *eventHeader
 }
 
-// Key returns the key needed to decrypt the event body if it has been decoded.
 func (h *EventHeader) Key() (crypto.DecryptionKey, error) {
 	if h.obj == nil {
 		return nil, fmt.Errorf("obj not loaded")
