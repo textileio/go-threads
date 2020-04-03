@@ -9,6 +9,7 @@ import (
 
 	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 )
 
 func checkErr(t *testing.T, err error) {
@@ -18,12 +19,12 @@ func checkErr(t *testing.T, err error) {
 	}
 }
 
-func createTestDB(t *testing.T, opts ...Option) (*DB, func()) {
+func createTestDB(t *testing.T, opts ...NewDBOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := common.DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
-	opts = append(opts, WithRepoPath(dir))
+	opts = append(opts, WithNewDBRepoPath(dir))
 	d, err := NewDB(context.Background(), n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkErr(t, err)
 	return d, func() {

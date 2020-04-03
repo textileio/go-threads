@@ -396,10 +396,18 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 			Head:    head,
 		}
 	}
+	addrs := make([]ma.Multiaddr, len(reply.Addrs))
+	for i, addr := range reply.Addrs {
+		addrs[i], err = ma.NewMultiaddrBytes(addr)
+		if err != nil {
+			return info, err
+		}
+	}
 	return thread.Info{
-		ID:   threadID,
-		Key:  k,
-		Logs: logs,
+		ID:    threadID,
+		Key:   k,
+		Logs:  logs,
+		Addrs: addrs,
 	}, nil
 }
 

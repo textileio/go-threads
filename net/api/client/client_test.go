@@ -410,11 +410,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostPort, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
+	hostAddr := util.FreeLocalAddr()
 	n, err := common.DefaultNetwork(
 		dir,
 		common.WithNetHostAddr(hostAddr),

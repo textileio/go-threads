@@ -40,6 +40,7 @@ message ThreadInfoReply {
     bytes threadID = 1;
     bytes threadKey = 2;
     repeated LogInfo logs = 3;
+    repeated bytes addrs = 4;
 }
 
 message LogInfo {

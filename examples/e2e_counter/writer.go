@@ -24,11 +24,11 @@ type myCounter struct {
 func runWriterPeer(repo string) {
 	fmt.Printf("I'm a writer\n")
 
-	n, err := common.DefaultNetwork(repo)
+	n, err := common.DefaultNetwork(repo, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(err)
 	defer n.Close()
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := db.NewDB(context.Background(), n, id, db.WithRepoPath(repo))
+	d, err := db.NewDB(context.Background(), n, id, db.WithNewDBRepoPath(repo))
 	checkErr(err)
 	defer d.Close()
 

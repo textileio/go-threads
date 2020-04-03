@@ -53,6 +53,9 @@ func TestNet_CreateRecord(t *testing.T) {
 	var info thread.Info
 	t.Run("test create thread", func(t *testing.T) {
 		info = createThread(t, ctx, n)
+		if len(info.Addrs) == 0 {
+			t.Fatalf("expected more than 0 addresses got %d", len(info.Addrs))
+		}
 	})
 
 	t.Run("test create records", func(t *testing.T) {
@@ -143,6 +146,9 @@ func TestNet_AddThread(t *testing.T) {
 	if len(info2.Logs) != 2 {
 		t.Fatalf("expected 2 logs got %d", len(info2.Logs))
 	}
+	if len(info2.Addrs) == 0 {
+		t.Fatalf("expected more than 0 addresses got %d", len(info2.Addrs))
+	}
 
 	body2, err := cbornode.WrapObject(map[string]interface{}{
 		"msg": "yo back!",
@@ -160,6 +166,9 @@ func TestNet_AddThread(t *testing.T) {
 	}
 	if len(info3.Logs) != 2 {
 		t.Fatalf("expected 2 logs got %d", len(info3.Logs))
+	}
+	if len(info3.Addrs) == 0 {
+		t.Fatalf("expected more than 0 addresses got %d", len(info3.Addrs))
 	}
 }
 

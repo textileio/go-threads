@@ -14,7 +14,6 @@ import (
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	lstore "github.com/textileio/go-threads/core/logstore"
-	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
@@ -50,7 +49,7 @@ func NewService(network app.Net, conf Config) (*Service, error) {
 		}
 	}
 
-	manager, err := db.NewManager(network, db.WithRepoPath(conf.RepoPath), db.WithDebug(conf.Debug))
+	manager, err := db.NewManager(network, db.WithNewDBRepoPath(conf.RepoPath), db.WithNewDBDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}
@@ -224,21 +223,24 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	tinfo, err := s.manager.Net().GetThread(ctx, id, net.WithThreadToken(token))
+
+	d, err := s.getDB(ctx, id, token)
 	if err != nil {
 		return nil, err
 	}
-	host := s.manager.Net().Host()
-	peerID, _ := ma.NewComponent("p2p", host.ID().String())
-	threadID, _ := ma.NewComponent("thread", tinfo.ID.String())
-	addrs := host.Addrs()
+
+	addrs, key, err := d.GetDBInfo(db.WithInviteInfoToken(token))
+	if err != nil {
+		return nil, err
+	}
+
 	res := make([][]byte, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID).Bytes()
+		res[i] = addrs[i].Bytes()
 	}
 	reply := &pb.GetDBInfoReply{
 		Addrs: res,
-		Key:   tinfo.Key.Bytes(),
+		Key:   key.Bytes(),
 	}
 	return reply, nil
 }

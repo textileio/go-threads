@@ -446,9 +446,14 @@ func threadInfoToProto(info thread.Info) (*pb.ThreadInfoReply, error) {
 			Head:    lg.Head.Bytes(),
 		}
 	}
+	addrs := make([][]byte, len(info.Addrs))
+	for i, addr := range info.Addrs {
+		addrs[i] = addr.Bytes()
+	}
 	return &pb.ThreadInfoReply{
 		ThreadID:  info.ID.Bytes(),
 		ThreadKey: info.Key.Bytes(),
 		Logs:      logs,
+		Addrs:     addrs,
 	}, nil
 }

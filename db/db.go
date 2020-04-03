@@ -51,7 +51,6 @@ var (
 type DB struct {
 	io.Closer
 
-	net       app.Net
 	connector *app.Connector
 
 	datastore  ds.TxnDatastore
@@ -68,44 +67,44 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...Option) (*DB, error) {
-	config := &Config{}
+func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewDBOption) (*DB, error) {
+	options := &NewDBOptions{}
 	for _, opt := range opts {
-		if err := opt(config); err != nil {
+		if err := opt(options); err != nil {
 			return nil, err
 		}
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(config.Token)); err != nil {
+	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(options.Token)); err != nil {
 		if !errors.Is(err, lstore.ErrThreadExists) {
 			return nil, err
 		}
 	}
-	return newDB(network, id, config)
+	return newDB(network, id, options)
 }
 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...Option) (*DB, error) {
-	config := &Config{}
+func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewDBOption) (*DB, error) {
+	options := &NewDBOptions{}
 	for _, opt := range opts {
-		if err := opt(config); err != nil {
+		if err := opt(options); err != nil {
 			return nil, err
 		}
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(config.Token))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(options.Token))
 	if err != nil {
 		return nil, err
 	}
-	d, err := newDB(network, ti.ID, config)
+	d, err := newDB(network, ti.ID, options)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(config.Token)); err != nil {
+		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(options.Token)); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
@@ -114,19 +113,19 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 
 // newDB is used directly by a db manager to create new dbs
 // with the same config.
-func newDB(n app.Net, id thread.ID, config *Config) (*DB, error) {
-	if config.Datastore == nil {
-		datastore, err := newDefaultDatastore(config.RepoPath, config.LowMem)
+func newDB(n app.Net, id thread.ID, options *NewDBOptions) (*DB, error) {
+	if options.Datastore == nil {
+		datastore, err := newDefaultDatastore(options.RepoPath, options.LowMem)
 		if err != nil {
 			return nil, err
 		}
-		config.Datastore = datastore
+		options.Datastore = datastore
 	}
-	if config.EventCodec == nil {
-		config.EventCodec = newDefaultEventCodec()
+	if options.EventCodec == nil {
+		options.EventCodec = newDefaultEventCodec()
 	}
-	if !managedDatastore(config.Datastore) {
-		if config.Debug {
+	if !managedDatastore(options.Datastore) {
+		if options.Debug {
 			if err := util.SetLogLevels(map[string]logging.LogLevel{
 				"db": logging.LevelDebug,
 			}); err != nil {
@@ -136,9 +135,9 @@ func newDB(n app.Net, id thread.ID, config *Config) (*DB, error) {
 	}
 
 	d := &DB{
-		datastore:           config.Datastore,
-		dispatcher:          newDispatcher(config.Datastore),
-		eventcodec:          config.EventCodec,
+		datastore:           options.Datastore,
+		dispatcher:          newDispatcher(options.Datastore),
+		eventcodec:          options.EventCodec,
 		collectionNames:     make(map[string]*Collection),
 		localEventsBus:      app.NewLocalEventsBus(),
 		stateChangedNotifee: &stateChangedNotifee{},
@@ -148,7 +147,7 @@ func newDB(n app.Net, id thread.ID, config *Config) (*DB, error) {
 	}
 	d.dispatcher.Register(d)
 
-	for _, cc := range config.Collections {
+	for _, cc := range options.Collections {
 		if _, err := d.NewCollection(cc); err != nil {
 			return nil, err
 		}
@@ -289,10 +288,25 @@ func (d *DB) Reduce(events []core.Event) error {
 	return nil
 }
 
+// GetDBInfo returns the addresses and key that can be used to join the DB thread
+func (d *DB) GetDBInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key, error) {
+	options := &InviteInfoOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	tinfo, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
+	if err != nil {
+		return nil, thread.Key{}, err
+	}
+	return tinfo.Addrs, tinfo.Key, nil
+}
+
 // Close closes the db.
 func (d *DB) Close() error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+
 	if d.closed {
 		return nil
 	}
@@ -319,7 +333,7 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	event, err := threadcbor.EventFromRecord(ctx, d.net, rec.Value())
+	event, err := threadcbor.EventFromRecord(ctx, d.connector.Net, rec.Value())
 	if err != nil {
 		block, err := d.getBlockWithRetry(ctx, rec.Value())
 		if err != nil {
@@ -330,7 +344,7 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 			return fmt.Errorf("error when decoding block to event: %v", err)
 		}
 	}
-	node, err := event.GetBody(ctx, d.net, key.Read())
+	node, err := event.GetBody(ctx, d.connector.Net, key.Read())
 	if err != nil {
 		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", d.connector.ThreadID(), rec.LogID(), err)
 	}
@@ -347,7 +361,7 @@ func (d *DB) getBlockWithRetry(ctx context.Context, rec net.Record) (format.Node
 	backoff := getBlockInitialTimeout
 	var err error
 	for i := 1; i <= getBlockRetries; i++ {
-		n, err := rec.GetBlock(ctx, d.net)
+		n, err := rec.GetBlock(ctx, d.connector.Net)
 		if err == nil {
 			return n, nil
 		}

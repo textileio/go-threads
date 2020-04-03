@@ -68,15 +68,11 @@ func TestNewDBFromAddr(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
 	err := client1.NewDB(context.Background(), id)
 	checkErr(t, err)
-	info, err := client1.GetDBInfo(context.Background(), id)
+	addrs, key, err := client1.GetDBInfo(context.Background(), id)
 	checkErr(t, err)
 
 	t.Run("test new db from address", func(t *testing.T) {
-		addr, err := ma.NewMultiaddrBytes(info.Addrs[0])
-		checkErr(t, err)
-		key, err := thread.KeyFromBytes(info.Key)
-		checkErr(t, err)
-		if err = client2.NewDBFromAddr(context.Background(), addr, key); err != nil {
+		if err = client2.NewDBFromAddr(context.Background(), addrs[0], key); err != nil {
 			t.Fatalf("failed to create new db from address: %v", err)
 		}
 	})
@@ -127,14 +123,14 @@ func TestGetDBInfo(t *testing.T) {
 		err := client.NewDB(context.Background(), id)
 		checkErr(t, err)
 
-		info, err := client.GetDBInfo(context.Background(), id)
+		addrs, key, err := client.GetDBInfo(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to create collection: %v", err)
 		}
-		if info.Key == nil {
-			t.Fatal("got nil db key")
+		if !key.Defined() {
+			t.Fatal("got undefined db key")
 		}
-		if len(info.Addrs) == 0 {
+		if len(addrs) == 0 {
 			t.Fatal("got empty addresses")
 		}
 	})
@@ -603,7 +599,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true))
+	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	if err != nil {
 		t.Fatal(err)
 	}

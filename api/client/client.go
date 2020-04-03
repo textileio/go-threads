@@ -216,15 +216,31 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 }
 
 // GetDBInfo retrives db addresses and keys.
-func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) (*pb.GetDBInfoReply, error) {
+func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) ([]ma.Multiaddr, thread.Key, error) {
 	args := &db.ManagedDBOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 	ctx = thread.NewTokenContext(ctx, args.Token)
-	return c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
+	res, err := c.c.GetDBInfo(ctx, &pb.GetDBInfoRequest{
 		DbID: dbID.Bytes(),
 	})
+	if err != nil {
+		return nil, thread.Key{}, err
+	}
+	addrs := make([]ma.Multiaddr, len(res.Addrs))
+	for i, bytes := range res.Addrs {
+		addr, err := ma.NewMultiaddrBytes(bytes)
+		if err != nil {
+			return nil, thread.Key{}, err
+		}
+		addrs[i] = addr
+	}
+	key, err := thread.KeyFromBytes(res.Key)
+	if err != nil {
+		return nil, thread.Key{}, err
+	}
+	return addrs, key, nil
 }
 
 // NewCollection creates a new collection.

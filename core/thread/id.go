@@ -301,11 +301,12 @@ func (s IDSlice) Len() int           { return len(s) }
 func (s IDSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s IDSlice) Less(i, j int) bool { return s[i].str < s[j].str }
 
-// Info holds thread logs and keys.
+// Info holds thread logs, keys and addresses.
 type Info struct {
-	ID   ID
-	Key  Key
-	Logs []LogInfo
+	ID    ID
+	Key   Key
+	Logs  []LogInfo
+	Addrs []ma.Multiaddr
 }
 
 // GetOwnLog returns the first log found with a private key.
@@ -318,7 +319,7 @@ func (i Info) GetOwnLog() *LogInfo {
 	return nil
 }
 
-// GetLog holds log keys, addresses, and heads.
+// LogInfo holds log keys, addresses, and heads.
 type LogInfo struct {
 	ID      peer.ID
 	PubKey  crypto.PubKey
