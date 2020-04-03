@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/phayes/freeport"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap/zapcore"
@@ -133,6 +134,14 @@ func MustParseAddr(str string) ma.Multiaddr {
 		panic(err)
 	}
 	return addr
+}
+
+func FreeLocalAddr() ma.Multiaddr {
+	hostPort, err := freeport.GetFreePort()
+	if err != nil {
+		return nil
+	}
+	return MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
 }
 
 func SchemaFromInstance(i interface{}, expandedStruct bool) *jsonschema.Schema {

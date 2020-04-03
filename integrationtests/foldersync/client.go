@@ -17,7 +17,6 @@ import (
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/net"
@@ -117,13 +116,7 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 }
 
 func newNetwork(repoPath string) (common.NetBoostrapper, error) {
-	hostPort, err := freeport.GetFreePort()
-	if err != nil {
-		return nil, err
-	}
-	hostAddr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
-
-	network, err := common.DefaultNetwork(repoPath, common.WithNetHostAddr(hostAddr))
+	network, err := common.DefaultNetwork(repoPath, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	if err != nil {
 		return nil, err
 	}

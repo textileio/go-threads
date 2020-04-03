@@ -17,7 +17,7 @@ func runReaderPeer(repo string) {
 	fmt.Printf("I'm a collection reader.\n")
 	writerAddr, key := getWriterAddr()
 
-	n, err := common.DefaultNetwork(repo)
+	n, err := common.DefaultNetwork(repo, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(err)
 	defer n.Close()
 

@@ -179,7 +179,7 @@ func main() {
 func createMemDB() (*db.DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(err)
-	n, err := common.DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(err)
 	id := thread.NewIDV1(thread.Raw, 32)
 	d, err := db.NewDB(context.Background(), n, id, db.WithNewDBRepoPath(dir))

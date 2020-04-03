@@ -26,7 +26,7 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
 
-	n1, err := common.DefaultNetwork(tmpDir1)
+	n1, err := common.DefaultNetwork(tmpDir1, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n1.Close()
 
@@ -60,7 +60,7 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	n2, err := common.DefaultNetwork(tmpDir2)
+	n2, err := common.DefaultNetwork(tmpDir2, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n2.Close()
 
@@ -97,7 +97,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir)
 
-	n, err := common.DefaultNetwork(tmpDir)
+	n, err := common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 
 	ec := &mockEventCodec{}
@@ -122,7 +122,7 @@ func TestOptions(t *testing.T) {
 	checkErr(t, d.Close())
 
 	time.Sleep(time.Second * 3)
-	n, err = common.DefaultNetwork(tmpDir)
+	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n.Close()
 	d, err = NewDB(context.Background(), n, id, WithNewDBRepoPath(tmpDir), WithNewDBEventCodec(ec))

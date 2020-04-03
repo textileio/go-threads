@@ -92,7 +92,7 @@ func TestManager_GetDB(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := common.DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	man, err := NewManager(n, WithNewDBRepoPath(dir), WithNewDBDebug(true))
 	checkErr(t, err)
@@ -125,7 +125,7 @@ func TestManager_GetDB(t *testing.T) {
 	checkErr(t, err)
 
 	t.Run("test get db after restart", func(t *testing.T) {
-		n, err := common.DefaultNetwork(dir)
+		n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 		checkErr(t, err)
 		man, err := NewManager(n, WithNewDBRepoPath(dir), WithNewDBDebug(true))
 		checkErr(t, err)
@@ -186,7 +186,7 @@ func TestManager_DeleteDB(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := common.DefaultNetwork(dir)
+	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	m, err := NewManager(n, WithNewDBRepoPath(dir), WithNewDBDebug(true))
 	checkErr(t, err)

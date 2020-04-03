@@ -599,7 +599,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true))
+	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	if err != nil {
 		t.Fatal(err)
 	}
