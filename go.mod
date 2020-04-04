@@ -1,6 +1,6 @@
 module github.com/textileio/go-threads
 
-go 1.13
+go 1.14
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190823232136-616930265c33 // indirect
