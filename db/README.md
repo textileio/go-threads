@@ -186,3 +186,4 @@ Main responsibility: Is the `DB` interface with Threads layer.
 `net.Net` is the bidirectional communication interface to the underlying 
 Thread backing the `DB`. It only interacts with `DBThreadAdapter`
 
+
