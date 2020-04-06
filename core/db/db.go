@@ -1,8 +1,7 @@
 package db
 
 import (
-	"math/rand"
-	"time"
+	"crypto/rand"
 
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
@@ -19,9 +18,7 @@ type InstanceID string
 
 // NewInstanceID generates a new identity for an instance.
 func NewInstanceID() InstanceID {
-	t := time.Now().UTC()
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-	id := ulid.MustNew(ulid.Timestamp(t), entropy)
+	id := ulid.MustNew(ulid.Now(), rand.Reader)
 	return InstanceID(id.String())
 }
 
