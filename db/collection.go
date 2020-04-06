@@ -30,8 +30,6 @@ var (
 	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/commited txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
-	errInvalidInstanceID           = errors.New("invalid instance: invalid ID value")
-	errMissingInstanceID           = errors.New("invalid instance: doesn't have an ID attribute")
 
 	baseKey = dsDBPrefix.ChildString("collection")
 )
@@ -302,10 +300,7 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 			return nil, ErrInvalidSchemaInstance
 		}
 
-		id, err := getInstanceID(updated)
-		if err != nil {
-			return nil, err
-		}
+		id := getInstanceID(updated)
 		if id == core.EmptyInstanceID {
 			id, updated = setNewInstanceID(updated)
 		}
@@ -350,10 +345,7 @@ func (t *Txn) Save(updated ...[]byte) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id, err := getInstanceID(item)
-		if err != nil {
-			return err
-		}
+		id := getInstanceID(item)
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -459,18 +451,18 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getInstanceID(t []byte) (core.InstanceID, error) {
+func getInstanceID(t []byte) core.InstanceID {
 	partial := &struct{ ID *string }{}
 	if err := json.Unmarshal(t, partial); err != nil {
-		return core.EmptyInstanceID, err
+		log.Fatalf("error when unmarshaling json instance: %v", err)
 	}
 	if partial.ID == nil {
-		return core.EmptyInstanceID, errMissingInstanceID
+		log.Fatal("invalid instance: doesn't have an ID attribute")
 	}
 	if *partial.ID != "" && !core.IsValidInstanceID(*partial.ID) {
-		return core.EmptyInstanceID, errInvalidInstanceID
+		log.Fatal("invalid instance: invalid ID value")
 	}
-	return core.InstanceID(*partial.ID), nil
+	return core.InstanceID(*partial.ID)
 }
 
 func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
