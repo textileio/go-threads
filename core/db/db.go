@@ -1,9 +1,12 @@
 package db
 
 import (
-	"github.com/google/uuid"
+	"math/rand"
+	"time"
+
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
+	"github.com/oklog/ulid/v2"
 )
 
 const (
@@ -16,18 +19,19 @@ type InstanceID string
 
 // NewInstanceID generates a new identity for an instance.
 func NewInstanceID() InstanceID {
-	return InstanceID(uuid.New().String())
+	t := time.Now().UTC()
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	id := ulid.MustNew(ulid.Timestamp(t), entropy)
+	return InstanceID(id.String())
 }
 
 func (e InstanceID) String() string {
 	return string(e)
 }
 
+// IsValidInstanceID checks if an id is valid
 func IsValidInstanceID(instanceID string) bool {
-	// ToDo: Decide how we want to apply instance id requirements
 	return len(instanceID) > 0
-	// _, err := uuid.Parse(instanceID)
-	// return err == nil
 }
 
 // Event is a local or remote event generated in collection and dispatcher
