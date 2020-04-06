@@ -71,7 +71,7 @@ public class ClientUnitTest {
         assertEquals(1, reply.getInstanceIDsCount());
         String id = reply.getInstanceIDs(0);
         instanceId = id;
-        assertEquals(id.length(), 36);
+        assertEquals(id.length(), 26);
     }
 
     @Test
