@@ -187,3 +187,4 @@ Main responsibility: Is the `DB` interface with Threads layer.
 Thread backing the `DB`. It only interacts with `DBThreadAdapter`
 
 
+
