@@ -30,6 +30,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestSimple(t *testing.T) {
+	if os.Getenv("SKIP_FOLDERSYNC") != "" {
+		t.Skip("Skipping foldersync tests")
+	}
+
 	id := thread.NewIDV1(thread.Raw, 32)
 
 	// db0
@@ -135,6 +139,9 @@ func TestSimple(t *testing.T) {
 }
 
 func TestNUsersBootstrap(t *testing.T) {
+	if os.Getenv("SKIP_FOLDERSYNC") != "" {
+		t.Skip("Skipping foldersync tests")
+	}
 	tests := []struct {
 		totalClients     int
 		totalCorePeers   int
