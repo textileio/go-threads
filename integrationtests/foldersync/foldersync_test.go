@@ -30,6 +30,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestSimple(t *testing.T) {
+	if os.Getenv("SKIP_FOLDERSYNC") != "" {
+		t.Skip("Skipping foldersync tests")
+	}
+
 	id := thread.NewIDV1(thread.Raw, 32)
 
 	// db0
@@ -135,6 +139,9 @@ func TestSimple(t *testing.T) {
 }
 
 func TestNUsersBootstrap(t *testing.T) {
+	if os.Getenv("SKIP_FOLDERSYNC") != "" {
+		t.Skip("Skipping foldersync tests")
+	}
 	tests := []struct {
 		totalClients     int
 		totalCorePeers   int
@@ -144,12 +151,12 @@ func TestNUsersBootstrap(t *testing.T) {
 		checkSyncedFiles bool
 	}{
 		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 5},
-		// {totalClients: 3, totalCorePeers: 1, syncTimeout: time.Second * 15},
+		{totalClients: 3, totalCorePeers: 1, syncTimeout: time.Second * 15},
 
-		// {totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 20},
+		{totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 20},
 
 		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 10, randFilesGen: 4, randFileSize: 10},
-		// {totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 20, randFilesGen: 4, randFileSize: 10},
+		{totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 20, randFilesGen: 4, randFileSize: 10},
 	}
 
 	for _, tt := range tests {
