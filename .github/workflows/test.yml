@@ -35,7 +35,6 @@ jobs:
 
   test-foldersync:
     name: Foldersync Test
-    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
