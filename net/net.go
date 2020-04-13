@@ -585,7 +585,8 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	pk, err := thread.ValidateToken(n.getPrivKey(), args.Token)
+	if err != nil {
 		return
 	}
 
@@ -593,7 +594,7 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	if err != nil {
 		return
 	}
-	rec, err := n.newRecord(ctx, id, lg, body)
+	rec, err := n.newRecord(ctx, id, lg, body, pk)
 	if err != nil {
 		return
 	}
@@ -829,7 +830,7 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 }
 
 // newRecord creates a new record with the given body as a new event body.
-func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, body format.Node) (core.Record, error) {
+func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, body format.Node, pk thread.PubKey) (core.Record, error) {
 	if lg.PrivKey == nil {
 		return nil, fmt.Errorf("a private-key is required to create records")
 	}
@@ -852,11 +853,14 @@ func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, bo
 		return nil, err
 	}
 
+	if pk == nil {
+		pk = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
+	}
 	return cbor.CreateRecord(ctx, n, cbor.CreateRecordConfig{
 		Block:      event,
 		Prev:       lg.Head,
 		Key:        lg.PrivKey,
-		PubKey:     thread.NewLibp2pPubKey(n.getPrivKey().GetPublic()),
+		PubKey:     pk,
 		ServiceKey: sk,
 	})
 }
