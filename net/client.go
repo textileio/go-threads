@@ -316,11 +316,8 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	// Push to each address
-	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
-		wg.Add(1)
 		go func(addr ma.Multiaddr) {
-			defer wg.Done()
 			p, err := addr.ValueForProtocol(ma.P_P2P)
 			if err != nil {
 				log.Error(err)
@@ -337,7 +334,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 
 			log.Debugf("pushing record to %s...", p)
 
-			cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+			cctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
 			defer cancel()
 			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
 			if err != nil {
@@ -386,8 +383,6 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	if err = s.ps.Publish(ctx, id, req); err != nil {
 		log.Errorf("error publishing record: %s", err)
 	}
-
-	wg.Wait()
 	return nil
 }
 

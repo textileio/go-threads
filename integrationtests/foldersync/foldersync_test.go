@@ -22,7 +22,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	logging.SetLogLevel("foldersync", "info")
+	_ = logging.SetLogLevel("foldersync", "info")
 	// logging.SetLogLevel("store", "debug")
 	// logging.SetLogLevel("threads", "debug")
 	// logging.SetLogLevel("threadstore", "debug")
@@ -162,7 +162,6 @@ func TestNUsersBootstrap(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(fmt.Sprintf("Total%dCore%d", tt.totalClients, tt.totalCorePeers), func(t *testing.T) {
-			// t.Parallel()
 			var clients []*client
 
 			client0, clean0 := createRootClient(t, fmt.Sprintf("client%d", 0))

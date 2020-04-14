@@ -642,7 +642,10 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	if err = rec.Verify(logpk); err != nil {
 		return err
 	}
-	return n.PutRecord(ctx, id, lid, rec)
+	if err = n.PutRecord(ctx, id, lid, rec); err != nil {
+		return err
+	}
+	return n.server.pushRecord(ctx, id, lid, rec)
 }
 
 func (n *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...core.ThreadOption) (core.Record, error) {
@@ -819,10 +822,10 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 
 		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
-		if err = n.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
+		if err = n.store.SetHead(id, lg.ID, r.Cid()); err != nil {
 			return err
 		}
-		if err = n.store.SetHead(id, lg.ID, r.Cid()); err != nil {
+		if err = n.bus.SendWithTimeout(NewRecord(r, id, lg.ID), notifyTimeout); err != nil {
 			return err
 		}
 	}
