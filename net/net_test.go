@@ -4,6 +4,7 @@ import (
 	"context"
 	rand "crypto/rand"
 	"testing"
+	"time"
 
 	bserv "github.com/ipfs/go-blockservice"
 	ds "github.com/ipfs/go-datastore"
@@ -159,6 +160,7 @@ func TestNet_AddThread(t *testing.T) {
 	if _, err = n2.CreateRecord(ctx, info2.ID, body2); err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second)
 
 	info3, err := n1.GetThread(context.Background(), info.ID)
 	if err != nil {
