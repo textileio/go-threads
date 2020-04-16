@@ -245,6 +245,26 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	return reply, nil
 }
 
+func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.DeleteDBReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = s.manager.DeleteDB(ctx, id, db.WithManagedDBToken(token)); err != nil {
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			return nil, status.Error(codes.NotFound, "db not found")
+		} else {
+			return nil, err
+		}
+	}
+	return &pb.DeleteDBReply{}, nil
+}
+
 func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {

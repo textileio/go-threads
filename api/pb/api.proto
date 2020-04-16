@@ -53,6 +53,12 @@ message GetDBInfoReply {
     bytes key = 2;
 }
 
+message DeleteDBRequest {
+    bytes dbID = 1;
+}
+
+message DeleteDBReply {}
+
 message NewCollectionRequest {
     bytes dbID = 1;
     CollectionConfig config = 2;
@@ -196,6 +202,7 @@ service API {
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
     rpc GetDBInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}
+    rpc DeleteDB(DeleteDBRequest) returns (DeleteDBReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}

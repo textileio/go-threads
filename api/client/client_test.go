@@ -46,7 +46,7 @@ func TestClient_GetToken(t *testing.T) {
 	})
 }
 
-func TestNewDB(t *testing.T) {
+func TestClient_NewDB(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -58,7 +58,7 @@ func TestNewDB(t *testing.T) {
 	})
 }
 
-func TestNewDBFromAddr(t *testing.T) {
+func TestClient_NewDBFromAddr(t *testing.T) {
 	t.Parallel()
 	client1, done1 := setup(t)
 	defer done1()
@@ -78,42 +78,7 @@ func TestNewDBFromAddr(t *testing.T) {
 	})
 }
 
-func TestNewCollection(t *testing.T) {
-	t.Parallel()
-	client, done := setup(t)
-	defer done()
-
-	t.Run("test new collection", func(t *testing.T) {
-		id := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), id)
-		checkErr(t, err)
-		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
-		if err != nil {
-			t.Fatalf("failed add new collection: %v", err)
-		}
-	})
-}
-
-func TestCreate(t *testing.T) {
-	t.Parallel()
-	client, done := setup(t)
-	defer done()
-
-	t.Run("test collection create", func(t *testing.T) {
-		id := thread.NewIDV1(thread.Raw, 32)
-		err := client.NewDB(context.Background(), id)
-		checkErr(t, err)
-		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
-		checkErr(t, err)
-
-		_, err = client.Create(context.Background(), id, collectionName, Instances{createPerson()})
-		if err != nil {
-			t.Fatalf("failed to create collection: %v", err)
-		}
-	})
-}
-
-func TestGetDBInfo(t *testing.T) {
+func TestClient_GetDBInfo(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -136,7 +101,61 @@ func TestGetDBInfo(t *testing.T) {
 	})
 }
 
-func TestSave(t *testing.T) {
+func TestClient_DeleteDB(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test delete db", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+
+		if err = client.DeleteDB(context.Background(), id); err != nil {
+			t.Fatalf("failed to delete db: %v", err)
+		}
+		if _, _, err := client.GetDBInfo(context.Background(), id); err == nil {
+			t.Fatal("deleted db still exists")
+		}
+	})
+}
+
+func TestClient_NewCollection(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test new collection", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		if err != nil {
+			t.Fatalf("failed add new collection: %v", err)
+		}
+	})
+}
+
+func TestClient_Create(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test collection create", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		checkErr(t, err)
+
+		_, err = client.Create(context.Background(), id, collectionName, Instances{createPerson()})
+		if err != nil {
+			t.Fatalf("failed to create collection: %v", err)
+		}
+	})
+}
+
+func TestClient_Save(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -162,7 +181,7 @@ func TestSave(t *testing.T) {
 	})
 }
 
-func TestDelete(t *testing.T) {
+func TestClient_Delete(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -188,7 +207,7 @@ func TestDelete(t *testing.T) {
 	})
 }
 
-func TestHas(t *testing.T) {
+func TestClient_Has(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -217,7 +236,7 @@ func TestHas(t *testing.T) {
 	})
 }
 
-func TestFind(t *testing.T) {
+func TestClient_Find(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -252,7 +271,7 @@ func TestFind(t *testing.T) {
 	})
 }
 
-func TestFindWithIndex(t *testing.T) {
+func TestClient_FindWithIndex(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -293,7 +312,7 @@ func TestFindWithIndex(t *testing.T) {
 	})
 }
 
-func TestFindByID(t *testing.T) {
+func TestClient_FindByID(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -323,7 +342,7 @@ func TestFindByID(t *testing.T) {
 	})
 }
 
-func TestReadTransaction(t *testing.T) {
+func TestClient_ReadTransaction(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -390,7 +409,7 @@ func TestReadTransaction(t *testing.T) {
 	})
 }
 
-func TestWriteTransaction(t *testing.T) {
+func TestClient_WriteTransaction(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -478,7 +497,7 @@ func TestWriteTransaction(t *testing.T) {
 	})
 }
 
-func TestListen(t *testing.T) {
+func TestClient_Listen(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -556,7 +575,7 @@ func TestListen(t *testing.T) {
 	})
 }
 
-func TestClose(t *testing.T) {
+func TestClient_Close(t *testing.T) {
 	t.Parallel()
 	addr, shutdown := makeServer(t)
 	defer shutdown()
