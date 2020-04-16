@@ -243,6 +243,19 @@ func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.Manag
 	return addrs, key, nil
 }
 
+// DeleteDB deletes a db.
+func (c *Client) DeleteDB(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) error {
+	args := &db.ManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err := c.c.DeleteDB(ctx, &pb.DeleteDBRequest{
+		DbID: dbID.Bytes(),
+	})
+	return err
+}
+
 // NewCollection creates a new collection.
 // @todo: This should take some thread auth, but collections currently do not involve a thread.
 func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedDBOption) error {
