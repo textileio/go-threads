@@ -3,7 +3,6 @@ package thread
 import (
 	"context"
 	"encoding"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/gogo/status"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	mbase "github.com/multiformats/go-multibase"
 	jwted25519 "github.com/textileio/go-threads/jwt"
 	"google.golang.org/grpc/codes"
 )
@@ -51,9 +51,9 @@ type PubKey interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	// String encodes the public key into a base64 string.
+	// String encodes the public key into a base32 string.
 	fmt.Stringer
-	// UnmarshalString decodes a public key from a base64 string.
+	// UnmarshalString decodes a public key from a base32 string.
 	UnmarshalString(string) error
 	// Verify that 'sig' is the signed hash of 'data'
 	Verify(data []byte, sig []byte) (bool, error)
@@ -86,11 +86,15 @@ func (p *Libp2pPubKey) String() string {
 	if err != nil {
 		panic(err)
 	}
-	return base64.StdEncoding.EncodeToString(bytes)
+	str, err := mbase.Encode(mbase.Base32, bytes)
+	if err != nil {
+		panic(err)
+	}
+	return str
 }
 
 func (p *Libp2pPubKey) UnmarshalString(str string) error {
-	bytes, err := base64.StdEncoding.DecodeString(str)
+	_, bytes, err := mbase.Decode(str)
 	if err != nil {
 		return err
 	}
