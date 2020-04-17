@@ -122,6 +122,18 @@ public class Client implements LifecycleObserver {
         asyncStub.getDBInfo(request.build(), responseObserver);
     }
 
+    public DeleteDBReply DeleteDBSync (ByteString dbID) {
+        DeleteDBRequest.Builder request = DeleteDBRequest.newBuilder();
+        request.setDbID(dbID);
+        return blockingStub.deleteDB(request.build());
+    }
+
+    public void DeleteDB (ByteString dbID, StreamObserver<DeleteDBReply> responseObserver) {
+        DeleteDBRequest.Builder request = DeleteDBRequest.newBuilder();
+        request.setDbID(dbID);
+        asyncStub.deleteDB(request.build(), responseObserver);
+    }
+
     public CreateReply CreateSync (ByteString dbID, String collectionName, ByteString[] instances) {
         CreateRequest.Builder request = CreateRequest.newBuilder();
         request.setDbID(dbID);
