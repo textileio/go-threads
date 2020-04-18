@@ -31,6 +31,43 @@ type Value struct {
 	Float  *float64
 }
 
+func (q *Query) Validate() error {
+	if q == nil {
+		return nil
+	}
+	for _, a := range q.Ands {
+		if err := a.Validate(); err != nil {
+			return err
+		}
+	}
+	for _, qi := range q.Ors {
+		if err := qi.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Criterion) Validate() error {
+	if c == nil {
+		return nil
+	}
+	noNil := 0
+	if c.Value.Bool != nil {
+		noNil++
+	}
+	if c.Value.String != nil {
+		noNil++
+	}
+	if c.Value.Float != nil {
+		noNil++
+	}
+	if noNil != 1 {
+		return fmt.Errorf("value type should describe exactly one type")
+	}
+	return nil
+}
+
 // Sort represents a sort order on a field
 type Sort struct {
 	FieldPath string
@@ -196,6 +233,9 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 func (t *Txn) Find(q *Query) ([][]byte, error) {
 	if q == nil {
 		q = &Query{}
+	}
+	if err := q.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid query: %s", err)
 	}
 	txn, err := t.collection.db.datastore.NewTransaction(true)
 	if err != nil {
