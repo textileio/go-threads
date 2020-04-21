@@ -190,7 +190,7 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 		opt(args)
 	}
 	// @todo: Check identity key against ACL.
-	identity, err := thread.ValidateToken(n.getPrivKey(), args.Token)
+	identity, err := args.Token.Validate(n.getPrivKey())
 	if err != nil {
 		return
 	}
@@ -241,7 +241,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err = args.Token.Validate(n.getPrivKey()); err != nil {
 		return
 	}
 
@@ -302,7 +302,7 @@ func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOpti
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err = args.Token.Validate(n.getPrivKey()); err != nil {
 		return
 	}
 	return n.getThreadWithAddrs(id)
@@ -350,7 +350,7 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
 	return n.pullThread(ctx, id)
@@ -435,7 +435,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
 
@@ -486,7 +486,7 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err = args.Token.Validate(n.getPrivKey()); err != nil {
 		return
 	}
 
@@ -585,7 +585,7 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	for _, opt := range opts {
 		opt(args)
 	}
-	pk, err := thread.ValidateToken(n.getPrivKey(), args.Token)
+	pk, err := args.Token.Validate(n.getPrivKey())
 	if err != nil {
 		return
 	}
@@ -619,7 +619,7 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
 
@@ -653,7 +653,7 @@ func (n *net) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return nil, err
 	}
 	return n.getRecord(ctx, id, rid)
@@ -698,7 +698,7 @@ func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := thread.ValidateToken(n.getPrivKey(), args.Token); err != nil {
+	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return nil, err
 	}
 

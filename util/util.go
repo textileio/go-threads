@@ -181,5 +181,5 @@ func SetJSONProperty(name string, value interface{}, json []byte) []byte {
 }
 
 func SetJSONID(id core.InstanceID, json []byte) []byte {
-	return SetJSONProperty("ID", id.String(), json)
+	return SetJSONProperty("_id", id.String(), json)
 }

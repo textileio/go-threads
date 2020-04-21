@@ -16,13 +16,13 @@ const (
 )
 
 type Person struct {
-	ID   core.InstanceID
+	ID   core.InstanceID `json:"_id"`
 	Name string
 	Age  int
 }
 
 type Dog struct {
-	ID       core.InstanceID
+	ID       core.InstanceID `json:"_id"`
 	Name     string
 	Comments []Comment
 }

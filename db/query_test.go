@@ -16,7 +16,7 @@ type Meta struct {
 }
 
 type Book struct {
-	ID     db.InstanceID
+	ID     db.InstanceID `json:"_id"`
 	Title  string
 	Banned bool
 	Author string
