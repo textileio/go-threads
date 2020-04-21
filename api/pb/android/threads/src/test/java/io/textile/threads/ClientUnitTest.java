@@ -83,12 +83,12 @@ public class ClientUnitTest {
         FindByIDReply reply = client.FindByIDSync(ByteString.copyFrom(BaseEncoding.base64().decode(dbId)), "Person", instanceId);
         ByteString jsonBytes = reply.getInstance();
         Person instance = new Gson().fromJson(jsonBytes.toStringUtf8(), Person.class);
-        assertEquals(instanceId, instance.ID);
+        assertEquals(instanceId, instance._id);
     }
 
-    private ByteString createPerson(String ID, int age) throws Exception {
+    private ByteString createPerson(String _id, int age) throws Exception {
         Gson gson = new Gson();
-        Person person = new Person(ID, age);
+        Person person = new Person(_id, age);
         String json = gson.toJson(person);
         return ByteString.copyFrom(json.getBytes());
     }
@@ -108,11 +108,11 @@ public class ClientUnitTest {
 class Person {
     public String firstName = "adam";
     public String lastName = "doe";
-    public String ID;
+    public String _id;
     public int age;
-    Person(String ID, int age) {
+    Person(String _id, int age) {
         this.age = age;
-        this.ID = ID;
+        this._id = _id;
     }
 }
 
