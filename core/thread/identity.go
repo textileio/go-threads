@@ -131,23 +131,23 @@ func NewToken(issuer crypto.PrivKey, key PubKey) (tok Token, err error) {
 	return Token(str), nil
 }
 
-// ValidateToken returns non-nil if token was issued by issuer.
+// Validate returns non-nil if token was issued by issuer.
 // If token is present and valid, the embedded public key is returned.
 // If token is not present, both the returned public key and error will be nil.
-func ValidateToken(issuer crypto.PrivKey, token Token) (PubKey, error) {
+func (t Token) Validate(issuer crypto.PrivKey) (PubKey, error) {
 	var ok bool
 	issuer, ok = issuer.(*crypto.Ed25519PrivateKey)
 	if !ok {
 		log.Fatal("issuer must be an Ed25519PrivateKey")
 	}
-	if token == "" {
+	if t == "" {
 		return nil, nil
 	}
 	keyfunc := func(*jwt.Token) (interface{}, error) {
 		return issuer.GetPublic(), nil
 	}
 	var claims jwt.StandardClaims
-	tok, err := jwt.ParseWithClaims(string(token), &claims, keyfunc)
+	tok, err := jwt.ParseWithClaims(string(t), &claims, keyfunc)
 	if err != nil {
 		if tok == nil {
 			return nil, ErrTokenNotFound
@@ -161,6 +161,11 @@ func ValidateToken(issuer crypto.PrivKey, token Token) (PubKey, error) {
 		return nil, err
 	}
 	return key, nil
+}
+
+// Defined returns true if token is not empty.
+func (t Token) Defined() bool {
+	return t != ""
 }
 
 // NewTokenFromMD returns Token from the given context, if present.

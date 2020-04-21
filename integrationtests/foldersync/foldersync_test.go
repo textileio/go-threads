@@ -23,9 +23,9 @@ import (
 
 func TestMain(m *testing.M) {
 	_ = logging.SetLogLevel("foldersync", "info")
-	// logging.SetLogLevel("store", "debug")
-	// logging.SetLogLevel("threads", "debug")
-	// logging.SetLogLevel("threadstore", "debug")
+	// _ = logging.SetLogLevel("db", "debug")
+	// _ = logging.SetLogLevel("threads", "debug")
+	// _ = logging.SetLogLevel("threadstore", "debug")
 	os.Exit(m.Run())
 }
 
