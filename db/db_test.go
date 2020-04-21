@@ -341,7 +341,7 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 }
 
 type dummy struct {
-	ID      core.InstanceID
+	ID      core.InstanceID `json:"_id"`
 	Name    string
 	Counter int
 }

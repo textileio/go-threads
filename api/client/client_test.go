@@ -693,9 +693,9 @@ const (
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"title": "` + collectionName + `",
 	"type": "object",
-	"required": ["ID"],
+	"required": ["_id"],
 	"properties": {
-		"ID": {
+		"_id": {
 			"type": "string",
 			"description": "The instance's id."
 		},
@@ -717,7 +717,7 @@ const (
 )
 
 type Person struct {
-	ID        string `json:"ID"`
+	ID        string `json:"_id"`
 	FirstName string `json:"firstName,omitempty"`
 	LastName  string `json:"lastName,omitempty"`
 	Age       int    `json:"age,omitempty"`

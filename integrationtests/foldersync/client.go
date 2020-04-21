@@ -40,13 +40,13 @@ var (
 )
 
 type folder struct {
-	ID    core.InstanceID
+	ID    core.InstanceID `json:"_id"`
 	Owner string
 	Files []file
 }
 
 type file struct {
-	ID               core.InstanceID
+	ID               core.InstanceID `json:"_id"`
 	FileRelativePath string
 	CID              string
 

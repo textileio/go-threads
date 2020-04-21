@@ -12,7 +12,7 @@ import (
 )
 
 type book struct {
-	ID     core.InstanceID
+	ID     core.InstanceID `json:"_id"`
 	Title  string
 	Author string
 	Meta   bookStats
