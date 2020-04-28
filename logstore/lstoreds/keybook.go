@@ -175,18 +175,17 @@ func (kb *dsKeyBook) ClearKeys(t thread.ID) error {
 
 // ClearLogKeys deletes all keys under a log.
 func (kb *dsKeyBook) ClearLogKeys(t thread.ID, p peer.ID) error {
-	if err := kb.clearKeys(dsLogKey(t, p, kbBase).Child(privSuffix)); err != nil {
-		return err
+	if err := kb.ds.Delete(dsLogKey(t, p, kbBase).Child(privSuffix)); err != nil {
+		return fmt.Errorf("error when clearing key: %w", err)
 	}
-	if err := kb.clearKeys(dsLogKey(t, p, kbBase).Child(pubSuffix)); err != nil {
-		return err
+	if err := kb.ds.Delete(dsLogKey(t, p, kbBase).Child(pubSuffix)); err != nil {
+		return fmt.Errorf("error when clearing key: %w", err)
 	}
 	return nil
 }
 
 func (kb *dsKeyBook) clearKeys(prefix ds.Key) error {
 	q := query.Query{Prefix: prefix.String(), KeysOnly: true}
-
 	results, err := kb.ds.Query(q)
 	if err != nil {
 		return err
