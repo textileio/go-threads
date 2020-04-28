@@ -88,7 +88,7 @@ func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key
 		return nil
 	}
 
-	indexKey := indexPrefix.Child(baseKey).ChildString(path).Instance(valueKey.String()[1:])
+	indexKey := indexPrefix.Child(baseKey).ChildString(path).ChildString(valueKey.String()[1:])
 
 	data, err := tx.Get(indexKey)
 	if err != nil && err != ds.ErrNotFound {
@@ -124,7 +124,6 @@ func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key
 	if err != nil {
 		return err
 	}
-
 	return tx.Put(indexKey, iVal)
 }
 
@@ -221,7 +220,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 			first = false
 			// result.Key contains the indexed value, extract here first
 			key := ds.RawKey(result.Key)
-			base := key.Type()
+			base := indexKey.Name()
 			name := key.Name()
 			val := gjson.Parse(name).Value()
 			if val == nil {
