@@ -13,9 +13,7 @@ import (
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	host "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-core/peerstore"
 	"github.com/libp2p/go-libp2p-kad-dht/dual"
-	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/app"
 	"github.com/textileio/go-threads/logstore/lstoreds"
@@ -62,12 +60,6 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	pstore, err := pstoreds.NewPeerstore(ctx, litestore, pstoreds.DefaultOpts())
-	if err != nil {
-		litestore.Close()
-		cancel()
-		return nil, err
-	}
 	priv := util.LoadKey(filepath.Join(ipfsLitePath, "key"))
 	h, d, err := ipfslite.SetupLibp2p(
 		ctx,
@@ -76,7 +68,6 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		[]ma.Multiaddr{config.HostAddr},
 		litestore,
 		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
-		libp2p.Peerstore(pstore),
 	)
 	if err != nil {
 		cancel()
@@ -129,7 +120,6 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		cancel:    cancel,
 		Net:       api,
 		litepeer:  lite,
-		pstore:    pstore,
 		logstore:  logstore,
 		litestore: litestore,
 		host:      h,
@@ -170,7 +160,6 @@ type netBoostrapper struct {
 	cancel context.CancelFunc
 	app.Net
 	litepeer  *ipfslite.Peer
-	pstore    peerstore.Peerstore
 	logstore  datastore.Datastore
 	litestore datastore.Datastore
 	host      host.Host
@@ -196,9 +185,6 @@ func (tsb *netBoostrapper) Close() error {
 		return err
 	}
 	if err := tsb.host.Close(); err != nil {
-		return err
-	}
-	if err := tsb.pstore.Close(); err != nil {
 		return err
 	}
 	if err := tsb.litestore.Close(); err != nil {
