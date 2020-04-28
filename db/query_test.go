@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	logging "github.com/ipfs/go-log"
 	"github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/util"
 )
@@ -262,6 +263,7 @@ var (
 )
 
 func TestQuery(t *testing.T) {
+	logging.SetAllLoggers(logging.LevelError)
 	c, clean := createCollectionWithJSONData(t)
 	defer clean()
 

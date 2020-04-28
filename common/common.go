@@ -14,7 +14,7 @@ import (
 	host "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p-kad-dht/dual"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/app"
@@ -74,6 +74,7 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		priv,
 		nil,
 		[]ma.Multiaddr{config.HostAddr},
+		litestore,
 		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
 		libp2p.Peerstore(pstore),
 	)
@@ -173,7 +174,7 @@ type netBoostrapper struct {
 	logstore  datastore.Datastore
 	litestore datastore.Datastore
 	host      host.Host
-	dht       *dht.IpfsDHT
+	dht       *dual.DHT
 }
 
 var _ NetBoostrapper = (*netBoostrapper)(nil)
