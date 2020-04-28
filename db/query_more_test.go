@@ -94,7 +94,7 @@ var (
 
 func TestCollectionQuery(t *testing.T) {
 	t.Parallel()
-	c, clean := createCollectionWithData(t)
+	c, data, clean := createCollectionWithData(t)
 	defer clean()
 	for _, q := range queries {
 		q := q
@@ -123,12 +123,12 @@ func TestCollectionQuery(t *testing.T) {
 					return strings.Compare(res[i].ID.String(), res[j].ID.String()) == -1
 				})
 				sort.Slice(expectedIdx, func(i, j int) bool {
-					return strings.Compare(sampleData[expectedIdx[i]].ID.String(), sampleData[expectedIdx[j]].ID.String()) == -1
+					return strings.Compare(data[expectedIdx[i]].ID.String(), data[expectedIdx[j]].ID.String()) == -1
 				})
 			}
 			for i, idx := range expectedIdx {
-				if !reflect.DeepEqual(sampleData[idx], *res[i]) {
-					t.Fatalf("wrong query item result, expected: %v, got: %v", sampleData[idx], *res[i])
+				if !reflect.DeepEqual(data[idx], *res[i]) {
+					t.Fatalf("wrong query item result, expected: %v, got: %v", data[idx], *res[i])
 				}
 			}
 		})
@@ -138,7 +138,7 @@ func TestCollectionQuery(t *testing.T) {
 func TestInvalidSortField(t *testing.T) {
 	t.Parallel()
 
-	c, clean := createCollectionWithData(t)
+	c, _, clean := createCollectionWithData(t)
 	defer clean()
 	_, err := c.Find(OrderBy("WrongFieldName"))
 	if !errors.Is(err, ErrInvalidSortingField) {
@@ -146,13 +146,14 @@ func TestInvalidSortField(t *testing.T) {
 	}
 }
 
-func createCollectionWithData(t *testing.T) (*Collection, func()) {
+func createCollectionWithData(t *testing.T) (*Collection, []book, func()) {
 	db, clean := createTestDB(t)
 	c, err := db.NewCollection(CollectionConfig{
 		Name:   "Book",
 		Schema: util.SchemaFromInstance(&book{}, false),
 	})
 	checkErr(t, err)
+	sampleDataCopy := make([]book, len(sampleData))
 	for i := range sampleData {
 		sampleDataJSON := util.JSONFromInstance(sampleData[i])
 		id, err := c.Create(sampleDataJSON)
@@ -162,7 +163,7 @@ func createCollectionWithData(t *testing.T) (*Collection, func()) {
 		sampleDataJSON = util.SetJSONID(id, sampleDataJSON)
 		updated := book{}
 		util.InstanceFromJSON(sampleDataJSON, &updated)
-		sampleData[i] = updated
+		sampleDataCopy[i] = updated
 	}
-	return c, clean
+	return c, sampleDataCopy, clean
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	logging "github.com/ipfs/go-log"
 	"github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/util"
 )
@@ -262,7 +263,8 @@ var (
 )
 
 func TestQuery(t *testing.T) {
-	c, clean := createCollectionWithJSONData(t)
+	logging.SetAllLoggers(logging.LevelError)
+	c, d, clean := createCollectionWithJSONData(t)
 	defer clean()
 
 	for _, q := range jsonQueries {
@@ -292,19 +294,19 @@ func TestQuery(t *testing.T) {
 					return strings.Compare(foundBooks[i].ID.String(), foundBooks[j].ID.String()) == -1
 				})
 				sort.Slice(expectedIdx, func(i, j int) bool {
-					return strings.Compare(data[expectedIdx[i]].ID.String(), data[expectedIdx[j]].ID.String()) == -1
+					return strings.Compare(d[expectedIdx[i]].ID.String(), d[expectedIdx[j]].ID.String()) == -1
 				})
 			}
 			for i, idx := range expectedIdx {
-				if !reflect.DeepEqual(data[idx], foundBooks[i]) {
-					t.Fatalf("wrong query item result, expected: %v, got: %v", data[idx], foundBooks[i])
+				if !reflect.DeepEqual(d[idx], foundBooks[i]) {
+					t.Fatalf("wrong query item result, expected: %v, got: %v", d[idx], foundBooks[i])
 				}
 			}
 		})
 	}
 }
 
-func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
+func createCollectionWithJSONData(t *testing.T) (*Collection, []Book, func()) {
 	s, clean := createTestDB(t)
 	c, err := s.NewCollection(CollectionConfig{
 		Name:   "Book",
@@ -318,12 +320,14 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, func()) {
 			}},
 	})
 	checkErr(t, err)
+	dataCopy := make([]Book, len(data))
 	for i := range data {
 		id, err := c.Create(util.JSONFromInstance(data[i]))
 		if err != nil {
 			t.Fatalf("failed to create sample data: %v", err)
 		}
-		data[i].ID = id
+		dataCopy[i] = data[i]
+		dataCopy[i].ID = id
 	}
-	return c, clean
+	return c, dataCopy, clean
 }
