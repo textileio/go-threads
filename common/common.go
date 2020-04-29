@@ -198,6 +198,9 @@ func (tsb *netBoostrapper) Close() error {
 	if err := tsb.host.Close(); err != nil {
 		return err
 	}
+	if err := tsb.pstore.Close(); err != nil {
+		return err
+	}
 	if err := tsb.litestore.Close(); err != nil {
 		return err
 	}
