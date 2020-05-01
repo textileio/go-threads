@@ -37,7 +37,7 @@ var (
 	log = logging.Logger("db")
 
 	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
-	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an ID string property")
+	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an _id string property")
 
 	dsDBPrefix  = ds.NewKey("/db")
 	dsDBSchemas = dsDBPrefix.ChildString("schema")
