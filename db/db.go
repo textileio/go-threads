@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	idFieldName            = "ID"
+	idFieldName            = "_id"
 	getBlockRetries        = 3
 	getBlockInitialTimeout = time.Millisecond * 500
 )
