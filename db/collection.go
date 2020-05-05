@@ -458,15 +458,15 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getInstanceID(t []byte) (id core.InstanceID, err error) {
+func getInstanceID(t []byte) (core.InstanceID, error) {
 	partial := &struct {
 		ID *string `json:"_id"`
 	}{}
 	if err := json.Unmarshal(t, partial); err != nil {
-		return id, fmt.Errorf("error unmarshaling json instance: %v", err)
+		return core.EmptyInstanceID, fmt.Errorf("error unmarshaling json instance: %v", err)
 	}
 	if partial.ID == nil {
-		return id, errMissingInstanceID
+		return core.EmptyInstanceID, errMissingInstanceID
 	}
 	return core.InstanceID(*partial.ID), nil
 }
