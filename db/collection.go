@@ -27,6 +27,7 @@ var (
 	// instance that doesn't satisfy the collection schema.
 	ErrInvalidSchemaInstance = errors.New("instance doesn't correspond to schema")
 
+	errMissingInstanceID           = errors.New("invalid instance: missing _id attribute")
 	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/commited txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
@@ -300,7 +301,10 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 			return nil, ErrInvalidSchemaInstance
 		}
 
-		id := getInstanceID(updated)
+		id, err := getInstanceID(updated)
+		if err != nil && !errors.Is(err, errMissingInstanceID) {
+			return nil, err
+		}
 		if id == core.EmptyInstanceID {
 			id, updated = setNewInstanceID(updated)
 		}
@@ -345,7 +349,10 @@ func (t *Txn) Save(updated ...[]byte) error {
 			return ErrInvalidSchemaInstance
 		}
 
-		id := getInstanceID(item)
+		id, err := getInstanceID(item)
+		if err != nil {
+			return err
+		}
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		beforeBytes, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
@@ -451,20 +458,17 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
-func getInstanceID(t []byte) core.InstanceID {
+func getInstanceID(t []byte) (id core.InstanceID, err error) {
 	partial := &struct {
 		ID *string `json:"_id"`
 	}{}
 	if err := json.Unmarshal(t, partial); err != nil {
-		log.Fatalf("error when unmarshaling json instance: %v", err)
+		return id, fmt.Errorf("error unmarshaling json instance: %v", err)
 	}
 	if partial.ID == nil {
-		log.Fatal("invalid instance: doesn't have an _id attribute")
+		return id, errMissingInstanceID
 	}
-	if *partial.ID != "" && !core.IsValidInstanceID(*partial.ID) {
-		log.Fatal("invalid instance: invalid _id value")
-	}
-	return core.InstanceID(*partial.ID)
+	return core.InstanceID(*partial.ID), nil
 }
 
 func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
