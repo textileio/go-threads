@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -103,6 +104,17 @@ func (jp *jsonPatcher) Reduce(
 		return nil, err
 	}
 	defer txn.Discard()
+
+	sort.Slice(events, func(i, j int) bool {
+		ei, oki := events[i].(patchEvent)
+		ej, okj := events[j].(patchEvent)
+
+		if !(oki && okj) {
+			return false
+		}
+
+		return ei.Timestamp.Before(ej.Timestamp)
+	})
 
 	actions := make([]core.ReduceAction, len(events))
 	for i, e := range events {
