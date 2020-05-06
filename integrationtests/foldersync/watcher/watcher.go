@@ -53,7 +53,7 @@ func (fw *FolderWatcher) Close() {
 
 	close(fw.stopWatch)
 	<-fw.done
-	fw.w.Close()
+	_ = fw.w.Close()
 }
 
 func (fw *FolderWatcher) Watch() {

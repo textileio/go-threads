@@ -150,8 +150,8 @@ func (c *client) getOrCreateMyFolderInstance(path string) (*folder, error) {
 
 	if len(res) == 0 {
 		ownFolder := folder{ID: core.NewInstanceID(), Owner: c.name, Files: []file{}}
-		json := util.JSONFromInstance(ownFolder)
-		_, err := c.collection.Create(json)
+		jsn := util.JSONFromInstance(ownFolder)
+		_, err := c.collection.Create(jsn)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +191,7 @@ func (c *client) startListeningExternalChanges() error {
 				log.Infof("%s: detected new file %s of user %s", c.name, a.ID, uf.Owner)
 				for _, f := range uf.Files {
 					if err := c.ensureCID(c.fullPath(f), f.CID); err != nil {
-						log.Warningf("%s: error ensuring file %s: %v", c.name, c.fullPath(f), err)
+						log.Warnf("%s: error ensuring file %s: %v", c.name, c.fullPath(f), err)
 					}
 				}
 			}
@@ -208,7 +208,7 @@ func (c *client) startFSWatcher() error {
 	}
 	c.folderInstance = myFolder
 
-	watcher, err := watcher.New(myFolderPath, func(fileName string) error {
+	w, err := watcher.New(myFolderPath, func(fileName string) error {
 		f, err := os.Open(fileName)
 		if err != nil {
 			return err
@@ -227,11 +227,11 @@ func (c *client) startFSWatcher() error {
 	if err != nil {
 		return fmt.Errorf("error when creating fs watcher for %v: %v", c.name, err)
 	}
-	watcher.Watch()
+	w.Watch()
 
 	go func() {
 		<-c.closeCh
-		watcher.Close()
+		w.Close()
 		c.wg.Done()
 	}()
 	return nil
@@ -278,7 +278,7 @@ func (c *client) fullPath(f file) string {
 }
 
 func (c *client) ensureCID(fullPath, cidStr string) error {
-	cid, err := cid.Decode(cidStr)
+	id, err := cid.Decode(cidStr)
 	if err != nil {
 		return err
 	}
@@ -294,7 +294,7 @@ func (c *client) ensureCID(fullPath, cidStr string) error {
 	d1 := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	str, err := c.peer.GetFile(ctx, cid)
+	str, err := c.peer.GetFile(ctx, id)
 	if err != nil {
 		return err
 	}
