@@ -153,6 +153,26 @@ func TestClient_Create(t *testing.T) {
 			t.Fatalf("failed to create collection: %v", err)
 		}
 	})
+
+	t.Run("test collection create with missing id", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		checkErr(t, err)
+
+		ids, err := client.Create(context.Background(), id, collectionName, Instances{&PersonWithoutID{
+			FirstName: "Adam",
+			LastName:  "Doe",
+			Age:       21,
+		}})
+		if err != nil {
+			t.Fatalf("failed to create collection: %v", err)
+		}
+		if len(ids) != 1 {
+			t.Fatal("expected a new id, got none")
+		}
+	})
 }
 
 func TestClient_Save(t *testing.T) {
@@ -693,7 +713,6 @@ const (
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"title": "` + collectionName + `",
 	"type": "object",
-	"required": ["_id"],
 	"properties": {
 		"_id": {
 			"type": "string",
@@ -718,6 +737,12 @@ const (
 
 type Person struct {
 	ID        string `json:"_id"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	Age       int    `json:"age,omitempty"`
+}
+
+type PersonWithoutID struct {
 	FirstName string `json:"firstName,omitempty"`
 	LastName  string `json:"lastName,omitempty"`
 	Age       int    `json:"age,omitempty"`
