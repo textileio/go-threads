@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	// RequestTimeout is the duration to wait for a request to complete.
-	RequestTimeout = time.Second * 10
+	// DialTimeout is the max time duration to wait when dialing a peer.
+	DialTimeout = time.Second * 10
 )
 
 // getLogs in a thread.
@@ -63,7 +63,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 	if err != nil {
 		return nil, err
 	}
-	cctx, cancel := context.WithTimeout(ctx, RequestTimeout)
+	cctx, cancel := context.WithTimeout(ctx, DialTimeout)
 	defer cancel()
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
@@ -111,7 +111,7 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 	if err != nil {
 		return fmt.Errorf("dial %s failed: %s", pid, err)
 	}
-	cctx, cancel := context.WithTimeout(ctx, RequestTimeout)
+	cctx, cancel := context.WithTimeout(ctx, DialTimeout)
 	defer cancel()
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
@@ -232,7 +232,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			cctx, cancel := context.WithTimeout(ctx, RequestTimeout)
+			cctx, cancel := context.WithTimeout(ctx, DialTimeout)
 			defer cancel()
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
@@ -337,7 +337,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			cctx, cancel := context.WithTimeout(context.Background(), RequestTimeout)
+			cctx, cancel := context.WithTimeout(context.Background(), DialTimeout)
 			defer cancel()
 			if _, err = client.PushRecord(cctx, req); err != nil {
 				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
@@ -397,7 +397,7 @@ func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
 			return pb.NewServiceClient(conn), nil
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), DialTimeout)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.getLibp2pDialer(), grpc.WithInsecure())
 	if err != nil {
