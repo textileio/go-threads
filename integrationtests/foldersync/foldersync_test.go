@@ -1,7 +1,6 @@
 package foldersync
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -296,37 +295,7 @@ func EqualFiles(c1 *client, f1 file, c2 *client, f2 file) bool {
 		return false
 	}
 
-	if !f1.IsDirectory {
-		f1FullPath := c1.fullPath(f1)
-		f2FullPath := c2.fullPath(f2)
-		if _, err := os.Stat(f1FullPath); err != nil {
-			return false
-		}
-		if _, err := os.Stat(f2FullPath); err != nil {
-			return false
-		}
-		r, err := os.Open(f1FullPath)
-		if err != nil {
-			panic(err)
-		}
-		defer r.Close()
-		r2, err := os.Open(f2FullPath)
-		if err != nil {
-			panic(err)
-		}
-		defer r.Close()
-		b1, err := ioutil.ReadAll(r)
-		if err != nil {
-			panic(err)
-		}
-		b2, err := ioutil.ReadAll(r2)
-		if err != nil {
-			panic(err)
-		}
-		if !bytes.Equal(b1, b2) {
-			return false
-		}
-	} else {
+	if f1.IsDirectory {
 		for _, ff := range f1.Files {
 			exist := false
 			for _, ff2 := range f2.Files {
