@@ -23,11 +23,12 @@ import (
 	pb "github.com/textileio/go-threads/net/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 )
 
 const (
-	// reqTimeout is the duration to wait for a request to complete.
-	reqTimeout = time.Second * 10
+	// RequestTimeout is the duration to wait for a request to complete.
+	RequestTimeout = time.Second * 10
 )
 
 // getLogs in a thread.
@@ -62,7 +63,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 	if err != nil {
 		return nil, err
 	}
-	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+	cctx, cancel := context.WithTimeout(ctx, RequestTimeout)
 	defer cancel()
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
@@ -110,7 +111,7 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 	if err != nil {
 		return fmt.Errorf("dial %s failed: %s", pid, err)
 	}
-	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+	cctx, cancel := context.WithTimeout(ctx, RequestTimeout)
 	defer cancel()
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
@@ -231,7 +232,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+			cctx, cancel := context.WithTimeout(ctx, RequestTimeout)
 			defer cancel()
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
@@ -336,7 +337,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			cctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
+			cctx, cancel := context.WithTimeout(context.Background(), RequestTimeout)
 			defer cancel()
 			if _, err = client.PushRecord(cctx, req); err != nil {
 				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
@@ -388,11 +389,17 @@ func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
 	defer s.Unlock()
 	conn, ok := s.conns[peerID]
 	if ok {
-		return pb.NewServiceClient(conn), nil
+		if conn.GetState() == connectivity.Shutdown {
+			if err := conn.Close(); err != nil {
+				log.Errorf("error closing connection: %v", err)
+			}
+		} else {
+			return pb.NewServiceClient(conn), nil
+		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeout)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.getDialOption(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.getLibp2pDialer(), grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -400,12 +407,12 @@ func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
 	return pb.NewServiceClient(conn), nil
 }
 
-// getDialOption returns the WithDialer option to dial via libp2p.
-func (s *server) getDialOption() grpc.DialOption {
+// getLibp2pDialer returns a WithContextDialer option for libp2p dialing.
+func (s *server) getLibp2pDialer() grpc.DialOption {
 	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (nnet.Conn, error) {
 		id, err := peer.Decode(peerIDStr)
 		if err != nil {
-			return nil, fmt.Errorf("grpc tried to dial non peer-id: %s", err)
+			return nil, fmt.Errorf("grpc tried to dial non peerID: %s", err)
 		}
 		return gostream.Dial(ctx, s.net.host, id, thread.Protocol)
 	})

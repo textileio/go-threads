@@ -135,7 +135,7 @@ func (n *net) Close() (err error) {
 	defer n.server.Unlock()
 	for _, c := range n.server.conns {
 		if err = c.Close(); err != nil {
-			return
+			log.Errorf("error closing connection: %v", err)
 		}
 	}
 	n.rpc.GracefulStop()
