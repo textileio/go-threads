@@ -548,7 +548,7 @@ func TestClient_Listen(t *testing.T) {
 		}
 
 		go func() {
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Second)
 			person.Age = 30
 			_ = client.Save(context.Background(), id, collectionName, Instances{person})
 			person.Age = 40

@@ -123,6 +123,21 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 }
 
 func (n *net) Close() (err error) {
+	n.pullLock.Lock()
+	defer n.pullLock.Unlock()
+	// Wait for all thread pulls to finish
+	for _, semaph := range n.pullLocks {
+		semaph <- struct{}{}
+	}
+
+	// Close peer connections and shutdown the server
+	n.server.Lock()
+	defer n.server.Unlock()
+	for _, c := range n.server.conns {
+		if err = c.Close(); err != nil {
+			return
+		}
+	}
 	n.rpc.GracefulStop()
 
 	var errs []error
@@ -133,24 +148,15 @@ func (n *net) Close() (err error) {
 			}
 		}
 	}
-
 	weakClose("DAGService", n.DAGService)
 	weakClose("host", n.host)
 	weakClose("threadstore", n.store)
-
-	n.bus.Discard()
-	n.cancel()
-
 	if len(errs) > 0 {
 		return fmt.Errorf("failed while closing net; err(s): %q", errs)
 	}
 
-	n.pullLock.Lock()
-	defer n.pullLock.Unlock()
-	// Wait for all thread pulls to finish
-	for _, semaph := range n.pullLocks {
-		semaph <- struct{}{}
-	}
+	n.bus.Discard()
+	n.cancel()
 	return nil
 }
 

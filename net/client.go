@@ -58,13 +58,12 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 
 	log.Debugf("getting %s logs from %s...", id, pid)
 
-	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
-	defer cancel()
-	conn, err := s.dial(cctx, pid, grpc.WithInsecure())
+	client, err := s.dial(pid)
 	if err != nil {
 		return nil, err
 	}
-	client := pb.NewServiceClient(conn)
+	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+	defer cancel()
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
 		log.Warnf("get logs from %s failed: %s", pid, err)
@@ -107,13 +106,12 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 
 	log.Debugf("pushing log %s to %s...", lg.ID, pid)
 
-	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
-	defer cancel()
-	conn, err := s.dial(cctx, pid, grpc.WithInsecure())
+	client, err := s.dial(pid)
 	if err != nil {
 		return fmt.Errorf("dial %s failed: %s", pid, err)
 	}
-	client := pb.NewServiceClient(conn)
+	cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+	defer cancel()
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
 		return fmt.Errorf("push log to %s failed: %s", pid, err)
@@ -228,14 +226,13 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 
 			log.Debugf("getting records from %s...", p)
 
-			cctx, cancel := context.WithTimeout(ctx, reqTimeout)
-			defer cancel()
-			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
+			client, err := s.dial(pid)
 			if err != nil {
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			client := pb.NewServiceClient(conn)
+			cctx, cancel := context.WithTimeout(ctx, reqTimeout)
+			defer cancel()
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
 				log.Warnf("get records from %s failed: %s", p, err)
@@ -334,14 +331,13 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 
 			log.Debugf("pushing record to %s...", p)
 
-			cctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
-			defer cancel()
-			conn, err := s.dial(cctx, pid, grpc.WithInsecure())
+			client, err := s.dial(pid)
 			if err != nil {
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			client := pb.NewServiceClient(conn)
+			cctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
+			defer cancel()
 			if _, err = client.PushRecord(cctx, req); err != nil {
 				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
 					log.Debugf("pushing log %s to %s...", lid, p)
@@ -387,9 +383,21 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 }
 
 // dial attempts to open a gRPC connection over libp2p to a peer.
-func (s *server) dial(ctx context.Context, peerID peer.ID, dialOpts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	opts := append([]grpc.DialOption{s.getDialOption()}, dialOpts...)
-	return grpc.DialContext(ctx, peerID.Pretty(), opts...)
+func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
+	s.Lock()
+	defer s.Unlock()
+	conn, ok := s.conns[peerID]
+	if ok {
+		return pb.NewServiceClient(conn), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.getDialOption(), grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	s.conns[peerID] = conn
+	return pb.NewServiceClient(conn), nil
 }
 
 // getDialOption returns the WithDialer option to dial via libp2p.
