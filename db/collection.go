@@ -46,6 +46,10 @@ type Collection struct {
 }
 
 func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, error) {
+	if name != "" && !collectionNameRx.MatchString(name) {
+		return nil, ErrInvalidCollectionName
+	}
+
 	// by default, use top level properties to validate ID string property exists
 	properties := schema.Properties
 	if schema.Ref != "" {

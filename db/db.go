@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sync"
 	"time"
 
@@ -39,10 +40,19 @@ var (
 	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
 	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an _id string property")
 
+	// ErrInvalidCollectionName indicates the provided name isn't valid for a Collection.
+	ErrInvalidCollectionName = errors.New("collection name may only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen")
+
+	collectionNameRx *regexp.Regexp
+
 	dsDBPrefix  = ds.NewKey("/db")
 	dsDBSchemas = dsDBPrefix.ChildString("schema")
 	dsDBIndexes = dsDBPrefix.ChildString("index")
 )
+
+func init() {
+	collectionNameRx = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-][A-Za-z0-9]+)*$`)
+}
 
 // DB is the aggregate-root of events and state. External/remote events
 // are dispatched to the DB, and are internally processed to impact collection

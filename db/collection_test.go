@@ -99,6 +99,18 @@ func TestNewCollection(t *testing.T) {
 			t.Fatal("the collection should be invalid")
 		}
 	})
+	t.Run("Fail/InvalidName", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		cc := CollectionConfig{
+			Name:   "Not a URL-safe name",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+		}
+		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionName {
+			t.Fatal("the collection name should be invalid")
+		}
+	})
 }
 
 func TestAddIndex(t *testing.T) {
@@ -187,7 +199,6 @@ func TestCreateInstance(t *testing.T) {
 		assertPersonInCollection(t, collection, newPerson1)
 		assertPersonInCollection(t, collection, newPerson2)
 	})
-
 	t.Run("WithDefinedID", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
@@ -210,7 +221,6 @@ func TestCreateInstance(t *testing.T) {
 		}
 		assertPersonInCollection(t, collection, newPerson)
 	})
-
 	t.Run("Re-Create", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
