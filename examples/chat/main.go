@@ -101,7 +101,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer net.Close()
-	net.Bootstrap(util.DefaultBoostrapPeers())
+	net.Bootstrap(util.DefaultBootstrapPeers())
 
 	// Build a MDNS service
 	ctx = context.Background()

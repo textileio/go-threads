@@ -642,7 +642,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n.Bootstrap(util.DefaultBoostrapPeers())
+	n.Bootstrap(util.DefaultBootstrapPeers())
 	service, err := api.NewService(n, api.Config{
 		RepoPath: dir,
 		Debug:    true,

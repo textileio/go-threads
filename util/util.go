@@ -92,7 +92,7 @@ func LoadKey(pth string) crypto.PrivKey {
 	return priv
 }
 
-func DefaultBoostrapPeers() []peer.AddrInfo {
+func DefaultBootstrapPeers() []peer.AddrInfo {
 	ais, err := ParseBootstrapPeers(bootstrapPeers)
 	if err != nil {
 		panic("coudn't parse default bootstrap peers")

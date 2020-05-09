@@ -67,7 +67,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer n.Close()
-	n.Bootstrap(util.DefaultBoostrapPeers())
+	n.Bootstrap(util.DefaultBootstrapPeers())
 
 	service, err := api.NewService(n, api.Config{
 		RepoPath: *repo,
