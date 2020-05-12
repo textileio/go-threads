@@ -90,7 +90,7 @@ func TestClient_GetDBInfo(t *testing.T) {
 
 		addrs, key, err := client.GetDBInfo(context.Background(), id)
 		if err != nil {
-			t.Fatalf("failed to create collection: %v", err)
+			t.Fatalf("failed to get db info: %v", err)
 		}
 		if !key.Defined() {
 			t.Fatal("got undefined db key")
@@ -131,7 +131,7 @@ func TestClient_NewCollection(t *testing.T) {
 		checkErr(t, err)
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
 		if err != nil {
-			t.Fatalf("failed add new collection: %v", err)
+			t.Fatalf("failed to add new collection: %v", err)
 		}
 	})
 }
@@ -150,7 +150,7 @@ func TestClient_Create(t *testing.T) {
 
 		_, err = client.Create(context.Background(), id, collectionName, Instances{createPerson()})
 		if err != nil {
-			t.Fatalf("failed to create collection: %v", err)
+			t.Fatalf("failed to create instance: %v", err)
 		}
 	})
 
@@ -167,7 +167,7 @@ func TestClient_Create(t *testing.T) {
 			Age:       21,
 		}})
 		if err != nil {
-			t.Fatalf("failed to create collection: %v", err)
+			t.Fatalf("failed to create instance: %v", err)
 		}
 		if len(ids) != 1 {
 			t.Fatal("expected a new id, got none")
@@ -196,7 +196,7 @@ func TestClient_Save(t *testing.T) {
 		person.Age = 30
 		err = client.Save(context.Background(), id, collectionName, Instances{person})
 		if err != nil {
-			t.Fatalf("failed to save collection: %v", err)
+			t.Fatalf("failed to save instance: %v", err)
 		}
 	})
 }
@@ -222,7 +222,7 @@ func TestClient_Delete(t *testing.T) {
 
 		err = client.Delete(context.Background(), id, collectionName, []string{person.ID})
 		if err != nil {
-			t.Fatalf("failed to delete collection: %v", err)
+			t.Fatalf("failed to delete instance: %v", err)
 		}
 	})
 }
