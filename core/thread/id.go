@@ -187,22 +187,22 @@ func uvError(read int) error {
 // UnmarshalBinary is equivalent to Cast(). It implements the
 // encoding.BinaryUnmarshaler interface.
 func (i *ID) UnmarshalBinary(data []byte) error {
-	casted, err := Cast(data)
+	id, err := Cast(data)
 	if err != nil {
 		return err
 	}
-	i = &casted
+	*i = id
 	return nil
 }
 
 // UnmarshalText is equivalent to Decode(). It implements the
 // encoding.TextUnmarshaler interface.
 func (i *ID) UnmarshalText(text []byte) error {
-	decodedID, err := Decode(string(text))
+	id, err := Decode(string(text))
 	if err != nil {
 		return err
 	}
-	i = &decodedID
+	*i = id
 	return nil
 }
 
