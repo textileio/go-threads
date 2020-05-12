@@ -165,7 +165,7 @@ func TestIt(t *testing.T) {
 
 	_, err = client.Create(context.Background(), id, collectionName, Instances{owner})
 	if err != nil {
-		t.Fatalf("failed to create collection: %v", err)
+		t.Fatalf("failed to create instance: %v", err)
 	}
 }
 
