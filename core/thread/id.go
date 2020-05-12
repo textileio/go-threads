@@ -86,7 +86,7 @@ var Undef = ID("")
 // Calling any other methods on an undefined ID will result in
 // undefined behavior.
 func (i ID) Defined() bool {
-	return i != ""
+	return i != Undef
 }
 
 // Decode parses an ID-encoded string and returns an ID object.
