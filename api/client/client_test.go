@@ -22,6 +22,7 @@ import (
 	. "github.com/textileio/go-threads/api/client"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/common"
+	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 	"github.com/textileio/go-threads/util"
@@ -134,6 +135,38 @@ func TestClient_NewCollection(t *testing.T) {
 			t.Fatalf("failed add new collection: %v", err)
 		}
 	})
+}
+
+func TestIt(t *testing.T) {
+	type Owner struct {
+		ID       core.InstanceID `json:"_id"`
+		ThreadID thread.ID       `json:"threadId"`
+	}
+	collectionName := "owners"
+
+	client, done := setup(t)
+	defer done()
+
+	id := thread.NewIDV1(thread.Raw, 32)
+	err := client.NewDB(context.Background(), id)
+	checkErr(t, err)
+	sch := util.SchemaFromInstance(Owner{}, false)
+	schBytes, err := json.MarshalIndent(sch, "", "  ")
+	checkErr(t, err)
+	schStr := string(schBytes)
+	t.Logf("\n%v", schStr)
+	err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: sch})
+	checkErr(t, err)
+
+	owner := &Owner{
+		ID:       "",
+		ThreadID: id,
+	}
+
+	_, err = client.Create(context.Background(), id, collectionName, Instances{owner})
+	if err != nil {
+		t.Fatalf("failed to create collection: %v", err)
+	}
 }
 
 func TestClient_Create(t *testing.T) {
