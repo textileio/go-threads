@@ -1,6 +1,7 @@
 package thread
 
 import (
+	"encoding/json"
 	"testing"
 
 	mbase "github.com/multiformats/go-multibase"
@@ -58,4 +59,51 @@ func TestID_Variant(t *testing.T) {
 	}
 
 	t.Logf("Variant: %s", v)
+}
+
+func TestJSON(t *testing.T) {
+	i := NewIDV1(Raw, 32)
+	t.Logf("New ID: %s", i.String())
+
+	data, err := i.MarshalJSON()
+	if err != nil {
+		t.Errorf("failed to marshal ID %s: %s", i.String(), err)
+	}
+
+	i2 := ID{}
+	err = i2.UnmarshalJSON(data)
+	if err != nil {
+		t.Errorf("failed to unmarshal ID: %s", err)
+	}
+
+	if i.str != i2.str {
+		t.Errorf("ID string %s != %s", i.str, i2.str)
+	}
+}
+
+func TestNestedJSON(t *testing.T) {
+
+	type Person struct {
+		ThreadID ID
+	}
+
+	i := NewIDV1(Raw, 32)
+	t.Logf("New ID: %s", i.String())
+
+	p1 := Person{ThreadID: i}
+
+	data, err := json.Marshal(p1)
+	if err != nil {
+		t.Errorf("failed to marshal Person: %s", err)
+	}
+
+	p2 := &Person{}
+	err = json.Unmarshal(data, p2)
+	if err != nil {
+		t.Errorf("failed to unmarshal Person: %s", err)
+	}
+
+	if p1.ThreadID.str != p2.ThreadID.str {
+		t.Errorf("Person ID string %s != %s", p1.ThreadID.str, p2.ThreadID.str)
+	}
 }

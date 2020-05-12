@@ -294,6 +294,19 @@ func (i ID) Loggable() map[string]interface{} {
 	}
 }
 
+func (i ID) MarshalJSON() ([]byte, error) {
+	return i.Bytes(), nil
+}
+
+func (i *ID) UnmarshalJSON(data []byte) error {
+	id, err := Cast(data)
+	if err != nil {
+		return err
+	}
+	i.str = id.str
+	return nil
+}
+
 // IDSlice for sorting threads.
 type IDSlice []ID
 
