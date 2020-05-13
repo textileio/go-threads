@@ -72,7 +72,7 @@ jobs:
         with:
           java-version: 1.8
       - name: Install protoc
-        uses: Arduino/actions/setup-protoc@master
+        uses: arduino/setup-protoc@master
         with:
           version: '3.11.2'
       - name: Install Android SDK

@@ -70,23 +70,23 @@ func NewIDV1(variant Variant, size uint8) ID {
 		panic("copy length is inconsistent")
 	}
 
-	return ID{string(buf[:n+numlen])}
+	return ID(buf[:n+numlen])
 }
 
 // ID represents a self-describing thread identifier.
 // It is formed by a Version, a Variant, and a random number
 // of a given length.
-type ID struct{ str string }
+type ID string
 
 // Undef can be used to represent a nil or undefined Cid, using Cid{}
 // directly is also acceptable.
-var Undef = ID{}
+var Undef = ID("")
 
 // Defined returns true if an ID is defined.
 // Calling any other methods on an undefined ID will result in
 // undefined behavior.
 func (i ID) Defined() bool {
-	return i.str != ""
+	return i != Undef
 }
 
 // Decode parses an ID-encoded string and returns an ID object.
@@ -136,23 +136,10 @@ func ExtractEncoding(v string) (mbase.Encoding, error) {
 // Please use decode when parsing a regular ID string, as Cast does not
 // expect multibase-encoded data. Cast accepts the output of ID.Bytes().
 func Cast(data []byte) (ID, error) {
-	vers, n := binary.Uvarint(data)
-	if err := uvError(n); err != nil {
+	if err := validateIDData(data); err != nil {
 		return Undef, err
 	}
-
-	if vers != 1 {
-		return Undef, fmt.Errorf("expected 1 as the id version number, got: %d", vers)
-	}
-
-	_, cn := binary.Uvarint(data[n:])
-	if err := uvError(cn); err != nil {
-		return Undef, err
-	}
-
-	id := data[n+cn:]
-
-	return ID{string(data[0 : n+cn+len(id)])}, nil
+	return ID(data), nil
 }
 
 // FromAddr returns ID from a multiaddress if present.
@@ -166,7 +153,7 @@ func FromAddr(addr ma.Multiaddr) (ID, error) {
 
 // ToAddr returns ID wrapped as a multiaddress.
 func ToAddr(id ID) ma.Multiaddr {
-	addr, err := ma.NewMultiaddr("/" + Name + "/ " + id.str)
+	addr, err := ma.NewMultiaddr("/" + Name + "/ " + string(id))
 	if err != nil {
 		panic(err) // This should not happen
 	}
@@ -184,46 +171,93 @@ func uvError(read int) error {
 	}
 }
 
-// UnmarshalBinary is equivalent to Cast(). It implements the
-// encoding.BinaryUnmarshaler interface.
-func (i *ID) UnmarshalBinary(data []byte) error {
-	casted, err := Cast(data)
+func (i ID) Validate() error {
+	data := i.Bytes()
+	return validateIDData(data)
+}
+
+func getVersion(data []byte) (uint64, int, error) {
+	vers, n := binary.Uvarint(data)
+	if err := uvError(n); err != nil {
+		return 0, 0, err
+	}
+	return vers, n, nil
+}
+
+func validateIDData(data []byte) error {
+	vers, n, err := getVersion(data)
 	if err != nil {
 		return err
 	}
-	i.str = casted.str
+
+	if vers != V1 {
+		return fmt.Errorf("expected 1 as the id version number, got: %d", vers)
+	}
+
+	variant, cn := binary.Uvarint(data[n:])
+	if err := uvError(cn); err != nil {
+		return err
+	}
+
+	if variant != uint64(Raw) && variant != uint64(AccessControlled) {
+		return fmt.Errorf("expected Raw or AccessControlled as the id variant, got: %d", variant)
+	}
+
+	id := data[n+cn:]
+	if len(id) == 0 {
+		return fmt.Errorf("expected random id bytes but there are none")
+	}
+
+	return nil
+}
+
+// UnmarshalBinary is equivalent to Cast(). It implements the
+// encoding.BinaryUnmarshaler interface.
+func (i *ID) UnmarshalBinary(data []byte) error {
+	id, err := Cast(data)
+	if err != nil {
+		return err
+	}
+	*i = id
 	return nil
 }
 
 // UnmarshalText is equivalent to Decode(). It implements the
 // encoding.TextUnmarshaler interface.
 func (i *ID) UnmarshalText(text []byte) error {
-	decodedID, err := Decode(string(text))
+	id, err := Decode(string(text))
 	if err != nil {
 		return err
 	}
-	i.str = decodedID.str
+	*i = id
 	return nil
 }
 
 // Version returns the ID version.
 func (i ID) Version() uint64 {
-	return V1
+	version, _, err := getVersion(i.Bytes())
+	if err != nil {
+		panic("error getting version: " + err.Error())
+	}
+	return version
 }
 
 // Variant returns the variant of an ID.
 func (i ID) Variant() Variant {
-	_, n := uvarint(i.str)
-	variant, _ := uvarint(i.str[n:])
+	_, n := uvarint(string(i))
+	variant, _ := uvarint(string(i)[n:])
 	return Variant(variant)
 }
 
 // String returns the default string representation of an ID.
 // Currently, Base32 is used as the encoding for the multibase string.
 func (i ID) String() string {
+	if err := i.Validate(); err != nil {
+		panic("invalid thread id")
+	}
 	switch i.Version() {
 	case V1:
-		b := []byte(i.str)
+		b := []byte(i)
 		mbstr, err := mbase.Encode(mbase.Base32, b)
 		if err != nil {
 			panic("should not error with hardcoded mbase: " + err.Error())
@@ -231,29 +265,35 @@ func (i ID) String() string {
 
 		return mbstr
 	default:
-		panic("not possible to reach this point")
+		panic("unknown thread id version")
 	}
 }
 
 // String returns the string representation of an ID
 // encoded is selected base.
 func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
+	if err := i.Validate(); err != nil {
+		panic("invalid thread id")
+	}
 	switch i.Version() {
 	case V1:
 		return mbase.Encode(base, i.Bytes())
 	default:
-		panic("not possible to reach this point")
+		panic("unknown thread id version")
 	}
 }
 
 // Encode return the string representation of an ID in a given base
 // when applicable.
 func (i ID) Encode(base mbase.Encoder) string {
+	if err := i.Validate(); err != nil {
+		panic("invalid thread id")
+	}
 	switch i.Version() {
 	case V1:
 		return base.Encode(i.Bytes())
 	default:
-		panic("not possible to reach this point")
+		panic("unknown thread id version")
 	}
 }
 
@@ -261,7 +301,7 @@ func (i ID) Encode(base mbase.Encoder) string {
 // The output of bytes can be parsed back into an ID
 // with Cast().
 func (i ID) Bytes() []byte {
-	return []byte(i.str)
+	return []byte(i)
 }
 
 // MarshalBinary is equivalent to Bytes(). It implements the
@@ -273,6 +313,9 @@ func (i ID) MarshalBinary() ([]byte, error) {
 // MarshalText is equivalent to String(). It implements the
 // encoding.TextMarshaler interface.
 func (i ID) MarshalText() ([]byte, error) {
+	if err := i.Validate(); err != nil {
+		panic("invalid thread id")
+	}
 	return []byte(i.String()), nil
 }
 
@@ -283,7 +326,7 @@ func (i ID) Equals(o ID) bool {
 
 // KeyString returns the binary representation of the ID as a string.
 func (i ID) KeyString() string {
-	return i.str
+	return string(i)
 }
 
 // Loggable returns a Loggable (as defined by
@@ -299,7 +342,7 @@ type IDSlice []ID
 
 func (s IDSlice) Len() int           { return len(s) }
 func (s IDSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s IDSlice) Less(i, j int) bool { return s[i].str < s[j].str }
+func (s IDSlice) Less(i, j int) bool { return s[i] < s[j] }
 
 // Info holds thread logs, keys and addresses.
 type Info struct {

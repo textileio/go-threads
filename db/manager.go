@@ -80,7 +80,11 @@ func NewManager(network app.Net, opts ...NewDBOption) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
-		s, err := newDB(m.network, id, getDBOptions(id, m.newDBOptions))
+		opts, err := getDBOptions(id, m.newDBOptions)
+		if err != nil {
+			return nil, err
+		}
+		s, err := newDB(m.network, id, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +111,11 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBO
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBOptions(id, m.newDBOptions, args.Collections...))
+	dbOpts, err := getDBOptions(id, m.newDBOptions, args.Collections...)
+	if err != nil {
+		return nil, err
+	}
+	db, err := newDB(m.network, id, dbOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +142,11 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, err
 	}
 
-	db, err := newDB(m.network, id, getDBOptions(id, m.newDBOptions, args.Collections...))
+	dbOpts, err := getDBOptions(id, m.newDBOptions, args.Collections...)
+	if err != nil {
+		return nil, err
+	}
+	db, err := newDB(m.network, id, dbOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +195,9 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBO
 	}
 
 	// Cleanup keys used by the db
+	if err := id.Validate(); err != nil {
+		return err
+	}
 	pre := dsDBManagerBaseKey.ChildString(id.String())
 	q := query.Query{Prefix: pre.String(), KeysOnly: true}
 	results, err := m.newDBOptions.Datastore.Query(q)
@@ -218,7 +233,10 @@ func (m *Manager) Close() error {
 // getDBOptions copies the manager's base config,
 // wraps the datastore with an id prefix,
 // and merges specified collection configs with those from base
-func getDBOptions(id thread.ID, base *NewDBOptions, collections ...CollectionConfig) *NewDBOptions {
+func getDBOptions(id thread.ID, base *NewDBOptions, collections ...CollectionConfig) (*NewDBOptions, error) {
+	if err := id.Validate(); err != nil {
+		return nil, err
+	}
 	return &NewDBOptions{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
@@ -227,5 +245,5 @@ func getDBOptions(id thread.ID, base *NewDBOptions, collections ...CollectionCon
 		EventCodec:  base.EventCodec,
 		Debug:       base.Debug,
 		Collections: append(base.Collections, collections...),
-	}
+	}, nil
 }

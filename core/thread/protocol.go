@@ -45,6 +45,9 @@ func threadBtS(b []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := m.Validate(); err != nil {
+		return "", err
+	}
 	return m.String(), nil
 }
 

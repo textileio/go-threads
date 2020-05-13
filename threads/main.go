@@ -121,6 +121,10 @@ func executor(in string) {
 			fmt.Println("You must provide a db ID.")
 			return
 		}
+		if err := currentDB.Validate(); err != nil {
+			fmt.Printf("Invalid thread id: %v\n", err)
+			return
+		}
 		if currentDB.String() == blocks[1] {
 			fmt.Printf("Already using %s\n", blocks[1])
 			return
@@ -137,6 +141,10 @@ func executor(in string) {
 		fmt.Println("Bye!")
 		os.Exit(0)
 	default:
+		if err := currentDB.Validate(); err != nil {
+			fmt.Printf("Invalid thread id: %v\n", err)
+			return
+		}
 		if currentDB.String() == "" {
 			fmt.Println(noDBMessage)
 			return
