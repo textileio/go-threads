@@ -136,23 +136,10 @@ func ExtractEncoding(v string) (mbase.Encoding, error) {
 // Please use decode when parsing a regular ID string, as Cast does not
 // expect multibase-encoded data. Cast accepts the output of ID.Bytes().
 func Cast(data []byte) (ID, error) {
-	vers, n := binary.Uvarint(data)
-	if err := uvError(n); err != nil {
+	if err := validateIDData(data); err != nil {
 		return Undef, err
 	}
-
-	if vers != 1 {
-		return Undef, fmt.Errorf("expected 1 as the id version number, got: %d", vers)
-	}
-
-	_, cn := binary.Uvarint(data[n:])
-	if err := uvError(cn); err != nil {
-		return Undef, err
-	}
-
-	id := data[n+cn:]
-
-	return ID(data[0 : n+cn+len(id)]), nil
+	return ID(data), nil
 }
 
 // FromAddr returns ID from a multiaddress if present.
@@ -184,6 +171,47 @@ func uvError(read int) error {
 	}
 }
 
+func (i ID) Valid() bool {
+	data := i.Bytes()
+	err := validateIDData(data)
+	return err == nil
+}
+
+func getVersion(data []byte) (uint64, int, error) {
+	vers, n := binary.Uvarint(data)
+	if err := uvError(n); err != nil {
+		return 0, 0, err
+	}
+	return vers, n, nil
+}
+
+func validateIDData(data []byte) error {
+	vers, n, err := getVersion(data)
+	if err != nil {
+		return err
+	}
+
+	if vers != V1 {
+		return fmt.Errorf("expected 1 as the id version number, got: %d", vers)
+	}
+
+	variant, cn := binary.Uvarint(data[n:])
+	if err := uvError(cn); err != nil {
+		return err
+	}
+
+	if variant != uint64(Raw) && variant != uint64(AccessControlled) {
+		return fmt.Errorf("expected Raw or AccessControlled as the id variant, got: %d", variant)
+	}
+
+	id := data[n+cn:]
+	if len(id) == 0 {
+		return fmt.Errorf("expected random id bytes but there are none")
+	}
+
+	return nil
+}
+
 // UnmarshalBinary is equivalent to Cast(). It implements the
 // encoding.BinaryUnmarshaler interface.
 func (i *ID) UnmarshalBinary(data []byte) error {
@@ -208,7 +236,11 @@ func (i *ID) UnmarshalText(text []byte) error {
 
 // Version returns the ID version.
 func (i ID) Version() uint64 {
-	return V1
+	version, _, err := getVersion(i.Bytes())
+	if err != nil {
+		panic("error getting version: " + err.Error())
+	}
+	return version
 }
 
 // Variant returns the variant of an ID.
@@ -231,7 +263,7 @@ func (i ID) String() string {
 
 		return mbstr
 	default:
-		panic("not possible to reach this point")
+		panic("unknown thread id version")
 	}
 }
 
@@ -242,7 +274,7 @@ func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 	case V1:
 		return mbase.Encode(base, i.Bytes())
 	default:
-		panic("not possible to reach this point")
+		panic("unknown thread id version")
 	}
 }
 
@@ -253,7 +285,7 @@ func (i ID) Encode(base mbase.Encoder) string {
 	case V1:
 		return base.Encode(i.Bytes())
 	default:
-		panic("not possible to reach this point")
+		panic("unknown thread id version")
 	}
 }
 
