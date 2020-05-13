@@ -276,6 +276,10 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		}
 	}
 
+	if !id.Valid() {
+		err = fmt.Errorf("invalid thread id")
+		return
+	}
 	threadComp, err := ma.NewComponent(thread.Name, id.String())
 	if err != nil {
 		return
@@ -324,6 +328,10 @@ func (n *net) getThreadWithAddrs(id thread.ID) (info thread.Info, err error) {
 	}
 	peerID, err = ma.NewComponent("p2p", n.host.ID().String())
 	if err != nil {
+		return
+	}
+	if !tinfo.ID.Valid() {
+		err = fmt.Errorf("invalid thread id")
 		return
 	}
 	threadID, err = ma.NewComponent("thread", tinfo.ID.String())

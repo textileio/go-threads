@@ -122,6 +122,10 @@ func main() {
 	}
 	go func() {
 		for rec := range sub {
+			if !rec.ThreadID().Valid() {
+				logError(fmt.Errorf("invalid thread id"))
+				continue
+			}
 			name, err := threadName(rec.ThreadID().String())
 			if err != nil {
 				logError(err)
@@ -324,6 +328,10 @@ func threadsCmd() (out string, err error) {
 			return
 		}
 		name := e.Key[strings.LastIndex(e.Key, "/")+1:]
+		if !id.Valid() {
+			err = fmt.Errorf("invalid thread id")
+			return
+		}
 		out += pink(name) + grey(" ("+id.String()+")")
 		if i != len(all)-1 {
 			out += "\n"
@@ -400,6 +408,10 @@ func addCmd(args []string) (out string, err error) {
 		return
 	}
 
+	if !id.Valid() {
+		err = fmt.Errorf("invalid thread id")
+		return
+	}
 	out = fmt.Sprintf("Added thread %s", id.String())
 	return
 }
@@ -445,6 +457,10 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 		lg = &thread.LogInfo{}
 	}
 
+	if !id.Valid() {
+		err = fmt.Errorf("invalid thread id")
+		return
+	}
 	ta, err := ma.NewMultiaddr("/" + thread.Name + "/" + id.String())
 	if err != nil {
 		return
@@ -549,6 +565,9 @@ func threadName(id string) (name string, err error) {
 		i, err := thread.Cast(e.Value)
 		if err != nil {
 			return "", err
+		}
+		if !i.Valid() {
+			return "", fmt.Errorf("invalid thread id")
 		}
 		if i.String() == id {
 			return e.Key[strings.LastIndex(e.Key, "/")+1:], nil

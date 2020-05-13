@@ -45,6 +45,9 @@ func threadBtS(b []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if !m.Valid() {
+		return "", fmt.Errorf("invalid thread id")
+	}
 	return m.String(), nil
 }
 

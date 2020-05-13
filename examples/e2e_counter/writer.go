@@ -80,6 +80,9 @@ func saveThreadMultiaddrForOtherPeer(n net.Net, threadID thread.ID) {
 
 	// Create listen addr
 	id, _ := multiaddr.NewComponent("p2p", n.Host().ID().String())
+	if !threadID.Valid() {
+		checkErr(fmt.Errorf("invalid thread id"))
+	}
 	threadComp, _ := multiaddr.NewComponent("thread", threadID.String())
 
 	listenAddr := n.Host().Addrs()[0].Encapsulate(id).Encapsulate(threadComp).String()

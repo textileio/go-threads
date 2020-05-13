@@ -53,6 +53,9 @@ func (s *PubSub) Add(id thread.ID) error {
 		return nil
 	}
 
+	if !id.Valid() {
+		return fmt.Errorf("invalid thread id")
+	}
 	pt, err := s.ps.Join(id.String())
 	if err != nil {
 		return err
@@ -87,6 +90,9 @@ func (s *PubSub) Remove(id thread.ID) error {
 	}
 	topic.s.Cancel()
 	topic.h.Cancel()
+	if !id.Valid() {
+		return fmt.Errorf("invalid thread id")
+	}
 	if err := s.ps.UnregisterTopicValidator(id.String()); err != nil {
 		return err
 	}
