@@ -45,10 +45,6 @@ func TestExtractEncoding(t *testing.T) {
 func TestID_Version(t *testing.T) {
 	i := NewIDV1(Raw, 16)
 
-	if !i.Valid() {
-		t.Errorf("invalid thread id")
-	}
-
 	v := i.Version()
 	if v != V1 {
 		t.Errorf("got wrong version from %s: %d", i.String(), v)
