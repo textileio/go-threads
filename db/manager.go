@@ -195,8 +195,8 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBO
 	}
 
 	// Cleanup keys used by the db
-	if !id.Valid() {
-		return fmt.Errorf("invalid thread id")
+	if err := id.Validate(); err != nil {
+		return err
 	}
 	pre := dsDBManagerBaseKey.ChildString(id.String())
 	q := query.Query{Prefix: pre.String(), KeysOnly: true}
@@ -234,8 +234,8 @@ func (m *Manager) Close() error {
 // wraps the datastore with an id prefix,
 // and merges specified collection configs with those from base
 func getDBOptions(id thread.ID, base *NewDBOptions, collections ...CollectionConfig) (*NewDBOptions, error) {
-	if !id.Valid() {
-		return nil, fmt.Errorf("invalid thread id")
+	if err := id.Validate(); err != nil {
+		return nil, err
 	}
 	return &NewDBOptions{
 		RepoPath: base.RepoPath,

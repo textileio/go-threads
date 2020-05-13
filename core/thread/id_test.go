@@ -75,28 +75,24 @@ func TestID_Variant(t *testing.T) {
 
 func TestID_Valid(t *testing.T) {
 	i := NewIDV1(Raw, 16)
-	valid := i.Valid()
-	if !valid {
+	if err := i.Validate(); err != nil {
 		t.Errorf("id %s is invalid", i.String())
 	}
 }
 
 func TestID_Invalid(t *testing.T) {
 	i := makeID(t, 5, int64(Raw), 16)
-	valid := i.Valid()
-	if valid {
+	if err := i.Validate(); err == nil {
 		t.Errorf("id %s is valid but it has an invalid version", i.String())
 	}
 
 	i = makeID(t, V1, 50, 16)
-	valid = i.Valid()
-	if valid {
+	if err := i.Validate(); err == nil {
 		t.Errorf("id %s is valid but it has an invalid variant", i.String())
 	}
 
 	i = makeID(t, V1, int64(Raw), 0)
-	valid = i.Valid()
-	if valid {
+	if err := i.Validate(); err == nil {
 		t.Errorf("id %s is valid but it has no random bytes", i.String())
 	}
 }

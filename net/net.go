@@ -276,8 +276,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		}
 	}
 
-	if !id.Valid() {
-		err = fmt.Errorf("invalid thread id")
+	if err = id.Validate(); err != nil {
 		return
 	}
 	threadComp, err := ma.NewComponent(thread.Name, id.String())
@@ -330,8 +329,7 @@ func (n *net) getThreadWithAddrs(id thread.ID) (info thread.Info, err error) {
 	if err != nil {
 		return
 	}
-	if !tinfo.ID.Valid() {
-		err = fmt.Errorf("invalid thread id")
+	if err = tinfo.ID.Validate(); err != nil {
 		return
 	}
 	threadID, err = ma.NewComponent("thread", tinfo.ID.String())

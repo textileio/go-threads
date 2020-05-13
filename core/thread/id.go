@@ -171,10 +171,9 @@ func uvError(read int) error {
 	}
 }
 
-func (i ID) Valid() bool {
+func (i ID) Validate() error {
 	data := i.Bytes()
-	err := validateIDData(data)
-	return err == nil
+	return validateIDData(data)
 }
 
 func getVersion(data []byte) (uint64, int, error) {
@@ -253,7 +252,7 @@ func (i ID) Variant() Variant {
 // String returns the default string representation of an ID.
 // Currently, Base32 is used as the encoding for the multibase string.
 func (i ID) String() string {
-	if !i.Valid() {
+	if err := i.Validate(); err != nil {
 		panic("invalid thread id")
 	}
 	switch i.Version() {
@@ -273,7 +272,7 @@ func (i ID) String() string {
 // String returns the string representation of an ID
 // encoded is selected base.
 func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
-	if !i.Valid() {
+	if err := i.Validate(); err != nil {
 		panic("invalid thread id")
 	}
 	switch i.Version() {
@@ -287,7 +286,7 @@ func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 // Encode return the string representation of an ID in a given base
 // when applicable.
 func (i ID) Encode(base mbase.Encoder) string {
-	if !i.Valid() {
+	if err := i.Validate(); err != nil {
 		panic("invalid thread id")
 	}
 	switch i.Version() {
@@ -314,8 +313,8 @@ func (i ID) MarshalBinary() ([]byte, error) {
 // MarshalText is equivalent to String(). It implements the
 // encoding.TextMarshaler interface.
 func (i ID) MarshalText() ([]byte, error) {
-	if !i.Valid() {
-		return nil, fmt.Errorf("invalid thread id")
+	if err := i.Validate(); err != nil {
+		panic("invalid thread id")
 	}
 	return []byte(i.String()), nil
 }
