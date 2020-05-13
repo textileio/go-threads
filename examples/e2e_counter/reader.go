@@ -23,7 +23,7 @@ func runReaderPeer(repo string) {
 
 	cc := db.CollectionConfig{
 		Name:   "counter",
-		Schema: util.SchemaFromInstance(&myCounter{}, false),
+		Schema: util.SchemaFromInstance(&myCounter{}, false, false),
 	}
 
 	d, err := db.NewDBFromAddr(context.Background(), n, writerAddr, key, db.WithNewDBRepoPath(repo), db.WithNewDBCollections(cc))

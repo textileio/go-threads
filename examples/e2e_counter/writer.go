@@ -34,7 +34,7 @@ func runWriterPeer(repo string) {
 
 	m, err := d.NewCollection(db.CollectionConfig{
 		Name:   "counter",
-		Schema: util.SchemaFromInstance(&myCounter{}, false),
+		Schema: util.SchemaFromInstance(&myCounter{}, false, false),
 	})
 	checkErr(err)
 

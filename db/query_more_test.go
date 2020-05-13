@@ -150,7 +150,7 @@ func createCollectionWithData(t *testing.T) (*Collection, []book, func()) {
 	db, clean := createTestDB(t)
 	c, err := db.NewCollection(CollectionConfig{
 		Name:   "Book",
-		Schema: util.SchemaFromInstance(&book{}, false),
+		Schema: util.SchemaFromInstance(&book{}, false, false),
 	})
 	checkErr(t, err)
 	sampleDataCopy := make([]book, len(sampleData))

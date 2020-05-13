@@ -310,7 +310,7 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, []Book, func()) {
 	s, clean := createTestDB(t)
 	c, err := s.NewCollection(CollectionConfig{
 		Name:   "Book",
-		Schema: util.SchemaFromInstance(&Book{}, false),
+		Schema: util.SchemaFromInstance(&Book{}, false, false),
 		Indexes: []IndexConfig{
 			{
 				Path: "Meta.TotalReads",

@@ -36,7 +36,7 @@ func TestE2EWithThreads(t *testing.T) {
 	defer d1.Close()
 	c1, err := d1.NewCollection(CollectionConfig{
 		Name:   "dummy",
-		Schema: util.SchemaFromInstance(&dummy{}, false),
+		Schema: util.SchemaFromInstance(&dummy{}, false, false),
 	})
 	checkErr(t, err)
 	dummyJSON := util.JSONFromInstance(dummy{Name: "Textile", Counter: 0})
@@ -68,7 +68,7 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	cc := CollectionConfig{
 		Name:   "dummy",
-		Schema: util.SchemaFromInstance(&dummy{}, false),
+		Schema: util.SchemaFromInstance(&dummy{}, false, false),
 	}
 	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithNewDBRepoPath(tmpDir2), WithNewDBCollections(cc))
 	checkErr(t, err)
@@ -107,7 +107,7 @@ func TestOptions(t *testing.T) {
 
 	m, err := d.NewCollection(CollectionConfig{
 		Name:   "dummy",
-		Schema: util.SchemaFromInstance(&dummy{}, false),
+		Schema: util.SchemaFromInstance(&dummy{}, false, false),
 	})
 	checkErr(t, err)
 	_, err = m.Create(util.JSONFromInstance(dummy{Name: "Textile"}))
@@ -258,13 +258,13 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	d, cls := createTestDB(t)
 	cc1 := CollectionConfig{
 		Name:   "Collection1",
-		Schema: util.SchemaFromInstance(&dummy{}, false),
+		Schema: util.SchemaFromInstance(&dummy{}, false, false),
 	}
 	c1, err := d.NewCollection(cc1)
 	checkErr(t, err)
 	cc2 := CollectionConfig{
 		Name:   "Collection2",
-		Schema: util.SchemaFromInstance(&dummy{}, false),
+		Schema: util.SchemaFromInstance(&dummy{}, false, false),
 	}
 	c2, err := d.NewCollection(cc2)
 	checkErr(t, err)

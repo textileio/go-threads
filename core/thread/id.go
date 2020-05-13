@@ -3,6 +3,7 @@ package thread
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -206,6 +207,19 @@ func (i *ID) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (i *ID) UnmarshalJSON(data []byte) error {
+	m := make(map[string]string)
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	val, err := Decode(m["str"])
+	if err != nil {
+		return err
+	}
+	i.str = val.str
+	return nil
+}
+
 // Version returns the ID version.
 func (i ID) Version() uint64 {
 	return V1
@@ -274,6 +288,13 @@ func (i ID) MarshalBinary() ([]byte, error) {
 // encoding.TextMarshaler interface.
 func (i ID) MarshalText() ([]byte, error) {
 	return []byte(i.String()), nil
+}
+
+func (i ID) MarshalJSON() ([]byte, error) {
+	data := map[string]string{
+		"str": i.String(),
+	}
+	return json.Marshal(data)
 }
 
 // Equals checks that two IDs are the same.

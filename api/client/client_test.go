@@ -150,7 +150,7 @@ func TestIt(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
 	err := client.NewDB(context.Background(), id)
 	checkErr(t, err)
-	sch := util.SchemaFromInstance(Owner{}, false)
+	sch := util.SchemaFromInstance(Owner{}, false, true)
 	schBytes, err := json.MarshalIndent(sch, "", "  ")
 	checkErr(t, err)
 	schStr := string(schBytes)
@@ -163,9 +163,21 @@ func TestIt(t *testing.T) {
 		ThreadID: id,
 	}
 
-	_, err = client.Create(context.Background(), id, collectionName, Instances{owner})
+	ids, err := client.Create(context.Background(), id, collectionName, Instances{owner})
 	if err != nil {
 		t.Fatalf("failed to create instance: %v", err)
+	}
+
+	another := &Owner{}
+
+	err = client.FindByID(context.Background(), id, collectionName, ids[0], another)
+	if err != nil {
+		t.Fatalf("failed to find instance: %v", err)
+	}
+	one := owner.ThreadID.String()
+	two := another.ThreadID.String()
+	if one != two {
+		t.Fatalf("thread id %v != %v", one, two)
 	}
 }
 

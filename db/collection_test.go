@@ -43,7 +43,7 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		_, err := db.NewCollection(CollectionConfig{
 			Name:   "Dog",
-			Schema: util.SchemaFromInstance(&Dog{}, false),
+			Schema: util.SchemaFromInstance(&Dog{}, false, false),
 		})
 		checkErr(t, err)
 	})
@@ -53,7 +53,7 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		_, err := db.NewCollection(CollectionConfig{
 			Name:   "Dog",
-			Schema: util.SchemaFromInstance(&Dog{}, true),
+			Schema: util.SchemaFromInstance(&Dog{}, true, false),
 		})
 		checkErr(t, err)
 	})
@@ -63,12 +63,12 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		_, err := db.NewCollection(CollectionConfig{
 			Name:   "Dog",
-			Schema: util.SchemaFromInstance(&Dog{}, false),
+			Schema: util.SchemaFromInstance(&Dog{}, false, false),
 		})
 		checkErr(t, err)
 		_, err = db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 	})
@@ -81,7 +81,7 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		cc := CollectionConfig{
 			Name:   "FailingType",
-			Schema: util.SchemaFromInstance(&FailingType{}, false),
+			Schema: util.SchemaFromInstance(&FailingType{}, false, false),
 		}
 		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionSchema {
 			t.Fatal("the collection should be invalid")
@@ -93,7 +93,7 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		cc := CollectionConfig{
 			Name:   "FailingType",
-			Schema: util.SchemaFromInstance(&FailingType{}, true),
+			Schema: util.SchemaFromInstance(&FailingType{}, true, false),
 		}
 		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionSchema {
 			t.Fatal("the collection should be invalid")
@@ -105,7 +105,7 @@ func TestNewCollection(t *testing.T) {
 		defer clean()
 		cc := CollectionConfig{
 			Name:   "Not a URL-safe name",
-			Schema: util.SchemaFromInstance(&Dog{}, false),
+			Schema: util.SchemaFromInstance(&Dog{}, false, false),
 		}
 		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionName {
 			t.Fatal("the collection name should be invalid")
@@ -121,7 +121,7 @@ func TestAddIndex(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -148,7 +148,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -177,7 +177,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -205,7 +205,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -227,7 +227,7 @@ func TestCreateInstance(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -251,7 +251,7 @@ func TestReadTxnValidation(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 		err = m.ReadTxn(func(txn *Txn) error {
@@ -268,7 +268,7 @@ func TestReadTxnValidation(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 		p := util.JSONFromInstance(Person{Name: "Foo1", Age: 42})
@@ -288,7 +288,7 @@ func TestReadTxnValidation(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 		p := util.JSONFromInstance(Person{Name: "Foo1", Age: 42})
@@ -310,7 +310,7 @@ func TestVariadic(t *testing.T) {
 	defer clean()
 	m, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}, false),
+		Schema: util.SchemaFromInstance(&Person{}, false, false),
 	})
 	checkErr(t, err)
 
@@ -357,7 +357,7 @@ func TestGetInstance(t *testing.T) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}, false),
+		Schema: util.SchemaFromInstance(&Person{}, false, false),
 	})
 	checkErr(t, err)
 
@@ -424,7 +424,7 @@ func TestSaveInstance(t *testing.T) {
 		defer clean()
 		collection, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -462,7 +462,7 @@ func TestSaveInstance(t *testing.T) {
 		defer clean()
 		m, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
+			Schema: util.SchemaFromInstance(&Person{}, false, false),
 		})
 		checkErr(t, err)
 
@@ -480,7 +480,7 @@ func TestDeleteInstance(t *testing.T) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}, false),
+		Schema: util.SchemaFromInstance(&Person{}, false, false),
 	})
 	checkErr(t, err)
 
@@ -521,7 +521,7 @@ func TestInvalidActions(t *testing.T) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
-		Schema: util.SchemaFromInstance(&Person{}, false),
+		Schema: util.SchemaFromInstance(&Person{}, false, false),
 	})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {

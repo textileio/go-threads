@@ -31,7 +31,7 @@ func main() {
 
 	collection, err := d.NewCollection(db.CollectionConfig{
 		Name:   "Book",
-		Schema: util.SchemaFromInstance(&book{}, false),
+		Schema: util.SchemaFromInstance(&book{}, false, false),
 	})
 	checkErr(err)
 

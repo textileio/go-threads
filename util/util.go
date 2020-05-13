@@ -144,8 +144,8 @@ func FreeLocalAddr() ma.Multiaddr {
 	return MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", hostPort))
 }
 
-func SchemaFromInstance(i interface{}, expandedStruct bool) *jsonschema.Schema {
-	reflector := jsonschema.Reflector{ExpandedStruct: expandedStruct}
+func SchemaFromInstance(i interface{}, expandedStruct bool, additionalProperties bool) *jsonschema.Schema {
+	reflector := jsonschema.Reflector{ExpandedStruct: expandedStruct, AllowAdditionalProperties: additionalProperties}
 	return reflector.Reflect(i)
 }
 

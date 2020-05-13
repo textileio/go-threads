@@ -33,7 +33,7 @@ var (
 
 	cc = db.CollectionConfig{
 		Name:   collectionName,
-		Schema: util.SchemaFromInstance(folder{}, false),
+		Schema: util.SchemaFromInstance(folder{}, false, false),
 	}
 
 	errClientAlreadyStarted = errors.New("client already started")
