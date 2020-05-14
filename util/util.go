@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/jsonschema"
+	ipfslite "github.com/hsanjuan/ipfs-lite"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -22,9 +23,8 @@ import (
 
 var (
 	bootstrapPeers = []string{
-		"/ip4/104.210.43.77/tcp/4001/ipfs/12D3KooWSdGmRz5JQidqrtmiPGVHkStXpbSAMnbCcW8abq6zuiDP", // us-west
-		"/ip4/20.39.232.27/tcp/4001/ipfs/12D3KooWLnUv9MWuRM6uHirRPBM4NwRj54n4gNNnBtiFiwPiv3Up",  // eu-west
-		"/ip4/34.87.103.105/tcp/4001/ipfs/12D3KooWA5z2C3z1PNKi36Bw1MxZhBD8nv7UbB7YQP6WcSWYNwRQ", // as-southeast
+		"/ip4/104.210.43.77/tcp/4001/p2p/QmR69wtWUMm1TWnmuD4JqC1TWLZcc8iR2KrTenfZZbiztd",       // us-west-1 hub ipfs host
+		"/ip4/104.210.43.77/tcp/4006/p2p/12D3KooWQEtCBXMKjVas6Ph1pUHG2T4Lc9j1KvnAipojP2xcKU7n", // us-west-1 hub threads host
 	}
 )
 
@@ -93,11 +93,12 @@ func LoadKey(pth string) crypto.PrivKey {
 }
 
 func DefaultBoostrapPeers() []peer.AddrInfo {
-	ais, err := ParseBootstrapPeers(bootstrapPeers)
+	ipfspeers := ipfslite.DefaultBootstrapPeers()
+	textilepeers, err := ParseBootstrapPeers(bootstrapPeers)
 	if err != nil {
 		panic("coudn't parse default bootstrap peers")
 	}
-	return ais
+	return append(textilepeers, ipfspeers...)
 }
 
 func ParseBootstrapPeers(addrs []string) ([]peer.AddrInfo, error) {
