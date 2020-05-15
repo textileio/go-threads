@@ -4,7 +4,7 @@ description: A gRPC client for interacting with remote Threads.
 homepage: 'https://github.com/textileio/go-threads'
 repository: 'https://github.com/textileio/go-threads'
 environment:
-  sdk: '>=2.2.0 <3.0.0'
+  sdk: '>=2.3.0 <3.0.0'
 dependencies:
   async: ^2.2.0
   grpc: ^2.1.3
