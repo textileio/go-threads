@@ -11,6 +11,7 @@ import (
 	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
+	cconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
 	host "github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	peerstore "github.com/libp2p/go-libp2p-core/peerstore"
@@ -52,6 +53,10 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		config.HostAddr = addr
 	}
 
+	if config.ConnManager == nil {
+		config.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
+	}
+
 	ipfsLitePath := filepath.Join(repoPath, defaultIpfsLitePath)
 	if err := os.MkdirAll(ipfsLitePath, os.ModePerm); err != nil {
 		return nil, err
@@ -75,8 +80,9 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		nil,
 		[]ma.Multiaddr{config.HostAddr},
 		litestore,
-		libp2p.ConnectionManager(connmgr.NewConnManager(100, 400, time.Minute)),
 		libp2p.Peerstore(pstore),
+		libp2p.ConnectionManager(config.ConnManager),
+		libp2p.DisableRelay(),
 	)
 	if err != nil {
 		cancel()
@@ -139,6 +145,7 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 
 type NetConfig struct {
 	HostAddr    ma.Multiaddr
+	ConnManager cconnmgr.ConnManager
 	Debug       bool
 	GRPCOptions []grpc.ServerOption
 }
@@ -148,6 +155,13 @@ type NetOption func(c *NetConfig) error
 func WithNetHostAddr(addr ma.Multiaddr) NetOption {
 	return func(c *NetConfig) error {
 		c.HostAddr = addr
+		return nil
+	}
+}
+
+func WithConnectionManager(cm cconnmgr.ConnManager) NetOption {
+	return func(c *NetConfig) error {
+		c.ConnManager = cm
 		return nil
 	}
 }
