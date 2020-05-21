@@ -228,11 +228,11 @@ protobuf {
 }
 
 task copyFiles(type: Copy) {
-    from "../../api.proto"
+    from "../../threads.proto"
     into "$projectDir/src/main/proto/"
 }
 task copyTestFiles(type: Copy) {
-    from "../../api.proto"
+    from "../../threads.proto"
     into "$projectDir/src/test/proto"
 }
 preBuild.dependsOn(copyFiles)
