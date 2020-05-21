@@ -1,6 +1,6 @@
 name: threads_client_grpc
 version: 0.0.0
-description: A gRPC client for interacting with remote Threads.
+description: A gRPC client for interacting with a remote ThreadDB service.
 homepage: 'https://github.com/textileio/go-threads'
 repository: 'https://github.com/textileio/go-threads'
 environment:

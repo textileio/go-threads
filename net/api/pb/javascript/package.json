@@ -1,7 +1,7 @@
 {
   "name": "@textile/threads-net-grpc",
   "version": "0.0.0",
-  "description": "A gRPC client for interacting with a remote Threads network.",
+  "description": "A gRPC client for interacting with a remote ThreadDB network service.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/textileio/go-threads.git"
@@ -9,10 +9,10 @@
   "author": "Textile",
   "license": "MIT",
   "files": [
-    "api_pb.js",
-    "api_pb_service.js",
-    "api_pb.d.ts",
-    "api_pb_service.d.ts"
+    "threadsnet_pb.js",
+    "threadsnet_pb_service.js",
+    "threadsnet_pb.d.ts",
+    "threadsnet_pb_service.d.ts"
   ],
   "dependencies": {
     "@improbable-eng/grpc-web": "^0.12.0",
