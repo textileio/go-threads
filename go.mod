@@ -67,6 +67,6 @@ require (
 	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	google.golang.org/genproto v0.0.0-20191206224255-0243a4be9c8f // indirect
-	google.golang.org/grpc v1.29.0
+	google.golang.org/genproto v0.0.0-20200428115010-c45acf45369a // indirect
+	google.golang.org/grpc v1.29.1
 )
