@@ -16,20 +16,6 @@ const (
 	defaultDatastorePath = "eventstore"
 )
 
-// NewDBOption takes a Config and modifies it.
-type NewDBOption func(*NewDBOptions) error
-
-// NewDBOptions has configuration parameters for a db.
-type NewDBOptions struct {
-	RepoPath    string
-	Datastore   ds.TxnDatastore
-	EventCodec  core.EventCodec
-	Debug       bool
-	LowMem      bool
-	Collections []CollectionConfig
-	Token       thread.Token
-}
-
 func newDefaultEventCodec() core.EventCodec {
 	return jsonpatcher.New()
 }
@@ -46,53 +32,82 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 	return badger.NewDatastore(path, &opts)
 }
 
-// WithNewDBLowMem specifies whether or not to use low memory settings.
-func WithNewDBLowMem(low bool) NewDBOption {
-	return func(o *NewDBOptions) error {
+// NewOptions defines options for creating a new db.
+type NewOptions struct {
+	RepoPath    string
+	Datastore   ds.TxnDatastore
+	EventCodec  core.EventCodec
+	Debug       bool
+	LowMem      bool
+	Collections []CollectionConfig
+	Token       thread.Token
+}
+
+// NewOption specifies a new db option.
+type NewOption func(*NewOptions) error
+
+// WithNewLowMem specifies whether or not to use low memory settings.
+func WithNewLowMem(low bool) NewOption {
+	return func(o *NewOptions) error {
 		o.LowMem = low
 		return nil
 	}
 }
 
-// WithNewDBRepoPath sets the repo path.
-func WithNewDBRepoPath(path string) NewDBOption {
-	return func(o *NewDBOptions) error {
+// WithNewRepoPath sets the repo path.
+func WithNewRepoPath(path string) NewOption {
+	return func(o *NewOptions) error {
 		o.RepoPath = path
 		return nil
 	}
 }
 
-// WithNewDBDebug indicate to output debug information.
-func WithNewDBDebug(enable bool) NewDBOption {
-	return func(o *NewDBOptions) error {
+// WithNewDebug indicate to output debug information.
+func WithNewDebug(enable bool) NewOption {
+	return func(o *NewOptions) error {
 		o.Debug = enable
 		return nil
 	}
 }
 
-// WithNewDBEventCodec configure to use ec as the EventCodec
+// WithNewEventCodec configure to use ec as the EventCodec
 // for transforming actions in events, and viceversa.
-func WithNewDBEventCodec(ec core.EventCodec) NewDBOption {
-	return func(o *NewDBOptions) error {
+func WithNewEventCodec(ec core.EventCodec) NewOption {
+	return func(o *NewOptions) error {
 		o.EventCodec = ec
 		return nil
 	}
 }
 
-// WithNewDBToken provides authorization for interacting with a db.
-func WithNewDBToken(t thread.Token) NewDBOption {
-	return func(o *NewDBOptions) error {
+// WithNewToken provides authorization for interacting with a db.
+func WithNewToken(t thread.Token) NewOption {
+	return func(o *NewOptions) error {
 		o.Token = t
 		return nil
 	}
 }
 
-// WithNewDBCollections is used to specify collections that
+// WithNewCollections is used to specify collections that
 // will be created.
-func WithNewDBCollections(cs ...CollectionConfig) NewDBOption {
-	return func(o *NewDBOptions) error {
+func WithNewCollections(cs ...CollectionConfig) NewOption {
+	return func(o *NewOptions) error {
 		o.Collections = cs
 		return nil
+	}
+}
+
+// Options defines options for interacting with a db.
+type Options struct {
+	Token thread.Token
+}
+
+// Option specifies a db option.
+type Option func(*Options)
+
+// WithToken provides authorization for interacting with a db.
+func WithToken(t thread.Token) Option {
+	return func(args *Options) {
+		args.Token = t
 	}
 }
 
@@ -111,56 +126,41 @@ func WithTxnToken(t thread.Token) TxnOption {
 	}
 }
 
-// NewManagedDBOptions defines options for creating a new managed db.
-type NewManagedDBOptions struct {
+// NewManagedOptions defines options for creating a new managed db.
+type NewManagedOptions struct {
 	Collections []CollectionConfig
 	Token       thread.Token
 }
 
-// NewManagedDBOption specifies a new managed db option.
-type NewManagedDBOption func(*NewManagedDBOptions)
+// NewManagedOption specifies a new managed db option.
+type NewManagedOption func(*NewManagedOptions)
 
-// WithNewManagedDBCollections is used to specify collections that
+// WithNewManagedCollections is used to specify collections that
 // will be created in a managed db.
-func WithNewManagedDBCollections(cs ...CollectionConfig) NewManagedDBOption {
-	return func(args *NewManagedDBOptions) {
+func WithNewManagedCollections(cs ...CollectionConfig) NewManagedOption {
+	return func(args *NewManagedOptions) {
 		args.Collections = cs
 	}
 }
 
-// WithNewManagedDBToken provides authorization for creating a new managed db.
-func WithNewManagedDBToken(t thread.Token) NewManagedDBOption {
-	return func(args *NewManagedDBOptions) {
+// WithNewManagedToken provides authorization for creating a new managed db.
+func WithNewManagedToken(t thread.Token) NewManagedOption {
+	return func(args *NewManagedOptions) {
 		args.Token = t
 	}
 }
 
-// ManagedDBOptions defines options for interacting with a managed db.
-type ManagedDBOptions struct {
+// ManagedOptions defines options for interacting with a managed db.
+type ManagedOptions struct {
 	Token thread.Token
 }
 
-// ManagedDBOption specifies a managed db option.
-type ManagedDBOption func(*ManagedDBOptions)
+// ManagedOption specifies a managed db option.
+type ManagedOption func(*ManagedOptions)
 
-// WithManagedDBToken provides authorization for interacting with a managed db.
-func WithManagedDBToken(t thread.Token) ManagedDBOption {
-	return func(args *ManagedDBOptions) {
-		args.Token = t
-	}
-}
-
-// InviteInfoOptions defines options getting DB invite info.
-type InviteInfoOptions struct {
-	Token thread.Token
-}
-
-// InviteInfoOption specifies a managed db option.
-type InviteInfoOption func(*InviteInfoOptions)
-
-// WithInviteInfoToken provides authorization for accessing DB invite info.
-func WithInviteInfoToken(t thread.Token) InviteInfoOption {
-	return func(args *InviteInfoOptions) {
+// WithManagedToken provides authorization for interacting with a managed db.
+func WithManagedToken(t thread.Token) ManagedOption {
+	return func(args *ManagedOptions) {
 		args.Token = t
 	}
 }

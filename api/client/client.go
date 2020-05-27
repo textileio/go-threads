@@ -152,8 +152,8 @@ func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok th
 }
 
 // NewDB creates a new DB with ID.
-func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManagedDBOption) error {
-	args := &db.NewManagedDBOptions{}
+func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManagedOption) error {
+	args := &db.NewManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -174,8 +174,8 @@ func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManage
 }
 
 // NewDBFromAddr creates a new DB with address and keys.
-func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey thread.Key, opts ...db.NewManagedDBOption) error {
-	args := &db.NewManagedDBOptions{}
+func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey thread.Key, opts ...db.NewManagedOption) error {
+	args := &db.NewManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -197,9 +197,9 @@ func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey t
 }
 
 func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
-	idx := make([]*pb.CollectionConfig_IndexConfig, len(c.Indexes))
+	idx := make([]*pb.Index, len(c.Indexes))
 	for i, index := range c.Indexes {
-		idx[i] = &pb.CollectionConfig_IndexConfig{
+		idx[i] = &pb.Index{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
@@ -216,8 +216,8 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 }
 
 // GetDBInfo retrives db addresses and keys.
-func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) ([]ma.Multiaddr, thread.Key, error) {
-	args := &db.ManagedDBOptions{}
+func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) ([]ma.Multiaddr, thread.Key, error) {
+	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -244,8 +244,8 @@ func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.Manag
 }
 
 // DeleteDB deletes a db.
-func (c *Client) DeleteDB(ctx context.Context, dbID thread.ID, opts ...db.ManagedDBOption) error {
-	args := &db.ManagedDBOptions{}
+func (c *Client) DeleteDB(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) error {
+	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -257,9 +257,8 @@ func (c *Client) DeleteDB(ctx context.Context, dbID thread.ID, opts ...db.Manage
 }
 
 // NewCollection creates a new collection.
-// @todo: This should take some thread auth, but collections currently do not involve a thread.
-func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedDBOption) error {
-	args := &db.ManagedDBOptions{}
+func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedOption) error {
+	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -272,6 +271,59 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 		Config: cc,
 	})
 	return err
+}
+
+// UpdateCollection updates an existing collection.
+func (c *Client) UpdateCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedOption) error {
+	args := &db.ManagedOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	cc, err := collectionConfigToPb(config)
+	if err != nil {
+		return err
+	}
+	_, err = c.c.UpdateCollection(ctx, &pb.UpdateCollectionRequest{
+		DbID:   dbID.Bytes(),
+		Config: cc,
+	})
+	return err
+}
+
+// DeleteCollection deletes a collection.
+func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedOption) error {
+	args := &db.ManagedOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	_, err := c.c.DeleteCollection(ctx, &pb.DeleteCollectionRequest{
+		DbID: dbID.Bytes(),
+		Name: name,
+	})
+	return err
+}
+
+// GetCollectionIndexes returns an existing collection's indexes.
+func (c *Client) GetCollectionIndexes(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedOption) ([]db.Index, error) {
+	args := &db.ManagedOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	resp, err := c.c.GetCollectionIndexes(ctx, &pb.GetCollectionIndexesRequest{
+		DbID: dbID.Bytes(),
+		Name: name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	indexes := make([]db.Index, len(resp.Indexes))
+	for i, index := range resp.Indexes {
+		indexes[i] = db.Index{
+			Path:   index.Path,
+			Unique: index.Unique,
+		}
+	}
+	return indexes, nil
 }
 
 // Create creates new instances of objects.

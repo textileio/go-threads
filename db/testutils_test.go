@@ -19,12 +19,12 @@ func checkErr(t *testing.T, err error) {
 	}
 }
 
-func createTestDB(t *testing.T, opts ...NewDBOption) (*DB, func()) {
+func createTestDB(t *testing.T, opts ...NewOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
-	opts = append(opts, WithNewDBRepoPath(dir))
+	opts = append(opts, WithNewRepoPath(dir))
 	d, err := NewDB(context.Background(), n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkErr(t, err)
 	return d, func() {

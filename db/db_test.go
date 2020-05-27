@@ -31,7 +31,7 @@ func TestE2EWithThreads(t *testing.T) {
 	defer n1.Close()
 
 	id1 := thread.NewIDV1(thread.Raw, 32)
-	d1, err := NewDB(context.Background(), n1, id1, WithNewDBRepoPath(tmpDir1))
+	d1, err := NewDB(context.Background(), n1, id1, WithNewRepoPath(tmpDir1))
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollection(CollectionConfig{
@@ -70,7 +70,7 @@ func TestE2EWithThreads(t *testing.T) {
 		Name:   "dummy",
 		Schema: util.SchemaFromInstance(&dummy{}, false),
 	}
-	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithNewDBRepoPath(tmpDir2), WithNewDBCollections(cc))
+	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithNewRepoPath(tmpDir2), WithNewCollections(cc))
 	checkErr(t, err)
 	defer d2.Close()
 	c2 := d1.GetCollection("dummy")
@@ -102,7 +102,7 @@ func TestOptions(t *testing.T) {
 
 	ec := &mockEventCodec{}
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, id, WithNewDBRepoPath(tmpDir), WithNewDBEventCodec(ec))
+	d, err := NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollection(CollectionConfig{
@@ -125,7 +125,7 @@ func TestOptions(t *testing.T) {
 	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewDBRepoPath(tmpDir), WithNewDBEventCodec(ec))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }
@@ -352,7 +352,7 @@ type mockEventCodec struct {
 
 var _ core.EventCodec = (*mockEventCodec)(nil)
 
-func (dec *mockEventCodec) Reduce([]core.Event, ds.TxnDatastore, ds.Key, func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error) ([]core.ReduceAction, error) {
+func (dec *mockEventCodec) Reduce([]core.Event, ds.TxnDatastore, ds.Key, core.IndexFunc) ([]core.ReduceAction, error) {
 	dec.called = true
 	return nil, nil
 }

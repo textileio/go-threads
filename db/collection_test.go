@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"reflect"
@@ -21,11 +22,33 @@ type Person struct {
 	Age  int
 }
 
+type Person2 struct {
+	ID       core.InstanceID `json:"_id"`
+	Name     string
+	Age      int
+	Toys     Toys
+	Comments []Comment
+}
+
 type Dog struct {
 	ID       core.InstanceID `json:"_id"`
 	Name     string
 	Comments []Comment
 }
+
+type Dog2 struct {
+	ID       core.InstanceID `json:"_id"`
+	FullName string
+	Breed    string
+	Toys     Toys
+	Comments []Comment
+}
+
+type Toys struct {
+	Favorite string
+	Names    []string
+}
+
 type Comment struct {
 	Body string
 }
@@ -46,6 +69,36 @@ func TestNewCollection(t *testing.T) {
 			Schema: util.SchemaFromInstance(&Dog{}, false),
 		})
 		checkErr(t, err)
+	})
+	t.Run("WithIndexes", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog{}, false),
+			Indexes: []Index{{Path: "Name", Unique: false}},
+		})
+		checkErr(t, err)
+		indexes := c.GetIndexes()
+		if len(indexes) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+		}
+	})
+	t.Run("WithNestedIndexes", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog2{}, false),
+			Indexes: []Index{{Path: "FullName", Unique: true}, {Path: "Toys.Favorite"}},
+		})
+		checkErr(t, err)
+		indexes := c.GetIndexes()
+		if len(indexes) != 3 {
+			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		}
 	})
 	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
 		t.Parallel()
@@ -111,32 +164,251 @@ func TestNewCollection(t *testing.T) {
 			t.Fatal("the collection name should be invalid")
 		}
 	})
+	t.Run("Fail/BadIndexPath", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		_, err := db.NewCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog{}, false),
+			Indexes: []Index{{Path: "Missing", Unique: false}},
+		})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+}
+
+func TestUpdateCollection(t *testing.T) {
+	t.Parallel()
+	t.Run("AddFields", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+		})
+		checkErr(t, err)
+		_, err = c.Create([]byte(`{"Name": "Fido", "Comments": []}`))
+		checkErr(t, err)
+
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog2{}, false),
+		})
+		checkErr(t, err)
+		_, err = c.Create([]byte(`{"Name": "Fido", "Comments": []}`))
+		if err == nil {
+			t.Fatal("instance should not be valid")
+		}
+		_, err = c.Create([]byte(`{"FullName": "Lassie", "Breed": "Collie", "Toys": {"Favorite": "Ball", "Names": ["Ball", "Frisbee"]}, "Comments": []}`))
+		checkErr(t, err)
+
+		dogs, err := c.Find(&Query{})
+		checkErr(t, err)
+		if len(dogs) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(dogs))
+		}
+		dog1 := &Dog2{}
+		err = json.Unmarshal(dogs[0], dog1)
+		checkErr(t, err)
+		dog2 := &Dog2{}
+		err = json.Unmarshal(dogs[1], dog2)
+		checkErr(t, err)
+	})
+	t.Run("AddFieldsAndIndexes", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		_, err := db.NewCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog{}, false),
+			Indexes: []Index{{Path: "Name", Unique: true}},
+		})
+		checkErr(t, err)
+		c, err := db.UpdateCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog2{}, false),
+			Indexes: []Index{{Path: "FullName", Unique: true}, {Path: "Toys.Favorite"}},
+		})
+		checkErr(t, err)
+		indexes := c.GetIndexes()
+		if len(indexes) != 3 {
+			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		}
+	})
+	t.Run("RemoveFieldsAndIndexes", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		_, err := db.NewCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog2{}, false),
+			Indexes: []Index{{Path: "FullName", Unique: true}, {Path: "Toys.Favorite"}},
+		})
+		checkErr(t, err)
+		c, err := db.UpdateCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog{}, false),
+			Indexes: []Index{{Path: "Name", Unique: true}},
+		})
+		checkErr(t, err)
+		indexes := c.GetIndexes()
+		if len(indexes) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+		}
+	})
+	t.Run("Fail/BadIndexPath", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		_, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+		})
+		checkErr(t, err)
+		_, err = db.UpdateCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog{}, false),
+			Indexes: []Index{{Path: "Missing", Unique: false}},
+		})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+}
+
+func TestDeleteCollection(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	_, err := db.NewCollection(CollectionConfig{
+		Name:    "Dog",
+		Schema:  util.SchemaFromInstance(&Dog2{}, false),
+		Indexes: []Index{{Path: "FullName", Unique: true}},
+	})
+	checkErr(t, err)
+	err = db.DeleteCollection("Dog")
+	checkErr(t, err)
+	if db.GetCollection("Dog") != nil {
+		t.Fatal("collection should be deleted")
+	}
 }
 
 func TestAddIndex(t *testing.T) {
 	t.Parallel()
-	t.Run("CreateDBAndCollection", func(t *testing.T) {
-		t.Parallel()
-		db, clean := createTestDB(t)
-		defer clean()
-		collection, err := db.NewCollection(CollectionConfig{
-			Name:   "Person",
-			Schema: util.SchemaFromInstance(&Person{}, false),
-		})
-		checkErr(t, err)
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	c, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: schema,
+	})
+	checkErr(t, err)
 
-		t.Run("AddNameUniqueIndex", func(t *testing.T) {
-			err := collection.AddIndex(IndexConfig{Path: "Name", Unique: true})
-			checkErr(t, err)
-		})
-		t.Run("AddAgeNonUniqueIndex", func(t *testing.T) {
-			err := collection.AddIndex(IndexConfig{Path: "Age", Unique: false})
-			checkErr(t, err)
-		})
-		t.Run("AddIDIndex", func(t *testing.T) {
-			err := collection.AddIndex(IndexConfig{Path: "ID", Unique: true})
-			checkErr(t, err)
-		})
+	t.Run("AddNameUniqueIndex", func(t *testing.T) {
+		err := c.addIndex(schema, Index{Path: "Name", Unique: false})
+		checkErr(t, err)
+	})
+	t.Run("AddAgeNonUniqueIndex", func(t *testing.T) {
+		err := c.addIndex(schema, Index{Path: "Age", Unique: false})
+		checkErr(t, err)
+	})
+	t.Run("AddNestedIndex", func(t *testing.T) {
+		err := c.addIndex(schema, Index{Path: "Toys.Favorite", Unique: false})
+		checkErr(t, err)
+	})
+	t.Run("Fail/AddIndexWithBadPath", func(t *testing.T) {
+		err := c.addIndex(schema, Index{Path: "Bad.Path", Unique: false})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+	t.Run("Fail/AddIndexOnRef", func(t *testing.T) {
+		err := c.addIndex(schema, Index{Path: "Toys", Unique: false})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+	t.Run("Fail/AddIndexOnBadType", func(t *testing.T) {
+		err := c.addIndex(schema, Index{Path: "Comments", Unique: false})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+	t.Run("Fail/AddUniqueIndexOnNonUniquePath", func(t *testing.T) {
+		_, err := c.Create(util.JSONFromInstance(Person2{Name: "Foo", Age: 42, Toys: Toys{Favorite: "", Names: []string{}}, Comments: []Comment{}}))
+		checkErr(t, err)
+		_, err = c.Create(util.JSONFromInstance(Person2{Name: "Foo", Age: 42, Toys: Toys{Favorite: "", Names: []string{}}, Comments: []Comment{}}))
+		checkErr(t, err)
+		err = c.addIndex(schema, Index{Path: "Name", Unique: true})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+}
+
+func TestGetIndexes(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	c, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: schema,
+	})
+	checkErr(t, err)
+	indexes := c.GetIndexes()
+	if len(indexes) != 1 {
+		t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
+	}
+	if !indexes[0].Unique {
+		t.Fatal("index on _id should be unique")
+	}
+	err = c.addIndex(schema, Index{Path: "Name", Unique: false})
+	checkErr(t, err)
+	indexes = c.GetIndexes()
+	if len(indexes) != 2 {
+		t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+	}
+	if indexes[1].Unique {
+		t.Fatal("index on Name should not be unique")
+	}
+}
+
+func TestDropIndex(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	c, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: schema,
+	})
+	checkErr(t, err)
+	err = c.addIndex(schema, Index{Path: "Name", Unique: true})
+	checkErr(t, err)
+	err = c.addIndex(schema, Index{Path: "Age", Unique: false})
+	checkErr(t, err)
+	err = c.addIndex(schema, Index{Path: "Toys.Favorite", Unique: false})
+	checkErr(t, err)
+
+	t.Run("DropIndex", func(t *testing.T) {
+		err := c.dropIndex("Age")
+		checkErr(t, err)
+		indexes := c.GetIndexes()
+		if len(indexes) != 3 {
+			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		}
+	})
+	t.Run("DropNestedIndex", func(t *testing.T) {
+		err := c.dropIndex("Toys.Favorite")
+		checkErr(t, err)
+		indexes := c.GetIndexes()
+		if len(indexes) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+		}
 	})
 }
 
@@ -146,7 +418,7 @@ func TestCreateInstance(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollection(CollectionConfig{
+		c, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
 			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
@@ -154,28 +426,28 @@ func TestCreateInstance(t *testing.T) {
 
 		t.Run("WithImplicitTx", func(t *testing.T) {
 			newPerson := util.JSONFromInstance(Person{Name: "Foo", Age: 42})
-			res, err := collection.Create(newPerson)
+			res, err := c.Create(newPerson)
 			checkErr(t, err)
 			newPerson = util.SetJSONID(res, newPerson)
-			assertPersonInCollection(t, collection, newPerson)
+			assertPersonInCollection(t, c, newPerson)
 		})
 		t.Run("WithTx", func(t *testing.T) {
 			newPerson := util.JSONFromInstance(Person{Name: "Foo", Age: 42})
 			var res []core.InstanceID
-			err = collection.WriteTxn(func(txn *Txn) (err error) {
+			err = c.WriteTxn(func(txn *Txn) (err error) {
 				res, err = txn.Create(newPerson)
 				return
 			})
 			checkErr(t, err)
 			newPerson = util.SetJSONID(res[0], newPerson)
-			assertPersonInCollection(t, collection, newPerson)
+			assertPersonInCollection(t, c, newPerson)
 		})
 	})
 	t.Run("Multiple", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollection(CollectionConfig{
+		c, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
 			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
@@ -185,7 +457,7 @@ func TestCreateInstance(t *testing.T) {
 		newPerson2 := util.JSONFromInstance(Person{Name: "Foo2", Age: 43})
 		var res1 []core.InstanceID
 		var res2 []core.InstanceID
-		err = collection.WriteTxn(func(txn *Txn) (err error) {
+		err = c.WriteTxn(func(txn *Txn) (err error) {
 			res1, err = txn.Create(newPerson1)
 			if err != nil {
 				return
@@ -196,14 +468,14 @@ func TestCreateInstance(t *testing.T) {
 		checkErr(t, err)
 		newPerson1 = util.SetJSONID(res1[0], newPerson1)
 		newPerson2 = util.SetJSONID(res2[0], newPerson2)
-		assertPersonInCollection(t, collection, newPerson1)
-		assertPersonInCollection(t, collection, newPerson2)
+		assertPersonInCollection(t, c, newPerson1)
+		assertPersonInCollection(t, c, newPerson2)
 	})
 	t.Run("WithDefinedID", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollection(CollectionConfig{
+		c, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
 			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
@@ -211,15 +483,15 @@ func TestCreateInstance(t *testing.T) {
 
 		definedID := core.NewInstanceID()
 		newPerson := util.JSONFromInstance(&Person{ID: definedID, Name: "Foo1", Age: 42})
-		_, err = collection.Create(newPerson)
+		_, err = c.Create(newPerson)
 		checkErr(t, err)
 
-		exists, err := collection.Has(definedID)
+		exists, err := c.Has(definedID)
 		checkErr(t, err)
 		if !exists {
 			t.Fatal("manually defined instance ID should exist")
 		}
-		assertPersonInCollection(t, collection, newPerson)
+		assertPersonInCollection(t, c, newPerson)
 	})
 	t.Run("Re-Create", func(t *testing.T) {
 		t.Parallel()
@@ -244,7 +516,6 @@ func TestCreateInstance(t *testing.T) {
 
 func TestReadTxnValidation(t *testing.T) {
 	t.Parallel()
-
 	t.Run("TryCreate", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
@@ -355,7 +626,7 @@ func TestGetInstance(t *testing.T) {
 
 	db, clean := createTestDB(t)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{
+	c, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
 		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
@@ -363,7 +634,7 @@ func TestGetInstance(t *testing.T) {
 
 	newPerson := util.JSONFromInstance(Person{Name: "Foo", Age: 42})
 	var res []core.InstanceID
-	err = collection.WriteTxn(func(txn *Txn) (err error) {
+	err = c.WriteTxn(func(txn *Txn) (err error) {
 		res, err = txn.Create(newPerson)
 		return
 	})
@@ -373,7 +644,7 @@ func TestGetInstance(t *testing.T) {
 	util.InstanceFromJSON(newPerson, newPersonInstance)
 
 	t.Run("WithImplicitTx", func(t *testing.T) {
-		found, err := collection.FindByID(res[0])
+		found, err := c.FindByID(res[0])
 		checkErr(t, err)
 
 		foundInstance := &Person{}
@@ -385,7 +656,7 @@ func TestGetInstance(t *testing.T) {
 	})
 	t.Run("WithReadTx", func(t *testing.T) {
 		var found []byte
-		err = collection.ReadTxn(func(txn *Txn) (err error) {
+		err = c.ReadTxn(func(txn *Txn) (err error) {
 			found, err = txn.FindByID(res[0])
 			return
 		})
@@ -400,7 +671,7 @@ func TestGetInstance(t *testing.T) {
 	})
 	t.Run("WithWriteTx", func(t *testing.T) {
 		var found []byte
-		err = collection.WriteTxn(func(txn *Txn) (err error) {
+		err = c.WriteTxn(func(txn *Txn) (err error) {
 			found, err = txn.FindByID(res[0])
 			return
 		})
@@ -417,12 +688,11 @@ func TestGetInstance(t *testing.T) {
 
 func TestSaveInstance(t *testing.T) {
 	t.Parallel()
-
 	t.Run("Simple", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()
-		collection, err := db.NewCollection(CollectionConfig{
+		c, err := db.NewCollection(CollectionConfig{
 			Name:   "Person",
 			Schema: util.SchemaFromInstance(&Person{}, false),
 		})
@@ -430,13 +700,13 @@ func TestSaveInstance(t *testing.T) {
 
 		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
 		var res []core.InstanceID
-		err = collection.WriteTxn(func(txn *Txn) (err error) {
+		err = c.WriteTxn(func(txn *Txn) (err error) {
 			res, err = txn.Create(newPerson)
 			return
 		})
 		checkErr(t, err)
 
-		err = collection.WriteTxn(func(txn *Txn) error {
+		err = c.WriteTxn(func(txn *Txn) error {
 			instance, err := txn.FindByID(res[0])
 			checkErr(t, err)
 
@@ -448,7 +718,7 @@ func TestSaveInstance(t *testing.T) {
 		})
 		checkErr(t, err)
 
-		instance, err := collection.FindByID(res[0])
+		instance, err := c.FindByID(res[0])
 		checkErr(t, err)
 		person := &Person{}
 		util.InstanceFromJSON(instance, person)
@@ -475,10 +745,9 @@ func TestSaveInstance(t *testing.T) {
 
 func TestDeleteInstance(t *testing.T) {
 	t.Parallel()
-
 	db, clean := createTestDB(t)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{
+	c, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
 		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
@@ -486,25 +755,25 @@ func TestDeleteInstance(t *testing.T) {
 
 	newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
 	var res []core.InstanceID
-	err = collection.WriteTxn(func(txn *Txn) (err error) {
+	err = c.WriteTxn(func(txn *Txn) (err error) {
 		res, err = txn.Create(newPerson)
 		return
 	})
 	checkErr(t, err)
 
-	err = collection.Delete(res[0])
+	err = c.Delete(res[0])
 	checkErr(t, err)
 
-	_, err = collection.FindByID(res[0])
-	if err != ErrNotFound {
+	_, err = c.FindByID(res[0])
+	if err != ErrInstanceNotFound {
 		t.Fatalf("FindByID: instance shouldn't exist")
 	}
-	if exist, err := collection.Has(res[0]); exist || err != nil {
+	if exist, err := c.Has(res[0]); exist || err != nil {
 		t.Fatalf("Has: instance shouldn't exist")
 	}
 
 	// Try to delete again
-	if err = collection.Delete(res[0]); err != ErrNotFound {
+	if err = c.Delete(res[0]); err != ErrInstanceNotFound {
 		t.Fatalf("cant't delete non-existent instance")
 	}
 }
@@ -516,36 +785,35 @@ type PersonFake struct {
 
 func TestInvalidActions(t *testing.T) {
 	t.Parallel()
-
 	db, clean := createTestDB(t)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{
+	c, err := db.NewCollection(CollectionConfig{
 		Name:   "Person",
 		Schema: util.SchemaFromInstance(&Person{}, false),
 	})
 	checkErr(t, err)
 	t.Run("Create", func(t *testing.T) {
 		f := util.JSONFromInstance(PersonFake{Name: "fake"})
-		if _, err := collection.Create(f); !errors.Is(err, ErrInvalidSchemaInstance) {
+		if _, err := c.Create(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
 	t.Run("Save", func(t *testing.T) {
 		r := util.JSONFromInstance(Person{Name: "real"})
-		_, err := collection.Create(r)
+		_, err := c.Create(r)
 		checkErr(t, err)
 		f := util.JSONFromInstance(PersonFake{Name: "fake"})
-		if err := collection.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
+		if err := c.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
 }
 
-func assertPersonInCollection(t *testing.T, collection *Collection, personBytes []byte) {
+func assertPersonInCollection(t *testing.T, c *Collection, personBytes []byte) {
 	t.Helper()
 	person := &Person{}
 	util.InstanceFromJSON(personBytes, person)
-	res, err := collection.FindByID(person.ID)
+	res, err := c.FindByID(person.ID)
 	checkErr(t, err)
 	p := &Person{}
 	util.InstanceFromJSON(res, p)

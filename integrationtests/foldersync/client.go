@@ -77,7 +77,7 @@ func newRootClient(name, folderPath, repoPath string) (*client, error) {
 		return nil, err
 	}
 
-	d, err := db.NewDB(context.Background(), network, id, db.WithNewDBRepoPath(repoPath), db.WithNewDBCollections(cc))
+	d, err := db.NewDB(context.Background(), network, id, db.WithNewRepoPath(repoPath), db.WithNewCollections(cc))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 		return nil, err
 	}
 
-	d, err := db.NewDBFromAddr(context.Background(), network, addr, key, db.WithNewDBRepoPath(repoPath), db.WithNewDBCollections(cc))
+	d, err := db.NewDBFromAddr(context.Background(), network, addr, key, db.WithNewRepoPath(repoPath), db.WithNewCollections(cc))
 	if err != nil {
 		return nil, err
 	}

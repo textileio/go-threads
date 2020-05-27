@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Query is a json-seriable query representation
+// Query is a json-seriable query representation.
 type Query struct {
 	Ands  []*Criterion
 	Ors   []*Query
@@ -16,7 +16,7 @@ type Query struct {
 	Index string
 }
 
-// Criterion represents a restriction on a field
+// Criterion represents a restriction on a field.
 type Criterion struct {
 	FieldPath string
 	Operation Operation
@@ -24,13 +24,14 @@ type Criterion struct {
 	query     *Query
 }
 
-// Value models a single value in JSON
+// Value models a single value in JSON.
 type Value struct {
 	String *string
 	Bool   *bool
 	Float  *float64
 }
 
+// Validate validates en entire query.
 func (q *Query) Validate() error {
 	if q == nil {
 		return nil
@@ -48,6 +49,7 @@ func (q *Query) Validate() error {
 	return nil
 }
 
+// Validate validates a single query criterion.
 func (c *Criterion) Validate() error {
 	if c == nil {
 		return nil
@@ -68,13 +70,13 @@ func (c *Criterion) Validate() error {
 	return nil
 }
 
-// Sort represents a sort order on a field
+// Sort represents a sort order on a field.
 type Sort struct {
 	FieldPath string
 	Desc      bool
 }
 
-// Operation models comparison operators
+// Operation models comparison operators.
 type Operation int
 
 const (
@@ -98,7 +100,7 @@ var (
 	ErrInvalidSortingField = errors.New("sorting field doesn't correspond to instance type")
 )
 
-// Where starts to create a query condition for a field
+// Where starts to create a query condition for a field.
 func Where(field string) *Criterion {
 	return &Criterion{
 		FieldPath: field,
@@ -129,7 +131,7 @@ func (q *Query) And(field string) *Criterion {
 	}
 }
 
-// UseIndex specifies the index to use when running this query
+// UseIndex specifies the index to use when running this query.
 func (q *Query) UseIndex(path string) *Query {
 	q.Index = path
 	return q
@@ -242,7 +244,7 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 		return nil, fmt.Errorf("error building internal query: %v", err)
 	}
 	defer txn.Discard()
-	iter := newIterator(txn, t.collection.BaseKey(), q)
+	iter := newIterator(txn, t.collection.baseKey(), q)
 	defer iter.Close()
 
 	var values []MarshaledResult

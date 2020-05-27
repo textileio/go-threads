@@ -311,7 +311,7 @@ func createCollectionWithJSONData(t *testing.T) (*Collection, []Book, func()) {
 	c, err := s.NewCollection(CollectionConfig{
 		Name:   "Book",
 		Schema: util.SchemaFromInstance(&Book{}, false),
-		Indexes: []IndexConfig{
+		Indexes: []Index{
 			{
 				Path: "Meta.TotalReads",
 			},

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/alecthomas/jsonschema"
@@ -12,14 +11,18 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/tidwall/gjson"
 	"github.com/xeipuuv/gojsonschema"
 )
 
 var (
-	// ErrNotFound indicates that the specified instance doesn't
-	// exist in the collection.
-	ErrNotFound = errors.New("instance not found")
+	// ErrInvalidCollectionSchemaPath indicates path does not resolve to a schema type.
+	ErrInvalidCollectionSchemaPath = errors.New("collection schema does not contain path")
+	// ErrCollectionNotFound indicates that the specified collection doesn't exist in the db.
+	ErrCollectionNotFound = errors.New("collection not found")
+	// ErrCollectionAlreadyRegistered indicates a collection with the given name is already registered.
+	ErrCollectionAlreadyRegistered = errors.New("collection already registered")
+	// ErrInstanceNotFound indicates that the specified instance doesn't exist in the collection.
+	ErrInstanceNotFound = errors.New("instance not found")
 	// ErrReadonlyTx indicates that no write operations can be done since
 	// the current transaction is readonly.
 	ErrReadonlyTx = errors.New("read only transaction")
@@ -35,120 +38,46 @@ var (
 	baseKey = dsDBPrefix.ChildString("collection")
 )
 
-// Collection contains instances of a schema, and provides operations
-// for creating, updating, deleting, and quering them.
+// Collection is a group of instances sharing a schema.
+// Collections are like RDBMS tables. They can only exist in a single database.
 type Collection struct {
 	name         string
 	schemaLoader gojsonschema.JSONLoader
-	valueType    reflect.Type
 	db           *DB
 	indexes      map[string]Index
 }
 
+// newCollection returns a new Collection from schema.
 func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, error) {
 	if name != "" && !collectionNameRx.MatchString(name) {
 		return nil, ErrInvalidCollectionName
 	}
-
-	// by default, use top level properties to validate ID string property exists
-	properties := schema.Properties
-	if schema.Ref != "" {
-		// the schema specifies a ref to a nested type, use it instead
-		parts := strings.Split(schema.Ref, "/")
-		if len(parts) < 1 {
+	idType, err := getSchemaTypeAtPath(schema, idFieldName)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCollectionSchemaPath) {
 			return nil, ErrInvalidCollectionSchema
+		} else {
+			return nil, err
 		}
-		typeName := parts[len(parts)-1]
-		refDefinition := schema.Definitions[typeName]
-		if refDefinition == nil {
-			return nil, ErrInvalidCollectionSchema
-		}
-		properties = refDefinition.Properties
 	}
-	if !hasIDProperty(properties) {
+	if idType.Type != "string" {
 		return nil, ErrInvalidCollectionSchema
 	}
-
-	schemaBytes, err := json.Marshal(schema)
+	sb, err := json.Marshal(schema)
 	if err != nil {
 		return nil, err
 	}
-	schemaLoader := gojsonschema.NewBytesLoader(schemaBytes)
-	c := &Collection{
+	return &Collection{
 		name:         name,
-		schemaLoader: schemaLoader,
-		valueType:    nil,
+		schemaLoader: gojsonschema.NewBytesLoader(sb),
 		db:           d,
 		indexes:      make(map[string]Index),
-	}
-	return c, nil
+	}, nil
 }
 
-func (c *Collection) BaseKey() ds.Key {
+// baseKey returns the collections base key.
+func (c *Collection) baseKey() ds.Key {
 	return baseKey.ChildString(c.name)
-}
-
-// Indexes is a map of collection properties to Indexes
-func (c *Collection) Indexes() map[string]Index {
-	return c.indexes
-}
-
-// AddIndex creates a new index based on the given path string.
-// Set unique to true if you want a unique constraint on the given path.
-// See https://github.com/tidwall/gjson for documentation on the supported path structure.
-// Adding an index will override any overlapping index values if they already exist.
-// @note: This does NOT currently build the index. If items have been added prior to adding
-// a new index, they will NOT be indexed a posteriori.
-func (c *Collection) AddIndex(config IndexConfig) error {
-	indexKey := dsDBIndexes.ChildString(c.name)
-	exists, err := c.db.datastore.Has(indexKey)
-	if err != nil {
-		return err
-	}
-
-	indexes := map[string]IndexConfig{}
-
-	if exists {
-		indexesBytes, err := c.db.datastore.Get(indexKey)
-		if err != nil {
-			return err
-		}
-		if err = json.Unmarshal(indexesBytes, &indexes); err != nil {
-			return err
-		}
-	}
-
-	// if the index being added is for path ID
-	if config.Path == idFieldName {
-		// and there already is and index on ID
-		if _, exists := indexes[idFieldName]; exists {
-			// just return gracefully
-			return nil
-		}
-	}
-
-	indexes[config.Path] = config
-
-	indexBytes, err := json.Marshal(indexes)
-	if err != nil {
-		return err
-	}
-
-	if err := c.db.datastore.Put(indexKey, indexBytes); err != nil {
-		return err
-	}
-
-	c.indexes[config.Path] = Index{
-		IndexFunc: func(field string, value []byte) (ds.Key, error) {
-			result := gjson.GetBytes(value, field)
-			if !result.Exists() {
-				return ds.Key{}, ErrNotIndexable
-			}
-			return ds.NewKey(result.String()), nil
-		},
-		Unique: config.Unique,
-	}
-	return nil
 }
 
 // ReadTxn creates an explicit readonly transaction. Any operation
@@ -165,7 +94,7 @@ func (c *Collection) WriteTxn(f func(txn *Txn) error, opts ...TxnOption) error {
 }
 
 // FindByID finds an instance by its ID.
-// If doesn't exists returns ErrNotFound.
+// If doesn't exists returns ErrInstanceNotFound.
 func (c *Collection) FindByID(id core.InstanceID, opts ...TxnOption) (instance []byte, err error) {
 	_ = c.ReadTxn(func(txn *Txn) error {
 		instance, err = txn.FindByID(id)
@@ -258,20 +187,6 @@ func (c *Collection) Find(q *Query, opts ...TxnOption) (instances [][]byte, err 
 	return
 }
 
-// validInstance validates the json object against the collection schema
-func (c *Collection) validInstance(v []byte) (bool, error) {
-	var vLoader gojsonschema.JSONLoader
-	vLoader = gojsonschema.NewBytesLoader(v)
-	r, err := gojsonschema.Validate(c.schemaLoader, vLoader)
-	if err != nil {
-		return false, err
-	}
-	return r.Valid(), nil
-}
-
-// Sanity check
-var _ Indexer = (*Collection)(nil)
-
 // Txn represents a read/write transaction in the db. It allows for
 // serializable isolation level within the db.
 type Txn struct {
@@ -297,14 +212,6 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 		updated := make([]byte, len(new[i]))
 		copy(updated, new[i])
 
-		valid, err := t.collection.validInstance(updated)
-		if err != nil {
-			return nil, err
-		}
-		if !valid {
-			return nil, ErrInvalidSchemaInstance
-		}
-
 		id, err := getInstanceID(updated)
 		if err != nil && !errors.Is(err, errMissingInstanceID) {
 			return nil, err
@@ -312,6 +219,11 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 		if id == core.EmptyInstanceID {
 			id, updated = setNewInstanceID(updated)
 		}
+
+		if err := t.collection.validInstance(updated); err != nil {
+			return nil, err
+		}
+
 		results[i] = id
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -334,8 +246,7 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 	return results, nil
 }
 
-// Save saves an instance changes to be commited when the
-// current transaction commits.
+// Save saves an instance changes to be commited when the current transaction commits.
 func (t *Txn) Save(updated ...[]byte) error {
 	for i := range updated {
 		if t.readonly {
@@ -345,12 +256,8 @@ func (t *Txn) Save(updated ...[]byte) error {
 		item := make([]byte, len(updated[i]))
 		copy(item, updated[i])
 
-		valid, err := t.collection.validInstance(item)
-		if err != nil {
+		if err := t.collection.validInstance(item); err != nil {
 			return err
-		}
-		if !valid {
-			return ErrInvalidSchemaInstance
 		}
 
 		id, err := getInstanceID(item)
@@ -377,8 +284,27 @@ func (t *Txn) Save(updated ...[]byte) error {
 	return nil
 }
 
-// Delete deletes instances by ID when the current
-// transaction commits.
+// validInstance validates the json object against the collection schema.
+func (c *Collection) validInstance(v []byte) error {
+	r, err := gojsonschema.Validate(c.schemaLoader, gojsonschema.NewBytesLoader(v))
+	if err != nil {
+		return err
+	}
+	errs := r.Errors()
+	if len(errs) == 0 {
+		return nil
+	}
+	var msg string
+	for i, e := range errs {
+		msg += e.Field() + ": " + e.Description()
+		if i != len(errs)-1 {
+			msg += "; "
+		}
+	}
+	return fmt.Errorf("%w: %s", ErrInvalidSchemaInstance, msg)
+}
+
+// Delete deletes instances by ID when the current transaction commits.
 func (t *Txn) Delete(ids ...core.InstanceID) error {
 	for i := range ids {
 		if t.readonly {
@@ -390,7 +316,7 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 			return err
 		}
 		if !exists {
-			return ErrNotFound
+			return ErrInstanceNotFound
 		}
 		a := core.Action{
 			Type:           core.Delete,
@@ -404,8 +330,7 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 	return nil
 }
 
-// Has returns true if all IDs exists in the collection, false
-// otherwise.
+// Has returns true if all IDs exists in the collection, false otherwise.
 func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 	for i := range ids {
 		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
@@ -425,7 +350,7 @@ func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 	bytes, err := t.collection.db.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {
-		return nil, ErrNotFound
+		return nil, ErrInstanceNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -456,10 +381,41 @@ func (t *Txn) Commit() error {
 	return t.collection.db.notifyTxnEvents(node, t.token)
 }
 
-// Discard discards all changes done in the current
-// transaction.
+// Discard discards all changes done in the current transaction.
 func (t *Txn) Discard() {
 	t.discarded = true
+}
+
+func getSchemaTypeAtPath(schema *jsonschema.Schema, pth string) (*jsonschema.Type, error) {
+	parts := strings.Split(pth, ".")
+	jt := schema.Type
+	for _, n := range parts {
+		props, err := getSchemaTypeProperties(jt, schema.Definitions)
+		if err != nil {
+			return nil, err
+		}
+		jt = props[n]
+		if jt == nil {
+			return nil, ErrInvalidCollectionSchemaPath
+		}
+	}
+	return jt, nil
+}
+
+func getSchemaTypeProperties(jt *jsonschema.Type, defs jsonschema.Definitions) (map[string]*jsonschema.Type, error) {
+	properties := jt.Properties
+	if jt.Ref != "" {
+		parts := strings.Split(jt.Ref, "/")
+		if len(parts) < 1 {
+			return nil, ErrInvalidCollectionSchema
+		}
+		def := defs[parts[len(parts)-1]]
+		if def == nil {
+			return nil, ErrInvalidCollectionSchema
+		}
+		properties = def.Properties
+	}
+	return properties, nil
 }
 
 func getInstanceID(t []byte) (core.InstanceID, error) {
@@ -482,12 +438,4 @@ func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 		log.Fatalf("error while automatically patching autogenerated _id: %v", err)
 	}
 	return newID, patchedValue
-}
-
-func hasIDProperty(properties map[string]*jsonschema.Type) bool {
-	idProperty := properties[idFieldName]
-	if idProperty == nil || idProperty.Type != "string" {
-		return false
-	}
-	return true
 }

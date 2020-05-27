@@ -93,12 +93,7 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 	return events, n, nil
 }
 
-func (jp *jsonPatcher) Reduce(
-	events []core.Event,
-	datastore ds.TxnDatastore,
-	baseKey ds.Key,
-	indexFunc func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
-) ([]core.ReduceAction, error) {
+func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key, indexFunc core.IndexFunc) ([]core.ReduceAction, error) {
 	txn, err := datastore.NewTransaction(false)
 	if err != nil {
 		return nil, err

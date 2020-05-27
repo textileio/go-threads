@@ -39,9 +39,10 @@ var (
 
 	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
 	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an _id string property")
-
 	// ErrInvalidCollectionName indicates the provided name isn't valid for a Collection.
 	ErrInvalidCollectionName = errors.New("collection name may only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen")
+	// ErrCannotIndexIDField indicates a custom index was specified on the ID field.
+	ErrCannotIndexIDField = errors.New("cannot create custom index on " + idFieldName)
 
 	collectionNameRx *regexp.Regexp
 
@@ -67,9 +68,10 @@ type DB struct {
 	dispatcher *dispatcher
 	eventcodec core.EventCodec
 
-	lock            sync.RWMutex
-	collectionNames map[string]*Collection
-	closed          bool
+	lock        sync.RWMutex
+	txnlock     sync.RWMutex
+	collections map[string]*Collection
+	closed      bool
 
 	localEventsBus      *app.LocalEventsBus
 	stateChangedNotifee *stateChangedNotifee
@@ -77,8 +79,8 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewDBOption) (*DB, error) {
-	options := &NewDBOptions{}
+func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption) (*DB, error) {
+	options := &NewOptions{}
 	for _, opt := range opts {
 		if err := opt(options); err != nil {
 			return nil, err
@@ -96,8 +98,8 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewDBOpti
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewDBOption) (*DB, error) {
-	options := &NewDBOptions{}
+func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewOption) (*DB, error) {
+	options := &NewOptions{}
 	for _, opt := range opts {
 		if err := opt(options); err != nil {
 			return nil, err
@@ -121,9 +123,8 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 	return d, nil
 }
 
-// newDB is used directly by a db manager to create new dbs
-// with the same config.
-func newDB(n app.Net, id thread.ID, options *NewDBOptions) (*DB, error) {
+// newDB is used directly by a db manager to create new dbs with the same config.
+func newDB(n app.Net, id thread.ID, options *NewOptions) (*DB, error) {
 	if options.Datastore == nil {
 		datastore, err := newDefaultDatastore(options.RepoPath, options.LowMem)
 		if err != nil {
@@ -148,7 +149,7 @@ func newDB(n app.Net, id thread.ID, options *NewDBOptions) (*DB, error) {
 		datastore:           options.Datastore,
 		dispatcher:          newDispatcher(options.Datastore),
 		eventcodec:          options.EventCodec,
-		collectionNames:     make(map[string]*Collection),
+		collections:         make(map[string]*Collection),
 		localEventsBus:      app.NewLocalEventsBus(),
 		stateChangedNotifee: &stateChangedNotifee{},
 	}
@@ -168,12 +169,21 @@ func newDB(n app.Net, id thread.ID, options *NewDBOptions) (*DB, error) {
 		log.Fatalf("unable to connect app: %s", err)
 	}
 	d.connector = connector
-
 	return d, nil
+}
+
+// managedDatastore returns whether or not the datastore is
+// being wrapped by an external datastore.
+func managedDatastore(ds ds.Datastore) bool {
+	_, ok := ds.(kt.KeyTransform)
+	return ok
 }
 
 // reCreateCollections loads and registers schemas from the datastore.
 func (d *DB) reCreateCollections() error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
 	results, err := d.datastore.Query(query.Query{
 		Prefix: dsDBSchemas.String(),
 	})
@@ -181,126 +191,36 @@ func (d *DB) reCreateCollections() error {
 		return err
 	}
 	defer results.Close()
-
 	for res := range results.Next() {
 		name := ds.RawKey(res.Key).Name()
-
 		schema := &jsonschema.Schema{}
 		if err := json.Unmarshal(res.Value, schema); err != nil {
 			return err
 		}
-
-		var indexes map[string]IndexConfig
-		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
-		if err == nil && index != nil {
-			_ = json.Unmarshal(index, &indexes)
-		}
-
-		indexValues := make([]IndexConfig, len(indexes))
-		for _, value := range indexes {
-			indexValues = append(indexValues, value)
-		}
-
-		if _, err := d.NewCollection(CollectionConfig{
-			Name:    name,
-			Schema:  schema,
-			Indexes: indexValues,
-		}); err != nil {
+		c, err := newCollection(name, schema, d)
+		if err != nil {
 			return err
 		}
+		var indexes map[string]Index
+		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
+		if err == nil && index != nil {
+			if err := json.Unmarshal(index, &indexes); err != nil {
+				return err
+			}
+		}
+		for _, index := range indexes {
+			if index.Path != "" { // Catch bad indexes from an old bug
+				c.indexes[index.Path] = index
+			}
+		}
+		d.collections[c.name] = c
 	}
 	return nil
 }
 
-// CollectionConfig describes a new Collection.
-type CollectionConfig struct {
-	Name    string
-	Schema  *jsonschema.Schema
-	Indexes []IndexConfig
-}
-
-// NewCollection creates a new collection in the db with a JSON schema.
-func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
-	if _, ok := d.collectionNames[config.Name]; ok {
-		return nil, fmt.Errorf("already registered collection")
-	}
-
-	c, err := newCollection(config.Name, config.Schema, d)
-	if err != nil {
-		return nil, err
-	}
-	key := dsDBSchemas.ChildString(config.Name)
-	exists, err := d.datastore.Has(key)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		schemaBytes, err := json.Marshal(config.Schema)
-		if err != nil {
-			return nil, err
-		}
-		if err := d.datastore.Put(key, schemaBytes); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := c.AddIndex(IndexConfig{Path: idFieldName, Unique: true}); err != nil {
-		return nil, err
-	}
-
-	for _, cfg := range config.Indexes {
-		// @todo: Should check to make sure this is a valid field path for this schema
-		if err := c.AddIndex(cfg); err != nil {
-			return nil, err
-		}
-	}
-
-	d.collectionNames[config.Name] = c
-	return c, nil
-}
-
-// GetCollection returns a collection by name.
-func (d *DB) GetCollection(name string) *Collection {
-	return d.collectionNames[name]
-}
-
-// Reduce processes txn events into the collections.
-func (d *DB) Reduce(events []core.Event) error {
-	codecActions, err := d.eventcodec.Reduce(
-		events,
-		d.datastore,
-		baseKey,
-		defaultIndexFunc(d),
-	)
-	if err != nil {
-		return err
-	}
-	actions := make([]Action, len(codecActions))
-	for i, ca := range codecActions {
-		var actionType ActionType
-		switch codecActions[i].Type {
-		case core.Create:
-			actionType = ActionCreate
-		case core.Save:
-			actionType = ActionSave
-		case core.Delete:
-			actionType = ActionDelete
-		default:
-			panic("eventcodec action not recognized")
-		}
-		actions[i] = Action{Collection: ca.Collection, Type: actionType, ID: ca.InstanceID}
-	}
-	d.notifyStateChanged(actions)
-
-	return nil
-}
-
-// GetDBInfo returns the addresses and key that can be used to join the DB thread
-func (d *DB) GetDBInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key, error) {
-	options := &InviteInfoOptions{}
+// GetDBInfo returns the addresses and key that can be used to join the DB thread.
+func (d *DB) GetDBInfo(opts ...Option) ([]ma.Multiaddr, thread.Key, error) {
+	options := &Options{}
 	for _, opt := range opts {
 		opt(options)
 	}
@@ -312,10 +232,139 @@ func (d *DB) GetDBInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key, er
 	return tinfo.Addrs, tinfo.Key, nil
 }
 
-// Close closes the db.
+// CollectionConfig describes a new Collection.
+type CollectionConfig struct {
+	Name    string
+	Schema  *jsonschema.Schema
+	Indexes []Index
+}
+
+// NewCollection creates a new db collection with config.
+// @todo: Handle token auth
+func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if _, ok := d.collections[config.Name]; ok {
+		return nil, ErrCollectionAlreadyRegistered
+	}
+	c, err := newCollection(config.Name, config.Schema, d)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.addIndexes(c, config.Schema, config.Indexes, opts...); err != nil {
+		return nil, err
+	}
+	if err := d.saveCollection(c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// UpdateCollection updates an existing db collection with a new config.
+// Indexes to new paths will be created.
+// Indexes to removed paths will be dropped.
+// @todo: Handle token auth
+func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	xc, ok := d.collections[config.Name]
+	if !ok {
+		return nil, ErrCollectionNotFound
+	}
+	c, err := newCollection(config.Name, config.Schema, d)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.addIndexes(c, config.Schema, config.Indexes, opts...); err != nil {
+		return nil, err
+	}
+
+	// Drop indexes that are no longer requested
+	for _, index := range xc.indexes {
+		if _, ok := c.indexes[index.Path]; !ok {
+			if err := c.dropIndex(index.Path, opts...); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if err := d.saveCollection(c); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Index, opts ...Option) error {
+	for _, index := range indexes {
+		if index.Path == idFieldName {
+			return ErrCannotIndexIDField
+		}
+		if err := c.addIndex(schema, index, opts...); err != nil {
+			return err
+		}
+	}
+	return c.addIndex(schema, Index{Path: idFieldName, Unique: true}, opts...)
+}
+
+func (d *DB) saveCollection(c *Collection) error {
+	schema := c.schemaLoader.JsonSource().([]byte)
+	if err := d.datastore.Put(dsDBSchemas.ChildString(c.name), schema); err != nil {
+		return err
+	}
+	d.collections[c.name] = c
+	return nil
+}
+
+// GetCollection returns a collection by name.
+// @todo: Handle token auth
+func (d *DB) GetCollection(name string, opts ...Option) *Collection {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	return d.collections[name]
+}
+
+// DeleteCollection deletes collection by name and drops all indexes.
+// @todo: Handle token auth
+func (d *DB) DeleteCollection(name string, opts ...Option) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	c, ok := d.collections[name]
+	if !ok {
+		return ErrCollectionNotFound
+	}
+	txn, err := d.datastore.NewTransaction(false)
+	if err != nil {
+		return err
+	}
+	if err := txn.Delete(dsDBIndexes.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Delete(dsDBSchemas.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Commit(); err != nil {
+		return err
+	}
+	delete(d.collections, c.name)
+	return nil
+}
+
 func (d *DB) Close() error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 
 	if d.closed {
 		return nil
@@ -335,6 +384,43 @@ func (d *DB) Close() error {
 	}
 	d.stateChangedNotifee.close()
 	return nil
+}
+
+func (d *DB) Reduce(events []core.Event) error {
+	codecActions, err := d.eventcodec.Reduce(events, d.datastore, baseKey, defaultIndexFunc(d))
+	if err != nil {
+		return err
+	}
+	actions := make([]Action, len(codecActions))
+	for i, ca := range codecActions {
+		var actionType ActionType
+		switch codecActions[i].Type {
+		case core.Create:
+			actionType = ActionCreate
+		case core.Save:
+			actionType = ActionSave
+		case core.Delete:
+			actionType = ActionDelete
+		default:
+			panic("eventcodec action not recognized")
+		}
+		actions[i] = Action{Collection: ca.Collection, Type: actionType, ID: ca.InstanceID}
+	}
+	d.notifyStateChanged(actions)
+	return nil
+}
+
+func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+	return func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
+		c := d.GetCollection(collection)
+		if err := c.indexDelete(txn, key, oldData); err != nil {
+			return err
+		}
+		if newData == nil {
+			return nil
+		}
+		return c.indexAdd(txn, key, newData)
+	}
 }
 
 func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, timeout time.Duration) error {
@@ -385,8 +471,8 @@ func (d *DB) getBlockWithRetry(ctx context.Context, rec net.Record) (format.Node
 // dispatch applies external events to the db. This function guarantee
 // no interference with registered collection states, and viceversa.
 func (d *DB) dispatch(events []core.Event) error {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 	return d.dispatcher.Dispatch(events)
 }
 
@@ -396,16 +482,9 @@ func (d *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
 	return d.eventcodec.EventsFromBytes(data)
 }
 
-// managedDatastore returns whether or not the datastore is
-// being wrapped by an external datastore.
-func managedDatastore(ds ds.Datastore) bool {
-	_, ok := ds.(kt.KeyTransform)
-	return ok
-}
-
 func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
-	d.lock.RLock()
-	defer d.lock.RUnlock()
+	d.txnlock.RLock()
+	defer d.txnlock.RUnlock()
 
 	args := &TxnOptions{}
 	for _, opt := range opts {
@@ -420,8 +499,8 @@ func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) e
 }
 
 func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 
 	args := &TxnOptions{}
 	for _, opt := range opts {
@@ -433,19 +512,4 @@ func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) 
 		return err
 	}
 	return txn.Commit()
-}
-
-func defaultIndexFunc(s *DB) func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-	return func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-		indexer := s.GetCollection(collection)
-		if err := indexDelete(indexer, txn, key, oldData); err != nil {
-			return err
-		}
-		if newData != nil {
-			if err := indexAdd(indexer, txn, key, newData); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
 }

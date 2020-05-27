@@ -58,12 +58,12 @@ func checkBenchErr(b *testing.B, err error) {
 	}
 }
 
-func createBenchDB(b *testing.B, opts ...NewDBOption) (*DB, func()) {
+func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
 	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkBenchErr(b, err)
-	opts = append(opts, WithNewDBRepoPath(dir))
+	opts = append(opts, WithNewRepoPath(dir))
 	d, err := NewDB(context.Background(), n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkBenchErr(b, err)
 	return d, func() {
@@ -97,7 +97,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
 		Schema: util.SchemaFromSchemaString(testBenchSchema),
-		Indexes: []IndexConfig{{
+		Indexes: []Index{{
 			Path:   "Name",
 			Unique: false,
 		}},
@@ -149,7 +149,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
 		Schema: util.SchemaFromSchemaString(testBenchSchema),
-		Indexes: []IndexConfig{{
+		Indexes: []Index{{
 			Path:   "Age",
 			Unique: false,
 		}},
@@ -217,7 +217,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
 		Schema: util.SchemaFromSchemaString(testBenchSchema),
-		Indexes: []IndexConfig{{
+		Indexes: []Index{{
 			Path:   "Name",
 			Unique: false,
 		}},

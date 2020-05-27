@@ -43,7 +43,7 @@ func TestSimple(t *testing.T) {
 	network0, err := newNetwork(repoPath0)
 	checkErr(t, err)
 
-	db0, err := db.NewDB(context.Background(), network0, id, db.WithNewDBRepoPath(repoPath0), db.WithNewDBCollections(cc))
+	db0, err := db.NewDB(context.Background(), network0, id, db.WithNewRepoPath(repoPath0), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db0.Close()
 
@@ -60,7 +60,7 @@ func TestSimple(t *testing.T) {
 	network1, err := newNetwork(repoPath1)
 	checkErr(t, err)
 
-	db1, err := db.NewDBFromAddr(context.Background(), network1, addrs0[0], key0, db.WithNewDBRepoPath(repoPath1), db.WithNewDBCollections(cc))
+	db1, err := db.NewDBFromAddr(context.Background(), network1, addrs0[0], key0, db.WithNewRepoPath(repoPath1), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db1.Close()
 
@@ -74,7 +74,7 @@ func TestSimple(t *testing.T) {
 	network2, err := newNetwork(repoPath2)
 	checkErr(t, err)
 
-	db2, err := db.NewDBFromAddr(context.Background(), network2, addrs0[0], key0, db.WithNewDBRepoPath(repoPath2), db.WithNewDBCollections(cc))
+	db2, err := db.NewDBFromAddr(context.Background(), network2, addrs0[0], key0, db.WithNewRepoPath(repoPath2), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db2.Close()
 
@@ -88,7 +88,7 @@ func TestSimple(t *testing.T) {
 	network3, err := newNetwork(repoPath3)
 	checkErr(t, err)
 
-	db3, err := db.NewDBFromAddr(context.Background(), network3, addrs0[0], key0, db.WithNewDBRepoPath(repoPath3), db.WithNewDBCollections(cc))
+	db3, err := db.NewDBFromAddr(context.Background(), network3, addrs0[0], key0, db.WithNewRepoPath(repoPath3), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db3.Close()
 

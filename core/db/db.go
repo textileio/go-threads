@@ -27,16 +27,14 @@ func (e InstanceID) String() string {
 	return string(e)
 }
 
-// IsValidInstanceID checks if an id is valid
-func IsValidInstanceID(instanceID string) bool {
-	return len(instanceID) > 0
-}
-
 // Event is a local or remote event generated in collection and dispatcher
 // by Dispatcher.
 type Event interface {
+	// Time (wall-clock) the event was created.
 	Time() []byte
+	// InstanceID is the associated instance's unique identifier.
 	InstanceID() InstanceID
+	// Collection is the associated instance's collection name.
 	Collection() string
 }
 
@@ -75,19 +73,16 @@ type ReduceAction struct {
 	InstanceID InstanceID
 }
 
+// IndexFunc handles index updates.
+type IndexFunc func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error
+
 // EventCodec transforms actions generated in collections to
 // events dispatched to thread logs, and viceversa.
 type EventCodec interface {
 	// Reduce applies generated events into state.
-	Reduce(
-		events []Event,
-		datastore ds.TxnDatastore,
-		baseKey ds.Key,
-		indexFunc func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error,
-	) ([]ReduceAction, error)
+	Reduce(events []Event, datastore ds.TxnDatastore, baseKey ds.Key, indexFunc IndexFunc) ([]ReduceAction, error)
 	// Create corresponding events to be dispatched.
 	Create(ops []Action) ([]Event, format.Node, error)
-	// EventsFromBytes deserializes a format.Node bytes payload into
-	// Events.
+	// EventsFromBytes deserializes a format.Node bytes payload into Events.
 	EventsFromBytes(data []byte) ([]Event, error)
 }

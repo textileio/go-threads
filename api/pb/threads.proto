@@ -34,12 +34,12 @@ message NewDBFromAddrRequest {
 message CollectionConfig {
     string name = 1;
     bytes schema = 2;
-    repeated IndexConfig indexes = 3;
+    repeated Index indexes = 3;
+}
 
-    message IndexConfig {
-        string path = 1;
-        bool unique = 2;
-    }
+message Index {
+    string path = 1;
+    bool unique = 2;
 }
 
 message NewDBReply {}
@@ -65,6 +65,29 @@ message NewCollectionRequest {
 }
 
 message NewCollectionReply {}
+
+message UpdateCollectionRequest {
+    bytes dbID = 1;
+    CollectionConfig config = 2;
+}
+
+message UpdateCollectionReply {}
+
+message DeleteCollectionRequest {
+    bytes dbID = 1;
+    string name = 2;
+}
+
+message DeleteCollectionReply {}
+
+message GetCollectionIndexesRequest {
+    bytes dbID = 1;
+    string name = 2;
+}
+
+message GetCollectionIndexesReply {
+    repeated Index indexes = 1;
+}
 
 message CreateRequest {
     bytes dbID = 1;
@@ -204,6 +227,9 @@ service API {
     rpc GetDBInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}
     rpc DeleteDB(DeleteDBRequest) returns (DeleteDBReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
+    rpc UpdateCollection(UpdateCollectionRequest) returns (UpdateCollectionReply) {}
+    rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionReply) {}
+    rpc GetCollectionIndexes(GetCollectionIndexesRequest) returns (GetCollectionIndexesReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}
     rpc Delete(DeleteRequest) returns (DeleteReply) {}

@@ -11,120 +11,215 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/alecthomas/jsonschema"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
-// size of iterator keys stored in memory before more are fetched
 const (
+	// iteratorKeyMinCacheSize is the size of iterator keys stored in memory before more are fetched.
 	iteratorKeyMinCacheSize = 100
 )
 
-// ErrUniqueExists is the error thrown when data is being inserted for a unique constraint value that already exists
 var (
-	indexPrefix     = ds.NewKey("_index")
+	// ErrUniqueExists indicates an insert resulted in a unique constraint violation.
 	ErrUniqueExists = errors.New("unique constraint violation")
+	// ErrNotIndexable indicates an index path does not resolve to a value.
 	ErrNotIndexable = errors.New("value not indexable")
-	ErrNoIndexFound = errors.New("no index found")
+	// ErrCantCreateUniqueIndex indicates a unique index can't be created because multiple instances share a value at path.
+	ErrCantCreateUniqueIndex = errors.New("can't create unique index (duplicate instances exist)")
+	// ErrIndexNotFound indicates a requested index was not found.
+	ErrIndexNotFound = errors.New("index not found")
+
+	indexPrefix = ds.NewKey("_index")
+	indexTypes  = []string{"string", "number", "integer", "boolean"}
 )
 
-// Indexer is the interface to implement to support Collection indexes
-type Indexer interface {
-	BaseKey() ds.Key
-	Indexes() map[string]Index //[indexname]indexFunc
-}
-
-// Index is a function that returns the indexable, encoded bytes of the passed in bytes
+// Index defines an index.
 type Index struct {
-	IndexFunc func(name string, value []byte) (ds.Key, error)
-	Unique    bool
+	// Path to the field to index in dot syntax, e.g., "name.last" or "age".
+	Path string `json:"path"`
+	// Unique indicates that only one instance should exist per field value.
+	Unique bool `json:"unique,omitempty"`
 }
 
-// IndexConfig stores the configuration for a given Index.
-type IndexConfig struct {
-	Path   string `json:"path"`
-	Unique bool   `json:"unique,omitempty"`
+// GetIndexes returns the current indexes.
+func (c *Collection) GetIndexes() []Index {
+	indexes := make([]Index, len(c.indexes))
+	var i int
+	for _, index := range c.indexes {
+		indexes[i] = index
+		i++
+	}
+	return indexes
 }
 
-// adds an item to the index
-func indexAdd(indexer Indexer, tx ds.Txn, key ds.Key, data []byte) error {
-	indexes := indexer.Indexes()
-	for path, index := range indexes {
-		err := indexUpdate(indexer.BaseKey(), path, index, tx, key, data, false)
-		if err != nil {
-			return err
+// addIndex creates a new index based on path.
+// Use dot syntax to reach nested fields, e.g., "name.last".
+// The field at path must be one of the supported JSON Schema types: string, number, integer, or boolean
+// Set unique to true if you want a unique constraint on path.
+// Adding an index will override any overlapping index values if they already exist.
+// @note: This does NOT currently build the index. If items have been added prior to adding
+// a new index, they will NOT be indexed a posteriori.
+// @todo: Handle token auth
+func (c *Collection) addIndex(schema *jsonschema.Schema, index Index, opts ...Option) error {
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	// Don't allow the default index to be overwritten
+	if index.Path == idFieldName {
+		if _, ok := c.indexes[idFieldName]; ok {
+			return nil
 		}
 	}
 
-	return nil
-}
-
-// removes an item from the index
-// be sure to pass the data from the old record, not the new one
-func indexDelete(indexer Indexer, tx ds.Txn, key ds.Key, originalData []byte) error {
-	indexes := indexer.Indexes()
-
-	for path, index := range indexes {
-		err := indexUpdate(indexer.BaseKey(), path, index, tx, key, originalData, true)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// adds or removes a specific index on an item
-func indexUpdate(baseKey ds.Key, path string, index Index, tx ds.Txn, key ds.Key, value []byte,
-	delete bool) error {
-
-	valueKey, err := index.IndexFunc(path, value)
-	if err != nil && !errors.Is(err, ErrNotIndexable) {
+	// Validate path and type.
+	jt, err := getSchemaTypeAtPath(schema, index.Path)
+	if err != nil {
 		return err
 	}
-	if valueKey.String() == "" {
+	var valid bool
+	for _, t := range indexTypes {
+		if jt.Type == t {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return ErrNotIndexable
+	}
+
+	// Skip if nothing to do
+	if x, ok := c.indexes[index.Path]; ok && index.Unique == x.Unique {
 		return nil
 	}
 
-	indexKey := indexPrefix.Child(baseKey).ChildString(path).ChildString(valueKey.String()[1:])
+	// Ensure collection does not contain multiple instances with the same value at path
+	if index.Unique && index.Path != idFieldName {
+		vals := make(map[interface{}]struct{})
+		all, err := c.Find(&Query{}, WithTxnToken(options.Token))
+		if err != nil {
+			return err
+		}
+		for _, i := range all {
+			res := gjson.GetBytes(i, index.Path)
+			if !res.Exists() {
+				continue
+			}
+			if _, ok := vals[res.Value()]; ok {
+				return ErrCantCreateUniqueIndex
+			} else {
+				vals[res.Value()] = struct{}{}
+			}
+		}
+	}
 
+	c.indexes[index.Path] = index
+	return c.saveIndexes()
+}
+
+// dropIndex drops the index at path.
+// @todo: Handle token auth
+func (c *Collection) dropIndex(pth string, opts ...Option) error {
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	// Don't allow the default index to be dropped
+	if pth == idFieldName {
+		return errors.New(idFieldName + " index cannot be dropped")
+	}
+	delete(c.indexes, pth)
+	return c.saveIndexes()
+}
+
+// saveIndexes persists the current indexes.
+func (c *Collection) saveIndexes() error {
+	ib, err := json.Marshal(c.indexes)
+	if err != nil {
+		return err
+	}
+	return c.db.datastore.Put(dsDBIndexes.ChildString(c.name), ib)
+}
+
+// indexAdd adds an item to the index.
+func (c *Collection) indexAdd(tx ds.Txn, key ds.Key, data []byte) error {
+	for path, index := range c.indexes {
+		err := c.indexUpdate(path, index, tx, key, data, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// indexDelete removes an item from the index.
+// Be sure to pass the data from the old record, not the new one.
+func (c *Collection) indexDelete(tx ds.Txn, key ds.Key, originalData []byte) error {
+	for path, index := range c.indexes {
+		err := c.indexUpdate(path, index, tx, key, originalData, true)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// indexUpdate adds or removes a specific index on an item.
+func (c *Collection) indexUpdate(field string, index Index, tx ds.Txn, key ds.Key, input []byte, delete bool) error {
+	valueKey, err := getIndexValue(field, input)
+	if err != nil {
+		if errors.Is(err, ErrNotIndexable) {
+			return nil
+		}
+		return err
+	}
+
+	indexKey := indexPrefix.Child(c.baseKey()).ChildString(field).ChildString(valueKey.String()[1:])
 	data, err := tx.Get(indexKey)
 	if err != nil && err != ds.ErrNotFound {
 		return err
 	}
-
-	indexValue := make(keyList, 0)
-
 	if err != ds.ErrNotFound {
 		if index.Unique && !delete {
 			return ErrUniqueExists
 		}
 	}
 
+	indexValue := make(keyList, 0)
 	if data != nil {
 		err = DefaultDecode(data, &indexValue)
 		if err != nil {
 			return err
 		}
 	}
-
 	if delete {
 		indexValue.remove(key)
 	} else {
 		indexValue.add(key)
 	}
-
 	if len(indexValue) == 0 {
 		return tx.Delete(indexKey)
 	}
-
-	iVal, err := DefaultEncode(indexValue)
+	val, err := DefaultEncode(indexValue)
 	if err != nil {
 		return err
 	}
-	return tx.Put(indexKey, iVal)
+	return tx.Put(indexKey, val)
+}
+
+// getIndexValue returns the result of a field search on input.
+func getIndexValue(field string, input []byte) (ds.Key, error) {
+	result := gjson.GetBytes(input, field)
+	if !result.Exists() {
+		return ds.Key{}, ErrNotIndexable
+	}
+	return ds.NewKey(result.String()), nil
 }
 
 // keyList is a slice of unique, sorted keys([]byte) such as what an index points to
@@ -164,7 +259,6 @@ func (v *keyList) in(key ds.Key) bool {
 	i := sort.Search(len(*v), func(i int) bool {
 		return bytes.Compare((*v)[i], b) >= 0
 	})
-
 	return i < len(*v) && bytes.Equal((*v)[i], b)
 }
 
@@ -213,7 +307,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 			result, ok := i.iter.NextSync()
 			if !ok {
 				if first {
-					return nil, ErrNoIndexFound
+					return nil, ErrIndexNotFound
 				}
 				return nKeys, result.Error
 			}
@@ -250,7 +344,6 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 		}
 		return nKeys, nil
 	}
-
 	return i
 }
 
@@ -297,7 +390,6 @@ func (i *iterator) NextSync() (MarshaledResult, bool) {
 				},
 			}, false
 		}
-
 		i.keyCache = append(i.keyCache, newKeys...)
 	}
 
