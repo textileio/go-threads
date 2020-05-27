@@ -78,8 +78,8 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewDBOption) (*DB, error) {
-	options := &NewDBOptions{}
+func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption) (*DB, error) {
+	options := &NewOptions{}
 	for _, opt := range opts {
 		if err := opt(options); err != nil {
 			return nil, err
@@ -97,8 +97,8 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewDBOpti
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewDBOption) (*DB, error) {
-	options := &NewDBOptions{}
+func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewOption) (*DB, error) {
+	options := &NewOptions{}
 	for _, opt := range opts {
 		if err := opt(options); err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 }
 
 // newDB is used directly by a db manager to create new dbs with the same config.
-func newDB(n app.Net, id thread.ID, options *NewDBOptions) (*DB, error) {
+func newDB(n app.Net, id thread.ID, options *NewOptions) (*DB, error) {
 	if options.Datastore == nil {
 		datastore, err := newDefaultDatastore(options.RepoPath, options.LowMem)
 		if err != nil {
@@ -216,8 +216,8 @@ func (d *DB) reCreateCollections() error {
 }
 
 // GetDBInfo returns the addresses and key that can be used to join the DB thread.
-func (d *DB) GetDBInfo(opts ...InviteInfoOption) ([]ma.Multiaddr, thread.Key, error) {
-	options := &InviteInfoOptions{}
+func (d *DB) GetDBInfo(opts ...Option) ([]ma.Multiaddr, thread.Key, error) {
+	options := &Options{}
 	for _, opt := range opts {
 		opt(options)
 	}
@@ -237,7 +237,8 @@ type CollectionConfig struct {
 }
 
 // NewCollection creates a new db collection with config.
-func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
+// @todo: Handle token auth
+func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -248,7 +249,7 @@ func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := d.addIndexes(c, config.Schema, config.Indexes); err != nil {
+	if err := d.addIndexes(c, config.Schema, config.Indexes, opts...); err != nil {
 		return nil, err
 	}
 	if err := d.saveCollection(c); err != nil {
@@ -260,7 +261,8 @@ func (d *DB) NewCollection(config CollectionConfig) (*Collection, error) {
 // UpdateCollection updates an existing db collection with a new config.
 // Indexes to new paths will be created.
 // Indexes to removed paths will be dropped.
-func (d *DB) UpdateCollection(config CollectionConfig) (*Collection, error) {
+// @todo: Handle token auth
+func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -272,14 +274,14 @@ func (d *DB) UpdateCollection(config CollectionConfig) (*Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := d.addIndexes(c, config.Schema, config.Indexes); err != nil {
+	if err := d.addIndexes(c, config.Schema, config.Indexes, opts...); err != nil {
 		return nil, err
 	}
 
 	// Drop indexes that are no longer requested
 	for _, index := range xc.indexes {
 		if _, ok := c.indexes[index.Path]; !ok {
-			if err := c.dropIndex(index.Path); err != nil {
+			if err := c.dropIndex(index.Path, opts...); err != nil {
 				return nil, err
 			}
 		}
@@ -291,16 +293,16 @@ func (d *DB) UpdateCollection(config CollectionConfig) (*Collection, error) {
 	return c, nil
 }
 
-func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Index) error {
+func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Index, opts ...Option) error {
 	for _, index := range indexes {
 		if index.Path == idFieldName {
 			return ErrCannotIndexIDField
 		}
-		if err := c.addIndex(schema, index); err != nil {
+		if err := c.addIndex(schema, index, opts...); err != nil {
 			return err
 		}
 	}
-	return c.addIndex(schema, Index{Path: idFieldName, Unique: true})
+	return c.addIndex(schema, Index{Path: idFieldName, Unique: true}, opts...)
 }
 
 func (d *DB) saveCollection(c *Collection) error {
@@ -313,14 +315,26 @@ func (d *DB) saveCollection(c *Collection) error {
 }
 
 // GetCollection returns a collection by name.
-func (d *DB) GetCollection(name string) *Collection {
+// @todo: Handle token auth
+func (d *DB) GetCollection(name string, opts ...Option) *Collection {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
 	return d.collections[name]
 }
 
 // DeleteCollection deletes collection by name and drops all indexes.
-func (d *DB) DeleteCollection(name string) error {
+// @todo: Handle token auth
+func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
 
 	c, ok := d.collections[name]
 	if !ok {

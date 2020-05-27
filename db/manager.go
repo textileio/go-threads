@@ -30,15 +30,15 @@ var (
 type Manager struct {
 	io.Closer
 
-	newDBOptions *NewDBOptions
+	newDBOptions *NewOptions
 
 	network app.Net
 	dbs     map[thread.ID]*DB
 }
 
 // NewManager hydrates and starts dbs from prefixes.
-func NewManager(network app.Net, opts ...NewDBOption) (*Manager, error) {
-	options := &NewDBOptions{}
+func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
+	options := &NewOptions{}
 	for _, opt := range opts {
 		if err := opt(options); err != nil {
 			return nil, err
@@ -105,11 +105,11 @@ func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (threa
 }
 
 // NewDB creates a new db and prefixes its datastore with base key.
-func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBOption) (*DB, error) {
+func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOption) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
 		return nil, ErrDBExists
 	}
-	args := &NewManagedDBOptions{}
+	args := &NewManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -132,7 +132,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBO
 // NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
 // Unlike NewDB, this method takes a list of collections added to the original db that
 // should also be added to this host.
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, opts ...NewManagedDBOption) (*DB, error) {
+func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, opts ...NewManagedOption) (*DB, error) {
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	if _, ok := m.dbs[id]; ok {
 		return nil, ErrDBExists
 	}
-	args := &NewManagedDBOptions{}
+	args := &NewManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -168,8 +168,8 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 }
 
 // GetDB returns a db by id.
-func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedDBOption) (*DB, error) {
-	args := &ManagedDBOptions{}
+func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedOption) (*DB, error) {
+	args := &ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -180,8 +180,8 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedDBOpti
 }
 
 // DeleteDB deletes a db by id.
-func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedDBOption) error {
-	args := &ManagedDBOptions{}
+func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOption) error {
+	args := &ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
@@ -239,11 +239,11 @@ func (m *Manager) Close() error {
 // getDBOptions copies the manager's base config,
 // wraps the datastore with an id prefix,
 // and merges specified collection configs with those from base
-func getDBOptions(id thread.ID, base *NewDBOptions, collections ...CollectionConfig) (*NewDBOptions, error) {
+func getDBOptions(id thread.ID, base *NewOptions, collections ...CollectionConfig) (*NewOptions, error) {
 	if err := id.Validate(); err != nil {
 		return nil, err
 	}
-	return &NewDBOptions{
+	return &NewOptions{
 		RepoPath: base.RepoPath,
 		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
 			Prefix: dsDBManagerBaseKey.ChildString(id.String()),

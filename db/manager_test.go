@@ -81,7 +81,7 @@ func TestManager_NewDB(t *testing.T) {
 		checkErr(t, err)
 		tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
 		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedDBToken(tok))
+		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedToken(tok))
 		checkErr(t, err)
 	})
 }
@@ -94,7 +94,7 @@ func TestManager_GetDB(t *testing.T) {
 	checkErr(t, err)
 	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
-	man, err := NewManager(n, WithNewDBRepoPath(dir), WithNewDBDebug(true))
+	man, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
 	checkErr(t, err)
 	defer func() {
 		_ = os.RemoveAll(dir)
@@ -127,7 +127,7 @@ func TestManager_GetDB(t *testing.T) {
 	t.Run("test get db after restart", func(t *testing.T) {
 		n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 		checkErr(t, err)
-		man, err := NewManager(n, WithNewDBRepoPath(dir), WithNewDBDebug(true))
+		man, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
 		checkErr(t, err)
 
 		db, err := man.GetDB(ctx, id)
@@ -188,7 +188,7 @@ func createTestManager(t *testing.T) (*Manager, func()) {
 	checkErr(t, err)
 	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
-	m, err := NewManager(n, WithNewDBRepoPath(dir), WithNewDBDebug(true))
+	m, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
 	checkErr(t, err)
 	return m, func() {
 		if err := n.Close(); err != nil {

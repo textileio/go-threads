@@ -49,7 +49,7 @@ func NewService(network app.Net, conf Config) (*Service, error) {
 		}
 	}
 
-	manager, err := db.NewManager(network, db.WithNewDBRepoPath(conf.RepoPath), db.WithNewDBDebug(conf.Debug))
+	manager, err := db.NewManager(network, db.WithNewRepoPath(conf.RepoPath), db.WithNewDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDB(ctx, id, db.WithNewManagedDBToken(token), db.WithNewManagedDBCollections(collections...)); err != nil {
+	if _, err = s.manager.NewDB(ctx, id, db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -189,7 +189,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, db.WithNewManagedDBToken(token), db.WithNewManagedDBCollections(collections...)); err != nil {
+	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -229,7 +229,7 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 		return nil, err
 	}
 
-	addrs, key, err := d.GetDBInfo(db.WithInviteInfoToken(token))
+	addrs, key, err := d.GetDBInfo(db.WithToken(token))
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.De
 		return nil, err
 	}
 
-	if err = s.manager.DeleteDB(ctx, id, db.WithManagedDBToken(token)); err != nil {
+	if err = s.manager.DeleteDB(ctx, id, db.WithManagedToken(token)); err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
 			return nil, status.Error(codes.NotFound, db.ErrDBNotFound.Error())
 		} else {
@@ -810,7 +810,7 @@ func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, fi
 }
 
 func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (*db.DB, error) {
-	d, err := s.manager.GetDB(ctx, id, db.WithManagedDBToken(token))
+	d, err := s.manager.GetDB(ctx, id, db.WithManagedToken(token))
 	if err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
 			return nil, status.Error(codes.NotFound, db.ErrDBNotFound.Error())
