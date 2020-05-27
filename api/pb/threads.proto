@@ -66,6 +66,13 @@ message NewCollectionRequest {
 
 message NewCollectionReply {}
 
+message UpdateCollectionRequest {
+    bytes dbID = 1;
+    CollectionConfig config = 2;
+}
+
+message UpdateCollectionReply {}
+
 message DeleteCollectionRequest {
     bytes dbID = 1;
     string name = 2;
@@ -211,6 +218,7 @@ service API {
     rpc GetDBInfo(GetDBInfoRequest) returns (GetDBInfoReply) {}
     rpc DeleteDB(DeleteDBRequest) returns (DeleteDBReply) {}
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
+    rpc UpdateCollection(UpdateCollectionRequest) returns (UpdateCollectionReply) {}
     rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}

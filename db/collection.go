@@ -212,14 +212,6 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 		updated := make([]byte, len(new[i]))
 		copy(updated, new[i])
 
-		valid, err := t.collection.validInstance(updated)
-		if err != nil {
-			return nil, err
-		}
-		if !valid {
-			return nil, ErrInvalidSchemaInstance
-		}
-
 		id, err := getInstanceID(updated)
 		if err != nil && !errors.Is(err, errMissingInstanceID) {
 			return nil, err
@@ -227,6 +219,11 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 		if id == core.EmptyInstanceID {
 			id, updated = setNewInstanceID(updated)
 		}
+
+		if err := t.collection.validInstance(updated); err != nil {
+			return nil, err
+		}
+
 		results[i] = id
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -259,12 +256,8 @@ func (t *Txn) Save(updated ...[]byte) error {
 		item := make([]byte, len(updated[i]))
 		copy(item, updated[i])
 
-		valid, err := t.collection.validInstance(item)
-		if err != nil {
+		if err := t.collection.validInstance(item); err != nil {
 			return err
-		}
-		if !valid {
-			return ErrInvalidSchemaInstance
 		}
 
 		id, err := getInstanceID(item)
@@ -291,15 +284,24 @@ func (t *Txn) Save(updated ...[]byte) error {
 	return nil
 }
 
-// validInstance validates the json object against the collection schema
-func (c *Collection) validInstance(v []byte) (bool, error) {
-	var vLoader gojsonschema.JSONLoader
-	vLoader = gojsonschema.NewBytesLoader(v)
-	r, err := gojsonschema.Validate(c.schemaLoader, vLoader)
+// validInstance validates the json object against the collection schema.
+func (c *Collection) validInstance(v []byte) error {
+	r, err := gojsonschema.Validate(c.schemaLoader, gojsonschema.NewBytesLoader(v))
 	if err != nil {
-		return false, err
+		return err
 	}
-	return r.Valid(), nil
+	errs := r.Errors()
+	if len(errs) == 0 {
+		return nil
+	}
+	var msg string
+	for i, e := range errs {
+		msg += e.Description()
+		if i != len(errs)-1 {
+			msg += ", "
+		}
+	}
+	return fmt.Errorf("%w: %s", ErrInvalidSchemaInstance, msg)
 }
 
 // Delete deletes instances by ID when the current transaction commits.

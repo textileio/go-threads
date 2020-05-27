@@ -274,6 +274,24 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 	return err
 }
 
+// UpdateCollection creates a new collection.
+// @todo: This should take some thread auth, but collections currently do not involve a thread.
+func (c *Client) UpdateCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedDBOption) error {
+	args := &db.ManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	cc, err := collectionConfigToPb(config)
+	if err != nil {
+		return err
+	}
+	_, err = c.c.UpdateCollection(ctx, &pb.UpdateCollectionRequest{
+		DbID:   dbID.Bytes(),
+		Config: cc,
+	})
+	return err
+}
+
 // DeleteCollection deletes new collection.
 // @todo: This should take some thread auth, but collections currently do not involve a thread.
 func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedDBOption) error {

@@ -136,6 +136,34 @@ func TestClient_NewCollection(t *testing.T) {
 	})
 }
 
+func TestClient_UpdateCollection(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	id := thread.NewIDV1(thread.Raw, 32)
+	err := client.NewDB(context.Background(), id)
+	checkErr(t, err)
+	err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+	checkErr(t, err)
+
+	t.Run("test update collection", func(t *testing.T) {
+		err = client.UpdateCollection(context.Background(), id, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: util.SchemaFromSchemaString(schema2),
+			Indexes: []db.Index{{
+				Path:   "age",
+				Unique: false,
+			}},
+		})
+		if err != nil {
+			t.Fatalf("failed to update collection: %v", err)
+		}
+		_, err = client.Create(context.Background(), id, collectionName, Instances{createPerson2()})
+		checkErr(t, err)
+	})
+}
+
 func TestClient_DeleteCollection(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
@@ -154,7 +182,7 @@ func TestClient_DeleteCollection(t *testing.T) {
 		}
 		_, err = client.Create(context.Background(), id, collectionName, Instances{createPerson()})
 		if err == nil {
-			t.Fatalf("failed to delete collection: %v", err)
+			t.Fatal("failed to delete collection")
 		}
 	})
 }
@@ -721,10 +749,16 @@ func createIdentity(t *testing.T) thread.Identity {
 
 func createPerson() *Person {
 	return &Person{
-		ID:        "",
 		FirstName: "Adam",
 		LastName:  "Doe",
 		Age:       21,
+	}
+}
+
+func createPerson2() *Person2 {
+	return &Person2{
+		FullName: "Adam Doe",
+		Age:      21,
 	}
 }
 
@@ -732,30 +766,52 @@ const (
 	collectionName = "Person"
 
 	schema = `{
-	"$id": "https://example.com/person.schema.json",
-	"$schema": "http://json-schema.org/draft-07/schema#",
-	"title": "` + collectionName + `",
-	"type": "object",
-	"properties": {
-		"_id": {
-			"type": "string",
-			"description": "The instance's id."
-		},
-		"firstName": {
-			"type": "string",
-			"description": "The person's first name."
-		},
-		"lastName": {
-			"type": "string",
-			"description": "The person's last name."
-		},
-		"age": {
-			"description": "Age in years which must be equal to or greater than zero.",
-			"type": "integer",
-			"minimum": 0
+		"$id": "https://example.com/person.schema.json",
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"title": "` + collectionName + `",
+		"type": "object",
+		"properties": {
+			"_id": {
+				"type": "string",
+				"description": "The instance's id."
+			},
+			"firstName": {
+				"type": "string",
+				"description": "The person's first name."
+			},
+			"lastName": {
+				"type": "string",
+				"description": "The person's last name."
+			},
+			"age": {
+				"description": "Age in years which must be equal to or greater than zero.",
+				"type": "integer",
+				"minimum": 0
+			}
 		}
-	}
-}`
+	}`
+
+	schema2 = `{
+		"$id": "https://example.com/person.schema.json",
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"title": "` + collectionName + `",
+		"type": "object",
+		"properties": {
+			"_id": {
+				"type": "string",
+				"description": "The instance's id."
+			},
+			"fullName": {
+				"type": "string",
+				"description": "The person's full name."
+			},
+			"age": {
+				"description": "Age in years which must be equal to or greater than zero.",
+				"type": "integer",
+				"minimum": 0
+			}
+		}
+	}`
 )
 
 type Person struct {
@@ -763,6 +819,12 @@ type Person struct {
 	FirstName string `json:"firstName,omitempty"`
 	LastName  string `json:"lastName,omitempty"`
 	Age       int    `json:"age,omitempty"`
+}
+
+type Person2 struct {
+	ID       string `json:"_id"`
+	FullName string `json:"fullName,omitempty"`
+	Age      int    `json:"age,omitempty"`
 }
 
 type PersonWithoutID struct {
