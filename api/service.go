@@ -196,9 +196,9 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 }
 
 func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, error) {
-	indexes := make([]db.IndexConfig, len(pbc.Indexes))
+	indexes := make([]db.Index, len(pbc.Indexes))
 	for i, index := range pbc.Indexes {
-		indexes[i] = db.IndexConfig{
+		indexes[i] = db.Index{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
@@ -257,7 +257,7 @@ func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.De
 
 	if err = s.manager.DeleteDB(ctx, id, db.WithManagedDBToken(token)); err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
-			return nil, status.Error(codes.NotFound, "db not found")
+			return nil, status.Error(codes.NotFound, db.ErrDBNotFound.Error())
 		} else {
 			return nil, err
 		}
@@ -663,10 +663,10 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 }
 
-func (s *Service) instanceForAction(db *db.DB, action db.Action) ([]byte, error) {
-	collection := db.GetCollection(action.Collection)
+func (s *Service) instanceForAction(d *db.DB, action db.Action) ([]byte, error) {
+	collection := d.GetCollection(action.Collection)
 	if collection == nil {
-		return nil, status.Error(codes.NotFound, "collection not found")
+		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
 	}
 	res, err := collection.FindByID(action.ID)
 	if err != nil {
@@ -745,7 +745,7 @@ func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (
 	d, err := s.manager.GetDB(ctx, id, db.WithManagedDBToken(token))
 	if err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) {
-			return nil, status.Error(codes.NotFound, "db not found")
+			return nil, status.Error(codes.NotFound, db.ErrDBNotFound.Error())
 		} else {
 			return nil, err
 		}
@@ -760,7 +760,7 @@ func (s *Service) getCollection(ctx context.Context, collectionName string, id t
 	}
 	collection := d.GetCollection(collectionName)
 	if collection == nil {
-		return nil, status.Error(codes.NotFound, "collection not found")
+		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
 	}
 	return collection, nil
 }

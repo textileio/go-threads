@@ -33,7 +33,7 @@ type op struct {
 }
 
 // SimpleTx implements the transaction interface for datastores who do
-// not have any sort of underlying transactional support
+// not have any sort of underlying transactional support.
 type SimpleTx struct {
 	ops    map[datastore.Key]op
 	lock   sync.RWMutex

@@ -26,6 +26,20 @@ type Dog struct {
 	Name     string
 	Comments []Comment
 }
+
+type Dog2 struct {
+	ID       core.InstanceID `json:"_id"`
+	Name     string
+	Breed    string
+	Toys     Toys
+	Comments []Comment
+}
+
+type Toys struct {
+	Fav   string
+	Names []string
+}
+
 type Comment struct {
 	Body string
 }
@@ -113,6 +127,34 @@ func TestNewCollection(t *testing.T) {
 	})
 }
 
+func TestUpdateCollection(t *testing.T) {
+	t.Parallel()
+	t.Run("Update", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		_, err := db.NewCollection(CollectionConfig{
+			Name:    "Dog",
+			Schema:  util.SchemaFromInstance(&Dog2{}, false),
+			Indexes: []Index{{Path: "Name", Unique: true}},
+		})
+		checkErr(t, err)
+		c, err := db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog2{}, false),
+			Indexes: []Index{
+				{Path: "Name", Unique: true},
+				{Path: "Toys.Fav"},
+			},
+		})
+		checkErr(t, err)
+		indexes := c.getIndexes()
+		if len(indexes) != 3 {
+			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		}
+	})
+}
+
 func TestAddIndex(t *testing.T) {
 	t.Parallel()
 	t.Run("CreateDBAndCollection", func(t *testing.T) {
@@ -126,15 +168,15 @@ func TestAddIndex(t *testing.T) {
 		checkErr(t, err)
 
 		t.Run("AddNameUniqueIndex", func(t *testing.T) {
-			err := collection.AddIndex(IndexConfig{Path: "Name", Unique: true})
+			err := collection.addIndex(Index{Path: "Name", Unique: true})
 			checkErr(t, err)
 		})
 		t.Run("AddAgeNonUniqueIndex", func(t *testing.T) {
-			err := collection.AddIndex(IndexConfig{Path: "Age", Unique: false})
+			err := collection.addIndex(Index{Path: "Age", Unique: false})
 			checkErr(t, err)
 		})
 		t.Run("AddIDIndex", func(t *testing.T) {
-			err := collection.AddIndex(IndexConfig{Path: "ID", Unique: true})
+			err := collection.addIndex(Index{Path: "ID", Unique: true})
 			checkErr(t, err)
 		})
 	})
@@ -496,7 +538,7 @@ func TestDeleteInstance(t *testing.T) {
 	checkErr(t, err)
 
 	_, err = collection.FindByID(res[0])
-	if err != ErrNotFound {
+	if err != ErrInstanceNotFound {
 		t.Fatalf("FindByID: instance shouldn't exist")
 	}
 	if exist, err := collection.Has(res[0]); exist || err != nil {
@@ -504,7 +546,7 @@ func TestDeleteInstance(t *testing.T) {
 	}
 
 	// Try to delete again
-	if err = collection.Delete(res[0]); err != ErrNotFound {
+	if err = collection.Delete(res[0]); err != ErrInstanceNotFound {
 		t.Fatalf("cant't delete non-existent instance")
 	}
 }

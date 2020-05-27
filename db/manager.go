@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"strings"
 
@@ -18,6 +18,12 @@ import (
 )
 
 var (
+	// ErrDBNotFound indicates that the specified db doesn't exist in the manager.
+	ErrDBNotFound = errors.New("db not found")
+
+	// ErrDBExists indicates that the specified db alrady exists in the manager.
+	ErrDBExists = errors.New("db already exists")
+
 	dsDBManagerBaseKey = ds.NewKey("/manager")
 )
 
@@ -101,7 +107,7 @@ func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (threa
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedDBOption) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {
-		return nil, fmt.Errorf("db %s already exists", id)
+		return nil, ErrDBExists
 	}
 	args := &NewManagedDBOptions{}
 	for _, opt := range opts {
@@ -132,7 +138,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, err
 	}
 	if _, ok := m.dbs[id]; ok {
-		return nil, fmt.Errorf("db %s already exists", id)
+		return nil, ErrDBExists
 	}
 	args := &NewManagedDBOptions{}
 	for _, opt := range opts {

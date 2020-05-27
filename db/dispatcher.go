@@ -35,7 +35,7 @@ type dispatcher struct {
 	lastID   int
 }
 
-// NewDispatcher creates a new EventDispatcher
+// NewDispatcher creates a new EventDispatcher.
 func newDispatcher(store datastore.TxnDatastore) *dispatcher {
 	return &dispatcher{
 		store: store,
@@ -47,7 +47,7 @@ func (d *dispatcher) Store() datastore.Datastore {
 	return d.store
 }
 
-// Register takes a reducer to be invoked with each dispatched event
+// Register takes a reducer to be invoked with each dispatched event.
 func (d *dispatcher) Register(reducer Reducer) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -103,7 +103,7 @@ func (d *dispatcher) Dispatch(events []core.Event) error {
 }
 
 // Query searches the internal event store and returns a query result.
-// This is a syncronouse version of github.com/ipfs/go-datastore's Query method
+// This is a syncronouse version of github.com/ipfs/go-datastore's Query method.
 func (d *dispatcher) Query(query query.Query) ([]query.Entry, error) {
 	result, err := d.store.Query(query)
 	if err != nil {

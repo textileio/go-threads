@@ -97,7 +97,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
 		Schema: util.SchemaFromSchemaString(testBenchSchema),
-		Indexes: []IndexConfig{{
+		Indexes: []Index{{
 			Path:   "Name",
 			Unique: false,
 		}},
@@ -149,7 +149,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
 		Schema: util.SchemaFromSchemaString(testBenchSchema),
-		Indexes: []IndexConfig{{
+		Indexes: []Index{{
 			Path:   "Age",
 			Unique: false,
 		}},
@@ -217,7 +217,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
 		Schema: util.SchemaFromSchemaString(testBenchSchema),
-		Indexes: []IndexConfig{{
+		Indexes: []Index{{
 			Path:   "Name",
 			Unique: false,
 		}},

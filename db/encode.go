@@ -9,13 +9,13 @@ import (
 	"encoding/gob"
 )
 
-// EncodeFunc is a function for encoding a value into bytes
+// EncodeFunc is a function for encoding a value into bytes.
 type EncodeFunc func(value interface{}) ([]byte, error)
 
-// DecodeFunc is a function for decoding a value from bytes
+// DecodeFunc is a function for decoding a value from bytes.
 type DecodeFunc func(data []byte, value interface{}) error
 
-// DefaultEncode is the default encoding func from badgerhold (Gob)
+// DefaultEncode is the default encoding func from badgerhold (Gob).
 func DefaultEncode(value interface{}) ([]byte, error) {
 	var buff bytes.Buffer
 
@@ -29,7 +29,7 @@ func DefaultEncode(value interface{}) ([]byte, error) {
 	return buff.Bytes(), nil
 }
 
-// DefaultDecode is the default decoding func from badgerhold (Gob)
+// DefaultDecode is the default decoding func from badgerhold (Gob).
 func DefaultDecode(data []byte, value interface{}) error {
 	var buff bytes.Buffer
 	de := gob.NewDecoder(&buff)

@@ -302,7 +302,7 @@ func TestClient_FindWithIndex(t *testing.T) {
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
 			Schema: util.SchemaFromSchemaString(schema),
-			Indexes: []db.IndexConfig{{
+			Indexes: []db.Index{{
 				Path:   "lastName",
 				Unique: true,
 			}},
