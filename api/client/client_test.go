@@ -187,6 +187,32 @@ func TestClient_DeleteCollection(t *testing.T) {
 	})
 }
 
+func TestClient_GetCollectionIndexes(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test get collection indexes", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: util.SchemaFromSchemaString(schema),
+			Indexes: []db.Index{{
+				Path:   "lastName",
+				Unique: true,
+			}},
+		})
+		checkErr(t, err)
+		indexes, err := client.GetCollectionIndexes(context.Background(), id, collectionName)
+		checkErr(t, err)
+		if len(indexes) != 2 {
+			t.Fatalf("expected 2 indexes, but got %v", len(indexes))
+		}
+	})
+}
+
 func TestClient_Create(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)

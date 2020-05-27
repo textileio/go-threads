@@ -197,9 +197,9 @@ func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey t
 }
 
 func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
-	idx := make([]*pb.CollectionConfig_IndexConfig, len(c.Indexes))
+	idx := make([]*pb.Index, len(c.Indexes))
 	for i, index := range c.Indexes {
-		idx[i] = &pb.CollectionConfig_IndexConfig{
+		idx[i] = &pb.Index{
 			Path:   index.Path,
 			Unique: index.Unique,
 		}
@@ -274,7 +274,7 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 	return err
 }
 
-// UpdateCollection creates a new collection.
+// UpdateCollection updates an existing collection.
 // @todo: This should take some thread auth, but collections currently do not involve a thread.
 func (c *Client) UpdateCollection(ctx context.Context, dbID thread.ID, config db.CollectionConfig, opts ...db.ManagedDBOption) error {
 	args := &db.ManagedDBOptions{}
@@ -292,7 +292,7 @@ func (c *Client) UpdateCollection(ctx context.Context, dbID thread.ID, config db
 	return err
 }
 
-// DeleteCollection deletes new collection.
+// DeleteCollection deletes a collection.
 // @todo: This should take some thread auth, but collections currently do not involve a thread.
 func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedDBOption) error {
 	args := &db.ManagedDBOptions{}
@@ -304,6 +304,30 @@ func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name stri
 		Name: name,
 	})
 	return err
+}
+
+// GetCollectionIndexes returns an existing collection's indexes.
+// @todo: This should take some thread auth, but collections currently do not involve a thread.
+func (c *Client) GetCollectionIndexes(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedDBOption) ([]db.Index, error) {
+	args := &db.ManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	resp, err := c.c.GetCollectionIndexes(ctx, &pb.GetCollectionIndexesRequest{
+		DbID: dbID.Bytes(),
+		Name: name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	indexes := make([]db.Index, len(resp.Indexes))
+	for i, index := range resp.Indexes {
+		indexes[i] = db.Index{
+			Path:   index.Path,
+			Unique: index.Unique,
+		}
+	}
+	return indexes, nil
 }
 
 // Create creates new instances of objects.

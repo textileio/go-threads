@@ -266,7 +266,19 @@ func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.De
 }
 
 func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
-	d, cc, err := s.getCollectionConfig(ctx, req.DbID, req.Config)
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.getDB(ctx, id, token)
+	if err != nil {
+		return nil, err
+	}
+	cc, err := collectionConfigFromPb(req.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +289,19 @@ func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionReques
 }
 
 func (s *Service) UpdateCollection(ctx context.Context, req *pb.UpdateCollectionRequest) (*pb.UpdateCollectionReply, error) {
-	d, cc, err := s.getCollectionConfig(ctx, req.DbID, req.Config)
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.getDB(ctx, id, token)
+	if err != nil {
+		return nil, err
+	}
+	cc, err := collectionConfigFromPb(req.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -285,27 +309,6 @@ func (s *Service) UpdateCollection(ctx context.Context, req *pb.UpdateCollection
 		return nil, err
 	}
 	return &pb.UpdateCollectionReply{}, nil
-}
-
-func (s *Service) getCollectionConfig(ctx context.Context, dbID []byte, pbcc *pb.CollectionConfig) (d *db.DB, cc db.CollectionConfig, err error) {
-	id, err := thread.Cast(dbID)
-	if err != nil {
-		err = status.Error(codes.InvalidArgument, err.Error())
-		return
-	}
-	token, err := thread.NewTokenFromMD(ctx)
-	if err != nil {
-		return
-	}
-	d, err = s.getDB(ctx, id, token)
-	if err != nil {
-		return
-	}
-	cc, err = collectionConfigFromPb(pbcc)
-	if err != nil {
-		return
-	}
-	return d, cc, nil
 }
 
 func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollectionRequest) (*pb.DeleteCollectionReply, error) {
@@ -325,6 +328,32 @@ func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollection
 		return nil, err
 	}
 	return &pb.DeleteCollectionReply{}, nil
+}
+
+func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectionIndexesRequest) (*pb.GetCollectionIndexesReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(ctx, req.Name, id, token)
+	if err != nil {
+		return nil, err
+	}
+	indexes := collection.GetIndexes()
+	var pbindexes []*pb.Index
+	for _, index := range indexes {
+		pbindexes = append(pbindexes, &pb.Index{
+			Path:   index.Path,
+			Unique: index.Unique,
+		})
+	}
+	return &pb.GetCollectionIndexesReply{
+		Indexes: pbindexes,
+	}, nil
 }
 
 func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
