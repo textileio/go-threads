@@ -14,8 +14,8 @@ import (
 // defined filters. The DB *won't* wait for slow receivers, so if the
 // channel is full, the action will be dropped.
 func (d *DB) Listen(los ...ListenOption) (Listener, error) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 	if d.closed {
 		return nil, fmt.Errorf("can't listen on closed DB")
 	}

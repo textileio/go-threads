@@ -69,6 +69,7 @@ type DB struct {
 	eventcodec core.EventCodec
 
 	lock        sync.RWMutex
+	txnlock     sync.RWMutex
 	collections map[string]*Collection
 	closed      bool
 
@@ -353,6 +354,8 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 func (d *DB) Close() error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 
 	if d.closed {
 		return nil
@@ -459,8 +462,8 @@ func (d *DB) getBlockWithRetry(ctx context.Context, rec net.Record) (format.Node
 // dispatch applies external events to the db. This function guarantee
 // no interference with registered collection states, and viceversa.
 func (d *DB) dispatch(events []core.Event) error {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 	return d.dispatcher.Dispatch(events)
 }
 
@@ -471,8 +474,8 @@ func (d *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
 }
 
 func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
-	d.lock.RLock()
-	defer d.lock.RUnlock()
+	d.txnlock.RLock()
+	defer d.txnlock.RUnlock()
 
 	args := &TxnOptions{}
 	for _, opt := range opts {
@@ -487,8 +490,8 @@ func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) e
 }
 
 func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.txnlock.Lock()
+	defer d.txnlock.Unlock()
 
 	args := &TxnOptions{}
 	for _, opt := range opts {
