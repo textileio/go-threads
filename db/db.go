@@ -277,7 +277,7 @@ func (d *DB) UpdateCollection(config CollectionConfig) (*Collection, error) {
 	}
 
 	// Drop indexes that are no longer requested
-	for _, index := range xc.getIndexes() {
+	for _, index := range xc.indexes {
 		if _, ok := c.indexes[index.Path]; !ok {
 			if err := c.dropIndex(index.Path); err != nil {
 				return nil, err
@@ -296,14 +296,11 @@ func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Inde
 		if index.Path == idFieldName {
 			return ErrCannotIndexIDField
 		}
-		if _, err := getSchemaTypeAtPath(schema, index.Path); err != nil {
-			return err
-		}
-		if err := c.addIndex(index); err != nil {
+		if err := c.addIndex(schema, index); err != nil {
 			return err
 		}
 	}
-	return c.addIndex(Index{Path: idFieldName, Unique: true})
+	return c.addIndex(schema, Index{Path: idFieldName, Unique: true})
 }
 
 func (d *DB) saveCollection(c *Collection) error {
@@ -318,6 +315,25 @@ func (d *DB) saveCollection(c *Collection) error {
 // GetCollection returns a collection by name.
 func (d *DB) GetCollection(name string) *Collection {
 	return d.collections[name]
+}
+
+// DeleteCollection deletes collection by name and drops all indexes.
+func (d *DB) DeleteCollection(name string) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	c, ok := d.collections[name]
+	if !ok {
+		return ErrCollectionNotFound
+	}
+	if err := d.datastore.Delete(dsDBIndexes.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := d.datastore.Delete(dsDBSchemas.ChildString(c.name)); err != nil {
+		return err
+	}
+	delete(d.collections, c.name)
+	return nil
 }
 
 func (d *DB) Close() error {

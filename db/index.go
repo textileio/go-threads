@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/alecthomas/jsonschema"
+
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	"github.com/tidwall/gjson"
@@ -31,6 +33,7 @@ var (
 	ErrIndexNotFound = errors.New("index not found")
 
 	indexPrefix = ds.NewKey("_index")
+	indexTypes  = []string{"string", "number", "integer", "boolean"}
 )
 
 // Index defines an index.
@@ -41,19 +44,46 @@ type Index struct {
 	Unique bool `json:"unique,omitempty"`
 }
 
+// GetIndexes returns the current indexes.
+func (c *Collection) GetIndexes() map[string]Index {
+	indexes := make(map[string]Index)
+	for p, i := range c.indexes {
+		indexes[p] = i
+	}
+	return indexes
+}
+
 // addIndex creates a new index based on path.
 // Use dot syntax to reach nested fields, e.g., "name.last".
 // Set unique to true if you want a unique constraint on path.
 // Adding an index will override any overlapping index values if they already exist.
 // @note: This does NOT currently build the index. If items have been added prior to adding
 // a new index, they will NOT be indexed a posteriori.
-func (c *Collection) addIndex(index Index) error {
+func (c *Collection) addIndex(schema *jsonschema.Schema, index Index) error {
 	// Don't allow the default index to be overwritten
 	if index.Path == idFieldName {
 		if _, ok := c.indexes[idFieldName]; ok {
 			return nil
 		}
 	}
+
+	// Ensure path is valid for the schema
+	jt, err := getSchemaTypeAtPath(schema, index.Path)
+	if err != nil {
+		return err
+	}
+	// Ensure valid type (strings, numbers, integers, and booleans only)
+	var valid bool
+	for _, t := range indexTypes {
+		if jt.Type == t {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return ErrNotIndexable
+	}
+
 	c.indexes[index.Path] = index
 	return c.saveIndexes()
 }
@@ -75,15 +105,6 @@ func (c *Collection) saveIndexes() error {
 		return err
 	}
 	return c.db.datastore.Put(dsDBIndexes.ChildString(c.name), ib)
-}
-
-// getIndexes returns the current indexes.
-func (c *Collection) getIndexes() map[string]Index {
-	indexes := make(map[string]Index)
-	for p, i := range c.indexes {
-		indexes[p] = i
-	}
-	return indexes
 }
 
 // indexAdd adds an item to the index.

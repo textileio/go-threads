@@ -274,6 +274,20 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 	return err
 }
 
+// DeleteCollection deletes new collection.
+// @todo: This should take some thread auth, but collections currently do not involve a thread.
+func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedDBOption) error {
+	args := &db.ManagedDBOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	_, err := c.c.DeleteCollection(ctx, &pb.DeleteCollectionRequest{
+		DbID: dbID.Bytes(),
+		Name: name,
+	})
+	return err
+}
+
 // Create creates new instances of objects.
 func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName string, instances Instances, opts ...db.TxnOption) ([]string, error) {
 	args := &db.TxnOptions{}

@@ -288,6 +288,25 @@ func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionReques
 	return &pb.NewCollectionReply{}, nil
 }
 
+func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollectionRequest) (*pb.DeleteCollectionReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.getDB(ctx, id, token)
+	if err != nil {
+		return nil, err
+	}
+	if err = d.DeleteCollection(req.Name); err != nil {
+		return nil, err
+	}
+	return &pb.DeleteCollectionReply{}, nil
+}
+
 func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {

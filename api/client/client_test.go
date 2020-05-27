@@ -136,6 +136,29 @@ func TestClient_NewCollection(t *testing.T) {
 	})
 }
 
+func TestClient_DeleteCollection(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test delete collection", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		checkErr(t, err)
+
+		err = client.DeleteCollection(context.Background(), id, collectionName)
+		if err != nil {
+			t.Fatalf("failed to delete collection: %v", err)
+		}
+		_, err = client.Create(context.Background(), id, collectionName, Instances{createPerson()})
+		if err == nil {
+			t.Fatalf("failed to delete collection: %v", err)
+		}
+	})
+}
+
 func TestClient_Create(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
