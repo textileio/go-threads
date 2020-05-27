@@ -308,7 +308,7 @@ func TestAddIndex(t *testing.T) {
 	checkErr(t, err)
 
 	t.Run("AddNameUniqueIndex", func(t *testing.T) {
-		err := c.addIndex(schema, Index{Path: "Name", Unique: true})
+		err := c.addIndex(schema, Index{Path: "Name", Unique: false})
 		checkErr(t, err)
 	})
 	t.Run("AddAgeNonUniqueIndex", func(t *testing.T) {
@@ -325,14 +325,24 @@ func TestAddIndex(t *testing.T) {
 			t.Fatal("index path should not be valid")
 		}
 	})
-	t.Run("Fail/AddIndexOnParent", func(t *testing.T) {
+	t.Run("Fail/AddIndexOnRef", func(t *testing.T) {
 		err := c.addIndex(schema, Index{Path: "Toys", Unique: false})
 		if err == nil {
 			t.Fatal("index path should not be valid")
 		}
 	})
-	t.Run("Fail/AddIndexOnArray", func(t *testing.T) {
+	t.Run("Fail/AddIndexOnBadType", func(t *testing.T) {
 		err := c.addIndex(schema, Index{Path: "Comments", Unique: false})
+		if err == nil {
+			t.Fatal("index path should not be valid")
+		}
+	})
+	t.Run("Fail/AddUniqueIndexOnNonUniquePath", func(t *testing.T) {
+		_, err := c.Create(util.JSONFromInstance(Person2{Name: "Foo", Age: 42, Toys: Toys{Favorite: "", Names: []string{}}, Comments: []Comment{}}))
+		checkErr(t, err)
+		_, err = c.Create(util.JSONFromInstance(Person2{Name: "Foo", Age: 42, Toys: Toys{Favorite: "", Names: []string{}}, Comments: []Comment{}}))
+		checkErr(t, err)
+		err = c.addIndex(schema, Index{Path: "Name", Unique: true})
 		if err == nil {
 			t.Fatal("index path should not be valid")
 		}

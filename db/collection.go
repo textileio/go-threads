@@ -296,9 +296,9 @@ func (c *Collection) validInstance(v []byte) error {
 	}
 	var msg string
 	for i, e := range errs {
-		msg += e.Description()
+		msg += e.Field() + ": " + e.Description()
 		if i != len(errs)-1 {
-			msg += ", "
+			msg += "; "
 		}
 	}
 	return fmt.Errorf("%w: %s", ErrInvalidSchemaInstance, msg)

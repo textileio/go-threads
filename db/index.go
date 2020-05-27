@@ -29,6 +29,8 @@ var (
 	ErrUniqueExists = errors.New("unique constraint violation")
 	// ErrNotIndexable indicates an index path does not resolve to a value.
 	ErrNotIndexable = errors.New("value not indexable")
+	// ErrCantCreateUniqueIndex indicates a unique index can't be created because multiple instances share a value at path.
+	ErrCantCreateUniqueIndex = errors.New("can't create unique index (duplicate instances exist)")
 	// ErrIndexNotFound indicates a requested index was not found.
 	ErrIndexNotFound = errors.New("index not found")
 
@@ -55,6 +57,7 @@ func (c *Collection) GetIndexes() map[string]Index {
 
 // addIndex creates a new index based on path.
 // Use dot syntax to reach nested fields, e.g., "name.last".
+// The field at path must be one of the supported JSON Schema types: string, number, integer, or boolean
 // Set unique to true if you want a unique constraint on path.
 // Adding an index will override any overlapping index values if they already exist.
 // @note: This does NOT currently build the index. If items have been added prior to adding
@@ -67,12 +70,11 @@ func (c *Collection) addIndex(schema *jsonschema.Schema, index Index) error {
 		}
 	}
 
-	// Ensure path is valid for the schema
+	// Validate path and type.
 	jt, err := getSchemaTypeAtPath(schema, index.Path)
 	if err != nil {
 		return err
 	}
-	// Ensure valid type (strings, numbers, integers, and booleans only)
 	var valid bool
 	for _, t := range indexTypes {
 		if jt.Type == t {
@@ -82,6 +84,31 @@ func (c *Collection) addIndex(schema *jsonschema.Schema, index Index) error {
 	}
 	if !valid {
 		return ErrNotIndexable
+	}
+
+	// Skip if nothing to do
+	if x, ok := c.indexes[index.Path]; ok && index.Unique == x.Unique {
+		return nil
+	}
+
+	// Ensure collection does not contain multiple instances with the same value at path
+	if index.Unique && index.Path != idFieldName {
+		vals := make(map[interface{}]struct{})
+		all, err := c.Find(&Query{})
+		if err != nil {
+			return err
+		}
+		for _, i := range all {
+			res := gjson.GetBytes(i, index.Path)
+			if !res.Exists() {
+				continue
+			}
+			if _, ok := vals[res.Value()]; ok {
+				return ErrCantCreateUniqueIndex
+			} else {
+				vals[res.Value()] = struct{}{}
+			}
+		}
 	}
 
 	c.indexes[index.Path] = index
