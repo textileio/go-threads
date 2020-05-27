@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	// ErrInvalidSchemaPath indicates path does not resolve to a schema type.
+	// ErrInvalidCollectionSchemaPath indicates path does not resolve to a schema type.
 	ErrInvalidCollectionSchemaPath = errors.New("collection schema does not contain path")
 	// ErrCollectionNotFound indicates that the specified collection doesn't exist in the db.
 	ErrCollectionNotFound = errors.New("collection not found")

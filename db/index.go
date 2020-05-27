@@ -46,10 +46,12 @@ type Index struct {
 }
 
 // GetIndexes returns the current indexes.
-func (c *Collection) GetIndexes() map[string]Index {
-	indexes := make(map[string]Index)
-	for p, i := range c.indexes {
-		indexes[p] = i
+func (c *Collection) GetIndexes() []Index {
+	indexes := make([]Index, len(c.indexes))
+	var i int
+	for _, index := range c.indexes {
+		indexes[i] = index
+		i++
 	}
 	return indexes
 }

@@ -344,12 +344,12 @@ func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectio
 		return nil, err
 	}
 	indexes := collection.GetIndexes()
-	var pbindexes []*pb.Index
-	for _, index := range indexes {
-		pbindexes = append(pbindexes, &pb.Index{
+	pbindexes := make([]*pb.Index, len(indexes))
+	for i, index := range indexes {
+		pbindexes[i] = &pb.Index{
 			Path:   index.Path,
 			Unique: index.Unique,
-		})
+		}
 	}
 	return &pb.GetCollectionIndexesReply{
 		Indexes: pbindexes,

@@ -343,10 +343,17 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	if !ok {
 		return ErrCollectionNotFound
 	}
-	if err := d.datastore.Delete(dsDBIndexes.ChildString(c.name)); err != nil {
+	txn, err := d.datastore.NewTransaction(false)
+	if err != nil {
 		return err
 	}
-	if err := d.datastore.Delete(dsDBSchemas.ChildString(c.name)); err != nil {
+	if err := txn.Delete(dsDBIndexes.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Delete(dsDBSchemas.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Commit(); err != nil {
 		return err
 	}
 	delete(d.collections, c.name)

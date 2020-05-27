@@ -363,7 +363,7 @@ func TestGetIndexes(t *testing.T) {
 	if len(indexes) != 1 {
 		t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
 	}
-	if !indexes["_id"].Unique {
+	if !indexes[0].Unique {
 		t.Fatal("index on _id should be unique")
 	}
 	err = c.addIndex(schema, Index{Path: "Name", Unique: false})
@@ -372,7 +372,7 @@ func TestGetIndexes(t *testing.T) {
 	if len(indexes) != 2 {
 		t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
 	}
-	if indexes["Name"].Unique {
+	if indexes[1].Unique {
 		t.Fatal("index on Name should not be unique")
 	}
 }
