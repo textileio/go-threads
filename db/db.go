@@ -209,7 +209,9 @@ func (d *DB) reCreateCollections() error {
 			}
 		}
 		for _, index := range indexes {
-			c.indexes[index.Path] = index
+			if index.Path != "" { // Catch bad indexes from an old bug
+				c.indexes[index.Path] = index
+			}
 		}
 		d.collections[c.name] = c
 	}
