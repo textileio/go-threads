@@ -35,7 +35,7 @@ var (
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
-	baseKey = dsDBPrefix.ChildString("collection")
+	baseKey = dsPrefix.ChildString("collection")
 )
 
 // Collection is a group of instances sharing a schema.
@@ -49,8 +49,8 @@ type Collection struct {
 
 // newCollection returns a new Collection from schema.
 func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, error) {
-	if name != "" && !collectionNameRx.MatchString(name) {
-		return nil, ErrInvalidCollectionName
+	if name != "" && !nameRx.MatchString(name) {
+		return nil, ErrInvalidName
 	}
 	idType, err := getSchemaTypeAtPath(schema, idFieldName)
 	if err != nil {

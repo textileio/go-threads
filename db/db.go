@@ -37,22 +37,23 @@ const (
 var (
 	log = logging.Logger("db")
 
+	// ErrInvalidName indicates the provided name isn't valid for a Collection.
+	ErrInvalidName = errors.New("name may only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen")
 	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
 	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an _id string property")
-	// ErrInvalidCollectionName indicates the provided name isn't valid for a Collection.
-	ErrInvalidCollectionName = errors.New("collection name may only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen")
 	// ErrCannotIndexIDField indicates a custom index was specified on the ID field.
 	ErrCannotIndexIDField = errors.New("cannot create custom index on " + idFieldName)
 
-	collectionNameRx *regexp.Regexp
+	nameRx *regexp.Regexp
 
-	dsDBPrefix  = ds.NewKey("/db")
-	dsDBSchemas = dsDBPrefix.ChildString("schema")
-	dsDBIndexes = dsDBPrefix.ChildString("index")
+	dsPrefix  = ds.NewKey("/db")
+	dsName    = dsPrefix.ChildString("name")
+	dsSchemas = dsPrefix.ChildString("schema")
+	dsIndexes = dsPrefix.ChildString("index")
 )
 
 func init() {
-	collectionNameRx = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-][A-Za-z0-9]+)*$`)
+	nameRx = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-][A-Za-z0-9]+)*$`)
 }
 
 // DB is the aggregate-root of events and state. External/remote events
@@ -62,6 +63,7 @@ func init() {
 type DB struct {
 	io.Closer
 
+	name      string
 	connector *app.Connector
 
 	datastore  ds.TxnDatastore
@@ -80,43 +82,39 @@ type DB struct {
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
 func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption) (*DB, error) {
-	options := &NewOptions{}
+	args := &NewOptions{}
 	for _, opt := range opts {
-		if err := opt(options); err != nil {
-			return nil, err
-		}
+		opt(args)
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(options.Token)); err != nil {
+	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token)); err != nil {
 		if !errors.Is(err, lstore.ErrThreadExists) {
 			return nil, err
 		}
 	}
-	return newDB(network, id, options)
+	return newDB(network, id, args)
 }
 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
 func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewOption) (*DB, error) {
-	options := &NewOptions{}
+	args := &NewOptions{}
 	for _, opt := range opts {
-		if err := opt(options); err != nil {
-			return nil, err
-		}
+		opt(args)
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(options.Token))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(args.Token))
 	if err != nil {
 		return nil, err
 	}
-	d, err := newDB(network, ti.ID, options)
+	d, err := newDB(network, ti.ID, args)
 	if err != nil {
 		return nil, err
 	}
 
 	go func() {
-		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(options.Token)); err != nil {
+		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(args.Token)); err != nil {
 			log.Errorf("error pulling thread %s", ti.ID)
 		}
 	}()
@@ -124,19 +122,19 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 }
 
 // newDB is used directly by a db manager to create new dbs with the same config.
-func newDB(n app.Net, id thread.ID, options *NewOptions) (*DB, error) {
-	if options.Datastore == nil {
-		datastore, err := newDefaultDatastore(options.RepoPath, options.LowMem)
+func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
+	if opts.Datastore == nil {
+		datastore, err := newDefaultDatastore(opts.RepoPath, opts.LowMem)
 		if err != nil {
 			return nil, err
 		}
-		options.Datastore = datastore
+		opts.Datastore = datastore
 	}
-	if options.EventCodec == nil {
-		options.EventCodec = newDefaultEventCodec()
+	if opts.EventCodec == nil {
+		opts.EventCodec = newDefaultEventCodec()
 	}
-	if !managedDatastore(options.Datastore) {
-		if options.Debug {
+	if !managedDatastore(opts.Datastore) {
+		if opts.Debug {
 			if err := util.SetLogLevels(map[string]logging.LogLevel{
 				"db": logging.LevelDebug,
 			}); err != nil {
@@ -146,19 +144,25 @@ func newDB(n app.Net, id thread.ID, options *NewOptions) (*DB, error) {
 	}
 
 	d := &DB{
-		datastore:           options.Datastore,
-		dispatcher:          newDispatcher(options.Datastore),
-		eventcodec:          options.EventCodec,
+		datastore:           opts.Datastore,
+		dispatcher:          newDispatcher(opts.Datastore),
+		eventcodec:          opts.EventCodec,
 		collections:         make(map[string]*Collection),
 		localEventsBus:      app.NewLocalEventsBus(),
 		stateChangedNotifee: &stateChangedNotifee{},
+	}
+	if err := d.putName(opts.Name); err != nil {
+		return nil, err
+	}
+	if err := d.loadName(); err != nil {
+		return nil, err
 	}
 	if err := d.reCreateCollections(); err != nil {
 		return nil, err
 	}
 	d.dispatcher.Register(d)
 
-	for _, cc := range options.Collections {
+	for _, cc := range opts.Collections {
 		if _, err := d.NewCollection(cc); err != nil {
 			return nil, err
 		}
@@ -179,13 +183,36 @@ func managedDatastore(ds ds.Datastore) bool {
 	return ok
 }
 
+// putName saves a name for db.
+func (d *DB) putName(name string) error {
+	if name == "" {
+		return nil
+	}
+	if !nameRx.MatchString(name) {
+		return ErrInvalidName
+	}
+	return d.datastore.Put(dsName, []byte(name))
+}
+
+// loadName loads db name if present.
+func (d *DB) loadName() error {
+	bytes, err := d.datastore.Get(dsName)
+	if err != nil && !errors.Is(err, ds.ErrNotFound) {
+		return err
+	}
+	if bytes != nil {
+		d.name = string(bytes)
+	}
+	return nil
+}
+
 // reCreateCollections loads and registers schemas from the datastore.
 func (d *DB) reCreateCollections() error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
 	results, err := d.datastore.Query(query.Query{
-		Prefix: dsDBSchemas.String(),
+		Prefix: dsSchemas.String(),
 	})
 	if err != nil {
 		return err
@@ -202,7 +229,7 @@ func (d *DB) reCreateCollections() error {
 			return err
 		}
 		var indexes map[string]Index
-		index, err := d.datastore.Get(dsDBIndexes.ChildString(name))
+		index, err := d.datastore.Get(dsIndexes.ChildString(name))
 		if err == nil && index != nil {
 			if err := json.Unmarshal(index, &indexes); err != nil {
 				return err
@@ -216,6 +243,11 @@ func (d *DB) reCreateCollections() error {
 		d.collections[c.name] = c
 	}
 	return nil
+}
+
+// GetName returns the db name.
+func (d *DB) GetName() string {
+	return d.name
 }
 
 // GetDBInfo returns the addresses and key that can be used to join the DB thread.
@@ -310,7 +342,7 @@ func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Inde
 
 func (d *DB) saveCollection(c *Collection) error {
 	schema := c.schemaLoader.JsonSource().([]byte)
-	if err := d.datastore.Put(dsDBSchemas.ChildString(c.name), schema); err != nil {
+	if err := d.datastore.Put(dsSchemas.ChildString(c.name), schema); err != nil {
 		return err
 	}
 	d.collections[c.name] = c
@@ -347,10 +379,10 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	if err != nil {
 		return err
 	}
-	if err := txn.Delete(dsDBIndexes.ChildString(c.name)); err != nil {
+	if err := txn.Delete(dsIndexes.ChildString(c.name)); err != nil {
 		return err
 	}
-	if err := txn.Delete(dsDBSchemas.ChildString(c.name)); err != nil {
+	if err := txn.Delete(dsSchemas.ChildString(c.name)); err != nil {
 		return err
 	}
 	if err := txn.Commit(); err != nil {

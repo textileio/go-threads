@@ -144,7 +144,7 @@ func (c *Collection) saveIndexes() error {
 	if err != nil {
 		return err
 	}
-	return c.db.datastore.Put(dsDBIndexes.ChildString(c.name), ib)
+	return c.db.datastore.Put(dsIndexes.ChildString(c.name), ib)
 }
 
 // indexAdd adds an item to the index.

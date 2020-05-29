@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	dsDispatcherPrefix = dsDBPrefix.ChildString("dispatcher")
+	dsDispatcherPrefix = dsPrefix.ChildString("dispatcher")
 )
 
 // Reducer applies an event to an existing state.
