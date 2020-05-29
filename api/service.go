@@ -160,7 +160,7 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDB(ctx, id, db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
+	if _, err = s.manager.NewDB(ctx, id, db.WithNewManagedName(req.Name), db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -189,7 +189,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
+	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, db.WithNewManagedName(req.Name), db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -214,6 +214,32 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 	}, nil
 }
 
+func (s *Service) ListDBs(ctx context.Context, _ *pb.ListDBsRequest) (*pb.ListDBsReply, error) {
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	dbs, err := s.manager.ListDBs(ctx, db.WithManagedToken(token))
+	if err != nil {
+		return nil, err
+	}
+	pbdbs := make([]*pb.ListDBsReply_DB, len(dbs))
+	var i int
+	for id, d := range dbs {
+		info, err := dBInfoToPb(d, token)
+		if err != nil {
+			return nil, err
+		}
+		pbdbs[i] = &pb.ListDBsReply_DB{
+			DbID: id.Bytes(),
+			Info: info,
+		}
+		i++
+	}
+	return &pb.ListDBsReply{Dbs: pbdbs}, nil
+}
+
 func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
@@ -228,21 +254,23 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
+	return dBInfoToPb(d, token)
+}
 
+func dBInfoToPb(d *db.DB, token thread.Token) (*pb.GetDBInfoReply, error) {
 	addrs, key, err := d.GetDBInfo(db.WithToken(token))
 	if err != nil {
 		return nil, err
 	}
-
 	res := make([][]byte, len(addrs))
 	for i := range addrs {
 		res[i] = addrs[i].Bytes()
 	}
-	reply := &pb.GetDBInfoReply{
+	return &pb.GetDBInfoReply{
+		Name:  d.GetName(),
 		Addrs: res,
 		Key:   key.Bytes(),
-	}
-	return reply, nil
+	}, nil
 }
 
 func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.DeleteDBReply, error) {
@@ -619,7 +647,6 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return err
 				}
 			case *pb.WriteTransactionRequest_SaveRequest:
-				// @todo: This needs to be a different auth.
 				innerReply, err := s.processSaveRequest(x.SaveRequest, token, func(ids [][]byte, _ ...db.TxnOption) error {
 					return txn.Save(ids...)
 				})
