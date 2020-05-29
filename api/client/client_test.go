@@ -68,12 +68,43 @@ func TestClient_NewDBFromAddr(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
 	err := client1.NewDB(context.Background(), id)
 	checkErr(t, err)
-	addrs, key, err := client1.GetDBInfo(context.Background(), id)
+	info, err := client1.GetDBInfo(context.Background(), id)
 	checkErr(t, err)
 
 	t.Run("test new db from address", func(t *testing.T) {
-		if err = client2.NewDBFromAddr(context.Background(), addrs[0], key); err != nil {
+		if err = client2.NewDBFromAddr(context.Background(), info.Addrs[0], info.Key); err != nil {
 			t.Fatalf("failed to create new db from address: %v", err)
+		}
+	})
+}
+
+func TestClient_ListDBs(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test list dbs", func(t *testing.T) {
+		id1 := thread.NewIDV1(thread.Raw, 32)
+		name1 := "db1"
+		err := client.NewDB(context.Background(), id1, db.WithNewManagedName(name1))
+		checkErr(t, err)
+		id2 := thread.NewIDV1(thread.Raw, 32)
+		name2 := "db2"
+		err = client.NewDB(context.Background(), id2, db.WithNewManagedName(name2))
+		checkErr(t, err)
+
+		list, err := client.ListDBs(context.Background())
+		if err != nil {
+			t.Fatalf("failed to list dbs: %v", err)
+		}
+		if len(list) != 2 {
+			t.Fatalf("expected 2 dbs, but got %v", len(list))
+		}
+		if list[id1].Name != name1 {
+			t.Fatalf("expected name to be %s, but got %s", name1, list[id1].Name)
+		}
+		if list[id2].Name != name2 {
+			t.Fatalf("expected name to be %s, but got %s", name2, list[id2].Name)
 		}
 	})
 }
@@ -88,14 +119,14 @@ func TestClient_GetDBInfo(t *testing.T) {
 		err := client.NewDB(context.Background(), id)
 		checkErr(t, err)
 
-		addrs, key, err := client.GetDBInfo(context.Background(), id)
+		info, err := client.GetDBInfo(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to get db info: %v", err)
 		}
-		if !key.Defined() {
+		if !info.Key.Defined() {
 			t.Fatal("got undefined db key")
 		}
-		if len(addrs) == 0 {
+		if len(info.Addrs) == 0 {
 			t.Fatal("got empty addresses")
 		}
 	})
@@ -114,7 +145,7 @@ func TestClient_DeleteDB(t *testing.T) {
 		if err = client.DeleteDB(context.Background(), id); err != nil {
 			t.Fatalf("failed to delete db: %v", err)
 		}
-		if _, _, err := client.GetDBInfo(context.Background(), id); err == nil {
+		if _, err := client.GetDBInfo(context.Background(), id); err == nil {
 			t.Fatal("deleted db still exists")
 		}
 	})

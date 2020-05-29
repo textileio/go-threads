@@ -34,65 +34,67 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 
 // NewOptions defines options for creating a new db.
 type NewOptions struct {
+	Name        string
 	RepoPath    string
-	Datastore   ds.TxnDatastore
-	EventCodec  core.EventCodec
-	Debug       bool
-	LowMem      bool
-	Collections []CollectionConfig
 	Token       thread.Token
+	Datastore   ds.TxnDatastore
+	Collections []CollectionConfig
+	EventCodec  core.EventCodec
+	LowMem      bool
+	Debug       bool
 }
 
 // NewOption specifies a new db option.
-type NewOption func(*NewOptions) error
+type NewOption func(*NewOptions)
 
-// WithNewLowMem specifies whether or not to use low memory settings.
-func WithNewLowMem(low bool) NewOption {
-	return func(o *NewOptions) error {
-		o.LowMem = low
-		return nil
+// WithNewName sets the db name.
+func WithNewName(name string) NewOption {
+	return func(o *NewOptions) {
+		o.Name = name
 	}
 }
 
 // WithNewRepoPath sets the repo path.
 func WithNewRepoPath(path string) NewOption {
-	return func(o *NewOptions) error {
+	return func(o *NewOptions) {
 		o.RepoPath = path
-		return nil
-	}
-}
-
-// WithNewDebug indicate to output debug information.
-func WithNewDebug(enable bool) NewOption {
-	return func(o *NewOptions) error {
-		o.Debug = enable
-		return nil
-	}
-}
-
-// WithNewEventCodec configure to use ec as the EventCodec
-// for transforming actions in events, and viceversa.
-func WithNewEventCodec(ec core.EventCodec) NewOption {
-	return func(o *NewOptions) error {
-		o.EventCodec = ec
-		return nil
 	}
 }
 
 // WithNewToken provides authorization for interacting with a db.
 func WithNewToken(t thread.Token) NewOption {
-	return func(o *NewOptions) error {
+	return func(o *NewOptions) {
 		o.Token = t
-		return nil
 	}
 }
 
 // WithNewCollections is used to specify collections that
 // will be created.
 func WithNewCollections(cs ...CollectionConfig) NewOption {
-	return func(o *NewOptions) error {
+	return func(o *NewOptions) {
 		o.Collections = cs
-		return nil
+	}
+}
+
+// WithNewEventCodec configure to use ec as the EventCodec
+// for transforming actions in events, and viceversa.
+func WithNewEventCodec(ec core.EventCodec) NewOption {
+	return func(o *NewOptions) {
+		o.EventCodec = ec
+	}
+}
+
+// WithNewLowMem specifies whether or not to use low memory settings.
+func WithNewLowMem(low bool) NewOption {
+	return func(o *NewOptions) {
+		o.LowMem = low
+	}
+}
+
+// WithNewDebug indicate to output debug information.
+func WithNewDebug(enable bool) NewOption {
+	return func(o *NewOptions) {
+		o.Debug = enable
 	}
 }
 
@@ -130,6 +132,7 @@ func WithTxnToken(t thread.Token) TxnOption {
 type NewManagedOptions struct {
 	Collections []CollectionConfig
 	Token       thread.Token
+	Name        string
 }
 
 // NewManagedOption specifies a new managed db option.
@@ -147,6 +150,13 @@ func WithNewManagedCollections(cs ...CollectionConfig) NewManagedOption {
 func WithNewManagedToken(t thread.Token) NewManagedOption {
 	return func(args *NewManagedOptions) {
 		args.Token = t
+	}
+}
+
+// WithNewManagedName assigns a name to a new managed db.
+func WithNewManagedName(name string) NewManagedOption {
+	return func(args *NewManagedOptions) {
+		args.Name = name
 	}
 }
 

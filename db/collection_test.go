@@ -160,7 +160,7 @@ func TestNewCollection(t *testing.T) {
 			Name:   "Not a URL-safe name",
 			Schema: util.SchemaFromInstance(&Dog{}, false),
 		}
-		if _, err := db.NewCollection(cc); err != ErrInvalidCollectionName {
+		if _, err := db.NewCollection(cc); err != ErrInvalidName {
 			t.Fatal("the collection name should be invalid")
 		}
 	})

@@ -84,6 +84,27 @@ func TestManager_NewDB(t *testing.T) {
 		_, err = man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedToken(tok))
 		checkErr(t, err)
 	})
+	t.Run("test new db with bad name", func(t *testing.T) {
+		t.Parallel()
+		man, clean := createTestManager(t)
+		defer clean()
+		name := "my db"
+		_, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedName(name))
+		if err == nil {
+			t.Fatal("new db with bad name should fail")
+		}
+	})
+	t.Run("test new db with name", func(t *testing.T) {
+		t.Parallel()
+		man, clean := createTestManager(t)
+		defer clean()
+		name := "my-db"
+		d, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32), WithNewManagedName(name))
+		checkErr(t, err)
+		if d.name != name {
+			t.Fatalf("expected name %s, got %s", name, d.name)
+		}
+	})
 }
 
 func TestManager_GetDB(t *testing.T) {

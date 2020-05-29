@@ -91,7 +91,40 @@ func TestE2EWithThreads(t *testing.T) {
 	}
 }
 
-func TestOptions(t *testing.T) {
+func TestWithNewName(t *testing.T) {
+	t.Parallel()
+	tmpDir, err := ioutil.TempDir("", "")
+	checkErr(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	n, err := common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	checkErr(t, err)
+
+	name := "my-db"
+	id := thread.NewIDV1(thread.Raw, 32)
+	d, err := NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewName(name))
+	checkErr(t, err)
+	if d.name != name {
+		t.Fatalf("expected name %s, got %s", name, d.name)
+	}
+
+	// Re-do again to re-use key. If something wasn't closed correctly, would fail
+	checkErr(t, n.Close())
+	checkErr(t, d.Close())
+
+	time.Sleep(time.Second * 3)
+	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	checkErr(t, err)
+	defer n.Close()
+	defer d.Close()
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir))
+	checkErr(t, err)
+	if d.name != name {
+		t.Fatalf("expected name %s, got %s", name, d.name)
+	}
+}
+
+func TestWithNewEventCodec(t *testing.T) {
 	t.Parallel()
 	tmpDir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
