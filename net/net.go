@@ -271,15 +271,13 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	}); err != nil {
 		return
 	}
-	if args.ThreadKey.CanRead() {
-		var linfo thread.LogInfo
-		linfo, err = createLog(n.host.ID(), args.LogKey)
-		if err != nil {
-			return
-		}
-		if err = n.store.AddLog(id, linfo); err != nil {
-			return
-		}
+	var linfo thread.LogInfo
+	linfo, err = createLog(n.host.ID(), args.LogKey)
+	if err != nil {
+		return
+	}
+	if err = n.store.AddLog(id, linfo); err != nil {
+		return
 	}
 
 	threadComp, err := ma.NewComponent(thread.Name, id.String())
