@@ -271,7 +271,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	}); err != nil {
 		return
 	}
-	if args.ThreadKey.CanRead() {
+	if args.ThreadKey.CanRead() || args.LogKey != nil {
 		var linfo thread.LogInfo
 		linfo, err = createLog(n.host.ID(), args.LogKey)
 		if err != nil {
