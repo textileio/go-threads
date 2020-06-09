@@ -9,6 +9,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -20,7 +21,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // AddrBookRecord represents a record for a log in the address book.
 type AddrBookRecord struct {
@@ -46,7 +47,7 @@ func (m *AddrBookRecord) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_AddrBookRecord.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +96,7 @@ func (m *AddrBookRecord_AddrEntry) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_AddrBookRecord_AddrEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -148,7 +149,7 @@ func (m *HeadBookRecord) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_HeadBookRecord.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +194,7 @@ func (m *HeadBookRecord_HeadEntry) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_HeadBookRecord_HeadEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -249,7 +250,7 @@ var fileDescriptor_804c9876c53f6037 = []byte{
 func (m *AddrBookRecord) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -257,49 +258,60 @@ func (m *AddrBookRecord) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *AddrBookRecord) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AddrBookRecord) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ThreadID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLstore(dAtA, i, uint64(m.ThreadID.Size()))
-		n1, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.Addrs) > 0 {
+		for iNdEx := len(m.Addrs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Addrs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintLstore(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
 		}
-		i += n1
 	}
 	if m.PeerID != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintLstore(dAtA, i, uint64(m.PeerID.Size()))
-		n2, err := m.PeerID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
-	}
-	if len(m.Addrs) > 0 {
-		for _, msg := range m.Addrs {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintLstore(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
+		{
+			size := m.PeerID.Size()
+			i -= size
+			if _, err := m.PeerID.MarshalTo(dAtA[i:]); err != nil {
 				return 0, err
 			}
-			i += n
+			i = encodeVarintLstore(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintLstore(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *AddrBookRecord_AddrEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -307,37 +319,44 @@ func (m *AddrBookRecord_AddrEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *AddrBookRecord_AddrEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AddrBookRecord_AddrEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Addr != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLstore(dAtA, i, uint64(m.Addr.Size()))
-		n3, err := m.Addr.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n3
+	if m.Ttl != 0 {
+		i = encodeVarintLstore(dAtA, i, uint64(m.Ttl))
+		i--
+		dAtA[i] = 0x18
 	}
 	if m.Expiry != 0 {
-		dAtA[i] = 0x10
-		i++
 		i = encodeVarintLstore(dAtA, i, uint64(m.Expiry))
+		i--
+		dAtA[i] = 0x10
 	}
-	if m.Ttl != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintLstore(dAtA, i, uint64(m.Ttl))
+	if m.Addr != nil {
+		{
+			size := m.Addr.Size()
+			i -= size
+			if _, err := m.Addr.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintLstore(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *HeadBookRecord) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -345,29 +364,36 @@ func (m *HeadBookRecord) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *HeadBookRecord) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *HeadBookRecord) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Heads) > 0 {
-		for _, msg := range m.Heads {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintLstore(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Heads) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Heads[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintLstore(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *HeadBookRecord_HeadEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -375,37 +401,46 @@ func (m *HeadBookRecord_HeadEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *HeadBookRecord_HeadEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *HeadBookRecord_HeadEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Cid != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLstore(dAtA, i, uint64(m.Cid.Size()))
-		n4, err := m.Cid.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Cid.Size()
+			i -= size
+			if _, err := m.Cid.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintLstore(dAtA, i, uint64(size))
 		}
-		i += n4
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintLstore(dAtA []byte, offset int, v uint64) int {
+	offset -= sovLstore(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func NewPopulatedAddrBookRecord(r randyLstore, easy bool) *AddrBookRecord {
 	this := &AddrBookRecord{}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.PeerID = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v1 := r.Intn(5)
 		this.Addrs = make([]*AddrBookRecord_AddrEntry, v1)
 		for i := 0; i < v1; i++ {
@@ -435,7 +470,7 @@ func NewPopulatedAddrBookRecord_AddrEntry(r randyLstore, easy bool) *AddrBookRec
 
 func NewPopulatedHeadBookRecord(r randyLstore, easy bool) *HeadBookRecord {
 	this := &HeadBookRecord{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v2 := r.Intn(5)
 		this.Heads = make([]*HeadBookRecord_HeadEntry, v2)
 		for i := 0; i < v2; i++ {
@@ -598,14 +633,7 @@ func (m *HeadBookRecord_HeadEntry) Size() (n int) {
 }
 
 func sovLstore(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozLstore(x uint64) (n int) {
 	return sovLstore(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -1071,6 +1099,7 @@ func (m *HeadBookRecord_HeadEntry) Unmarshal(dAtA []byte) error {
 func skipLstore(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1102,10 +1131,8 @@ func skipLstore(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1126,55 +1153,30 @@ func skipLstore(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthLstore
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthLstore
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowLstore
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipLstore(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthLstore
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupLstore
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthLstore
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthLstore = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowLstore   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthLstore        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowLstore          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupLstore = fmt.Errorf("proto: unexpected end of group")
 )

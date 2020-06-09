@@ -175,7 +175,7 @@ func TestClient_AddReplicator(t *testing.T) {
 
 	t.Run("test add replicator", func(t *testing.T) {
 		addr := peerAddr(t, hostAddr2, hostID2)
-		pid, err := client1.AddReplicator(context.Background(), info.ID, addr)
+		pid, err := client1.AddReplicator(context.Background(), info.ID, addr, peer.ID(""))
 		if err != nil {
 			t.Fatalf("failed to add replicator: %v", err)
 		}
@@ -321,7 +321,7 @@ func TestClient_Subscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 	addr := peerAddr(t, hostAddr2, hostID2)
-	if _, err := client1.AddReplicator(context.Background(), info.ID, addr); err != nil {
+	if _, err := client1.AddReplicator(context.Background(), info.ID, addr, peer.ID("")); err != nil {
 		t.Fatal(err)
 	}
 

@@ -15,6 +15,7 @@ import (
 	dag "github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
@@ -201,7 +202,7 @@ func TestNet_AddReplicator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = n1.AddReplicator(ctx, info.ID, addr); err != nil {
+	if _, err = n1.AddReplicator(ctx, info.ID, addr, peer.ID("")); err != nil {
 		t.Fatal(err)
 	}
 

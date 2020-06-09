@@ -75,6 +75,7 @@ message DeleteThreadReply {}
 message AddReplicatorRequest {
     bytes threadID = 1;
     bytes addr = 2;
+    bytes logID = 3;
 }
 
 message AddReplicatorReply {

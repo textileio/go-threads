@@ -502,7 +502,7 @@ func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
 	return n.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
 }
 
-func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
+func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, lid peer.ID, opts ...core.ThreadOption) (pid peer.ID, err error) {
 	if err = id.Validate(); err != nil {
 		return
 	}
@@ -534,11 +534,18 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err != nil {
 		return
 	}
-	ownlg, err := n.getOwnLog(info.ID)
+	// Default to own log if given an invalid log id
+
+	var lg thread.LogInfo
+	if err := lid.Validate(); err == peer.ErrEmptyPeerID {
+		lg, err = n.getOwnLog(info.ID)
+	} else {
+		lg, err = n.store.GetLog(info.ID, lid)
+	}
 	if err != nil {
 		return
 	}
-	if err = n.store.AddAddr(info.ID, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+	if err = n.store.AddAddr(info.ID, lg.ID, addr, pstore.PermanentAddrTTL); err != nil {
 		return
 	}
 	info, err = n.store.GetThread(info.ID) // Update info
@@ -557,7 +564,7 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
 		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			if err := n.store.SetAddrs(info.ID, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
+			if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 				log.Errorf("error rolling back log address change: %s", err)
 			}
 			return
@@ -589,8 +596,8 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 				return
 			}
 
-			if err = n.server.pushLog(ctx, info.ID, ownlg, pid, nil, nil); err != nil {
-				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
+			if err = n.server.pushLog(ctx, info.ID, lg, pid, nil, nil); err != nil {
+				log.Errorf("error pushing log %s to %s", lg.ID, p)
 			}
 		}(addr)
 	}
@@ -1037,7 +1044,7 @@ func (n *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 			return n.store.GetLog(id, lid)
 		}
 	}
-	return info, nil
+	return info, lstore.ErrLogNotFound
 }
 
 // getOrCreateOwnLoad returns the log owned by the host under the given thread.
@@ -1045,7 +1052,9 @@ func (n *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 	info, err = n.getOwnLog(id)
 	if err != nil {
-		return info, err
+		if err != lstore.ErrLogNotFound {
+			return info, err
+		}
 	}
 	if info.PubKey != nil {
 		return

@@ -197,15 +197,17 @@ func (c *Client) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Th
 	return err
 }
 
-func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {
+func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, lid peer.ID, opts ...core.ThreadOption) (pid peer.ID, err error) {
 	args := &core.ThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
+	lidb, _ := lid.Marshal()
 	ctx = thread.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
 		ThreadID: id.Bytes(),
 		Addr:     paddr.Bytes(),
+		LogID:    lidb,
 	})
 	if err != nil {
 		return

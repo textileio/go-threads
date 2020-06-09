@@ -30,6 +30,10 @@ api/pb/dart/lib
 
 # vscode config folder
 .vscode/
+.idea/
 
 **/node_modules
 tags
+
+# Misc
+**.DS_Store

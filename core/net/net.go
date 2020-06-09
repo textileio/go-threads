@@ -53,7 +53,7 @@ type API interface {
 
 	// AddReplicator with credentials.
 	// The thread service key and all records will be pushed to paddr.
-	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...ThreadOption) (peer.ID, error)
+	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, lid peer.ID, opts ...ThreadOption) (peer.ID, error)
 
 	// CreateRecord with credentials and body.
 	// The resulting record will have an author signature by the thread host.

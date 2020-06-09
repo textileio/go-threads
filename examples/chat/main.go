@@ -522,7 +522,7 @@ func addReplicatorCmd(id thread.ID, addrStr string) (out string, err error) {
 	if err != nil {
 		return
 	}
-	pid, err := net.AddReplicator(ctx, id, addr)
+	pid, err := net.AddReplicator(ctx, id, addr, peer.ID(""))
 	if err != nil {
 		return
 	}

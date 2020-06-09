@@ -252,11 +252,13 @@ func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorReques
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	// This can produce an invalid Log ID, which is ok...
+	lid, _ := peer.IDFromBytes(req.LogID)
 	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pid, err := s.net.AddReplicator(ctx, id, addr, net.WithThreadToken(token))
+	pid, err := s.net.AddReplicator(ctx, id, addr, lid, net.WithThreadToken(token))
 	if err != nil {
 		return nil, err
 	}
