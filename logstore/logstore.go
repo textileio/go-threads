@@ -203,6 +203,11 @@ func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 			return err
 		}
 	}
+	if lg.Direct {
+		if err = ls.PutBool(id, lg.ID.Pretty(), true); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -234,6 +239,13 @@ func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	if err != nil {
 		return
 	}
+	direct, err := ls.GetBool(id, lid.Pretty())
+	if err != nil {
+		return
+	}
+	if direct != nil {
+		info.Direct = *direct
+	}
 	info.ID = lid
 	info.PubKey = pk
 	info.PrivKey = sk
@@ -242,6 +254,27 @@ func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 		info.Head = heads[0]
 	}
 	return
+}
+
+// GetOwnLogs returns the logs the host is directly managing under the given thread.
+func (ls *logstore) GetOwnLogs(id thread.ID) ([]thread.LogInfo, error) {
+	logs, err := ls.LogsWithKeys(id)
+	if err != nil {
+		return nil, err
+	}
+	var direct []thread.LogInfo
+	for _, lid := range logs {
+		lg, err := ls.GetLog(id, lid)
+		if err != nil {
+			return nil, err
+		}
+		// We are 'managing' any direct logs or logs for which we have the private key
+		if lg.Direct || lg.PrivKey != nil {
+			direct = append(direct, lg)
+			continue
+		}
+	}
+	return direct, nil
 }
 
 // DeleteLog deletes a log.

@@ -49,6 +49,9 @@ type Logstore interface {
 	// GetLog returns info about a log.
 	GetLog(thread.ID, peer.ID) (thread.LogInfo, error)
 
+	// GetOwnLogs returns info about locally managed logs.
+	GetOwnLogs(thread.ID) ([]thread.LogInfo, error)
+
 	// DeleteLog deletes a log.
 	DeleteLog(thread.ID, peer.ID) error
 }
@@ -61,11 +64,17 @@ type ThreadMetadata interface {
 	// PutInt64 stores an int value under key.
 	PutInt64(t thread.ID, key string, val int64) error
 
-	// GetString retrieves an int value under key.
+	// GetString retrieves a string value under key.
 	GetString(t thread.ID, key string) (*string, error)
 
 	// PutString stores a string value under key.
 	PutString(t thread.ID, key string, val string) error
+
+	// GetBool retrieves a boolean value under key.
+	GetBool(t thread.ID, key string) (*bool, error)
+
+	// PutBool stores a boolean value under key.
+	PutBool(t thread.ID, key string, val bool) error
 
 	// GetBytes retrieves a byte value under key.
 	GetBytes(t thread.ID, key string) (*[]byte, error)

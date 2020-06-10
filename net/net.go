@@ -534,12 +534,14 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err != nil {
 		return
 	}
-	ownlg, err := n.getOwnLog(info.ID)
+	logs, err := n.store.GetOwnLogs(info.ID)
 	if err != nil {
 		return
 	}
-	if err = n.store.AddAddr(info.ID, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
-		return
+	for _, lg := range logs {
+		if err = n.store.AddAddr(info.ID, lg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+			return
+		}
 	}
 	info, err = n.store.GetThread(info.ID) // Update info
 	if err != nil {
@@ -557,14 +559,17 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
 		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			if err := n.store.SetAddrs(info.ID, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
-				log.Errorf("error rolling back log address change: %s", err)
+			// Rollback all potentially failed log(s)
+			for _, lg := range logs {
+				if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
+					log.Errorf("error rolling back log address change: %s", err)
+				}
 			}
 			return
 		}
 	}
 
-	// Send the updated log to peers
+	// Send the updated log(s) to peers
 	var addrs []ma.Multiaddr
 	for _, l := range info.Logs {
 		addrs = append(addrs, l.Addrs...)
@@ -588,9 +593,10 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 			if pid.String() == n.host.ID().String() {
 				return
 			}
-
-			if err = n.server.pushLog(ctx, info.ID, ownlg, pid, nil, nil); err != nil {
-				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
+			for _, lg := range logs {
+				if err = n.server.pushLog(ctx, info.ID, lg, pid, nil, nil); err != nil {
+					log.Errorf("error pushing log %s to %s", lg.ID, p)
+				}
 			}
 		}(addr)
 	}
@@ -706,6 +712,7 @@ func (n *net) getRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Re
 	return cbor.GetRecord(ctx, n, rid, sk)
 }
 
+// Record implements core.Record. The most basic component of a Log.
 type Record struct {
 	core.Record
 	threadID thread.ID
@@ -720,14 +727,17 @@ func NewRecord(r core.Record, id thread.ID, lid peer.ID) (core.ThreadRecord, err
 	return &Record{Record: r, threadID: id, logID: lid}, nil
 }
 
+// Value returns the underlying value for the record.
 func (r *Record) Value() core.Record {
 	return r
 }
 
+// ThreadID returns the ID for the Thread to which this record belongs.
 func (r *Record) ThreadID() thread.ID {
 	return r.threadID
 }
 
+// LogID returns the ID for the Log to which this record belongs.
 func (r *Record) LogID() peer.ID {
 	return r.logID
 }
@@ -1022,37 +1032,22 @@ func (n *net) startPulling() {
 	}
 }
 
-// getOwnLoad returns the log owned by the host under the given thread.
-func (n *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := n.store.LogsWithKeys(id)
-	if err != nil {
-		return
-	}
-	for _, lid := range logs {
-		sk, err := n.store.PrivKey(id, lid)
-		if err != nil {
-			return info, err
-		}
-		if sk != nil {
-			return n.store.GetLog(id, lid)
-		}
-	}
-	return info, nil
-}
-
-// getOrCreateOwnLoad returns the log owned by the host under the given thread.
-// If no log exists, a new one is created under the given thread.
+// getOrCreateOwnLoad returns the first log 'owned' by the host under the given thread.
+// If no log exists, a new one is created under the given thread and returned.
+// This is a strict 'owership' check, vs returning the first directly 'managed' log.
 func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	info, err = n.getOwnLog(id)
+	lgs, err := n.store.GetOwnLogs(id)
 	if err != nil {
 		return info, err
 	}
-	if info.PubKey != nil {
-		return
+	for _, info = range lgs {
+		if info.PrivKey != nil {
+			return info, nil
+		}
 	}
 	info, err = createLog(n.host.ID(), nil)
 	if err != nil {
-		return
+		return info, err
 	}
 	err = n.store.AddLog(id, info)
 	return info, err
@@ -1133,5 +1128,7 @@ func createLog(host peer.ID, key crypto.Key) (info thread.LogInfo, err error) {
 		return
 	}
 	info.Addrs = []ma.Multiaddr{addr}
+	// If we're creating the log it is considered 'direct'
+	info.Direct = true
 	return info, nil
 }
