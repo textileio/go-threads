@@ -366,10 +366,16 @@ func (i Info) GetOwnLog() *LogInfo {
 
 // LogInfo holds log keys, addresses, and heads.
 type LogInfo struct {
-	ID      peer.ID
-	PubKey  crypto.PubKey
+	// ID is the log's identifier.
+	ID peer.ID
+	// PubKey is the log's public key.
+	PubKey crypto.PubKey
+	// PrivKey is the log's private key.
 	PrivKey crypto.PrivKey
-	Addrs   []ma.Multiaddr
-	Head    cid.Cid
-	Direct  bool // Whether log is 'directly' managed (owned). Indirect logs are 'peer' logs.
+	// Addrs are the addresses associated with the given log.
+	Addrs []ma.Multiaddr
+	// Head is the log's current head.
+	Head cid.Cid
+	// Managed logs are any logs directly added/created by the host, and/or logs for which we have the private key
+	Managed bool
 }

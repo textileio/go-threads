@@ -11,6 +11,8 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 )
 
+var managedSuffix = "/managed"
+
 // logstore is a collection of books for storing thread logs.
 type logstore struct {
 	sync.RWMutex
@@ -186,14 +188,17 @@ func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 	ls.Lock()
 	defer ls.Unlock()
 
+	if lg.PrivKey != nil {
+		if pk, _ := ls.PrivKey(id, lg.ID); pk != nil {
+			return core.ErrLogExists
+		}
+		if err := ls.AddPrivKey(id, lg.ID, lg.PrivKey); err != nil {
+			return err
+		}
+	}
 	err := ls.AddPubKey(id, lg.ID, lg.PubKey)
 	if err != nil {
 		return err
-	}
-	if lg.PrivKey != nil {
-		if err = ls.AddPrivKey(id, lg.ID, lg.PrivKey); err != nil {
-			return err
-		}
 	}
 	if err = ls.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 		return err
@@ -203,8 +208,9 @@ func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 			return err
 		}
 	}
-	if lg.Direct {
-		if err = ls.PutBool(id, lg.ID.Pretty(), true); err != nil {
+	// By definition 'owned' logs are also 'managed' logs.
+	if lg.Managed || lg.PrivKey != nil {
+		if err = ls.PutBool(id, lg.ID.Pretty()+managedSuffix, true); err != nil {
 			return err
 		}
 	}
@@ -239,12 +245,12 @@ func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	if err != nil {
 		return
 	}
-	direct, err := ls.GetBool(id, lid.Pretty())
+	managed, err := ls.GetBool(id, lid.Pretty()+managedSuffix)
 	if err != nil {
 		return
 	}
-	if direct != nil {
-		info.Direct = *direct
+	if managed != nil {
+		info.Managed = *managed
 	}
 	info.ID = lid
 	info.PubKey = pk
@@ -256,25 +262,24 @@ func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	return
 }
 
-// GetOwnLogs returns the logs the host is directly managing under the given thread.
-func (ls *logstore) GetOwnLogs(id thread.ID) ([]thread.LogInfo, error) {
+// GetManagedLogs returns the logs the host is 'managing' under the given thread.
+func (ls *logstore) GetManagedLogs(id thread.ID) ([]thread.LogInfo, error) {
 	logs, err := ls.LogsWithKeys(id)
 	if err != nil {
 		return nil, err
 	}
-	var direct []thread.LogInfo
+	var managed []thread.LogInfo
 	for _, lid := range logs {
 		lg, err := ls.GetLog(id, lid)
 		if err != nil {
 			return nil, err
 		}
-		// We are 'managing' any direct logs or logs for which we have the private key
-		if lg.Direct || lg.PrivKey != nil {
-			direct = append(direct, lg)
+		if lg.Managed || lg.PrivKey != nil {
+			managed = append(managed, lg)
 			continue
 		}
 	}
-	return direct, nil
+	return managed, nil
 }
 
 // DeleteLog deletes a log.

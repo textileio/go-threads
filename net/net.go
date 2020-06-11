@@ -218,6 +218,7 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	if !info.Key.Defined() {
 		info.Key = thread.NewRandomKey()
 	}
+	// This may overwrite ThreadKey information if there is a mismatch
 	if err = n.store.AddThread(info); err != nil {
 		return
 	}
@@ -235,12 +236,17 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 }
 
 func (n *net) ensureUnique(id thread.ID) error {
-	_, err := n.store.GetThread(id)
-	if err == nil {
-		return lstore.ErrThreadExists
-	}
+	// Check if thread exists.
+	thrd, err := n.store.GetThread(id)
 	if !errors.Is(err, lstore.ErrThreadNotFound) {
 		return err
+	}
+	if err == lstore.ErrThreadNotFound {
+		return nil
+	}
+	// Ensure we don't already have our 'own' log.
+	if thrd.GetOwnLog().PrivKey != nil {
+		return lstore.ErrThreadExists
 	}
 	return nil
 }
@@ -265,6 +271,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		return
 	}
 
+	// This may overwrite ThreadKey information if there is a mismatch
 	if err = n.store.AddThread(thread.Info{
 		ID:  id,
 		Key: args.ThreadKey,
@@ -534,7 +541,7 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err != nil {
 		return
 	}
-	logs, err := n.store.GetOwnLogs(info.ID)
+	logs, err := n.store.GetManagedLogs(info.ID)
 	if err != nil {
 		return
 	}
@@ -556,13 +563,17 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 		log.Warnf("peer %s address requires a DHT lookup", pid)
 	}
 
+	failed := make(map[peer.ID]struct{})
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
 		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			// Rollback all potentially failed log(s)
+			failed[pid] = struct{}{} // struct 'flag'
 			for _, lg := range logs {
-				if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
-					log.Errorf("error rolling back log address change: %s", err)
+				// Rollback failed log(s) only
+				if _, ok := failed[lg.ID]; ok {
+					if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
+						log.Errorf("error rolling back log address change: %s", err)
+					}
 				}
 			}
 			return
@@ -719,7 +730,6 @@ type Record struct {
 	logID    peer.ID
 }
 
-// NewRecord returns a record with the given values.
 func NewRecord(r core.Record, id thread.ID, lid peer.ID) (core.ThreadRecord, error) {
 	if err := id.Validate(); err != nil {
 		return nil, err
@@ -727,17 +737,14 @@ func NewRecord(r core.Record, id thread.ID, lid peer.ID) (core.ThreadRecord, err
 	return &Record{Record: r, threadID: id, logID: lid}, nil
 }
 
-// Value returns the underlying value for the record.
 func (r *Record) Value() core.Record {
 	return r
 }
 
-// ThreadID returns the ID for the Thread to which this record belongs.
 func (r *Record) ThreadID() thread.ID {
 	return r.threadID
 }
 
-// LogID returns the ID for the Log to which this record belongs.
 func (r *Record) LogID() peer.ID {
 	return r.logID
 }
@@ -1034,14 +1041,15 @@ func (n *net) startPulling() {
 
 // getOrCreateOwnLoad returns the first log 'owned' by the host under the given thread.
 // If no log exists, a new one is created under the given thread and returned.
-// This is a strict 'owership' check, vs returning the first directly 'managed' log.
+// This is a strict 'owership' check vs returning managed logs.
 func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	lgs, err := n.store.GetOwnLogs(id)
+	lgs, err := n.store.GetManagedLogs(id)
 	if err != nil {
 		return info, err
 	}
 	for _, info = range lgs {
 		if info.PrivKey != nil {
+			// Return the only 'owned' log
 			return info, nil
 		}
 	}
@@ -1128,7 +1136,7 @@ func createLog(host peer.ID, key crypto.Key) (info thread.LogInfo, err error) {
 		return
 	}
 	info.Addrs = []ma.Multiaddr{addr}
-	// If we're creating the log it is considered 'direct'
-	info.Direct = true
+	// If we're creating the log, we're 'managing' it
+	info.Managed = true
 	return info, nil
 }

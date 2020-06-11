@@ -22,6 +22,9 @@ var ErrThreadNotFound = fmt.Errorf("thread not found")
 // ErrLogNotFound indicates a requested log was not found.
 var ErrLogNotFound = fmt.Errorf("log not found")
 
+// ErrLogExists indicates a requested log already exists.
+var ErrLogExists = fmt.Errorf("log already exists")
+
 // Logstore stores log keys, addresses, heads and thread meta data.
 type Logstore interface {
 	Close() error
@@ -49,8 +52,8 @@ type Logstore interface {
 	// GetLog returns info about a log.
 	GetLog(thread.ID, peer.ID) (thread.LogInfo, error)
 
-	// GetOwnLogs returns info about locally managed logs.
-	GetOwnLogs(thread.ID) ([]thread.LogInfo, error)
+	// GetManagedLogs returns info about locally managed logs.
+	GetManagedLogs(thread.ID) ([]thread.LogInfo, error)
 
 	// DeleteLog deletes a log.
 	DeleteLog(thread.ID, peer.ID) error

@@ -311,6 +311,62 @@ func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 	}
 }
 
+func testLogstoreManaged(ls core.Logstore) func(t *testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 24)
+		addrs := getAddrs(t, 1)
+		err := ls.AddServiceKey(tid, sym.New())
+		check(t, err)
+		err = ls.AddReadKey(tid, sym.New())
+		check(t, err)
+		priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+		p, _ := peer.IDFromPrivateKey(priv)
+		err = ls.AddAddr(tid, p, addrs[0], pstore.PermanentAddrTTL)
+		check(t, err)
+		err = ls.AddPubKey(tid, p, pub)
+		check(t, err)
+		err = ls.AddPrivKey(tid, p, priv)
+		check(t, err)
+
+		// Check that log is managed
+		info, err := ls.GetThread(tid)
+		check(t, err)
+
+		log, err := ls.GetLog(info.ID, info.Logs[0].ID)
+		check(t, err)
+		if log.Managed != true {
+			t.Fatal("log not managed")
+		}
+
+		// Test adding owned log to existing thread
+		priv, pub, _ = crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+		p, _ = peer.IDFromPrivateKey(priv)
+		err = ls.AddLog(tid, thread.LogInfo{
+			ID:      p,
+			PubKey:  pub,
+			PrivKey: priv, // This should cause a failure
+			Addrs:   getAddrs(t, 1),
+		})
+		if err == nil {
+			t.Fatal("can't add more than one owned log")
+		}
+
+		// Test adding managed log to existing thread
+		err = ls.AddLog(tid, thread.LogInfo{
+			ID:     p,
+			PubKey: pub,
+			Addrs:  getAddrs(t, 1),
+		})
+		check(t, err)
+
+		log, err = ls.GetLog(tid, p)
+		check(t, err)
+		if log.Managed != true {
+			t.Fatal("log not managed")
+		}
+	}
+}
+
 func testMetadata(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tids := make([]thread.ID, 10)
