@@ -563,17 +563,16 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 		log.Warnf("peer %s address requires a DHT lookup", pid)
 	}
 
-	failed := make(map[peer.ID]struct{})
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
 		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			failed[pid] = struct{}{} // struct 'flag'
 			for _, lg := range logs {
-				// Rollback failed log(s) only
-				if _, ok := failed[lg.ID]; ok {
+				// Rollback this log only and then bail
+				if lg.ID.Pretty() == l.ID.Pretty() {
 					if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 						log.Errorf("error rolling back log address change: %s", err)
 					}
+					break
 				}
 			}
 			return
