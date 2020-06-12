@@ -207,7 +207,7 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 		log.Debugf("creating thread with identity: %s", identity)
 	}
 
-	if err = n.ensureUnique(id); err != nil {
+	if err = n.ensureUnique(id, args.LogKey); err != nil {
 		return
 	}
 
@@ -234,12 +234,40 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	return n.getThreadWithAddrs(id)
 }
 
-func (n *net) ensureUnique(id thread.ID) error {
-	_, err := n.store.GetThread(id)
-	if err == nil {
-		return lstore.ErrThreadExists
+func (n *net) ensureUnique(id thread.ID, key crypto.Key) error {
+	// Check if thread exists.
+	thrd, err := n.store.GetThread(id)
+	if errors.Is(err, lstore.ErrThreadNotFound) {
+		return nil
 	}
-	if !errors.Is(err, lstore.ErrThreadNotFound) {
+	if err != nil {
+		return err
+	}
+	// Early out if no log key required.
+	if key == nil {
+		return nil
+	}
+	// Ensure we don't already have this log in our store.
+	if _, ok := key.(crypto.PrivKey); ok {
+		// Ensure we don't already have our 'own' log.
+		if thrd.GetOwnLog().PrivKey != nil {
+			return lstore.ErrThreadExists
+		}
+		return nil
+	}
+	pubKey, ok := key.(crypto.PubKey)
+	if !ok {
+		return fmt.Errorf("invalid log-key")
+	}
+	logID, err := peer.IDFromPublicKey(pubKey)
+	if err != nil {
+		return err
+	}
+	_, err = n.store.GetLog(id, logID)
+	if err == nil {
+		return lstore.ErrLogExists
+	}
+	if !errors.Is(err, lstore.ErrLogNotFound) {
 		return err
 	}
 	return nil
@@ -261,7 +289,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	if err = id.Validate(); err != nil {
 		return
 	}
-	if err = n.ensureUnique(id); err != nil {
+	if err = n.ensureUnique(id, args.LogKey); err != nil {
 		return
 	}
 
@@ -534,12 +562,14 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	if err != nil {
 		return
 	}
-	ownlg, err := n.getOwnLog(info.ID)
+	managedLogs, err := n.store.GetManagedLogs(info.ID)
 	if err != nil {
 		return
 	}
-	if err = n.store.AddAddr(info.ID, ownlg.ID, addr, pstore.PermanentAddrTTL); err != nil {
-		return
+	for _, lg := range managedLogs {
+		if err = n.store.AddAddr(info.ID, lg.ID, addr, pstore.PermanentAddrTTL); err != nil {
+			return
+		}
 	}
 	info, err = n.store.GetThread(info.ID) // Update info
 	if err != nil {
@@ -557,14 +587,20 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	// Send all logs to the new replicator
 	for _, l := range info.Logs {
 		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			if err := n.store.SetAddrs(info.ID, ownlg.ID, ownlg.Addrs, pstore.PermanentAddrTTL); err != nil {
-				log.Errorf("error rolling back log address change: %s", err)
+			for _, lg := range managedLogs {
+				// Rollback this log only and then bail
+				if lg.ID.Pretty() == l.ID.Pretty() {
+					if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
+						log.Errorf("error rolling back log address change: %s", err)
+					}
+					break
+				}
 			}
 			return
 		}
 	}
 
-	// Send the updated log to peers
+	// Send the updated log(s) to peers
 	var addrs []ma.Multiaddr
 	for _, l := range info.Logs {
 		addrs = append(addrs, l.Addrs...)
@@ -588,9 +624,10 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 			if pid.String() == n.host.ID().String() {
 				return
 			}
-
-			if err = n.server.pushLog(ctx, info.ID, ownlg, pid, nil, nil); err != nil {
-				log.Errorf("error pushing log %s to %s", ownlg.ID, p)
+			for _, lg := range managedLogs {
+				if err = n.server.pushLog(ctx, info.ID, lg, pid, nil, nil); err != nil {
+					log.Errorf("error pushing log %s to %s", lg.ID, p)
+				}
 			}
 		}(addr)
 	}
@@ -706,6 +743,7 @@ func (n *net) getRecord(ctx context.Context, id thread.ID, rid cid.Cid) (core.Re
 	return cbor.GetRecord(ctx, n, rid, sk)
 }
 
+// Record implements core.Record. The most basic component of a Log.
 type Record struct {
 	core.Record
 	threadID thread.ID
@@ -1022,32 +1060,17 @@ func (n *net) startPulling() {
 	}
 }
 
-// getOwnLoad returns the log owned by the host under the given thread.
-func (n *net) getOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	logs, err := n.store.LogsWithKeys(id)
+// getOrCreateOwnLoad returns the first log 'owned' by the host under the given thread.
+// If no log exists, a new one is created under the given thread and returned.
+// This is a strict 'ownership' check vs returning managed logs.
+func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
+	thread, err := n.store.GetThread(id)
 	if err != nil {
 		return
 	}
-	for _, lid := range logs {
-		sk, err := n.store.PrivKey(id, lid)
-		if err != nil {
-			return info, err
-		}
-		if sk != nil {
-			return n.store.GetLog(id, lid)
-		}
-	}
-	return info, nil
-}
-
-// getOrCreateOwnLoad returns the log owned by the host under the given thread.
-// If no log exists, a new one is created under the given thread.
-func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	info, err = n.getOwnLog(id)
-	if err != nil {
-		return info, err
-	}
-	if info.PubKey != nil {
+	ownLog := thread.GetOwnLog()
+	if ownLog != nil {
+		info = *ownLog
 		return
 	}
 	info, err = createLog(n.host.ID(), nil)
@@ -1055,7 +1078,7 @@ func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
 		return
 	}
 	err = n.store.AddLog(id, info)
-	return info, err
+	return
 }
 
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
@@ -1133,5 +1156,7 @@ func createLog(host peer.ID, key crypto.Key) (info thread.LogInfo, err error) {
 		return
 	}
 	info.Addrs = []ma.Multiaddr{addr}
+	// If we're creating the log, we're 'managing' it
+	info.Managed = true
 	return info, nil
 }

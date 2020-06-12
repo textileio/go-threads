@@ -110,7 +110,7 @@ func Decode(v string) (ID, error) {
 	return Cast(data)
 }
 
-// Extract the encoding from an ID. If Decode on the same string did
+// ExtractEncoding from an ID. If Decode on the same string did
 // not return an error neither will this function.
 func ExtractEncoding(v string) (mbase.Encoding, error) {
 	if len(v) < 2 {
@@ -171,6 +171,7 @@ func uvError(read int) error {
 	}
 }
 
+// Validate the ID.
 func (i ID) Validate() error {
 	data := i.Bytes()
 	return validateIDData(data)
@@ -269,7 +270,7 @@ func (i ID) String() string {
 	}
 }
 
-// String returns the string representation of an ID
+// StringOfBase returns the string representation of an ID
 // encoded is selected base.
 func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 	if err := i.Validate(); err != nil {
@@ -353,6 +354,7 @@ type Info struct {
 }
 
 // GetOwnLog returns the first log found with a private key.
+// This is a strict owership check, vs returning all directly 'managed' logs.
 func (i Info) GetOwnLog() *LogInfo {
 	for _, lg := range i.Logs {
 		if lg.PrivKey != nil {
@@ -364,9 +366,16 @@ func (i Info) GetOwnLog() *LogInfo {
 
 // LogInfo holds log keys, addresses, and heads.
 type LogInfo struct {
-	ID      peer.ID
-	PubKey  crypto.PubKey
+	// ID is the log's identifier.
+	ID peer.ID
+	// PubKey is the log's public key.
+	PubKey crypto.PubKey
+	// PrivKey is the log's private key.
 	PrivKey crypto.PrivKey
-	Addrs   []ma.Multiaddr
-	Head    cid.Cid
+	// Addrs are the addresses associated with the given log.
+	Addrs []ma.Multiaddr
+	// Head is the log's current head.
+	Head cid.Cid
+	// Managed logs are any logs directly added/created by the host, and/or logs for which we have the private key
+	Managed bool
 }

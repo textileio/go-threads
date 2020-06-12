@@ -1,6 +1,7 @@
 package logstore
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sync"
@@ -10,6 +11,8 @@ import (
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 )
+
+var managedSuffix = "/managed"
 
 // logstore is a collection of books for storing thread logs.
 type logstore struct {
@@ -89,12 +92,34 @@ func (ls *logstore) AddThread(info thread.Info) error {
 	if info.Key.Service() == nil {
 		return fmt.Errorf("a service-key is required to add a thread")
 	}
-	if err := ls.AddServiceKey(info.ID, info.Key.Service()); err != nil {
+	sk, err := ls.ServiceKey(info.ID)
+	if err != nil {
 		return err
 	}
-	if info.Key.CanRead() {
-		if err := ls.AddReadKey(info.ID, info.Key.Read()); err != nil {
+	if sk == nil {
+		if err := ls.AddServiceKey(info.ID, info.Key.Service()); err != nil {
 			return err
+		}
+	} else {
+		// Ensure keys are the same
+		if !bytes.Equal(info.Key.Service().Bytes(), sk.Bytes()) {
+			return fmt.Errorf("service-key mismatch")
+		}
+	}
+	if info.Key.CanRead() {
+		rk, err := ls.ReadKey(info.ID)
+		if err != nil {
+			return err
+		}
+		if rk == nil {
+			if err := ls.AddReadKey(info.ID, info.Key.Read()); err != nil {
+				return err
+			}
+		} else {
+			// Ensure keys are the same
+			if !bytes.Equal(info.Key.Read().Bytes(), rk.Bytes()) {
+				return fmt.Errorf("read-key mismatch")
+			}
 		}
 	}
 	return nil
@@ -186,20 +211,29 @@ func (ls *logstore) AddLog(id thread.ID, lg thread.LogInfo) error {
 	ls.Lock()
 	defer ls.Unlock()
 
+	if lg.PrivKey != nil {
+		if pk, _ := ls.PrivKey(id, lg.ID); pk != nil {
+			return core.ErrLogExists
+		}
+		if err := ls.AddPrivKey(id, lg.ID, lg.PrivKey); err != nil {
+			return err
+		}
+	}
 	err := ls.AddPubKey(id, lg.ID, lg.PubKey)
 	if err != nil {
 		return err
-	}
-	if lg.PrivKey != nil {
-		if err = ls.AddPrivKey(id, lg.ID, lg.PrivKey); err != nil {
-			return err
-		}
 	}
 	if err = ls.AddAddrs(id, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 		return err
 	}
 	if lg.Head.Defined() {
 		if err = ls.SetHead(id, lg.ID, lg.Head); err != nil {
+			return err
+		}
+	}
+	// By definition 'owned' logs are also 'managed' logs.
+	if lg.Managed || lg.PrivKey != nil {
+		if err = ls.PutBool(id, lg.ID.Pretty()+managedSuffix, true); err != nil {
 			return err
 		}
 	}
@@ -234,6 +268,13 @@ func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 	if err != nil {
 		return
 	}
+	managed, err := ls.GetBool(id, lid.Pretty()+managedSuffix)
+	if err != nil {
+		return
+	}
+	if managed != nil {
+		info.Managed = *managed
+	}
 	info.ID = lid
 	info.PubKey = pk
 	info.PrivKey = sk
@@ -242,6 +283,26 @@ func (ls *logstore) getLog(id thread.ID, lid peer.ID) (info thread.LogInfo, err 
 		info.Head = heads[0]
 	}
 	return
+}
+
+// GetManagedLogs returns the logs the host is 'managing' under the given thread.
+func (ls *logstore) GetManagedLogs(id thread.ID) ([]thread.LogInfo, error) {
+	logs, err := ls.LogsWithKeys(id)
+	if err != nil {
+		return nil, err
+	}
+	var managed []thread.LogInfo
+	for _, lid := range logs {
+		lg, err := ls.GetLog(id, lid)
+		if err != nil {
+			return nil, err
+		}
+		if lg.Managed || lg.PrivKey != nil {
+			managed = append(managed, lg)
+			continue
+		}
+	}
+	return managed, nil
 }
 
 // DeleteLog deletes a log.

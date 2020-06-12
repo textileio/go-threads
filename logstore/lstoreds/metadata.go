@@ -60,6 +60,22 @@ func (m *dsThreadMetadata) PutString(t thread.ID, key string, val string) error 
 	return m.setValue(t, key, val)
 }
 
+func (m *dsThreadMetadata) GetBool(t thread.ID, key string) (*bool, error) {
+	var val bool
+	err := m.getValue(t, key, &val)
+	if err == ds.ErrNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &val, nil
+}
+
+func (m *dsThreadMetadata) PutBool(t thread.ID, key string, val bool) error {
+	return m.setValue(t, key, val)
+}
+
 func (m *dsThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error) {
 	var val []byte
 	err := m.getValue(t, key, &val)
