@@ -1,6 +1,7 @@
 package logstore
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sync"
@@ -91,12 +92,34 @@ func (ls *logstore) AddThread(info thread.Info) error {
 	if info.Key.Service() == nil {
 		return fmt.Errorf("a service-key is required to add a thread")
 	}
-	if err := ls.AddServiceKey(info.ID, info.Key.Service()); err != nil {
+	sk, err := ls.ServiceKey(info.ID)
+	if err != nil {
 		return err
 	}
-	if info.Key.CanRead() {
-		if err := ls.AddReadKey(info.ID, info.Key.Read()); err != nil {
+	if sk == nil {
+		if err := ls.AddServiceKey(info.ID, info.Key.Service()); err != nil {
 			return err
+		}
+	} else {
+		// Ensure keys are the same
+		if !bytes.Equal(info.Key.Service().Bytes(), sk.Bytes()) {
+			return fmt.Errorf("service-key mismatch")
+		}
+	}
+	if info.Key.CanRead() {
+		rk, err := ls.ReadKey(info.ID)
+		if err != nil {
+			return err
+		}
+		if rk == nil {
+			if err := ls.AddReadKey(info.ID, info.Key.Read()); err != nil {
+				return err
+			}
+		} else {
+			// Ensure keys are the same
+			if !bytes.Equal(info.Key.Read().Bytes(), rk.Bytes()) {
+				return fmt.Errorf("read-key mismatch")
+			}
 		}
 	}
 	return nil

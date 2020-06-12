@@ -42,6 +42,7 @@ type NewOptions struct {
 	EventCodec  core.EventCodec
 	LowMem      bool
 	Debug       bool
+	ThreadKey   thread.Key
 }
 
 // NewOption specifies a new db option.
@@ -65,6 +66,13 @@ func WithNewRepoPath(path string) NewOption {
 func WithNewToken(t thread.Token) NewOption {
 	return func(o *NewOptions) {
 		o.Token = t
+	}
+}
+
+// WithNewThreadKey provides control over thread keys to use with a db.
+func WithNewThreadKey(key thread.Key) NewOption {
+	return func(o *NewOptions) {
+		o.ThreadKey = key
 	}
 }
 
