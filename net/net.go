@@ -264,6 +264,9 @@ func (n *net) ensureUnique(id thread.ID, key crypto.Key) error {
 		return err
 	}
 	_, err = n.store.GetLog(id, logID)
+	if err == nil {
+		return lstore.ErrLogExists
+	}
 	if !errors.Is(err, lstore.ErrLogNotFound) {
 		return err
 	}
