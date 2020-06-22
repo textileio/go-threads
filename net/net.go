@@ -303,12 +303,12 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		return
 	}
 
-	// Check if we're dialing ourselves (regardless of addr)
+	// Check if we're trying to dial ourselves (regardless of addr)
 	addFromSelf := addri.ID.Pretty() == n.host.ID().Pretty()
 	if addFromSelf {
 		// Error if we don't have the thread locally
 		if _, err = n.store.GetThread(id); errors.Is(err, lstore.ErrThreadNotFound) {
-			err = fmt.Errorf("cannot retrive thread from self: %s", err)
+			err = fmt.Errorf("cannot retrieve thread from self: %s", err)
 			return
 		}
 	}
