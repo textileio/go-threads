@@ -293,6 +293,27 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		return
 	}
 
+	threadComp, err := ma.NewComponent(thread.Name, id.String())
+	if err != nil {
+		return
+	}
+	peerAddr := addr.Decapsulate(threadComp)
+	addri, err := peer.AddrInfoFromP2pAddr(peerAddr)
+	if err != nil {
+		return
+	}
+
+	// Check if we're dialing ourselves (regardless of addr)
+	addFromSelf := addri.ID.Pretty() == n.host.ID().Pretty()
+	if addFromSelf {
+		// Error if we don't have the thread locally
+		if _, err = n.store.GetThread(id); errors.Is(err, lstore.ErrThreadNotFound) {
+			err = fmt.Errorf("cannot retrive thread from self: %s", err)
+			return
+		}
+	}
+
+	// Even if we already have the thread locally, we might still need to add a new log
 	if err = n.store.AddThread(thread.Info{
 		ID:  id,
 		Key: args.ThreadKey,
@@ -310,29 +331,24 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		}
 	}
 
-	threadComp, err := ma.NewComponent(thread.Name, id.String())
-	if err != nil {
-		return
-	}
-	peerAddr := addr.Decapsulate(threadComp)
-	addri, err := peer.AddrInfoFromP2pAddr(peerAddr)
-	if err != nil {
-		return
-	}
-	if err = n.Host().Connect(ctx, *addri); err != nil {
-		return
-	}
-	lgs, err := n.server.getLogs(ctx, id, addri.ID)
-	if err != nil {
-		return
-	}
-	for _, l := range lgs {
-		if err = n.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
+	// Skip if trying to dial ourselves (already have the logs)
+	if !addFromSelf {
+		if err = n.Host().Connect(ctx, *addri); err != nil {
 			return
 		}
-	}
-	if err = n.server.ps.Add(id); err != nil {
-		return
+		var lgs []thread.LogInfo
+		lgs, err = n.server.getLogs(ctx, id, addri.ID)
+		if err != nil {
+			return
+		}
+		for _, l := range lgs {
+			if err = n.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
+				return
+			}
+		}
+		if err = n.server.ps.Add(id); err != nil {
+			return
+		}
 	}
 	return n.getThreadWithAddrs(id)
 }
@@ -576,27 +592,31 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 		return
 	}
 
-	// Update peerstore address
-	dialable, err := getDialable(paddr)
-	if err == nil {
-		n.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
-	} else {
-		log.Warnf("peer %s address requires a DHT lookup", pid)
-	}
+	// Check if we're dialing ourselves (regardless of addr)
+	if pid.Pretty() != n.host.ID().Pretty() {
+		// If not, update peerstore address
+		var dialable ma.Multiaddr
+		dialable, err = getDialable(paddr)
+		if err == nil {
+			n.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
+		} else {
+			log.Warnf("peer %s address requires a DHT lookup", pid)
+		}
 
-	// Send all logs to the new replicator
-	for _, l := range info.Logs {
-		if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
-			for _, lg := range managedLogs {
-				// Rollback this log only and then bail
-				if lg.ID.Pretty() == l.ID.Pretty() {
-					if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
-						log.Errorf("error rolling back log address change: %s", err)
+		// Send all logs to the new replicator
+		for _, l := range info.Logs {
+			if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
+				for _, lg := range managedLogs {
+					// Rollback this log only and then bail
+					if lg.ID.Pretty() == l.ID.Pretty() {
+						if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
+							log.Errorf("error rolling back log address change: %s", err)
+						}
+						break
 					}
-					break
 				}
+				return
 			}
-			return
 		}
 	}
 
