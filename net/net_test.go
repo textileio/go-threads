@@ -248,6 +248,15 @@ func TestNet_AddThreadManaged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Should work if trying to add new managed log to 'self' (note we're using n1 here)
+	sk, pk, err = crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = n1.AddThread(ctx, addr, core.WithLogKey(pk), core.WithThreadKey(info.Key))
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestNet_AddReplicator(t *testing.T) {
@@ -354,6 +363,11 @@ func TestNet_AddReplicatorManaged(t *testing.T) {
 	}
 	if len(info3.Logs[0].Addrs) != 2 {
 		t.Fatalf("expected 2 addresses got %d", len(info3.Logs[0].Addrs))
+	}
+
+	// Should be able to add self as replicator
+	if _, err = n2.AddReplicator(ctx, info.ID, addr); err != nil {
+		t.Fatal(err)
 	}
 }
 
