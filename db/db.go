@@ -445,6 +445,9 @@ func (d *DB) Reduce(events []core.Event) error {
 func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
 	return func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
 		c := d.GetCollection(collection)
+		if c == nil {
+			return fmt.Errorf("collection (%s) not found", collection)
+		}
 		if err := c.indexDelete(txn, key, oldData); err != nil {
 			return err
 		}
