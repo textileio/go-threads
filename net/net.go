@@ -304,7 +304,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	}
 
 	// Check if we're trying to dial ourselves (regardless of addr)
-	addFromSelf := addri.ID.Pretty() == n.host.ID().Pretty()
+	addFromSelf := addri.ID == n.host.ID()
 	if addFromSelf {
 		// Error if we don't have the thread locally
 		if _, err = n.store.GetThread(id); errors.Is(err, lstore.ErrThreadNotFound) {
@@ -593,7 +593,7 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 	}
 
 	// Check if we're dialing ourselves (regardless of addr)
-	if pid.Pretty() != n.host.ID().Pretty() {
+	if pid != n.host.ID() {
 		// If not, update peerstore address
 		var dialable ma.Multiaddr
 		dialable, err = getDialable(paddr)
@@ -608,7 +608,7 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 			if err = n.server.pushLog(ctx, info.ID, l, pid, info.Key.Service(), nil); err != nil {
 				for _, lg := range managedLogs {
 					// Rollback this log only and then bail
-					if lg.ID.Pretty() == l.ID.Pretty() {
+					if lg.ID == l.ID {
 						if err := n.store.SetAddrs(info.ID, lg.ID, lg.Addrs, pstore.PermanentAddrTTL); err != nil {
 							log.Errorf("error rolling back log address change: %s", err)
 						}
