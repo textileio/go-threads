@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -88,6 +89,36 @@ func TestE2EWithThreads(t *testing.T) {
 
 	if dummy2Instance.Name != dummyInstance.Name || dummy2Instance.Counter != dummyInstance.Counter {
 		t.Fatalf("instances of both peers must be equal after sync")
+	}
+}
+
+func TestMissingCollection(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := ioutil.TempDir("", "")
+	checkErr(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	n, err := common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	checkErr(t, err)
+	defer n.Close()
+
+	id := thread.NewIDV1(thread.Raw, 32)
+	db, err := NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir))
+	checkErr(t, err)
+	defer db.Close()
+	c, err := db.NewCollection(CollectionConfig{
+		Name:   "dummy",
+		Schema: util.SchemaFromInstance(&dummy{}, false),
+	})
+	checkErr(t, err)
+	// Delete collection from map to "simulate" not having received it yet...
+	// Motivated by https://github.com/textileio/go-threads/issues/379
+	delete(db.collections, "dummy")
+	dummyJSON := util.JSONFromInstance(dummy{Name: "Textile", Counter: 0})
+	_, err = c.Create(dummyJSON)
+	if err == nil || !strings.HasSuffix(err.Error(), "not found") {
+		t.Fatal("expected error when indexing created data: collection (dummy) should not be found")
 	}
 }
 

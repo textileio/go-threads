@@ -56,9 +56,8 @@ func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, 
 	if err != nil {
 		if errors.Is(err, ErrInvalidCollectionSchemaPath) {
 			return nil, ErrInvalidCollectionSchema
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 	if idType.Type != "string" {
 		return nil, ErrInvalidCollectionSchema
@@ -105,7 +104,7 @@ func (c *Collection) FindByID(id core.InstanceID, opts ...TxnOption) (instance [
 
 // Create creates an instance in the collection.
 func (c *Collection) Create(v []byte, opts ...TxnOption) (id core.InstanceID, err error) {
-	_ = c.WriteTxn(func(txn *Txn) error {
+	err = c.WriteTxn(func(txn *Txn) error {
 		var ids []core.InstanceID
 		ids, err = txn.Create(v)
 		if err != nil {
@@ -121,7 +120,7 @@ func (c *Collection) Create(v []byte, opts ...TxnOption) (id core.InstanceID, er
 
 // CreateMany creates multiple instances in the collection.
 func (c *Collection) CreateMany(vs [][]byte, opts ...TxnOption) (ids []core.InstanceID, err error) {
-	_ = c.WriteTxn(func(txn *Txn) error {
+	err = c.WriteTxn(func(txn *Txn) error {
 		ids, err = txn.Create(vs...)
 		return err
 	}, opts...)
@@ -136,7 +135,7 @@ func (c *Collection) Delete(id core.InstanceID, opts ...TxnOption) error {
 	}, opts...)
 }
 
-// Delete deletes multiple instances by ID. It doesn't
+// DeleteMany deletes multiple instances by ID. It doesn't
 // fail if one of the IDs don't exist.
 func (c *Collection) DeleteMany(ids []core.InstanceID, opts ...TxnOption) error {
 	return c.WriteTxn(func(txn *Txn) error {
