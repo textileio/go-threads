@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190823232136-616930265c33 // indirect
-	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
+	github.com/decred/ed25519 v0.0.0-20150831212125-b0909d3f798b // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20191017121752-4bb6e3fae4f2
 	github.com/c-bata/go-prompt v0.2.3
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
@@ -69,4 +69,6 @@ require (
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	google.golang.org/genproto v0.0.0-20200428115010-c45acf45369a // indirect
 	google.golang.org/grpc v1.29.1
+	github.com/decred/ed25519 v0.0.0-20150831212125-b0909d3f798b.0-20200428115010-c45acf45369a // indirect
+	
 )
