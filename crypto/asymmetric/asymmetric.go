@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	extra "github.com/agl/ed25519/extra25519"
+	extra "github.com/decred/ed25519/extra25519"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"golang.org/x/crypto/nacl/box"
 )
