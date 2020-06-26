@@ -349,6 +349,21 @@ func TestAddIndex(t *testing.T) {
 	})
 }
 
+func TestEmptySchema(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	// Note the empty schema {}, this is a catch all schema
+	schema := util.SchemaFromSchemaString("{}")
+	_, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: schema,
+	})
+	if err != ErrInvalidCollectionSchema {
+		t.Fatalf("expected to throw ErrInvalidCollectionSchema error")
+	}
+}
+
 func TestGetIndexes(t *testing.T) {
 	t.Parallel()
 	db, clean := createTestDB(t)

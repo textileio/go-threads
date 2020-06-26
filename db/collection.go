@@ -393,6 +393,9 @@ func getSchemaTypeAtPath(schema *jsonschema.Schema, pth string) (*jsonschema.Typ
 		if err != nil {
 			return nil, err
 		}
+		if props == nil {
+			return nil, ErrInvalidCollectionSchemaPath
+		}
 		jt = props[n]
 		if jt == nil {
 			return nil, ErrInvalidCollectionSchemaPath
@@ -401,7 +404,12 @@ func getSchemaTypeAtPath(schema *jsonschema.Schema, pth string) (*jsonschema.Typ
 	return jt, nil
 }
 
+// getSchemaTypeProperties extracts a map of schema properties from a given input schema.
+// If there are no available properties, it will return an empty (nil) map
 func getSchemaTypeProperties(jt *jsonschema.Type, defs jsonschema.Definitions) (map[string]*jsonschema.Type, error) {
+	if jt == nil {
+		return nil, nil
+	}
 	properties := jt.Properties
 	if jt.Ref != "" {
 		parts := strings.Split(jt.Ref, "/")
