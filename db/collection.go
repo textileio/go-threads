@@ -245,7 +245,7 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 	return results, nil
 }
 
-// Save saves an instance changes to be commited when the current transaction commits.
+// Save saves an instance changes to be committed when the current transaction commits.
 func (t *Txn) Save(updated ...[]byte) error {
 	for i := range updated {
 		if t.readonly {
@@ -401,7 +401,12 @@ func getSchemaTypeAtPath(schema *jsonschema.Schema, pth string) (*jsonschema.Typ
 	return jt, nil
 }
 
+// getSchemaTypeProperties extracts a map of schema properties from a given input schema.
+// If there are no available properties, it will return an empty map
 func getSchemaTypeProperties(jt *jsonschema.Type, defs jsonschema.Definitions) (map[string]*jsonschema.Type, error) {
+	if jt == nil {
+		return make(map[string]*jsonschema.Type), nil
+	}
 	properties := jt.Properties
 	if jt.Ref != "" {
 		parts := strings.Split(jt.Ref, "/")
