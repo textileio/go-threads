@@ -1,11 +1,10 @@
-package asymmetric_test
+package asymmetric
 
 import (
 	"encoding/hex"
 	"testing"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	. "github.com/textileio/go-threads/crypto/asymmetric"
 )
 
 func TestEncrypt(t *testing.T) {
@@ -84,6 +83,6 @@ func TestDecrypt(t *testing.T) {
 	}
 	_, err = dk.Decrypt(cipherTextInvalidBytes)
 	if err != BoxDecryptionError {
-		t.Error("failed to catch curve25519 drcyption error")
+		t.Error("failed to catch curve25519 decryption error")
 	}
 }
