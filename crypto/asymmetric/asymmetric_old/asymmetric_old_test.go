@@ -1,17 +1,119 @@
-package asymmetric
+package asymmetric_old
 
 import (
-	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
-	"math/big"
+	"testing"
+
+	extra "github.com/agl/ed25519/extra25519"
+	"github.com/textileio/go-threads/crypto/asymmetric"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/nacl/box"
 )
 
+func TestCompatEncryptDecrypt(t *testing.T) {
+	plaintext := "Hello, this is a compatibility test!!"
+	priv, pub, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Run("Encrypt New -> Decrypt Old", func(t *testing.T) {
+		ek, err := asymmetric.FromPubKey(pub)
+		if err != nil {
+			t.Error(err)
+		}
+		ciphertext, err := ek.Encrypt([]byte(plaintext))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		dk, err := FromPrivKey(priv)
+		if err != nil {
+			t.Error(err)
+		}
+
+		decryptedPlaintext, err := dk.Decrypt(ciphertext)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if string(decryptedPlaintext) != plaintext {
+			t.Error("result plaintext doesn't match original plaintext")
+		}
+	})
+	t.Run("Encrypt Old -> Decrypt New", func(t *testing.T) {
+		ek, err := FromPubKey(pub)
+		if err != nil {
+			t.Error(err)
+		}
+		ciphertext, err := ek.Encrypt([]byte(plaintext))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		dk, err := asymmetric.FromPrivKey(priv)
+		if err != nil {
+			t.Error(err)
+		}
+
+		decryptedPlaintext, err := dk.Decrypt(ciphertext)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if string(decryptedPlaintext) != plaintext {
+			t.Error("result plaintext doesn't match original plaintext")
+		}
+	})
+}
+
+// TestDecrypt is *exactly* the same test scenario as in asymmetric_test.go.
+// Decryption for the *current* (newer) implementation must pass in asymmetric_test.go.
+// Decryption for the old (deprecated) implementation must pass here.
+func TestDecrypt(t *testing.T) {
+	privKeyHex := "08011260e20c8d1e941df644b652af88c714f502c62ba19480e89837b67f21dd24dff4550d105e312db07495cbb516d69764c91107842de30f47dd591e9c69df16e4fd0d0d105e312db07495cbb516d69764c91107842de30f47dd591e9c69df16e4fd0d"
+	ciphertextHex := "7974c0016a2bb90d6f132b666fc6c6e2955096a58f37b0e9a97bb43067e66dc21fe8dcc13a8534fcd27492e2fea85c002398c8f16698550b621da2a65d18cf66f6d4961380b051fe8408d8bd7f4cf3555e43eeb7e434"
+
+	privKeyBytes, err := hex.DecodeString(privKeyHex)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	sk, err := crypto.UnmarshalPrivateKey(privKeyBytes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	dk, err := FromPrivKey(sk)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	cipherTextBytes, err := hex.DecodeString(ciphertextHex)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	plaintext, err := dk.Decrypt(cipherTextBytes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if "Hello World!!!" != string(plaintext) {
+		t.Error("result plaintext doesn't match original plaintext")
+		return
+	}
+}
+
+// Below is the prior implementation of asymmetric.go
+// It used a deprecated lib for elliptic curve transformation from
+// Ed25519 to Curve25519.
 const (
 	// NonceBytes is the length of nacl nonce.
 	NonceBytes = 24
@@ -100,10 +202,10 @@ func publicToCurve25519(k *crypto.Ed25519PublicKey) (*[EphemeralPublicKeyBytes]b
 		return nil, err
 	}
 	copy(pk[:], r)
-
-	buf := ed25519PublicKeyToCurve25519(ed25519.PublicKey(pk[:]))
-	copy(cp[:], buf)
-
+	success := extra.PublicKeyToCurve25519(&cp, &pk)
+	if !success {
+		return nil, fmt.Errorf("error converting ed25519 pubkey to curve25519 pubkey")
+	}
 	return &cp, nil
 }
 
@@ -177,76 +279,6 @@ func privateToCurve25519(k *crypto.Ed25519PrivateKey) (*[EphemeralPublicKeyBytes
 	}
 	var sk [64]byte
 	copy(sk[:], r)
-	buf := ed25519PrivateKeyToCurve25519(ed25519.PrivateKey(sk[:]))
-	copy(cs[:], buf)
+	extra.PrivateKeyToCurve25519(&cs, &sk)
 	return &cs, nil
-}
-
-// The below code is copied exactly as found in:
-// https://github.com/FiloSottile/age/blob/c9a35c072716b5ac6cd815366999c9e189b0c317/internal/agessh/agessh.go#L179
-// Note: We should switch to x/crypto/ed25519 curve transformations when
-// the following issue closes: https://github.com/golang/go/issues/20504.
-
-// Copyright 2019 Google LLC
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-// * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-// * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-// * Neither the name of Google LLC nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-var curve25519P, _ = new(big.Int).SetString("57896044618658097711785492504343953926634992332820282019728792003956564819949", 10)
-
-func ed25519PublicKeyToCurve25519(pk ed25519.PublicKey) []byte {
-	// ed25519.PublicKey is a little endian representation of the y-coordinate,
-	// with the most significant bit set based on the sign of the x-coordinate.
-	bigEndianY := make([]byte, ed25519.PublicKeySize)
-	for i, b := range pk {
-		bigEndianY[ed25519.PublicKeySize-i-1] = b
-	}
-	bigEndianY[0] &= 0b0111_1111
-
-	// The Montgomery u-coordinate is derived through the bilinear map
-	//
-	//     u = (1 + y) / (1 - y)
-	//
-	// See https://blog.filippo.io/using-ed25519-keys-for-encryption.
-	y := new(big.Int).SetBytes(bigEndianY)
-	denom := big.NewInt(1)
-	denom.ModInverse(denom.Sub(denom, y), curve25519P) // 1 / (1 - y)
-	u := y.Mul(y.Add(y, big.NewInt(1)), denom)
-	u.Mod(u, curve25519P)
-
-	out := make([]byte, curve25519.PointSize)
-	uBytes := u.Bytes()
-	for i, b := range uBytes {
-		out[len(uBytes)-i-1] = b
-	}
-
-	return out
-}
-func ed25519PrivateKeyToCurve25519(pk ed25519.PrivateKey) []byte {
-	h := sha512.New()
-	h.Write(pk.Seed())
-	out := h.Sum(nil)
-	return out[:curve25519.ScalarSize]
 }

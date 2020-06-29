@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190823232136-616930265c33 // indirect
+	// agl/ed25519 only used in tests for backward compatibility, *do not* use in production code.
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/alecthomas/jsonschema v0.0.0-20191017121752-4bb6e3fae4f2
 	github.com/c-bata/go-prompt v0.2.3
