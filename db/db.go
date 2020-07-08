@@ -87,7 +87,7 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption
 		opt(args)
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token), net.WithThreadKey(args.ThreadKey)); err != nil {
+	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token), net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey)); err != nil {
 		if !errors.Is(err, lstore.ErrThreadExists) {
 			return nil, err
 		}
