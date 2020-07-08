@@ -118,6 +118,7 @@ func main() {
 			return true
 		}),
 		grpcweb.WithWebsockets(true),
+		grpcweb.WithWebsocketPingInterval(time.Second*5),
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
 			return true
 		}))
