@@ -35,6 +35,7 @@ func main() {
 	connLowWater := fs.Int("connLowWater", 100, "Low watermark of libp2p connections that'll be maintained")
 	connHighWater := fs.Int("connHighWater", 400, "High watermark of libp2p connections that'll be maintained")
 	connGracePeriod := fs.Duration("connGracePeriod", time.Second*20, "Duration a newly opened connection is given before it becomes subject to pruning")
+	keepAliveInterval := fs.Duration("keepAliveInterval", time.Second*5, "Enables websocket keepalive pinging with the specified timeout interval. Configured interval must be >= 1s.")
 	debug := fs.Bool("debug", false, "Enable debug logging")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -118,6 +119,7 @@ func main() {
 			return true
 		}),
 		grpcweb.WithWebsockets(true),
+		grpcweb.WithWebsocketPingInterval(*keepAliveInterval),
 		grpcweb.WithWebsocketOriginFunc(func(req *http.Request) bool {
 			return true
 		}))
