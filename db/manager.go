@@ -198,7 +198,11 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedOption
 	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
-	return m.dbs[id], nil
+	db, ok := m.dbs[id]
+	if !ok {
+		return nil, ErrDBNotFound
+	}
+	return db, nil
 }
 
 // DeleteDB deletes a db by id.
@@ -210,9 +214,9 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return err
 	}
-	db := m.dbs[id]
-	if db == nil {
-		return nil
+	db, ok := m.dbs[id]
+	if !ok {
+		return ErrDBNotFound
 	}
 
 	if err := db.Close(); err != nil {

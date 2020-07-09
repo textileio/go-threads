@@ -284,8 +284,8 @@ func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.De
 	}
 
 	if err = s.manager.DeleteDB(ctx, id, db.WithManagedToken(token)); err != nil {
-		if errors.Is(err, lstore.ErrThreadNotFound) {
-			return nil, status.Error(codes.NotFound, db.ErrDBNotFound.Error())
+		if errors.Is(err, lstore.ErrThreadNotFound) || errors.Is(err, db.ErrDBNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
 		} else {
 			return nil, err
 		}
@@ -839,8 +839,8 @@ func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, fi
 func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (*db.DB, error) {
 	d, err := s.manager.GetDB(ctx, id, db.WithManagedToken(token))
 	if err != nil {
-		if errors.Is(err, lstore.ErrThreadNotFound) {
-			return nil, status.Error(codes.NotFound, db.ErrDBNotFound.Error())
+		if errors.Is(err, lstore.ErrThreadNotFound) || errors.Is(err, db.ErrDBNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
 		} else {
 			return nil, err
 		}
