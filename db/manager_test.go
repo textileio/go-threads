@@ -122,6 +122,11 @@ func TestManager_GetDB(t *testing.T) {
 	}()
 
 	id := thread.NewIDV1(thread.Raw, 32)
+	_, err = man.GetDB(ctx, id)
+	if !errors.Is(err, lstore.ErrThreadNotFound) {
+		t.Fatal("should be not found error")
+	}
+
 	_, err = man.NewDB(ctx, id)
 	checkErr(t, err)
 	db, err := man.GetDB(ctx, id)
