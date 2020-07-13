@@ -280,7 +280,7 @@ func TestClient_GetCollectionIndexes(t *testing.T) {
 	})
 }
 
-func TestClient_ListCollectionInfo(t *testing.T) {
+func TestClient_ListCollections(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
 	defer done()
@@ -308,7 +308,7 @@ func TestClient_ListCollectionInfo(t *testing.T) {
 			}},
 		})
 		checkErr(t, err)
-		list, err := client.ListCollectionInfo(context.Background(), id)
+		list, err := client.ListCollections(context.Background(), id)
 		checkErr(t, err)
 		if len(list) != 2 {
 			t.Fatalf("expected 2 result, but got %v", len(list))
