@@ -79,6 +79,16 @@ func (c *Collection) baseKey() ds.Key {
 	return baseKey.ChildString(c.name)
 }
 
+// GetName returns the collection name.
+func (c *Collection) GetName() string {
+	return c.name
+}
+
+// GetSchema returns the current collection schema.
+func (c *Collection) GetSchema() []byte {
+	return c.schemaLoader.JsonSource().([]byte)
+}
+
 // ReadTxn creates an explicit readonly transaction. Any operation
 // that tries to mutate an instance of the collection will ErrReadonlyTx.
 // Provides serializable isolation gurantees.

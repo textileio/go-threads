@@ -94,6 +94,17 @@ message DeleteCollectionRequest {
 
 message DeleteCollectionReply {}
 
+message GetCollectionInfoRequest {
+    bytes dbID = 1;
+    string name = 2;
+}
+
+message GetCollectionInfoReply {
+    string name = 1;
+    bytes schema = 2;
+    repeated Index indexes = 3;
+}
+
 message GetCollectionIndexesRequest {
     bytes dbID = 1;
     string name = 2;
@@ -101,6 +112,14 @@ message GetCollectionIndexesRequest {
 
 message GetCollectionIndexesReply {
     repeated Index indexes = 1;
+}
+
+message ListCollectionsRequest {
+    bytes dbID = 1;
+}
+
+message ListCollectionsReply {
+    repeated GetCollectionInfoReply collections = 1;
 }
 
 message CreateRequest {
@@ -244,7 +263,11 @@ service API {
     rpc NewCollection(NewCollectionRequest) returns (NewCollectionReply) {}
     rpc UpdateCollection(UpdateCollectionRequest) returns (UpdateCollectionReply) {}
     rpc DeleteCollection(DeleteCollectionRequest) returns (DeleteCollectionReply) {}
-    rpc GetCollectionIndexes(GetCollectionIndexesRequest) returns (GetCollectionIndexesReply) {}
+    rpc GetCollectionInfo(GetCollectionInfoRequest) returns (GetCollectionInfoReply) {}
+    rpc GetCollectionIndexes(GetCollectionIndexesRequest) returns (GetCollectionIndexesReply) {
+        option deprecated = true;
+    }
+    rpc ListCollections(ListCollectionsRequest) returns (ListCollectionsReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}
     rpc Delete(DeleteRequest) returns (DeleteReply) {}
