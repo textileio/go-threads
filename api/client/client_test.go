@@ -248,8 +248,8 @@ func TestClient_GetCollectionInfo(t *testing.T) {
 		if !bytes.Equal(info.Schema, sb) {
 			t.Fatalf("expected %s, but got %s", string(sb), string(info.Schema))
 		}
-		if len(info.Indexes) != 2 {
-			t.Fatalf("expected 2 indexes, but got %v", len(info.Indexes))
+		if len(info.Indexes) != 1 {
+			t.Fatalf("expected 1 indexes, but got %v", len(info.Indexes))
 		}
 	})
 }
@@ -274,8 +274,8 @@ func TestClient_GetCollectionIndexes(t *testing.T) {
 		checkErr(t, err)
 		indexes, err := client.GetCollectionIndexes(context.Background(), id, collectionName)
 		checkErr(t, err)
-		if len(indexes) != 2 {
-			t.Fatalf("expected 2 indexes, but got %v", len(indexes))
+		if len(indexes) != 1 {
+			t.Fatalf("expected 1 indexes, but got %v", len(indexes))
 		}
 	})
 }
