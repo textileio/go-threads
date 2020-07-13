@@ -75,7 +75,8 @@ type net struct {
 
 // Config is used to specify thread instance options.
 type Config struct {
-	Debug bool
+	Debug  bool
+	PubSub bool
 }
 
 // NewNetwork creates an instance of net from the given host and thread store.
@@ -102,7 +103,7 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 		cancel:     cancel,
 		pullLocks:  make(map[thread.ID]chan struct{}),
 	}
-	t.server, err = newServer(t)
+	t.server, err = newServer(t, conf.PubSub)
 	if err != nil {
 		return nil, err
 	}
@@ -228,8 +229,10 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	if err = n.store.AddLog(id, linfo); err != nil {
 		return
 	}
-	if err = n.server.ps.Add(id); err != nil {
-		return
+	if n.server.ps != nil {
+		if err = n.server.ps.Add(id); err != nil {
+			return
+		}
 	}
 	return n.getThreadWithAddrs(id)
 }
@@ -346,8 +349,10 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 				return
 			}
 		}
-		if err = n.server.ps.Add(id); err != nil {
-			return
+		if n.server.ps != nil {
+			if err = n.server.ps.Add(id); err != nil {
+				return
+			}
 		}
 	}
 	return n.getThreadWithAddrs(id)
@@ -525,8 +530,10 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 // Local subscriptions will not be cancelled and will simply stop reporting.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
-	if err := n.server.ps.Remove(id); err != nil {
-		return err
+	if n.server.ps != nil {
+		if err := n.server.ps.Remove(id); err != nil {
+			return err
+		}
 	}
 
 	info, err := n.store.GetThread(id)

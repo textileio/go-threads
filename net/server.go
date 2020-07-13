@@ -29,30 +29,34 @@ type server struct {
 }
 
 // newServer creates a new network server.
-func newServer(n *net) (*server, error) {
+func newServer(n *net, enablePubSub bool) (*server, error) {
 	s := &server{
 		net:   n,
 		conns: make(map[peer.ID]*grpc.ClientConn),
 	}
-	ps, err := pubsub.NewGossipSub(
-		n.ctx,
-		n.host,
-		pubsub.WithMessageSigning(false),
-		pubsub.WithStrictSignatureVerification(false))
-	if err != nil {
-		return nil, err
-	}
-	s.ps = NewPubSub(n.ctx, n.host.ID(), ps, s.pubsubHandler)
 
-	ts, err := n.store.Threads()
-	if err != nil {
-		return nil, err
-	}
-	for _, id := range ts {
-		if err := s.ps.Add(id); err != nil {
+	if enablePubSub {
+		ps, err := pubsub.NewGossipSub(
+			n.ctx,
+			n.host,
+			pubsub.WithMessageSigning(false),
+			pubsub.WithStrictSignatureVerification(false))
+		if err != nil {
 			return nil, err
 		}
+		s.ps = NewPubSub(n.ctx, n.host.ID(), ps, s.pubsubHandler)
+
+		ts, err := n.store.Threads()
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ts {
+			if err := s.ps.Add(id); err != nil {
+				return nil, err
+			}
+		}
 	}
+
 	return s, nil
 }
 
