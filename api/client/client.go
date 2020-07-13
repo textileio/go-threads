@@ -343,7 +343,46 @@ func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name stri
 	return err
 }
 
+// CollectionInfo wraps info about a collection.
+type CollectionInfo struct {
+	Name    string
+	Schema  []byte
+	Indexes []db.Index
+}
+
+// GetCollectionInfo returns information about an existing collection.
+func (c *Client) GetCollectionInfo(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedOption) (*CollectionInfo, error) {
+	args := &db.ManagedOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	resp, err := c.c.GetCollectionInfo(ctx, &pb.GetCollectionInfoRequest{
+		DbID: dbID.Bytes(),
+		Name: name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &CollectionInfo{
+		Name:    resp.Name,
+		Schema:  resp.Schema,
+		Indexes: indexesFromPb(resp.Indexes),
+	}, nil
+}
+
+func indexesFromPb(pbindexes []*pb.Index) []db.Index {
+	indexes := make([]db.Index, len(pbindexes))
+	for i, index := range pbindexes {
+		indexes[i] = db.Index{
+			Path:   index.Path,
+			Unique: index.Unique,
+		}
+	}
+	return indexes
+}
+
 // GetCollectionIndexes returns an existing collection's indexes.
+// Deprecated: Use GetCollectionInfo instead.
 func (c *Client) GetCollectionIndexes(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedOption) ([]db.Index, error) {
 	args := &db.ManagedOptions{}
 	for _, opt := range opts {
@@ -356,14 +395,30 @@ func (c *Client) GetCollectionIndexes(ctx context.Context, dbID thread.ID, name 
 	if err != nil {
 		return nil, err
 	}
-	indexes := make([]db.Index, len(resp.Indexes))
-	for i, index := range resp.Indexes {
-		indexes[i] = db.Index{
-			Path:   index.Path,
-			Unique: index.Unique,
+	return indexesFromPb(resp.Indexes), nil
+}
+
+// ListCollections returns information about all existing collections.
+func (c *Client) ListCollections(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) ([]CollectionInfo, error) {
+	args := &db.ManagedOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	resp, err := c.c.ListCollections(ctx, &pb.ListCollectionsRequest{
+		DbID: dbID.Bytes(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	list := make([]CollectionInfo, len(resp.Collections))
+	for i, c := range resp.Collections {
+		list[i] = CollectionInfo{
+			Name:    c.Name,
+			Schema:  c.Schema,
+			Indexes: indexesFromPb(c.Indexes),
 		}
 	}
-	return indexes, nil
+	return list, nil
 }
 
 // Create creates new instances of objects.

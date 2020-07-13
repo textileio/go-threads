@@ -47,11 +47,16 @@ type Index struct {
 
 // GetIndexes returns the current indexes.
 func (c *Collection) GetIndexes() []Index {
-	indexes := make([]Index, len(c.indexes))
+	if len(c.indexes) == 0 {
+		return nil
+	}
+	indexes := make([]Index, len(c.indexes)-1)
 	var i int
 	for _, index := range c.indexes {
-		indexes[i] = index
-		i++
+		if index.Path != idFieldName {
+			indexes[i] = index
+			i++
+		}
 	}
 	return indexes
 }

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -10,6 +11,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/util"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 const (
@@ -81,8 +83,8 @@ func TestNewCollection(t *testing.T) {
 		})
 		checkErr(t, err)
 		indexes := c.GetIndexes()
-		if len(indexes) != 2 {
-			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+		if len(indexes) != 1 {
+			t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
 		}
 	})
 	t.Run("WithNestedIndexes", func(t *testing.T) {
@@ -96,8 +98,8 @@ func TestNewCollection(t *testing.T) {
 		})
 		checkErr(t, err)
 		indexes := c.GetIndexes()
-		if len(indexes) != 3 {
-			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		if len(indexes) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
 		}
 	})
 	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
@@ -234,8 +236,8 @@ func TestUpdateCollection(t *testing.T) {
 		})
 		checkErr(t, err)
 		indexes := c.GetIndexes()
-		if len(indexes) != 3 {
-			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		if len(indexes) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
 		}
 	})
 	t.Run("RemoveFieldsAndIndexes", func(t *testing.T) {
@@ -255,8 +257,8 @@ func TestUpdateCollection(t *testing.T) {
 		})
 		checkErr(t, err)
 		indexes := c.GetIndexes()
-		if len(indexes) != 2 {
-			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+		if len(indexes) != 1 {
+			t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
 		}
 	})
 	t.Run("Fail/BadIndexPath", func(t *testing.T) {
@@ -364,6 +366,41 @@ func TestEmptySchema(t *testing.T) {
 	}
 }
 
+func TestGetName(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	c, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: schema,
+	})
+	checkErr(t, err)
+	name := c.GetName()
+	if name != "Person" {
+		t.Fatalf("expected Person, but got %s", name)
+	}
+}
+
+func TestGetSchema(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	c, err := db.NewCollection(CollectionConfig{
+		Name:   "Person",
+		Schema: schema,
+	})
+	checkErr(t, err)
+	sb, err := json.Marshal(schema)
+	checkErr(t, err)
+	original := gojsonschema.NewBytesLoader(sb).JsonSource().([]byte)
+	got := c.GetSchema()
+	if !bytes.Equal(got, original) {
+		t.Fatal("got schema does not match original")
+	}
+}
+
 func TestGetIndexes(t *testing.T) {
 	t.Parallel()
 	db, clean := createTestDB(t)
@@ -375,19 +412,16 @@ func TestGetIndexes(t *testing.T) {
 	})
 	checkErr(t, err)
 	indexes := c.GetIndexes()
-	if len(indexes) != 1 {
-		t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
-	}
-	if !indexes[0].Unique {
-		t.Fatal("index on _id should be unique")
+	if len(indexes) != 0 {
+		t.Fatalf("expected %d indexes, got %d", 0, len(indexes))
 	}
 	err = c.addIndex(schema, Index{Path: "Name", Unique: false})
 	checkErr(t, err)
 	indexes = c.GetIndexes()
-	if len(indexes) != 2 {
-		t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+	if len(indexes) != 1 {
+		t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
 	}
-	if indexes[1].Unique {
+	if indexes[0].Unique {
 		t.Fatal("index on Name should not be unique")
 	}
 }
@@ -413,16 +447,16 @@ func TestDropIndex(t *testing.T) {
 		err := c.dropIndex("Age")
 		checkErr(t, err)
 		indexes := c.GetIndexes()
-		if len(indexes) != 3 {
-			t.Fatalf("expected %d indexes, got %d", 3, len(indexes))
+		if len(indexes) != 2 {
+			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
 		}
 	})
 	t.Run("DropNestedIndex", func(t *testing.T) {
 		err := c.dropIndex("Toys.Favorite")
 		checkErr(t, err)
 		indexes := c.GetIndexes()
-		if len(indexes) != 2 {
-			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
+		if len(indexes) != 1 {
+			t.Fatalf("expected %d indexes, got %d", 1, len(indexes))
 		}
 	})
 }

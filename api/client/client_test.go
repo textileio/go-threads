@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"bytes"
 	"context"
 	crand "crypto/rand"
 	"encoding/json"
@@ -218,6 +219,41 @@ func TestClient_DeleteCollection(t *testing.T) {
 	})
 }
 
+func TestClient_GetCollectionInfo(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test get collection info", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		jschema := util.SchemaFromSchemaString(schema)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: jschema,
+			Indexes: []db.Index{{
+				Path:   "lastName",
+				Unique: true,
+			}},
+		})
+		checkErr(t, err)
+		info, err := client.GetCollectionInfo(context.Background(), id, collectionName)
+		checkErr(t, err)
+		if info.Name != collectionName {
+			t.Fatalf("expected %s, but got %s", collectionName, info.Name)
+		}
+		sb, err := json.Marshal(jschema)
+		checkErr(t, err)
+		if !bytes.Equal(info.Schema, sb) {
+			t.Fatalf("expected %s, but got %s", string(sb), string(info.Schema))
+		}
+		if len(info.Indexes) != 1 {
+			t.Fatalf("expected 1 indexes, but got %v", len(info.Indexes))
+		}
+	})
+}
+
 func TestClient_GetCollectionIndexes(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
@@ -238,8 +274,44 @@ func TestClient_GetCollectionIndexes(t *testing.T) {
 		checkErr(t, err)
 		indexes, err := client.GetCollectionIndexes(context.Background(), id, collectionName)
 		checkErr(t, err)
-		if len(indexes) != 2 {
-			t.Fatalf("expected 2 indexes, but got %v", len(indexes))
+		if len(indexes) != 1 {
+			t.Fatalf("expected 1 indexes, but got %v", len(indexes))
+		}
+	})
+}
+
+func TestClient_ListCollections(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test list collection info", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		jschema := util.SchemaFromSchemaString(schema)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: jschema,
+			Indexes: []db.Index{{
+				Path:   "lastName",
+				Unique: true,
+			}},
+		})
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
+			Name:   collectionName + "2",
+			Schema: jschema,
+			Indexes: []db.Index{{
+				Path:   "lastName",
+				Unique: true,
+			}},
+		})
+		checkErr(t, err)
+		list, err := client.ListCollections(context.Background(), id)
+		checkErr(t, err)
+		if len(list) != 2 {
+			t.Fatalf("expected 2 result, but got %v", len(list))
 		}
 	})
 }

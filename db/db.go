@@ -341,8 +341,7 @@ func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Inde
 }
 
 func (d *DB) saveCollection(c *Collection) error {
-	schema := c.schemaLoader.JsonSource().([]byte)
-	if err := d.datastore.Put(dsSchemas.ChildString(c.name), schema); err != nil {
+	if err := d.datastore.Put(dsSchemas.ChildString(c.name), c.GetSchema()); err != nil {
 		return err
 	}
 	d.collections[c.name] = c
@@ -359,6 +358,24 @@ func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 		opt(options)
 	}
 	return d.collections[name]
+}
+
+// ListCollections returns all collections.
+// @todo: Handle token auth
+func (d *DB) ListCollections(opts ...Option) []*Collection {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	options := &Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+	list := make([]*Collection, len(d.collections))
+	var i int
+	for _, c := range d.collections {
+		list[i] = c
+		i++
+	}
+	return list
 }
 
 // DeleteCollection deletes collection by name and drops all indexes.

@@ -358,6 +358,37 @@ func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollection
 	return &pb.DeleteCollectionReply{}, nil
 }
 
+func (s *Service) GetCollectionInfo(ctx context.Context, req *pb.GetCollectionInfoRequest) (*pb.GetCollectionInfoReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(ctx, req.Name, id, token)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetCollectionInfoReply{
+		Name:    collection.GetName(),
+		Schema:  collection.GetSchema(),
+		Indexes: indexesToPb(collection.GetIndexes()),
+	}, nil
+}
+
+func indexesToPb(indexes []db.Index) []*pb.Index {
+	pbindexes := make([]*pb.Index, len(indexes))
+	for i, index := range indexes {
+		pbindexes[i] = &pb.Index{
+			Path:   index.Path,
+			Unique: index.Unique,
+		}
+	}
+	return pbindexes
+}
+
 func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectionIndexesRequest) (*pb.GetCollectionIndexesReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
@@ -371,17 +402,34 @@ func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectio
 	if err != nil {
 		return nil, err
 	}
-	indexes := collection.GetIndexes()
-	pbindexes := make([]*pb.Index, len(indexes))
-	for i, index := range indexes {
-		pbindexes[i] = &pb.Index{
-			Path:   index.Path,
-			Unique: index.Unique,
+	return &pb.GetCollectionIndexesReply{
+		Indexes: indexesToPb(collection.GetIndexes()),
+	}, nil
+}
+
+func (s *Service) ListCollections(ctx context.Context, req *pb.ListCollectionsRequest) (*pb.ListCollectionsReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.getDB(ctx, id, token)
+	if err != nil {
+		return nil, err
+	}
+	list := d.ListCollections(db.WithToken(token))
+	pblist := make([]*pb.GetCollectionInfoReply, len(list))
+	for i, c := range list {
+		pblist[i] = &pb.GetCollectionInfoReply{
+			Name:    c.GetName(),
+			Schema:  c.GetSchema(),
+			Indexes: indexesToPb(c.GetIndexes()),
 		}
 	}
-	return &pb.GetCollectionIndexesReply{
-		Indexes: pbindexes,
-	}, nil
+	return &pb.ListCollectionsReply{Collections: pblist}, nil
 }
 
 func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
