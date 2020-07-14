@@ -163,12 +163,19 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 	}
 	m.dbs[id] = db
 
-	go func() {
-		if err := m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
-			log.Errorf("error pulling thread %s", id)
+	if args.Block {
+		if err = m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
+			return nil, err
 		}
-	}()
-
+	} else {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), pullThreadBackgroundTimeout)
+			defer cancel()
+			if err := m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
+				log.Errorf("error pulling thread %s", id)
+			}
+		}()
+	}
 	return db, nil
 }
 

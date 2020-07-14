@@ -29,9 +29,10 @@ import (
 )
 
 const (
-	idFieldName            = "_id"
-	getBlockRetries        = 3
-	getBlockInitialTimeout = time.Millisecond * 500
+	idFieldName                 = "_id"
+	getBlockRetries             = 3
+	getBlockInitialTimeout      = time.Millisecond * 500
+	pullThreadBackgroundTimeout = time.Hour
 )
 
 var (
@@ -113,11 +114,19 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 		return nil, err
 	}
 
-	go func() {
-		if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(args.Token)); err != nil {
-			log.Errorf("error pulling thread %s", ti.ID)
+	if args.Block {
+		if err = network.PullThread(ctx, ti.ID, net.WithThreadToken(args.Token)); err != nil {
+			return nil, err
 		}
-	}()
+	} else {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), pullThreadBackgroundTimeout)
+			defer cancel()
+			if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(args.Token)); err != nil {
+				log.Errorf("error pulling thread %s", ti.ID)
+			}
+		}()
+	}
 	return d, nil
 }
 

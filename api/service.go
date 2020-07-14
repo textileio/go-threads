@@ -160,7 +160,12 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDB(ctx, id, db.WithNewManagedName(req.Name), db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
+	if _, err = s.manager.NewDB(
+		ctx,
+		id,
+		db.WithNewManagedName(req.Name),
+		db.WithNewManagedToken(token),
+		db.WithNewManagedCollections(collections...)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -189,7 +194,14 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	if _, err = s.manager.NewDBFromAddr(ctx, addr, key, db.WithNewManagedName(req.Name), db.WithNewManagedToken(token), db.WithNewManagedCollections(collections...)); err != nil {
+	if _, err = s.manager.NewDBFromAddr(
+		ctx,
+		addr,
+		key,
+		db.WithNewManagedName(req.Name),
+		db.WithNewManagedToken(token),
+		db.WithNewManagedCollections(collections...),
+		db.WithNewManagedBackfillBlock(req.Block)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
