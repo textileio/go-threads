@@ -1084,11 +1084,11 @@ func (n *net) startPulling() {
 // If no log exists, a new one is created under the given thread and returned.
 // This is a strict 'ownership' check vs returning managed logs.
 func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	thread, err := n.store.GetThread(id)
+	thrd, err := n.store.GetThread(id)
 	if err != nil {
 		return
 	}
-	ownLog := thread.GetOwnLog()
+	ownLog := thrd.GetOwnLog()
 	if ownLog != nil {
 		info = *ownLog
 		return

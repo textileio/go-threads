@@ -39,6 +39,7 @@ type NewOptions struct {
 	Token       thread.Token
 	Datastore   ds.TxnDatastore
 	Collections []CollectionConfig
+	Block       bool
 	EventCodec  core.EventCodec
 	LowMem      bool
 	Debug       bool
@@ -84,6 +85,16 @@ func WithNewCollections(cs ...CollectionConfig) NewOption {
 	}
 }
 
+// WithNewBackfillBlock makes the caller of NewDBFromAddr block until the
+// underlying thread is completely backfilled.
+// Without this, NewDBFromAddr returns immediately and thread backfilling
+// happens in the background.
+func WithNewBackfillBlock(block bool) NewOption {
+	return func(o *NewOptions) {
+		o.Block = block
+	}
+}
+
 // WithNewEventCodec configure to use ec as the EventCodec
 // for transforming actions in events, and viceversa.
 func WithNewEventCodec(ec core.EventCodec) NewOption {
@@ -116,8 +127,8 @@ type Option func(*Options)
 
 // WithToken provides authorization for interacting with a db.
 func WithToken(t thread.Token) Option {
-	return func(args *Options) {
-		args.Token = t
+	return func(o *Options) {
+		o.Token = t
 	}
 }
 
@@ -131,40 +142,51 @@ type TxnOption func(*TxnOptions)
 
 // WithTxnToken provides authorization for the transaction.
 func WithTxnToken(t thread.Token) TxnOption {
-	return func(args *TxnOptions) {
-		args.Token = t
+	return func(o *TxnOptions) {
+		o.Token = t
 	}
 }
 
 // NewManagedOptions defines options for creating a new managed db.
 type NewManagedOptions struct {
-	Collections []CollectionConfig
-	Token       thread.Token
 	Name        string
+	Token       thread.Token
+	Collections []CollectionConfig
+	Block       bool
 }
 
 // NewManagedOption specifies a new managed db option.
 type NewManagedOption func(*NewManagedOptions)
 
-// WithNewManagedCollections is used to specify collections that
-// will be created in a managed db.
-func WithNewManagedCollections(cs ...CollectionConfig) NewManagedOption {
-	return func(args *NewManagedOptions) {
-		args.Collections = cs
+// WithNewManagedName assigns a name to a new managed db.
+func WithNewManagedName(name string) NewManagedOption {
+	return func(o *NewManagedOptions) {
+		o.Name = name
 	}
 }
 
 // WithNewManagedToken provides authorization for creating a new managed db.
 func WithNewManagedToken(t thread.Token) NewManagedOption {
-	return func(args *NewManagedOptions) {
-		args.Token = t
+	return func(o *NewManagedOptions) {
+		o.Token = t
 	}
 }
 
-// WithNewManagedName assigns a name to a new managed db.
-func WithNewManagedName(name string) NewManagedOption {
-	return func(args *NewManagedOptions) {
-		args.Name = name
+// WithNewManagedCollections is used to specify collections that
+// will be created in a managed db.
+func WithNewManagedCollections(cs ...CollectionConfig) NewManagedOption {
+	return func(o *NewManagedOptions) {
+		o.Collections = cs
+	}
+}
+
+// WithNewBackfillBlock makes the caller of NewDBFromAddr block until the
+// underlying thread is completely backfilled.
+// Without this, NewDBFromAddr returns immediately and thread backfilling
+// happens in the background.
+func WithNewManagedBackfillBlock(block bool) NewManagedOption {
+	return func(o *NewManagedOptions) {
+		o.Block = block
 	}
 }
 
@@ -178,7 +200,7 @@ type ManagedOption func(*ManagedOptions)
 
 // WithManagedToken provides authorization for interacting with a managed db.
 func WithManagedToken(t thread.Token) ManagedOption {
-	return func(args *ManagedOptions) {
-		args.Token = t
+	return func(o *ManagedOptions) {
+		o.Token = t
 	}
 }
