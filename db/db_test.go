@@ -11,12 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/textileio/go-threads/core/app"
-
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/common"
+	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
@@ -50,6 +49,7 @@ func TestE2EWithThreads(t *testing.T) {
 	dummyJSON = util.SetJSONProperty("Counter", 42, dummyJSON)
 	checkErr(t, c1.Save(dummyJSON))
 
+	// Make sure the thread can't be deleted directly
 	err = n1.DeleteThread(context.Background(), id1)
 	if !errors.Is(err, app.ErrThreadInUse) {
 		t.Fatal("thread should have been protected from deletion")

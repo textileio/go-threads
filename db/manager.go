@@ -93,11 +93,18 @@ func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
 		}
 		s, err := newDB(m.network, id, opts)
 		if err != nil {
-			log.Errorf("unable to reload db: %s", err)
+			log.Errorf("unable to reload db %s: %s (marked for deletion)", id, err)
 			invalids[id] = struct{}{}
 			continue
 		}
 		m.dbs[id] = s
+	}
+
+	// Cleanup invalids
+	for id := range invalids {
+		if err := m.deleteThreadNamespace(id); err != nil {
+			return nil, err
+		}
 	}
 	return m, nil
 }
@@ -243,6 +250,15 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if err := id.Validate(); err != nil {
 		return err
 	}
+	if err := m.deleteThreadNamespace(id); err != nil {
+		return err
+	}
+
+	delete(m.dbs, id)
+	return nil
+}
+
+func (m *Manager) deleteThreadNamespace(id thread.ID) error {
 	pre := dsManagerBaseKey.ChildString(id.String())
 	q := query.Query{Prefix: pre.String(), KeysOnly: true}
 	results, err := m.opts.Datastore.Query(q)
@@ -255,8 +271,6 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 			return err
 		}
 	}
-
-	delete(m.dbs, id)
 	return nil
 }
 
