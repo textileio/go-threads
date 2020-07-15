@@ -172,12 +172,35 @@ func TestManager_GetDB(t *testing.T) {
 		_, err = collection.CreateMany([][]byte{person2, person3})
 		checkErr(t, err)
 
+		// Delete the db, we'll try to restart again
+		err = man.DeleteDB(ctx, id)
+		checkErr(t, err)
+
 		time.Sleep(time.Second)
 
 		err = man.Close()
 		checkErr(t, err)
 		err = n.Close()
 		checkErr(t, err)
+
+		t.Run("test get deleted db after restart", func(t *testing.T) {
+			n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+			checkErr(t, err)
+			man, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
+			checkErr(t, err)
+
+			_, err = man.GetDB(ctx, id)
+			if !errors.Is(err, lstore.ErrThreadNotFound) {
+				t.Fatal("db was not deleted")
+			}
+
+			time.Sleep(time.Second)
+
+			err = man.Close()
+			checkErr(t, err)
+			err = n.Close()
+			checkErr(t, err)
+		})
 	})
 }
 

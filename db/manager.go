@@ -71,6 +71,7 @@ func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
 		return nil, err
 	}
 	defer results.Close()
+	invalids := make(map[thread.ID]struct{})
 	for res := range results.Next() {
 		parts := strings.Split(ds.RawKey(res.Key).String(), "/")
 		if len(parts) < 3 {
@@ -83,13 +84,18 @@ func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
+		if _, ok := invalids[id]; ok {
+			continue
+		}
 		opts, err := getDBOptions(id, m.opts, "")
 		if err != nil {
 			return nil, err
 		}
 		s, err := newDB(m.network, id, opts)
 		if err != nil {
-			return nil, err
+			log.Errorf("unable to reload db: %s", err)
+			invalids[id] = struct{}{}
+			continue
 		}
 		m.dbs[id] = s
 	}

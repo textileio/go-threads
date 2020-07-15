@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -9,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/textileio/go-threads/core/app"
 
 	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
@@ -46,6 +49,11 @@ func TestE2EWithThreads(t *testing.T) {
 	dummyJSON = util.SetJSONID(res, dummyJSON)
 	dummyJSON = util.SetJSONProperty("Counter", 42, dummyJSON)
 	checkErr(t, c1.Save(dummyJSON))
+
+	err = n1.DeleteThread(context.Background(), id1)
+	if !errors.Is(err, app.ErrThreadInUse) {
+		t.Fatal("thread should have been protected from deletion")
+	}
 
 	// Boilerplate to generate peer1 thread-addr
 	// @todo: This should be a network method

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -14,7 +15,13 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 )
 
-var log = logging.Logger("app")
+var (
+	log = logging.Logger("app")
+
+	// ErrThreadInUse indicates an operation could not be completed because the
+	// thread is bound to an app.
+	ErrThreadInUse = errors.New("thread is in use")
+)
 
 const (
 	busTimeout        = time.Second * 10

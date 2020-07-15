@@ -179,7 +179,8 @@ func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 
 	connector, err := n.ConnectApp(d, id)
 	if err != nil {
-		log.Fatalf("unable to connect app: %s", err)
+		// @todo: Consider making this fatal again after fixing #400
+		return nil, err
 	}
 	d.connector = connector
 	return d, nil
@@ -195,7 +196,7 @@ func managedDatastore(ds ds.Datastore) bool {
 // putName saves a name for db.
 func (d *DB) putName(name string) error {
 	if name == "" {
-		return nil
+		name = "unnamed"
 	}
 	if !nameRx.MatchString(name) {
 		return ErrInvalidName
