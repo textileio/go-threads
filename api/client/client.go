@@ -194,6 +194,7 @@ func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey t
 		Key:         dbKey.Bytes(),
 		Collections: pbcollections,
 		Name:        args.Name,
+		Block:       args.Block,
 	})
 	return err
 }
