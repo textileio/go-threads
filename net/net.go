@@ -66,6 +66,8 @@ type net struct {
 	server *server
 	bus    *broadcast.Broadcaster
 
+	apps map[thread.ID]core.Token
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -98,6 +100,7 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 		store:      ls,
 		rpc:        grpc.NewServer(opts...),
 		bus:        broadcast.NewBroadcaster(0),
+		apps:       make(map[thread.ID]core.Token),
 		ctx:        ctx,
 		cancel:     cancel,
 		pullLocks:  make(map[thread.ID]chan struct{}),
@@ -144,7 +147,7 @@ func (n *net) Close() (err error) {
 	weakClose := func(name string, c interface{}) {
 		if cl, ok := c.(io.Closer); ok {
 			if err = cl.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("%s error: %s", name, err))
+				errs = append(errs, fmt.Errorf("%s error: %v", name, err))
 			}
 		}
 	}
@@ -308,7 +311,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	if addFromSelf {
 		// Error if we don't have the thread locally
 		if _, err = n.store.GetThread(id); errors.Is(err, lstore.ErrThreadNotFound) {
-			err = fmt.Errorf("cannot retrieve thread from self: %s", err)
+			err = fmt.Errorf("cannot retrieve thread from self: %v", err)
 			return
 		}
 	}
@@ -503,6 +506,9 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
+	if !n.validateAPIToken(id, args.APIToken) {
+		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
+	}
 
 	log.Debugf("deleting thread %s...", id)
 	ptl := n.getThreadSemaphore(id)
@@ -673,6 +679,9 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	if err != nil {
 		return
 	}
+	if !n.validateAPIToken(id, args.APIToken) {
+		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
+	}
 
 	lg, err := n.getOrCreateOwnLog(id)
 	if err != nil {
@@ -711,6 +720,9 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	}
 	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
+	}
+	if !n.validateAPIToken(id, args.APIToken) {
+		return fmt.Errorf("cannot add record: %w", app.ErrThreadInUse)
 	}
 
 	logpk, err := n.store.PubKey(id, lid)
@@ -842,17 +854,30 @@ func (n *net) subscribe(ctx context.Context, filter map[thread.ID]struct{}) (<-c
 	return channel, nil
 }
 
-func (n *net) ConnectApp(a app.App, threadID thread.ID) (*app.Connector, error) {
-	if err := threadID.Validate(); err != nil {
+func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
+	if err := id.Validate(); err != nil {
 		return nil, err
 	}
-	info, err := n.getThreadWithAddrs(threadID)
+	info, err := n.getThreadWithAddrs(id)
 	if err != nil {
-		return nil, fmt.Errorf("error getting thread %s: %v", threadID, err)
+		return nil, fmt.Errorf("error getting thread %s: %v", id, err)
 	}
-	return app.NewConnector(a, n, info, func(ctx context.Context, id thread.ID) (<-chan core.ThreadRecord, error) {
+	con, err := app.NewConnector(a, n, info, func(ctx context.Context, id thread.ID) (<-chan core.ThreadRecord, error) {
 		return n.subscribe(ctx, map[thread.ID]struct{}{id: {}})
 	})
+	if err != nil {
+		return nil, fmt.Errorf("error making connector %s: %v", id, err)
+	}
+	n.apps[id] = con.Token()
+	return con, nil
+}
+
+func (n *net) validateAPIToken(id thread.ID, token core.Token) bool {
+	t, ok := n.apps[id]
+	if !ok {
+		return true // not an app
+	}
+	return token.Equal(t)
 }
 
 // PutRecord adds an existing record. This method is thread-safe

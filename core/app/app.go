@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,9 +13,16 @@ import (
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 )
 
-var log = logging.Logger("app")
+var (
+	log = logging.Logger("app")
+
+	// ErrThreadInUse indicates an operation could not be completed because the
+	// thread is bound to an app.
+	ErrThreadInUse = errors.New("thread is in use")
+)
 
 const (
 	busTimeout        = time.Second * 10
@@ -105,6 +113,7 @@ type Connector struct {
 	Net Net
 
 	app        App
+	token      net.Token
 	threadID   thread.ID
 	threadKey  thread.Key
 	logID      peer.ID
@@ -130,6 +139,7 @@ func NewConnector(app App, net Net, tinfo thread.Info, conn Connection) (*Connec
 	a := &Connector{
 		Net:       net,
 		app:       app,
+		token:     util.GenerateRandomBytes(32),
 		threadID:  tinfo.ID,
 		threadKey: tinfo.Key,
 		logID:     lg.ID,
@@ -160,6 +170,11 @@ func (c *Connector) Close() error {
 // ThreadID returns the underlying thread's ID.
 func (c *Connector) ThreadID() thread.ID {
 	return c.threadID
+}
+
+// Token returns the net token.
+func (c *Connector) Token() net.Token {
+	return c.token
 }
 
 func (c *Connector) threadToApp(con Connection, wg *sync.WaitGroup) {
@@ -205,7 +220,7 @@ func (c *Connector) appToThread(wg *sync.WaitGroup) {
 				return
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := c.Net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadToken(event.Token)); err != nil {
+			if _, err := c.Net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadToken(event.Token), net.WithAPIToken(c.token)); err != nil {
 				log.Fatalf("error writing record: %v", err)
 			}
 			cancel()

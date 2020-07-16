@@ -71,6 +71,7 @@ func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
 		return nil, err
 	}
 	defer results.Close()
+	invalids := make(map[thread.ID]struct{})
 	for res := range results.Next() {
 		parts := strings.Split(ds.RawKey(res.Key).String(), "/")
 		if len(parts) < 3 {
@@ -83,15 +84,27 @@ func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
 		if _, ok := m.dbs[id]; ok {
 			continue
 		}
+		if _, ok := invalids[id]; ok {
+			continue
+		}
 		opts, err := getDBOptions(id, m.opts, "")
 		if err != nil {
 			return nil, err
 		}
 		s, err := newDB(m.network, id, opts)
 		if err != nil {
-			return nil, err
+			log.Errorf("unable to reload db %s: %s (marked for deletion)", id, err)
+			invalids[id] = struct{}{}
+			continue
 		}
 		m.dbs[id] = s
+	}
+
+	// Cleanup invalids
+	for id := range invalids {
+		if err := m.deleteThreadNamespace(id); err != nil {
+			return nil, err
+		}
 	}
 	return m, nil
 }
@@ -229,7 +242,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if err := db.Close(); err != nil {
 		return err
 	}
-	if err := m.network.DeleteThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
+	if err := m.network.DeleteThread(ctx, id, net.WithThreadToken(args.Token), net.WithAPIToken(db.connector.Token())); err != nil {
 		return err
 	}
 
@@ -237,6 +250,15 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if err := id.Validate(); err != nil {
 		return err
 	}
+	if err := m.deleteThreadNamespace(id); err != nil {
+		return err
+	}
+
+	delete(m.dbs, id)
+	return nil
+}
+
+func (m *Manager) deleteThreadNamespace(id thread.ID) error {
 	pre := dsManagerBaseKey.ChildString(id.String())
 	q := query.Query{Prefix: pre.String(), KeysOnly: true}
 	results, err := m.opts.Datastore.Query(q)
@@ -249,8 +271,6 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 			return err
 		}
 	}
-
-	delete(m.dbs, id)
 	return nil
 }
 

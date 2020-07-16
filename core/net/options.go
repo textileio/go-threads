@@ -41,7 +41,8 @@ func WithNewThreadToken(t thread.Token) NewThreadOption {
 
 // ThreadOptions defines options for interacting with a thread.
 type ThreadOptions struct {
-	Token thread.Token
+	Token    thread.Token
+	APIToken Token
 }
 
 // ThreadOption specifies thread options.
@@ -51,6 +52,16 @@ type ThreadOption func(*ThreadOptions)
 func WithThreadToken(t thread.Token) ThreadOption {
 	return func(args *ThreadOptions) {
 		args.Token = t
+	}
+}
+
+// WithAPIToken provides additional authorization for interacting
+// with a thread as an application.
+// For example, this is used by a db.DB to ensure that only it can
+// create/add records or delete the underlying thread.
+func WithAPIToken(t Token) ThreadOption {
+	return func(args *ThreadOptions) {
+		args.APIToken = t
 	}
 }
 
