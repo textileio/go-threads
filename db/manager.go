@@ -242,7 +242,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if err := db.Close(); err != nil {
 		return err
 	}
-	if err := m.network.DeleteThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
+	if err := m.network.DeleteThread(ctx, id, net.WithThreadToken(args.Token), net.WithAPIToken(db.connector.Token())); err != nil {
 		return err
 	}
 

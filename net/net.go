@@ -66,7 +66,7 @@ type net struct {
 	server *server
 	bus    *broadcast.Broadcaster
 
-	apps map[thread.ID]struct{}
+	apps map[thread.ID]core.Token
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -100,7 +100,7 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 		store:      ls,
 		rpc:        grpc.NewServer(opts...),
 		bus:        broadcast.NewBroadcaster(0),
-		apps:       make(map[thread.ID]struct{}),
+		apps:       make(map[thread.ID]core.Token),
 		ctx:        ctx,
 		cancel:     cancel,
 		pullLocks:  make(map[thread.ID]chan struct{}),
@@ -506,7 +506,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
-	if n.isApp(id) {
+	if !n.validateAPIToken(id, args.APIToken) {
 		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
 	}
 
@@ -679,6 +679,9 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	if err != nil {
 		return
 	}
+	if !n.validateAPIToken(id, args.APIToken) {
+		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
+	}
 
 	lg, err := n.getOrCreateOwnLog(id)
 	if err != nil {
@@ -717,6 +720,9 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	}
 	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
+	}
+	if !n.validateAPIToken(id, args.APIToken) {
+		return fmt.Errorf("cannot add record: %w", app.ErrThreadInUse)
 	}
 
 	logpk, err := n.store.PubKey(id, lid)
@@ -862,13 +868,16 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error making connector %s: %v", id, err)
 	}
-	n.apps[id] = struct{}{}
+	n.apps[id] = con.Token()
 	return con, nil
 }
 
-func (n *net) isApp(id thread.ID) bool {
-	_, ok := n.apps[id]
-	return ok
+func (n *net) validateAPIToken(id thread.ID, token core.Token) bool {
+	t, ok := n.apps[id]
+	if !ok {
+		return true // not an app
+	}
+	return token.Equal(t)
 }
 
 // PutRecord adds an existing record. This method is thread-safe

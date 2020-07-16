@@ -160,10 +160,16 @@ func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 		localEventsBus:      app.NewLocalEventsBus(),
 		stateChangedNotifee: &stateChangedNotifee{},
 	}
-	if err := d.putName(opts.Name); err != nil {
+	if err := d.loadName(); err != nil {
 		return nil, err
 	}
-	if err := d.loadName(); err != nil {
+	prevName := d.name
+	if opts.Name != "" {
+		d.name = opts.Name
+	} else if prevName == "" {
+		d.name = "unnamed"
+	}
+	if err := d.saveName(prevName); err != nil {
 		return nil, err
 	}
 	if err := d.reCreateCollections(); err != nil {
@@ -193,15 +199,15 @@ func managedDatastore(ds ds.Datastore) bool {
 	return ok
 }
 
-// putName saves a name for db.
-func (d *DB) putName(name string) error {
-	if name == "" {
-		name = "unnamed"
+// saveName saves the db name.
+func (d *DB) saveName(prevName string) error {
+	if d.name == prevName {
+		return nil
 	}
-	if !nameRx.MatchString(name) {
+	if !nameRx.MatchString(d.name) {
 		return ErrInvalidName
 	}
-	return d.datastore.Put(dsName, []byte(name))
+	return d.datastore.Put(dsName, []byte(d.name))
 }
 
 // loadName loads db name if present.

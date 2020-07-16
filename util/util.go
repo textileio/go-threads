@@ -1,6 +1,7 @@
 package util
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -183,4 +184,13 @@ func SetJSONProperty(name string, value interface{}, json []byte) []byte {
 
 func SetJSONID(id core.InstanceID, json []byte) []byte {
 	return SetJSONProperty("_id", id.String(), json)
+}
+
+func GenerateRandomBytes(n int) []byte {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
