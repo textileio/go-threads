@@ -721,9 +721,6 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
-	if !n.validateAPIToken(id, args.APIToken) {
-		return fmt.Errorf("cannot add record: %w", app.ErrThreadInUse)
-	}
 
 	logpk, err := n.store.PubKey(id, lid)
 	if err != nil {
@@ -872,6 +869,9 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	return con, nil
 }
 
+// validateAPIToken checks if the thread is backing an app,
+// and if so, returns whether or not the token matches the app
+// connector's token.
 func (n *net) validateAPIToken(id thread.ID, token core.Token) bool {
 	t, ok := n.apps[id]
 	if !ok {

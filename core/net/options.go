@@ -58,7 +58,7 @@ func WithThreadToken(t thread.Token) ThreadOption {
 // WithAPIToken provides additional authorization for interacting
 // with a thread as an application.
 // For example, this is used by a db.DB to ensure that only it can
-// create/add records or delete the underlying thread.
+// create records or delete the underlying thread.
 func WithAPIToken(t Token) ThreadOption {
 	return func(args *ThreadOptions) {
 		args.APIToken = t
