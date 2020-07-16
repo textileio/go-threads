@@ -73,7 +73,7 @@ type API interface {
 
 // Token is used to restrict network APIs to a single app.App.
 // In other words, a net token protects against writes and deletes
-// external to an app.
+// which are external to an app.
 type Token []byte
 
 func (t Token) Equal(b Token) bool {
