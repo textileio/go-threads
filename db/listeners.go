@@ -128,7 +128,7 @@ func (scn *stateChangedNotifee) close() {
 	scn.lock.Lock()
 	defer scn.lock.Unlock()
 	for i := range scn.listeners {
-		close(scn.listeners[i].c)
+		scn.listeners[i].Close()
 	}
 }
 
