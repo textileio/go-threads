@@ -286,12 +286,32 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 		txn:   txn,
 		query: q,
 	}
+	var prefix ds.Key
+	if q.Index == "" {
+		prefix = baseKey
+	} else {
+		prefix = indexPrefix.Child(baseKey).ChildString(q.Index)
+	}
+
+	dsq := query.Query{
+		Prefix: prefix.String(),
+		Limit:  q.Limit,
+		Offset: q.Skip,
+	}
+	if q.Sort.FieldPath == idFieldName {
+		if q.Sort.Desc {
+			dsq.Orders = []query.Order{query.OrderByKeyDescending{}}
+		} else {
+			dsq.Orders = []query.Order{query.OrderByKey{}}
+		}
+	}
+	if q.Seek != "" {
+		dsq.SeekPrefix = prefix.Child(ds.NewKey(string(q.Seek))).String()
+	}
+	i.iter, i.err = txn.Query(dsq)
+
 	// Key field or index not specified, pass thru to base 'iterator'
 	if q.Index == "" {
-		dsq := query.Query{
-			Prefix: baseKey.String(),
-		}
-		i.iter, i.err = txn.Query(dsq)
 		i.nextKeys = func() ([]ds.Key, error) {
 			return nil, nil
 		}
@@ -299,15 +319,9 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 	}
 
 	// indexed field, get keys from index
-	indexKey := indexPrefix.Child(baseKey).ChildString(q.Index)
-	dsq := query.Query{
-		Prefix: indexKey.String(),
-	}
-	i.iter, i.err = txn.Query(dsq)
 	first := true
 	i.nextKeys = func() ([]ds.Key, error) {
 		var nKeys []ds.Key
-
 		for len(nKeys) < iteratorKeyMinCacheSize {
 			result, ok := i.iter.NextSync()
 			if !ok {
@@ -319,7 +333,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 			first = false
 			// result.Key contains the indexed value, extract here first
 			key := ds.RawKey(result.Key)
-			base := indexKey.Name()
+			base := prefix.Name()
 			name := key.Name()
 			val := gjson.Parse(name).Value()
 			if val == nil {

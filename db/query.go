@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+
+	core "github.com/textileio/go-threads/core/db"
 )
 
 // Query is a json-seriable query representation.
@@ -13,6 +15,9 @@ type Query struct {
 	Ands  []*Criterion
 	Ors   []*Query
 	Sort  Sort
+	Seek  core.InstanceID
+	Limit int
+	Skip  int
 	Index string
 }
 
@@ -107,7 +112,7 @@ func Where(field string) *Criterion {
 	}
 }
 
-// OrderBy specify ascending order for the query results.
+// OrderBy specifies ascending order for the query results.
 func OrderBy(field string) *Query {
 	q := &Query{}
 	q.Sort.FieldPath = field
@@ -115,10 +120,26 @@ func OrderBy(field string) *Query {
 	return q
 }
 
-// OrderByDesc specify descending order for the query results.
+// OrderByDesc specifies descending order for the query results.
 func OrderByDesc(field string) *Query {
 	q := &Query{}
 	q.Sort.FieldPath = field
+	q.Sort.Desc = true
+	return q
+}
+
+// OrderByID specifies ascending ID order for the query results.
+func OrderByID() *Query {
+	q := &Query{}
+	q.Sort.FieldPath = idFieldName
+	q.Sort.Desc = false
+	return q
+}
+
+// OrderByIDDesc specifies descending ID order for the query results.
+func OrderByIDDesc() *Query {
+	q := &Query{}
+	q.Sort.FieldPath = idFieldName
 	q.Sort.Desc = true
 	return q
 }
@@ -145,7 +166,7 @@ func (q *Query) Or(orQuery *Query) *Query {
 	return q
 }
 
-// OrderBy specify ascending order for the query results.
+// OrderBy specifies ascending order for the query results.
 // On multiple calls, only the last one is considered.
 func (q *Query) OrderBy(field string) *Query {
 	q.Sort.FieldPath = field
@@ -153,11 +174,45 @@ func (q *Query) OrderBy(field string) *Query {
 	return q
 }
 
-// OrderByDesc specify descending order for the query results.
+// OrderByDesc specifies descending order for the query results.
 // On multiple calls, only the last one is considered.
 func (q *Query) OrderByDesc(field string) *Query {
 	q.Sort.FieldPath = field
 	q.Sort.Desc = true
+	return q
+}
+
+// OrderByID specifies ascending ID order for the query results.
+// On multiple calls, only the last one is considered.
+func (q *Query) OrderByID() *Query {
+	q.Sort.FieldPath = idFieldName
+	q.Sort.Desc = false
+	return q
+}
+
+// OrderByIDDesc specifies descending ID order for the query results.
+// On multiple calls, only the last one is considered.
+func (q *Query) OrderByIDDesc() *Query {
+	q.Sort.FieldPath = idFieldName
+	q.Sort.Desc = true
+	return q
+}
+
+// SeekID seeks to the given ID before returning query results.
+func (q *Query) SeekID(id core.InstanceID) *Query {
+	q.Seek = id
+	return q
+}
+
+// LimitTo sets the maximum number of results.
+func (q *Query) LimitTo(limit int) *Query {
+	q.Limit = limit
+	return q
+}
+
+// SkipNum skips the given number of results.
+func (q *Query) SkipNum(num int) *Query {
+	q.Skip = num
 	return q
 }
 
@@ -256,7 +311,7 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 		values = append(values, res)
 	}
 
-	if q.Sort.FieldPath != "" {
+	if q.Sort.FieldPath != "" && q.Sort.FieldPath != idFieldName {
 		var wrongField, cantCompare bool
 		sort.Slice(values, func(i, j int) bool {
 			fieldI, err := traverseFieldPathMap(values[i].MarshaledValue, q.Sort.FieldPath)

@@ -108,6 +108,10 @@ func (i *remoteIdentity) GetPublic() thread.PubKey {
 	return i.pk
 }
 
+func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
+	return nil, nil // no-op
+}
+
 func (s *Service) GetToken(server pb.API_GetTokenServer) error {
 	log.Debugf("received get token request")
 
