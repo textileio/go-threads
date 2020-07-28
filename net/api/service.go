@@ -62,6 +62,14 @@ type remoteIdentity struct {
 	server pb.API_GetTokenServer
 }
 
+func (i *remoteIdentity) MarshalBinary() ([]byte, error) {
+	return nil, nil
+}
+
+func (i *remoteIdentity) UnmarshalBinary([]byte) error {
+	return nil
+}
+
 func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
 	if err := i.server.Send(&pb.GetTokenReply{
 		Payload: &pb.GetTokenReply_Challenge{
@@ -103,6 +111,10 @@ func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
 
 func (i *remoteIdentity) GetPublic() thread.PubKey {
 	return i.pk
+}
+
+func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
+	return nil, nil // no-op
 }
 
 func (s *Service) GetToken(server pb.API_GetTokenServer) error {

@@ -2,6 +2,10 @@ module github.com/textileio/go-threads
 
 go 1.14
 
+replace github.com/ipfs/go-datastore v0.4.4 => github.com/textileio/go-datastore v0.4.5-0.20200728205504-ffeb3591b248
+
+replace github.com/ipfs/go-ds-badger v0.2.4 => github.com/textileio/go-ds-badger v0.2.5-0.20200728212847-1ec9ac5e644c
+
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190823232136-616930265c33 // indirect
 	// agl/ed25519 only used in tests for backward compatibility, *do not* use in production code.

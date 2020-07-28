@@ -13,6 +13,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
+	"github.com/textileio/go-threads/crypto/asymmetric"
 	jwted25519 "github.com/textileio/go-threads/jwt"
 	"google.golang.org/grpc/codes"
 )
@@ -22,10 +23,15 @@ import (
 // In many cases, this will just be a private key, but callers
 // can use any setup that suits their needs.
 type Identity interface {
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+
 	// Sign the given bytes cryptographically.
 	Sign(context.Context, []byte) ([]byte, error)
-	// Return a public key paired with this identity.
+	// GetPublic returns the public key paired with this identity.
 	GetPublic() PubKey
+	// Decrypt returns decrypted data.
+	Decrypt(context.Context, []byte) ([]byte, error)
 }
 
 // Libp2pIdentity wraps crypto.PrivKey, overwriting GetPublic with thread.PubKey.
@@ -38,12 +44,32 @@ func NewLibp2pIdentity(key crypto.PrivKey) Identity {
 	return &Libp2pIdentity{PrivKey: key}
 }
 
+func (p *Libp2pIdentity) MarshalBinary() ([]byte, error) {
+	return crypto.MarshalPrivateKey(p.PrivKey)
+}
+
+func (p *Libp2pIdentity) UnmarshalBinary(bytes []byte) (err error) {
+	p.PrivKey, err = crypto.UnmarshalPrivateKey(bytes)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
 func (p *Libp2pIdentity) Sign(_ context.Context, msg []byte) ([]byte, error) {
 	return p.PrivKey.Sign(msg)
 }
 
 func (p *Libp2pIdentity) GetPublic() PubKey {
 	return NewLibp2pPubKey(p.PrivKey.GetPublic())
+}
+
+func (p *Libp2pIdentity) Decrypt(_ context.Context, data []byte) ([]byte, error) {
+	dk, err := asymmetric.FromPrivKey(p.PrivKey)
+	if err != nil {
+		return nil, err
+	}
+	return dk.Decrypt(data)
 }
 
 // Pubkey can be anything that provides a verify method.
@@ -53,10 +79,12 @@ type PubKey interface {
 
 	// String encodes the public key into a base32 string.
 	fmt.Stringer
-	// UnmarshalString decodes a public key from a base32 string.
+	// UnmarshalString decodes the public key from a base32 string.
 	UnmarshalString(string) error
 	// Verify that 'sig' is the signed hash of 'data'
 	Verify(data []byte, sig []byte) (bool, error)
+	// Encrypt data with the public key.
+	Encrypt(data []byte) ([]byte, error)
 }
 
 // Libp2pPubKey wraps crypto.PubKey.
@@ -70,7 +98,7 @@ func NewLibp2pPubKey(key crypto.PubKey) PubKey {
 }
 
 func (p *Libp2pPubKey) MarshalBinary() ([]byte, error) {
-	return crypto.MarshalPublicKey(p)
+	return crypto.MarshalPublicKey(p.PubKey)
 }
 
 func (p *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
@@ -82,7 +110,7 @@ func (p *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
 }
 
 func (p *Libp2pPubKey) String() string {
-	bytes, err := crypto.MarshalPublicKey(p)
+	bytes, err := crypto.MarshalPublicKey(p.PubKey)
 	if err != nil {
 		panic(err)
 	}
@@ -100,6 +128,14 @@ func (p *Libp2pPubKey) UnmarshalString(str string) error {
 	}
 	p.PubKey, err = crypto.UnmarshalPublicKey(bytes)
 	return err
+}
+
+func (p *Libp2pPubKey) Encrypt(data []byte) ([]byte, error) {
+	ek, err := asymmetric.FromPubKey(p.PubKey)
+	if err != nil {
+		return nil, err
+	}
+	return ek.Encrypt(data)
 }
 
 // Token is a concrete type for a JWT token string, which provides

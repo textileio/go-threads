@@ -108,6 +108,9 @@ func (t *txn) prepareQuery(q dsq.Query) (naive, child dsq.Query) {
 
 	// Always let the child handle the key prefix.
 	child.Prefix = t.ds.ConvertKey(ds.NewKey(child.Prefix)).String()
+	if child.SeekPrefix != "" {
+		child.SeekPrefix = t.ds.ConvertKey(ds.NewKey(child.SeekPrefix)).String()
+	}
 
 	// Check if the key transform is order-preserving so we can use the
 	// child datastore's built-in ordering.
