@@ -23,6 +23,9 @@ import (
 // In many cases, this will just be a private key, but callers
 // can use any setup that suits their needs.
 type Identity interface {
+	encoding.BinaryMarshaler
+	encoding.BinaryUnmarshaler
+
 	// Sign the given bytes cryptographically.
 	Sign(context.Context, []byte) ([]byte, error)
 	// GetPublic returns the public key paired with this identity.
@@ -39,6 +42,18 @@ type Libp2pIdentity struct {
 // NewLibp2pIdentity returns a new Libp2pIdentity.
 func NewLibp2pIdentity(key crypto.PrivKey) Identity {
 	return &Libp2pIdentity{PrivKey: key}
+}
+
+func (p *Libp2pIdentity) MarshalBinary() ([]byte, error) {
+	return crypto.MarshalPrivateKey(p.PrivKey)
+}
+
+func (p *Libp2pIdentity) UnmarshalBinary(bytes []byte) (err error) {
+	p.PrivKey, err = crypto.UnmarshalPrivateKey(bytes)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 func (p *Libp2pIdentity) Sign(_ context.Context, msg []byte) ([]byte, error) {
@@ -83,7 +98,7 @@ func NewLibp2pPubKey(key crypto.PubKey) PubKey {
 }
 
 func (p *Libp2pPubKey) MarshalBinary() ([]byte, error) {
-	return crypto.MarshalPublicKey(p)
+	return crypto.MarshalPublicKey(p.PubKey)
 }
 
 func (p *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
@@ -95,7 +110,7 @@ func (p *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
 }
 
 func (p *Libp2pPubKey) String() string {
-	bytes, err := crypto.MarshalPublicKey(p)
+	bytes, err := crypto.MarshalPublicKey(p.PubKey)
 	if err != nil {
 		panic(err)
 	}

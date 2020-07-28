@@ -62,6 +62,14 @@ type remoteIdentity struct {
 	server pb.API_GetTokenServer
 }
 
+func (i *remoteIdentity) MarshalBinary() ([]byte, error) {
+	return nil, nil
+}
+
+func (i *remoteIdentity) UnmarshalBinary([]byte) error {
+	return nil
+}
+
 func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
 	if err := i.server.Send(&pb.GetTokenReply{
 		Payload: &pb.GetTokenReply_Challenge{
