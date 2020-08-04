@@ -182,9 +182,9 @@ func WithNetGRPCOptions(opts ...grpc.ServerOption) NetOption {
 	}
 }
 
-func WithNetPubSub() NetOption {
+func WithNetPubSub(enabled bool) NetOption {
 	return func(c *NetConfig) error {
-		c.PubSub = true
+		c.PubSub = enabled
 		return nil
 	}
 }
