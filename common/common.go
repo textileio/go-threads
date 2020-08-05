@@ -120,7 +120,8 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 
 	// Build a network
 	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, net.Config{
-		Debug: config.Debug,
+		Debug:  config.Debug,
+		PubSub: config.PubSub,
 	}, config.GRPCOptions...)
 	if err != nil {
 		cancel()
@@ -148,6 +149,7 @@ type NetConfig struct {
 	ConnManager cconnmgr.ConnManager
 	Debug       bool
 	GRPCOptions []grpc.ServerOption
+	PubSub      bool
 }
 
 type NetOption func(c *NetConfig) error
@@ -176,6 +178,13 @@ func WithNetDebug(enabled bool) NetOption {
 func WithNetGRPCOptions(opts ...grpc.ServerOption) NetOption {
 	return func(c *NetConfig) error {
 		c.GRPCOptions = opts
+		return nil
+	}
+}
+
+func WithNetPubSub(enabled bool) NetOption {
+	return func(c *NetConfig) error {
+		c.PubSub = enabled
 		return nil
 	}
 }

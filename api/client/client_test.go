@@ -818,7 +818,11 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n, err := common.DefaultNetwork(
+		dir,
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetPubSub(true),
+		common.WithNetDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}

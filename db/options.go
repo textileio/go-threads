@@ -7,6 +7,7 @@ import (
 	"github.com/dgraph-io/badger/options"
 	ds "github.com/ipfs/go-datastore"
 	badger "github.com/ipfs/go-ds-badger"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/jsonpatcher"
@@ -44,6 +45,7 @@ type NewOptions struct {
 	LowMem      bool
 	Debug       bool
 	ThreadKey   thread.Key
+	LogKey      crypto.Key
 }
 
 // NewOption specifies a new db option.
@@ -74,6 +76,16 @@ func WithNewToken(t thread.Token) NewOption {
 func WithNewThreadKey(key thread.Key) NewOption {
 	return func(o *NewOptions) {
 		o.ThreadKey = key
+	}
+}
+
+// WithNewLogKey is the public or private key used to write log records.
+// If this is just a public key, the service itself won't be able to create records.
+// In other words, all records must be pre-created and added with AddRecord.
+// If no log key is provided, one will be created internally.
+func WithNewLogKey(key crypto.Key) NewOption {
+	return func(o *NewOptions) {
+		o.LogKey = key
 	}
 }
 
