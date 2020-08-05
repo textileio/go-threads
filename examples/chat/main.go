@@ -96,6 +96,7 @@ func main() {
 	net, err = common.DefaultNetwork(
 		*repo,
 		common.WithNetHostAddr(hostAddr),
+		common.WithNetPubSub(true),
 		common.WithNetDebug(*debug))
 	if err != nil {
 		log.Fatal(err)

@@ -415,6 +415,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 	n, err := common.DefaultNetwork(
 		dir,
 		common.WithNetHostAddr(hostAddr),
+		common.WithNetPubSub(true),
 		common.WithNetDebug(true))
 	if err != nil {
 		t.Fatal(err)
