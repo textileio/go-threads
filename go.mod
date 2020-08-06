@@ -15,9 +15,12 @@ require (
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger v1.6.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/dlclark/regexp2 v1.2.0 // indirect
+	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/fsnotify/fsnotify v1.4.7
+	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/gogo/googleapis v1.3.1 // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/gogo/status v1.1.0
@@ -72,6 +75,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	golang.org/x/text v0.3.3 // indirect
 	google.golang.org/genproto v0.0.0-20200428115010-c45acf45369a // indirect
 	google.golang.org/grpc v1.29.1
 )

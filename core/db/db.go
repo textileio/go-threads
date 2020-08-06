@@ -36,6 +36,8 @@ type Event interface {
 	InstanceID() InstanceID
 	// Collection is the associated instance's collection name.
 	Collection() string
+	// Marshal the event to JSON.
+	Marshal() ([]byte, error)
 }
 
 // ActionType is the type used by actions done in a txn.

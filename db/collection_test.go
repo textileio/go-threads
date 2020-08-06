@@ -102,6 +102,31 @@ func TestNewCollection(t *testing.T) {
 			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
 		}
 	})
+	t.Run("WithValidator", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			ValidatorFunc: `
+				function() {
+					if (this.event.patch.type !== "create") {
+						return "sorry, no can do"
+					}
+					return true
+				}
+			`,
+		})
+		checkErr(t, err)
+		dog := Dog{Name: "Fido", Comments: []Comment{}}
+		id, err := c.Create(util.JSONFromInstance(dog))
+		checkErr(t, err)
+		dog.ID = id
+		dog.Name = "Clyde"
+		err = c.Save(util.JSONFromInstance(dog))
+		checkErr(t, err)
+	})
 	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
@@ -828,7 +853,7 @@ func TestDeleteInstance(t *testing.T) {
 }
 
 type PersonFake struct {
-	ID   core.InstanceID
+	ID   core.InstanceID `json:"_id"`
 	Name string
 }
 

@@ -66,7 +66,7 @@ type net struct {
 	server *server
 	bus    *broadcast.Broadcaster
 
-	apps map[thread.ID]core.Token
+	connectors map[thread.ID]*app.Connector
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -101,7 +101,7 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 		store:      ls,
 		rpc:        grpc.NewServer(opts...),
 		bus:        broadcast.NewBroadcaster(0),
-		apps:       make(map[thread.ID]core.Token),
+		connectors: make(map[thread.ID]*app.Connector),
 		ctx:        ctx,
 		cancel:     cancel,
 		pullLocks:  make(map[thread.ID]chan struct{}),
@@ -489,7 +489,7 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	for _, recs := range fetchedRcs {
 		for lid, rs := range recs {
 			for _, r := range rs {
-				if err = n.putRecord(ctx, id, lid, r); err != nil {
+				if err = n.putRecordUnsafe(ctx, id, lid, r); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -511,7 +511,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	if _, err := args.Token.Validate(n.getPrivKey()); err != nil {
 		return err
 	}
-	if !n.validateAPIToken(id, args.APIToken) {
+	if _, ok := n.getConnector(id, args.APIToken); !ok {
 		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
 	}
 
@@ -674,7 +674,7 @@ func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
 	return ma.NewMultiaddr(parts[0])
 }
 
-func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (r core.ThreadRecord, err error) {
+func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (tr core.ThreadRecord, err error) {
 	if err = id.Validate(); err != nil {
 		return
 	}
@@ -686,35 +686,35 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	if err != nil {
 		return
 	}
-	if !n.validateAPIToken(id, args.APIToken) {
+	con, ok := n.getConnector(id, args.APIToken)
+	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
+	} else if con != nil {
+		if err = con.ValidateNetRecordBody(ctx, body, pk); err != nil {
+			return
+		}
 	}
 
 	lg, err := n.getOrCreateOwnLog(id)
 	if err != nil {
 		return
 	}
-	rec, err := n.newRecord(ctx, id, lg, body, pk)
+	r, err := n.newRecord(ctx, id, lg, body, pk)
 	if err != nil {
 		return
 	}
-	if err = n.store.SetHead(id, lg.ID, rec.Cid()); err != nil {
-		return nil, err
-	}
-
-	log.Debugf("added record %s (thread=%s, log=%s)", rec.Cid(), id, lg.ID)
-
-	r, err = NewRecord(rec, id, lg.ID)
-	if err != nil {
+	tr = NewRecord(r, id, lg.ID)
+	if err = n.store.SetHead(id, lg.ID, tr.Value().Cid()); err != nil {
 		return
 	}
-	if err = n.bus.SendWithTimeout(r, notifyTimeout); err != nil {
+	log.Debugf("created record %s (thread=%s, log=%s)", tr.Value().Cid(), id, lg.ID)
+	if err = n.bus.SendWithTimeout(tr, notifyTimeout); err != nil {
 		return
 	}
-	if err = n.server.pushRecord(ctx, id, lg.ID, rec); err != nil {
+	if err = n.server.pushRecord(ctx, id, lg.ID, tr.Value()); err != nil {
 		return
 	}
-	return r, nil
+	return tr, nil
 }
 
 func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, opts ...core.ThreadOption) error {
@@ -748,7 +748,7 @@ func (n *net) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	if err = rec.Verify(logpk); err != nil {
 		return err
 	}
-	if err = n.PutRecord(ctx, id, lid, rec); err != nil {
+	if err = n.putRecord(ctx, id, lid, rec); err != nil {
 		return err
 	}
 	return n.server.pushRecord(ctx, id, lid, rec)
@@ -787,11 +787,8 @@ type Record struct {
 }
 
 // NewRecord returns a record with the given values.
-func NewRecord(r core.Record, id thread.ID, lid peer.ID) (core.ThreadRecord, error) {
-	if err := id.Validate(); err != nil {
-		return nil, err
-	}
-	return &Record{Record: r, threadID: id, logID: lid}, nil
+func NewRecord(r core.Record, id thread.ID, lid peer.ID) core.ThreadRecord {
+	return &Record{Record: r, threadID: id, logID: lid}
 }
 
 func (r *Record) Value() core.Record {
@@ -866,41 +863,46 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting thread %s: %v", id, err)
 	}
-	con, err := app.NewConnector(a, n, info, func(ctx context.Context, id thread.ID) (<-chan core.ThreadRecord, error) {
-		return n.subscribe(ctx, map[thread.ID]struct{}{id: {}})
-	})
+	con, err := app.NewConnector(a, n, info)
 	if err != nil {
 		return nil, fmt.Errorf("error making connector %s: %v", id, err)
 	}
-	n.apps[id] = con.Token()
+	n.connectors[id] = con
 	return con, nil
 }
 
-// validateAPIToken checks if the thread is backing an app,
-// and if so, returns whether or not the token matches the app
-// connector's token.
-func (n *net) validateAPIToken(id thread.ID, token core.Token) bool {
-	t, ok := n.apps[id]
+// getConnector returns the connector tied to the thread if it exists
+// and whether or not the token is valid.
+func (n *net) getConnector(id thread.ID, token core.Token) (*app.Connector, bool) {
+	c, ok := n.connectors[id]
 	if !ok {
-		return true // not an app
+		return nil, true // thread is not owned by a connector
 	}
-	return token.Equal(t)
+	if !token.Equal(c.Token()) {
+		return nil, false
+	}
+	return c, true
 }
 
-// PutRecord adds an existing record. This method is thread-safe
+// PutRecord adds an existing record. This method is thread-safe.
 func (n *net) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	if err := id.Validate(); err != nil {
 		return err
 	}
-	tsph := n.getThreadSemaphore(id)
-	tsph <- struct{}{}
-	defer func() { <-tsph }()
 	return n.putRecord(ctx, id, lid, rec)
 }
 
-// putRecord adds an existing record. See PutOption for more.This method
-// *should be thread-guarded*
+// putRecord adds an existing record. This method is thread-safe.
 func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
+	tsph := n.getThreadSemaphore(id)
+	tsph <- struct{}{}
+	defer func() { <-tsph }()
+	return n.putRecordUnsafe(ctx, id, lid, rec)
+}
+
+// putRecordUnsafe adds an existing record. See PutOption for more. This method
+// *should be thread-guarded*.
+func (n *net) putRecordUnsafe(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
 	var unknownRecords []core.Record
 	c := rec.Cid()
 	for c.Defined() {
@@ -931,6 +933,7 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		return err
 	}
 
+	con := n.connectors[id]
 	for i := len(unknownRecords) - 1; i >= 0; i-- {
 		r := unknownRecords[i]
 		// Save the record locally
@@ -954,20 +957,32 @@ func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 		if err != nil {
 			return err
 		}
+
+		if con != nil {
+			identity := &thread.Libp2pPubKey{}
+			if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
+				return err
+			}
+			if err = con.ValidateNetRecordBody(ctx, body, identity); err != nil {
+				return err
+			}
+		}
+
 		if err = n.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
 			return err
 		}
-
-		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
-
 		if err = n.store.SetHead(id, lg.ID, r.Cid()); err != nil {
 			return err
 		}
-		record, err := NewRecord(r, id, lg.ID)
-		if err != nil {
-			return err
+		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
+
+		tr := NewRecord(r, id, lg.ID)
+		if con != nil {
+			if err = con.HandleNetRecord(ctx, tr); err != nil {
+				return err
+			}
 		}
-		if err = n.bus.SendWithTimeout(record, notifyTimeout); err != nil {
+		if err = n.bus.SendWithTimeout(tr, notifyTimeout); err != nil {
 			return err
 		}
 	}
@@ -1178,7 +1193,7 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 	}
 	for lid, rs := range recs {
 		for _, r := range rs {
-			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
+			if err = n.putRecordUnsafe(n.ctx, tid, lid, r); err != nil {
 				log.Error(err)
 				return
 			}

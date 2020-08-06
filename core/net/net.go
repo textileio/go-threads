@@ -76,6 +76,7 @@ type API interface {
 // which are external to an app.
 type Token []byte
 
+// Equal returns whether or not the token is equal to the given value.
 func (t Token) Equal(b Token) bool {
 	return bytes.Equal(t, b)
 }

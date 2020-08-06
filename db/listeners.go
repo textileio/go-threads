@@ -29,10 +29,6 @@ func (d *DB) Listen(los ...ListenOption) (Listener, error) {
 	return sl, nil
 }
 
-func (d *DB) LocalEventListen() *app.LocalEventListener {
-	return d.localEventsBus.Listen()
-}
-
 func (d *DB) notifyStateChanged(actions []Action) {
 	d.stateChangedNotifee.notify(actions)
 }

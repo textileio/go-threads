@@ -1,12 +1,14 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/alecthomas/jsonschema"
+	"github.com/dop251/goja"
 	jsonpatch "github.com/evanphx/json-patch"
 	ds "github.com/ipfs/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
@@ -45,10 +47,11 @@ type Collection struct {
 	schemaLoader gojsonschema.JSONLoader
 	db           *DB
 	indexes      map[string]Index
+	validator    []byte
 }
 
 // newCollection returns a new Collection from schema.
-func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, error) {
+func newCollection(d *DB, name string, schema *jsonschema.Schema, validator []byte) (*Collection, error) {
 	if name != "" && !nameRx.MatchString(name) {
 		return nil, ErrInvalidName
 	}
@@ -66,12 +69,31 @@ func newCollection(name string, schema *jsonschema.Schema, d *DB) (*Collection, 
 	if err != nil {
 		return nil, err
 	}
+	if validator != nil {
+		validator, err = compileValidator(validator)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Collection{
 		name:         name,
 		schemaLoader: gojsonschema.NewBytesLoader(sb),
 		db:           d,
 		indexes:      make(map[string]Index),
+		validator:    validator,
 	}, nil
+}
+
+// compileValidator cleans and compiles a JavaScript validator function.
+func compileValidator(v []byte) ([]byte, error) {
+	script := fmt.Sprintf(`var exports = {validate: %s};`, string(v))
+	script = strings.Replace(script, "\t", "", -1)
+	script = strings.Replace(script, "\n", "", -1)
+	if _, err := goja.Compile("", script, true); err != nil {
+		return nil, fmt.Errorf("error compiling validator func: %v", err)
+	}
+	return []byte(script), nil
 }
 
 // baseKey returns the collections base key.
@@ -384,7 +406,13 @@ func (t *Txn) Commit() error {
 	if len(events) == 0 || node == nil {
 		return fmt.Errorf("created events and node must both be nil or not-nil")
 	}
-	if err := t.collection.db.dispatcher.Dispatch(events); err != nil {
+
+	ctx, cancel := context.WithTimeout(context.Background(), createNetRecordTimeout)
+	defer cancel()
+	if _, err = t.collection.db.connector.CreateNetRecord(ctx, node, t.token); err != nil {
+		return err
+	}
+	if err = t.collection.db.dispatcher.Dispatch(events); err != nil {
 		return err
 	}
 	return t.collection.db.notifyTxnEvents(node, t.token)

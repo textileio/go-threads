@@ -9,7 +9,6 @@ import (
 
 	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-	format "github.com/ipfs/go-ipld-format"
 	core "github.com/textileio/go-threads/core/db"
 )
 
@@ -153,7 +152,7 @@ func (n *nullEvent) Collection() string {
 	return "null"
 }
 
-func (n *nullEvent) Node() (format.Node, error) {
+func (n *nullEvent) Marshal() ([]byte, error) {
 	return nil, nil
 }
 

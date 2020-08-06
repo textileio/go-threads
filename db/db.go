@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/alecthomas/jsonschema"
+	"github.com/dop251/goja"
 	ds "github.com/ipfs/go-datastore"
 	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	threadcbor "github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
@@ -33,6 +33,7 @@ const (
 	getBlockRetries             = 3
 	getBlockInitialTimeout      = time.Millisecond * 500
 	pullThreadBackgroundTimeout = time.Hour
+	createNetRecordTimeout      = time.Second * 15
 )
 
 var (
@@ -47,10 +48,11 @@ var (
 
 	nameRx *regexp.Regexp
 
-	dsPrefix  = ds.NewKey("/db")
-	dsName    = dsPrefix.ChildString("name")
-	dsSchemas = dsPrefix.ChildString("schema")
-	dsIndexes = dsPrefix.ChildString("index")
+	dsPrefix     = ds.NewKey("/db")
+	dsName       = dsPrefix.ChildString("name")
+	dsSchemas    = dsPrefix.ChildString("schema")
+	dsIndexes    = dsPrefix.ChildString("index")
+	dsValidators = dsPrefix.ChildString("validator")
 )
 
 func init() {
@@ -240,7 +242,11 @@ func (d *DB) reCreateCollections() error {
 		if err := json.Unmarshal(res.Value, schema); err != nil {
 			return err
 		}
-		c, err := newCollection(name, schema, d)
+		val, err := d.datastore.Get(dsValidators.ChildString(name))
+		if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			return err
+		}
+		c, err := newCollection(d, name, schema, val)
 		if err != nil {
 			return err
 		}
@@ -282,9 +288,10 @@ func (d *DB) GetDBInfo(opts ...Option) ([]ma.Multiaddr, thread.Key, error) {
 
 // CollectionConfig describes a new Collection.
 type CollectionConfig struct {
-	Name    string
-	Schema  *jsonschema.Schema
-	Indexes []Index
+	Name          string
+	Schema        *jsonschema.Schema
+	Indexes       []Index
+	ValidatorFunc string
 }
 
 // NewCollection creates a new db collection with config.
@@ -296,7 +303,7 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 	if _, ok := d.collections[config.Name]; ok {
 		return nil, ErrCollectionAlreadyRegistered
 	}
-	c, err := newCollection(config.Name, config.Schema, d)
+	c, err := newCollection(d, config.Name, config.Schema, []byte(config.ValidatorFunc))
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +328,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	if !ok {
 		return nil, ErrCollectionNotFound
 	}
-	c, err := newCollection(config.Name, config.Schema, d)
+	c, err := newCollection(d, config.Name, config.Schema, []byte(config.ValidatorFunc))
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +365,9 @@ func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Inde
 
 func (d *DB) saveCollection(c *Collection) error {
 	if err := d.datastore.Put(dsSchemas.ChildString(c.name), c.GetSchema()); err != nil {
+		return err
+	}
+	if err := d.datastore.Put(dsValidators.ChildString(c.name), c.validator); err != nil {
 		return err
 	}
 	d.collections[c.name] = c
@@ -436,11 +446,6 @@ func (d *DB) Close() error {
 	}
 	d.closed = true
 
-	if d.connector != nil {
-		if err := d.connector.Close(); err != nil {
-			return err
-		}
-	}
 	d.localEventsBus.Discard()
 	if !managedDatastore(d.datastore) {
 		if err := d.datastore.Close(); err != nil {
@@ -491,12 +496,81 @@ func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newDat
 	}
 }
 
-func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, timeout time.Duration) error {
-	if rec.LogID() == lid {
-		return nil // Ignore our own events since DB already dispatches to DB reducers
+func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity thread.PubKey) error {
+	events, err := d.eventcodec.EventsFromBytes(body.RawData())
+	if err != nil {
+		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	if len(events) == 0 {
+		return nil
+	}
+	for _, event := range events {
+		c, ok := d.collections[event.Collection()]
+		if !ok {
+			return ErrCollectionNotFound
+		}
+		if c.validator == nil {
+			return nil
+		}
+
+		vm := goja.New()
+		if _, err = vm.RunString(string(c.validator)); err != nil {
+			return err
+		}
+		expo := vm.Get("exports").(*goja.Object)
+		validate, ok := goja.AssertFunction(expo.Get("validate"))
+		if !ok {
+			return fmt.Errorf("validator is not a function")
+		}
+
+		data, err := event.Marshal()
+		if err != nil {
+			return err
+		}
+		obj, err := vm.RunString(fmt.Sprintf(`JSON.parse('%s');`, string(data)))
+		if err != nil {
+			return err
+		}
+		if err = expo.Set("event", obj); err != nil {
+			return err
+		}
+		if identity != nil {
+			if err = expo.Set("identity", identity.String()); err != nil {
+				return err
+			}
+		}
+		in, err := d.datastore.Get(baseKey.ChildString(c.name).ChildString(event.InstanceID().String()))
+		if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			return err
+		}
+		if in != nil {
+			if err = expo.Set("instance", in); err != nil {
+				return err
+			}
+		}
+
+		res, err := validate(expo)
+		if err != nil {
+			return fmt.Errorf("error running validator func: %v", err)
+		}
+		out := res.Export()
+		switch out.(type) {
+		case bool:
+			if out.(bool) {
+				return nil
+			} else {
+				return app.ErrInvalidNetRecordBody
+			}
+		case nil:
+			return app.ErrInvalidNetRecordBody
+		default:
+			return fmt.Errorf("%w: %v", app.ErrInvalidNetRecordBody, out)
+		}
+	}
+	return nil
+}
+
+func (d *DB) HandleNetRecord(ctx context.Context, rec net.ThreadRecord, key thread.Key) error {
 	event, err := threadcbor.EventFromRecord(ctx, d.connector.Net, rec.Value())
 	if err != nil {
 		block, err := d.getBlockWithRetry(ctx, rec.Value())
@@ -508,16 +582,16 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 			return fmt.Errorf("error when decoding block to event: %v", err)
 		}
 	}
-	node, err := event.GetBody(ctx, d.connector.Net, key.Read())
+	body, err := event.GetBody(ctx, d.connector.Net, key.Read())
 	if err != nil {
 		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", d.connector.ThreadID(), rec.LogID(), err)
 	}
-	dbEvents, err := d.eventsFromBytes(node.RawData())
+	events, err := d.eventcodec.EventsFromBytes(body.RawData())
 	if err != nil {
 		return fmt.Errorf("error when unmarshaling event from bytes: %v", err)
 	}
 	log.Debugf("dispatching new record: %s/%s", rec.ThreadID(), rec.LogID())
-	return d.dispatch(dbEvents)
+	return d.dispatch(events)
 }
 
 // getBlockWithRetry gets a record block with exponential backoff.
@@ -542,12 +616,6 @@ func (d *DB) dispatch(events []core.Event) error {
 	d.txnlock.Lock()
 	defer d.txnlock.Unlock()
 	return d.dispatcher.Dispatch(events)
-}
-
-// eventFromBytes generates an Event from its binary representation using
-// the underlying EventCodec configured in the DB.
-func (d *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
-	return d.eventcodec.EventsFromBytes(data)
 }
 
 func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
