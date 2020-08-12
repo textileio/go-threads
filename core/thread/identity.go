@@ -167,6 +167,28 @@ func NewToken(issuer crypto.PrivKey, key PubKey) (tok Token, err error) {
 	return Token(str), nil
 }
 
+// PubKey returns the public key encoded in the token.
+// Note: This does NOT verify the token.
+func (t Token) PubKey() (PubKey, error) {
+	if t == "" {
+		return nil, nil
+	}
+	var claims jwt.StandardClaims
+	tok, _, err := new(jwt.Parser).ParseUnverified(string(t), &claims)
+	if err != nil {
+		if tok == nil {
+			return nil, ErrTokenNotFound
+		} else {
+			return nil, ErrInvalidToken
+		}
+	}
+	key := &Libp2pPubKey{}
+	if err = key.UnmarshalString(claims.Subject); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
 // Validate returns non-nil if token was issued by issuer.
 // If token is present and valid, the embedded public key is returned.
 // If token is not present, both the returned public key and error will be nil.
@@ -191,7 +213,6 @@ func (t Token) Validate(issuer crypto.PrivKey) (PubKey, error) {
 			return nil, ErrInvalidToken
 		}
 	}
-
 	key := &Libp2pPubKey{}
 	if err = key.UnmarshalString(claims.Subject); err != nil {
 		return nil, err

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/textileio/go-threads/core/app"
+
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -43,15 +45,16 @@ var (
 // Collection is a group of instances sharing a schema.
 // Collections are like RDBMS tables. They can only exist in a single database.
 type Collection struct {
-	name         string
-	schemaLoader gojsonschema.JSONLoader
-	db           *DB
-	indexes      map[string]Index
-	validator    []byte
+	name           string
+	schemaLoader   gojsonschema.JSONLoader
+	db             *DB
+	indexes        map[string]Index
+	writeValidator []byte
+	readFilter     []byte
 }
 
 // newCollection returns a new Collection from schema.
-func newCollection(d *DB, name string, schema *jsonschema.Schema, validator []byte) (*Collection, error) {
+func newCollection(d *DB, name string, schema *jsonschema.Schema, writeValidator, readFilter []byte) (*Collection, error) {
 	if name != "" && !nameRx.MatchString(name) {
 		return nil, ErrInvalidName
 	}
@@ -69,31 +72,22 @@ func newCollection(d *DB, name string, schema *jsonschema.Schema, validator []by
 	if err != nil {
 		return nil, err
 	}
-	if validator != nil {
-		validator, err = compileValidator(validator)
-		if err != nil {
-			return nil, err
-		}
+	writeValidator, err = compileJSFunc(writeValidator, "writer", "event", "instance")
+	if err != nil {
+		return nil, err
 	}
-
+	readFilter, err = compileJSFunc(readFilter, "reader", "instance")
+	if err != nil {
+		return nil, err
+	}
 	return &Collection{
-		name:         name,
-		schemaLoader: gojsonschema.NewBytesLoader(sb),
-		db:           d,
-		indexes:      make(map[string]Index),
-		validator:    validator,
+		name:           name,
+		schemaLoader:   gojsonschema.NewBytesLoader(sb),
+		db:             d,
+		indexes:        make(map[string]Index),
+		writeValidator: writeValidator,
+		readFilter:     readFilter,
 	}, nil
-}
-
-// compileValidator cleans and compiles a JavaScript validator function.
-func compileValidator(v []byte) ([]byte, error) {
-	script := fmt.Sprintf(`var exports = {validate: %s};`, string(v))
-	script = strings.Replace(script, "\t", "", -1)
-	script = strings.Replace(script, "\n", "", -1)
-	if _, err := goja.Compile("", script, true); err != nil {
-		return nil, fmt.Errorf("error compiling validator func: %v", err)
-	}
-	return []byte(script), nil
 }
 
 // baseKey returns the collections base key.
@@ -127,7 +121,7 @@ func (c *Collection) WriteTxn(f func(txn *Txn) error, opts ...TxnOption) error {
 // FindByID finds an instance by its ID.
 // If doesn't exists returns ErrInstanceNotFound.
 func (c *Collection) FindByID(id core.InstanceID, opts ...TxnOption) (instance []byte, err error) {
-	_ = c.ReadTxn(func(txn *Txn) error {
+	err = c.ReadTxn(func(txn *Txn) error {
 		instance, err = txn.FindByID(id)
 		return err
 	}, opts...)
@@ -216,6 +210,101 @@ func (c *Collection) Find(q *Query, opts ...TxnOption) (instances [][]byte, err 
 		return err
 	}, opts...)
 	return
+}
+
+// validInstance validates the json object against the collection schema.
+func (c *Collection) validInstance(v []byte) error {
+	r, err := gojsonschema.Validate(c.schemaLoader, gojsonschema.NewBytesLoader(v))
+	if err != nil {
+		return err
+	}
+	errs := r.Errors()
+	if len(errs) == 0 {
+		return nil
+	}
+	var msg string
+	for i, e := range errs {
+		msg += e.Field() + ": " + e.Description()
+		if i != len(errs)-1 {
+			msg += "; "
+		}
+	}
+	return fmt.Errorf("%w: %s", ErrInvalidSchemaInstance, msg)
+}
+
+// validWrite validates new events against the identity and user-defined write validator function.
+func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
+	if c.writeValidator == nil {
+		return nil
+	}
+	vm := goja.New()
+	validate, writer, err := getJSFunc(vm, c.writeValidator, identity)
+	if err != nil {
+		return err
+	}
+	data, err := e.Marshal()
+	if err != nil {
+		return err
+	}
+	event, err := parseJSON(vm, data)
+	if err != nil {
+		return err
+	}
+	var inv goja.Value
+	val, err := c.db.datastore.Get(baseKey.ChildString(c.name).ChildString(e.InstanceID().String()))
+	if err != nil && !errors.Is(err, ds.ErrNotFound) {
+		return err
+	}
+	if val != nil {
+		inv, err = parseJSON(vm, val)
+		if err != nil {
+			return err
+		}
+	}
+	res, err := validate(nil, writer, event, inv)
+	if err != nil {
+		return fmt.Errorf("error running write validator func: %v", err)
+	}
+	out := res.Export()
+	switch out.(type) {
+	case bool:
+		if out.(bool) {
+			return nil
+		} else {
+			return app.ErrInvalidNetRecordBody
+		}
+	case nil:
+		return app.ErrInvalidNetRecordBody
+	default:
+		return fmt.Errorf("%w: %v", app.ErrInvalidNetRecordBody, out)
+	}
+}
+
+// filterRead filters an instance against the identity and user-defined read filter function.
+func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte, error) {
+	if c.readFilter == nil {
+		return instance, nil
+	}
+	vm := goja.New()
+	filter, reader, err := getJSFunc(vm, c.readFilter, identity)
+	if err != nil {
+		return nil, err
+	}
+	inv, err := parseJSON(vm, instance)
+	if err != nil {
+		return nil, err
+	}
+	res, err := filter(nil, reader, inv)
+	if err != nil {
+		return nil, fmt.Errorf("error running read filter func: %v", err)
+	}
+	out := res.Export()
+	switch out.(type) {
+	case nil:
+		return nil, nil
+	default:
+		return json.Marshal(out)
+	}
 }
 
 // Txn represents a read/write transaction in the db. It allows for
@@ -315,26 +404,6 @@ func (t *Txn) Save(updated ...[]byte) error {
 	return nil
 }
 
-// validInstance validates the json object against the collection schema.
-func (c *Collection) validInstance(v []byte) error {
-	r, err := gojsonschema.Validate(c.schemaLoader, gojsonschema.NewBytesLoader(v))
-	if err != nil {
-		return err
-	}
-	errs := r.Errors()
-	if len(errs) == 0 {
-		return nil
-	}
-	var msg string
-	for i, e := range errs {
-		msg += e.Field() + ": " + e.Description()
-		if i != len(errs)-1 {
-			msg += "; "
-		}
-	}
-	return fmt.Errorf("%w: %s", ErrInvalidSchemaInstance, msg)
-}
-
 // Delete deletes instances by ID when the current transaction commits.
 func (t *Txn) Delete(ids ...core.InstanceID) error {
 	for i := range ids {
@@ -386,7 +455,18 @@ func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return bytes, nil
+	pk, err := t.token.PubKey()
+	if err != nil {
+		return nil, err
+	}
+	bytes, err = t.collection.filterRead(pk, bytes)
+	if err != nil {
+		return nil, err
+	}
+	if bytes == nil {
+		return nil, ErrInstanceNotFound
+	}
+	return bytes, err
 }
 
 // Commit applies all changes done in the current transaction
@@ -480,4 +560,38 @@ func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 		log.Fatalf("error while automatically patching autogenerated _id: %v", err)
 	}
 	return newID, patchedValue
+}
+
+func compileJSFunc(v []byte, args ...string) ([]byte, error) {
+	if v != nil && len(v) == 0 {
+		v = nil
+	}
+	if v == nil {
+		return nil, nil
+	}
+	script := fmt.Sprintf(`function _fn(%s) {%s}`, strings.Join(args, ","), string(v))
+	script = strings.Replace(script, "\t", "", -1)
+	if _, err := goja.Compile("", script, true); err != nil {
+		return nil, fmt.Errorf("error compiling js func: %v", err)
+	}
+	return []byte(script), nil
+}
+
+func getJSFunc(vm *goja.Runtime, obj []byte, id thread.PubKey) (goja.Callable, goja.Value, error) {
+	_, err := vm.RunString(string(obj))
+	if err != nil {
+		return nil, nil, err
+	}
+	fn, ok := goja.AssertFunction(vm.Get("_fn"))
+	if !ok {
+		return nil, nil, fmt.Errorf("object is not a function: %s", string(obj))
+	}
+	var idv goja.Value
+	if id != nil {
+		idv, err = vm.RunString(fmt.Sprintf("'%s'", id.String()))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return fn, idv, nil
 }

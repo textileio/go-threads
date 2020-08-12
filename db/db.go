@@ -53,6 +53,7 @@ var (
 	dsSchemas    = dsPrefix.ChildString("schema")
 	dsIndexes    = dsPrefix.ChildString("index")
 	dsValidators = dsPrefix.ChildString("validator")
+	dsFilters    = dsPrefix.ChildString("filters")
 )
 
 func init() {
@@ -242,11 +243,15 @@ func (d *DB) reCreateCollections() error {
 		if err := json.Unmarshal(res.Value, schema); err != nil {
 			return err
 		}
-		val, err := d.datastore.Get(dsValidators.ChildString(name))
+		wv, err := d.datastore.Get(dsValidators.ChildString(name))
 		if err != nil && !errors.Is(err, ds.ErrNotFound) {
 			return err
 		}
-		c, err := newCollection(d, name, schema, val)
+		rf, err := d.datastore.Get(dsFilters.ChildString(name))
+		if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			return err
+		}
+		c, err := newCollection(d, name, schema, wv, rf)
 		if err != nil {
 			return err
 		}
@@ -288,10 +293,11 @@ func (d *DB) GetDBInfo(opts ...Option) ([]ma.Multiaddr, thread.Key, error) {
 
 // CollectionConfig describes a new Collection.
 type CollectionConfig struct {
-	Name          string
-	Schema        *jsonschema.Schema
-	Indexes       []Index
-	ValidatorFunc string
+	Name           string
+	Schema         *jsonschema.Schema
+	Indexes        []Index
+	WriteValidator string
+	ReadFilter     string
 }
 
 // NewCollection creates a new db collection with config.
@@ -303,7 +309,7 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 	if _, ok := d.collections[config.Name]; ok {
 		return nil, ErrCollectionAlreadyRegistered
 	}
-	c, err := newCollection(d, config.Name, config.Schema, []byte(config.ValidatorFunc))
+	c, err := newCollection(d, config.Name, config.Schema, []byte(config.WriteValidator), []byte(config.ReadFilter))
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +334,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	if !ok {
 		return nil, ErrCollectionNotFound
 	}
-	c, err := newCollection(d, config.Name, config.Schema, []byte(config.ValidatorFunc))
+	c, err := newCollection(d, config.Name, config.Schema, []byte(config.WriteValidator), []byte(config.ReadFilter))
 	if err != nil {
 		return nil, err
 	}
@@ -367,8 +373,15 @@ func (d *DB) saveCollection(c *Collection) error {
 	if err := d.datastore.Put(dsSchemas.ChildString(c.name), c.GetSchema()); err != nil {
 		return err
 	}
-	if err := d.datastore.Put(dsValidators.ChildString(c.name), c.validator); err != nil {
-		return err
+	if c.writeValidator != nil {
+		if err := d.datastore.Put(dsValidators.ChildString(c.name), c.writeValidator); err != nil {
+			return err
+		}
+	}
+	if c.readFilter != nil {
+		if err := d.datastore.Put(dsFilters.ChildString(c.name), c.readFilter); err != nil {
+			return err
+		}
 	}
 	d.collections[c.name] = c
 	return nil
@@ -426,6 +439,12 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 		return err
 	}
 	if err := txn.Delete(dsSchemas.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Delete(dsValidators.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Delete(dsFilters.ChildString(c.name)); err != nil {
 		return err
 	}
 	if err := txn.Commit(); err != nil {
@@ -504,70 +523,18 @@ func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity
 	if len(events) == 0 {
 		return nil
 	}
-	for _, event := range events {
-		c, ok := d.collections[event.Collection()]
+	for _, e := range events {
+		c, ok := d.collections[e.Collection()]
 		if !ok {
 			return ErrCollectionNotFound
 		}
-		if c.validator == nil {
-			return nil
-		}
-
-		vm := goja.New()
-		if _, err = vm.RunString(string(c.validator)); err != nil {
-			return err
-		}
-		expo := vm.Get("exports").(*goja.Object)
-		validate, ok := goja.AssertFunction(expo.Get("validate"))
-		if !ok {
-			return fmt.Errorf("validator is not a function")
-		}
-
-		data, err := event.Marshal()
-		if err != nil {
-			return err
-		}
-		obj, err := vm.RunString(fmt.Sprintf(`JSON.parse('%s');`, string(data)))
-		if err != nil {
-			return err
-		}
-		if err = expo.Set("event", obj); err != nil {
-			return err
-		}
-		if identity != nil {
-			if err = expo.Set("identity", identity.String()); err != nil {
-				return err
-			}
-		}
-		in, err := d.datastore.Get(baseKey.ChildString(c.name).ChildString(event.InstanceID().String()))
-		if err != nil && !errors.Is(err, ds.ErrNotFound) {
-			return err
-		}
-		if in != nil {
-			if err = expo.Set("instance", in); err != nil {
-				return err
-			}
-		}
-
-		res, err := validate(expo)
-		if err != nil {
-			return fmt.Errorf("error running validator func: %v", err)
-		}
-		out := res.Export()
-		switch out.(type) {
-		case bool:
-			if out.(bool) {
-				return nil
-			} else {
-				return app.ErrInvalidNetRecordBody
-			}
-		case nil:
-			return app.ErrInvalidNetRecordBody
-		default:
-			return fmt.Errorf("%w: %v", app.ErrInvalidNetRecordBody, out)
-		}
+		return c.validWrite(identity, e)
 	}
 	return nil
+}
+
+func parseJSON(vm *goja.Runtime, val []byte) (goja.Value, error) {
+	return vm.RunString(fmt.Sprintf(`JSON.parse('%s');`, string(val)))
 }
 
 func (d *DB) HandleNetRecord(ctx context.Context, rec net.ThreadRecord, key thread.Key) error {

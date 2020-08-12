@@ -232,9 +232,11 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 		return db.CollectionConfig{}, err
 	}
 	return db.CollectionConfig{
-		Name:    pbc.Name,
-		Schema:  schema,
-		Indexes: indexes,
+		Name:           pbc.Name,
+		Schema:         schema,
+		Indexes:        indexes,
+		WriteValidator: pbc.WriteValidator,
+		ReadFilter:     pbc.ReadFilter,
 	}, nil
 }
 

@@ -212,9 +212,11 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 		return nil, err
 	}
 	return &pb.CollectionConfig{
-		Name:    c.Name,
-		Schema:  schemaBytes,
-		Indexes: idx,
+		Name:           c.Name,
+		Schema:         schemaBytes,
+		Indexes:        idx,
+		WriteValidator: c.WriteValidator,
+		ReadFilter:     c.ReadFilter,
 	}, nil
 }
 
@@ -346,9 +348,11 @@ func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name stri
 
 // CollectionInfo wraps info about a collection.
 type CollectionInfo struct {
-	Name    string
-	Schema  []byte
-	Indexes []db.Index
+	Name           string
+	Schema         []byte
+	Indexes        []db.Index
+	WriteValidator string
+	ReadFilter     string
 }
 
 // GetCollectionInfo returns information about an existing collection.
@@ -365,9 +369,11 @@ func (c *Client) GetCollectionInfo(ctx context.Context, dbID thread.ID, name str
 		return nil, err
 	}
 	return &CollectionInfo{
-		Name:    resp.Name,
-		Schema:  resp.Schema,
-		Indexes: indexesFromPb(resp.Indexes),
+		Name:           resp.Name,
+		Schema:         resp.Schema,
+		Indexes:        indexesFromPb(resp.Indexes),
+		WriteValidator: resp.WriteValidator,
+		ReadFilter:     resp.ReadFilter,
 	}, nil
 }
 
@@ -414,9 +420,11 @@ func (c *Client) ListCollections(ctx context.Context, dbID thread.ID, opts ...db
 	list := make([]CollectionInfo, len(resp.Collections))
 	for i, c := range resp.Collections {
 		list[i] = CollectionInfo{
-			Name:    c.Name,
-			Schema:  c.Schema,
-			Indexes: indexesFromPb(c.Indexes),
+			Name:           c.Name,
+			Schema:         c.Schema,
+			Indexes:        indexesFromPb(c.Indexes),
+			WriteValidator: c.WriteValidator,
+			ReadFilter:     c.ReadFilter,
 		}
 	}
 	return list, nil

@@ -38,6 +38,8 @@ message CollectionConfig {
     string name = 1;
     bytes schema = 2;
     repeated Index indexes = 3;
+    string writeValidator = 4;
+    string readFilter = 5;
 }
 
 message Index {
@@ -104,6 +106,8 @@ message GetCollectionInfoReply {
     string name = 1;
     bytes schema = 2;
     repeated Index indexes = 3;
+    string writeValidator = 4;
+    string readFilter = 5;
 }
 
 message GetCollectionIndexesRequest {
