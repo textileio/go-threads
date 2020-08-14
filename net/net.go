@@ -1136,7 +1136,17 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 	if err != nil {
 		return info, err
 	}
-	if lidb != nil {
+	// Check if we have an old-style "own" (unindexed) log
+	if lidb == nil && identity.Equals(thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())) {
+		thrd, err := n.store.GetThread(id)
+		if err != nil {
+			return info, err
+		}
+		ownLog := thrd.GetFirstPrivKeyLog()
+		if ownLog != nil {
+			return *ownLog, nil
+		}
+	} else {
 		lid, err := peer.IDFromBytes(*lidb)
 		if err != nil {
 			return info, err
@@ -1174,6 +1184,13 @@ func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 // ensureUniqueLog returns a non-nil error if a log with key already exists,
 // or if a log for identity already exists for the given thread.
 func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubKey) (err error) {
+	thrd, err := n.store.GetThread(id)
+	if errors.Is(err, lstore.ErrThreadNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
 	var lid peer.ID
 	if key != nil {
 		switch key.(type) {
@@ -1196,6 +1213,12 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 			return err
 		}
 		if lidb == nil {
+			// Check if we have an old-style "own" (unindexed) log
+			if identity.Equals(thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())) {
+				if thrd.GetFirstPrivKeyLog().PrivKey != nil {
+					return lstore.ErrThreadExists
+				}
+			}
 			return nil
 		}
 		lid, err = peer.IDFromBytes(*lidb)

@@ -32,6 +32,8 @@ type Identity interface {
 	GetPublic() PubKey
 	// Decrypt returns decrypted data.
 	Decrypt(context.Context, []byte) ([]byte, error)
+	// Equals returns true if the identities are equal.
+	Equals(Identity) bool
 }
 
 // Libp2pIdentity wraps crypto.PrivKey, overwriting GetPublic with thread.PubKey.
@@ -72,6 +74,14 @@ func (p *Libp2pIdentity) Decrypt(_ context.Context, data []byte) ([]byte, error)
 	return dk.Decrypt(data)
 }
 
+func (p *Libp2pIdentity) Equals(i Identity) bool {
+	li, ok := i.(*Libp2pIdentity)
+	if !ok {
+		return false
+	}
+	return p.PrivKey.Equals(li.PrivKey)
+}
+
 // Pubkey can be anything that provides a verify method.
 type PubKey interface {
 	encoding.BinaryMarshaler
@@ -84,7 +94,9 @@ type PubKey interface {
 	// Verify that 'sig' is the signed hash of 'data'
 	Verify(data []byte, sig []byte) (bool, error)
 	// Encrypt data with the public key.
-	Encrypt(data []byte) ([]byte, error)
+	Encrypt([]byte) ([]byte, error)
+	// Equals returns true if the keys are equal.
+	Equals(PubKey) bool
 }
 
 // Libp2pPubKey wraps crypto.PubKey.
@@ -136,6 +148,14 @@ func (p *Libp2pPubKey) Encrypt(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return ek.Encrypt(data)
+}
+
+func (p *Libp2pPubKey) Equals(k PubKey) bool {
+	lk, ok := k.(*Libp2pPubKey)
+	if !ok {
+		return false
+	}
+	return p.PubKey.Equals(lk.PubKey)
 }
 
 // Token is a concrete type for a JWT token string, which provides

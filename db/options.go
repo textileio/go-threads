@@ -165,6 +165,8 @@ type NewManagedOptions struct {
 	Token       thread.Token
 	Collections []CollectionConfig
 	Block       bool
+	ThreadKey   thread.Key
+	LogKey      crypto.Key
 }
 
 // NewManagedOption specifies a new managed db option.
@@ -181,6 +183,23 @@ func WithNewManagedName(name string) NewManagedOption {
 func WithNewManagedToken(t thread.Token) NewManagedOption {
 	return func(o *NewManagedOptions) {
 		o.Token = t
+	}
+}
+
+// WithNewManagedThreadKey provides control over thread keys to use with a managed db.
+func WithNewManagedThreadKey(key thread.Key) NewManagedOption {
+	return func(o *NewManagedOptions) {
+		o.ThreadKey = key
+	}
+}
+
+// WithNewManagedLogKey is the public or private key used to write log records.
+// If this is just a public key, the service itself won't be able to create records.
+// In other words, all records must be pre-created and added with AddRecord.
+// If no log key is provided, one will be created internally.
+func WithNewManagedLogKey(key crypto.Key) NewManagedOption {
+	return func(o *NewManagedOptions) {
+		o.LogKey = key
 	}
 }
 

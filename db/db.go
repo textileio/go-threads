@@ -91,8 +91,8 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption
 		opt(args)
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token), net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey)); err != nil {
-		if !errors.Is(err, lstore.ErrThreadExists) {
+	if _, err := network.CreateThread(ctx, id, net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
+		if !errors.Is(err, lstore.ErrThreadExists) && !errors.Is(err, lstore.ErrLogExists) {
 			return nil, err
 		}
 	}
@@ -108,7 +108,7 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 		opt(args)
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(args.Token))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token))
 	if err != nil {
 		return nil, err
 	}
