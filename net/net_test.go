@@ -184,21 +184,25 @@ func TestNet_CreateThreadManaged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Should fail if trying to re-create locally 'owned' thread
+	// Should work if trying to re-create thread with different private key
 	_, err = n.CreateThread(ctx, info.ID, core.WithLogKey(sk), core.WithThreadKey(info.Key))
-	if err == nil {
-		t.Fatalf("expected creating thread with second private key to fail")
+	if err != nil {
+		t.Fatal(err)
 	}
-	// Should fail if trying to re-create thread with wrong read/service keys
-	_, err = n.CreateThread(ctx, info.ID, core.WithLogKey(pk))
+	// Should fail if trying to re-create thread with wrong (default created) read/service keys
+	_, err = n.CreateThread(ctx, info.ID)
 	if err == nil {
 		t.Fatalf("expected to fail when using wrong thread key(s)")
 	}
 	// Should work if only going to 'manage' re-created thread/log
+	_, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = n.CreateThread(ctx, info.ID, core.WithLogKey(pk), core.WithThreadKey(info.Key))
 	if err != nil {
 		t.Fatal(err)
@@ -225,7 +229,7 @@ func TestNet_AddThreadManaged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sk, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,17 +237,21 @@ func TestNet_AddThreadManaged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Should fail if trying to re-create locally 'owned' thread
+	// Should work if trying to re-create thread with different private key
 	_, err = n2.AddThread(ctx, addr, core.WithLogKey(sk), core.WithThreadKey(info.Key))
-	if err == nil {
-		t.Fatalf("expected creating thread with second private key to fail")
+	if err != nil {
+		t.Fatal(err)
 	}
 	// Should fail if trying to re-create thread with wrong/missing read/service keys
-	_, err = n2.AddThread(ctx, addr, core.WithLogKey(pk))
+	_, err = n2.AddThread(ctx, addr)
 	if err == nil {
 		t.Fatalf("expected to fail when using wrong thread key(s)")
 	}
 	// Should work if only going to 'manage' re-created thread/log
+	_, pk, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = n2.AddThread(ctx, addr, core.WithLogKey(pk), core.WithThreadKey(info.Key))
 	if err != nil {
 		t.Fatal(err)
