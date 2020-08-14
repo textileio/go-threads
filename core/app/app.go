@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	format "github.com/ipfs/go-ipld-format"
@@ -124,18 +123,13 @@ func NewConnector(app App, net Net, tinfo thread.Info) (*Connector, error) {
 	if !tinfo.Key.CanRead() {
 		log.Fatalf("read key not found for thread %s", tinfo.ID)
 	}
-	lg := tinfo.GetOwnLog()
-	if lg == nil {
-		return nil, fmt.Errorf("own log for thread %s does not exist", tinfo.ID)
-	}
-	a := &Connector{
+	return &Connector{
 		Net:       net,
 		app:       app,
 		token:     util.GenerateRandomBytes(32),
 		threadID:  tinfo.ID,
 		threadKey: tinfo.Key,
-	}
-	return a, nil
+	}, nil
 }
 
 // ThreadID returns the underlying thread's ID.

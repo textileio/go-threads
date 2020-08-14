@@ -106,3 +106,14 @@ func (m *memoryThreadMetadata) getValue(t thread.ID, key string) interface{} {
 	}
 	return nil
 }
+
+func (m *memoryThreadMetadata) ClearMetadata(t thread.ID) error {
+	m.dslock.Lock()
+	defer m.dslock.Unlock()
+	for k := range m.ds {
+		if k.id.Equals(t) {
+			delete(m.ds, k)
+		}
+	}
+	return nil
+}

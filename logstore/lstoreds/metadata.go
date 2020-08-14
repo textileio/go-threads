@@ -126,3 +126,7 @@ func (m *dsThreadMetadata) setValue(t thread.ID, key string, val interface{}) er
 	}
 	return nil
 }
+
+func (m *dsThreadMetadata) ClearMetadata(t thread.ID) error {
+	return nil
+}

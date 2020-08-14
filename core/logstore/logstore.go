@@ -84,6 +84,9 @@ type ThreadMetadata interface {
 
 	// PutBytes stores a byte value under key.
 	PutBytes(t thread.ID, key string, val []byte) error
+
+	// ClearMetadata clears all metadata under a thread.
+	ClearMetadata(t thread.ID) error
 }
 
 // KeyBook stores log keys.

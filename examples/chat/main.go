@@ -451,7 +451,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 	if err != nil {
 		return
 	}
-	lg := info.GetOwnLog()
+	lg := info.GetFirstPrivKeyLog()
 	if lg == nil {
 		lg = &thread.LogInfo{}
 	}

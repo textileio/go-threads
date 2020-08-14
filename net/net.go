@@ -209,9 +209,11 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	}
 	if identity != nil {
 		log.Debugf("creating thread with identity: %s", identity)
+	} else {
+		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
 	}
 
-	if err = n.ensureUnique(id, args.LogKey); err != nil {
+	if err = n.ensureUniqueLog(id, args.LogKey, identity); err != nil {
 		return
 	}
 
@@ -225,11 +227,7 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	if err = n.store.AddThread(info); err != nil {
 		return
 	}
-	linfo, err := createLog(n.host.ID(), args.LogKey)
-	if err != nil {
-		return
-	}
-	if err = n.store.AddLog(id, linfo); err != nil {
+	if _, err = n.createLog(id, args.LogKey, identity); err != nil {
 		return
 	}
 	if n.server.ps != nil {
@@ -240,52 +238,19 @@ func (n *net) CreateThread(_ context.Context, id thread.ID, opts ...core.NewThre
 	return n.getThreadWithAddrs(id)
 }
 
-func (n *net) ensureUnique(id thread.ID, key crypto.Key) error {
-	// Check if thread exists.
-	thrd, err := n.store.GetThread(id)
-	if errors.Is(err, lstore.ErrThreadNotFound) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	// Early out if no log key required.
-	if key == nil {
-		return nil
-	}
-	// Ensure we don't already have this log in our store.
-	if _, ok := key.(crypto.PrivKey); ok {
-		// Ensure we don't already have our 'own' log.
-		if thrd.GetOwnLog().PrivKey != nil {
-			return lstore.ErrThreadExists
-		}
-		return nil
-	}
-	pubKey, ok := key.(crypto.PubKey)
-	if !ok {
-		return fmt.Errorf("invalid log-key")
-	}
-	logID, err := peer.IDFromPublicKey(pubKey)
-	if err != nil {
-		return err
-	}
-	_, err = n.store.GetLog(id, logID)
-	if err == nil {
-		return lstore.ErrLogExists
-	}
-	if !errors.Is(err, lstore.ErrLogNotFound) {
-		return err
-	}
-	return nil
-}
-
 func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.NewThreadOption) (info thread.Info, err error) {
 	args := &core.NewThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = args.Token.Validate(n.getPrivKey()); err != nil {
+	identity, err := args.Token.Validate(n.getPrivKey())
+	if err != nil {
 		return
+	}
+	if identity != nil {
+		log.Debugf("adding thread with identity: %s", identity)
+	} else {
+		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
 	}
 
 	id, err := thread.FromAddr(addr)
@@ -295,7 +260,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 	if err = id.Validate(); err != nil {
 		return
 	}
-	if err = n.ensureUnique(id, args.LogKey); err != nil {
+	if err = n.ensureUniqueLog(id, args.LogKey, identity); err != nil {
 		return
 	}
 
@@ -327,12 +292,7 @@ func (n *net) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.New
 		return
 	}
 	if args.ThreadKey.CanRead() || args.LogKey != nil {
-		var linfo thread.LogInfo
-		linfo, err = createLog(n.host.ID(), args.LogKey)
-		if err != nil {
-			return
-		}
-		if err = n.store.AddLog(id, linfo); err != nil {
+		if _, err = n.createLog(id, args.LogKey, identity); err != nil {
 			return
 		}
 	}
@@ -682,24 +642,27 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	for _, opt := range opts {
 		opt(args)
 	}
-	pk, err := args.Token.Validate(n.getPrivKey())
+	identity, err := args.Token.Validate(n.getPrivKey())
 	if err != nil {
 		return
+	}
+	if identity == nil {
+		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
 	}
 	con, ok := n.getConnector(id, args.APIToken)
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
 	} else if con != nil {
-		if err = con.ValidateNetRecordBody(ctx, body, pk); err != nil {
+		if err = con.ValidateNetRecordBody(ctx, body, identity); err != nil {
 			return
 		}
 	}
 
-	lg, err := n.getOrCreateOwnLog(id)
+	lg, err := n.getOrCreateLog(id, identity)
 	if err != nil {
 		return
 	}
-	r, err := n.newRecord(ctx, id, lg, body, pk)
+	r, err := n.newRecord(ctx, id, lg, body, identity)
 	if err != nil {
 		return
 	}
@@ -1012,10 +975,6 @@ func (n *net) newRecord(ctx context.Context, id thread.ID, lg thread.LogInfo, bo
 	if err != nil {
 		return nil, err
 	}
-
-	if pk == nil {
-		pk = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	}
 	return cbor.CreateRecord(ctx, n, cbor.CreateRecordConfig{
 		Block:      event,
 		Prev:       lg.Head,
@@ -1127,31 +1086,69 @@ func (n *net) startPulling() {
 	}
 }
 
+// createLog creates a new log with the given peer as host.
+func (n *net) createLog(id thread.ID, key crypto.Key, identity thread.PubKey) (info thread.LogInfo, err error) {
+	var ok bool
+	if key == nil {
+		info.PrivKey, info.PubKey, err = crypto.GenerateEd25519Key(rand.Reader)
+		if err != nil {
+			return
+		}
+	} else if info.PrivKey, ok = key.(crypto.PrivKey); ok {
+		info.PubKey = info.PrivKey.GetPublic()
+	} else if info.PubKey, ok = key.(crypto.PubKey); !ok {
+		return info, fmt.Errorf("invalid log-key")
+	}
+	info.ID, err = peer.IDFromPublicKey(info.PubKey)
+	if err != nil {
+		return
+	}
+	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + n.host.ID().String())
+	if err != nil {
+		return
+	}
+	info.Addrs = []ma.Multiaddr{addr}
+	// If we're creating the log, we're 'managing' it
+	info.Managed = true
+
+	// Add to thread
+	if err = n.store.AddLog(id, info); err != nil {
+		return info, err
+	}
+	lidb, err := info.ID.MarshalBinary()
+	if err != nil {
+		return info, err
+	}
+	if err = n.store.PutBytes(id, identity.String(), lidb); err != nil {
+		return info, err
+	}
+	return info, nil
+}
+
 // getOrCreateOwnLoad returns the first log 'owned' by the host under the given thread.
 // If no log exists, a new one is created under the given thread and returned.
 // This is a strict 'ownership' check vs returning managed logs.
-func (n *net) getOrCreateOwnLog(id thread.ID) (info thread.LogInfo, err error) {
-	thrd, err := n.store.GetThread(id)
+func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.LogInfo, err error) {
+	if identity == nil {
+		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
+	}
+	lidb, err := n.store.GetBytes(id, identity.String())
 	if err != nil {
-		return
+		return info, err
 	}
-	ownLog := thrd.GetOwnLog()
-	if ownLog != nil {
-		info = *ownLog
-		return
+	if lidb != nil {
+		lid, err := peer.IDFromBytes(*lidb)
+		if err != nil {
+			return info, err
+		}
+		return n.store.GetLog(id, lid)
 	}
-	info, err = createLog(n.host.ID(), nil)
-	if err != nil {
-		return
-	}
-	err = n.store.AddLog(id, info)
-	return
+	return n.createLog(id, nil, identity)
 }
 
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
-func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey,
-	privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
+func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey, privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
 	tsph := n.getThreadSemaphore(tid)
 	tsph <- struct{}{}
 	defer func() { <-tsph }()
@@ -1170,6 +1167,48 @@ func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 		if err := n.store.AddLog(tid, lginfo); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// ensureUniqueLog returns a non-nil error if a log with key already exists,
+// or if a log for identity already exists for the given thread.
+func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubKey) (err error) {
+	var lid peer.ID
+	if key != nil {
+		switch key.(type) {
+		case crypto.PubKey:
+			lid, err = peer.IDFromPublicKey(key.(crypto.PubKey))
+			if err != nil {
+				return err
+			}
+		case crypto.PrivKey:
+			lid, err = peer.IDFromPrivateKey(key.(crypto.PrivKey))
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("invalid log key")
+		}
+	} else {
+		lidb, err := n.store.GetBytes(id, identity.String())
+		if err != nil {
+			return err
+		}
+		if lidb == nil {
+			return nil
+		}
+		lid, err = peer.IDFromBytes(*lidb)
+		if err != nil {
+			return err
+		}
+	}
+	_, err = n.store.GetLog(id, lid)
+	if err == nil {
+		return lstore.ErrLogExists
+	}
+	if !errors.Is(err, lstore.ErrLogNotFound) {
+		return err
 	}
 	return nil
 }
@@ -1199,31 +1238,4 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 			}
 		}
 	}
-}
-
-// createLog creates a new log with the given peer as host.
-func createLog(host peer.ID, key crypto.Key) (info thread.LogInfo, err error) {
-	var ok bool
-	if key == nil {
-		info.PrivKey, info.PubKey, err = crypto.GenerateEd25519Key(rand.Reader)
-		if err != nil {
-			return
-		}
-	} else if info.PrivKey, ok = key.(crypto.PrivKey); ok {
-		info.PubKey = info.PrivKey.GetPublic()
-	} else if info.PubKey, ok = key.(crypto.PubKey); !ok {
-		return info, fmt.Errorf("invalid log-key")
-	}
-	info.ID, err = peer.IDFromPublicKey(info.PubKey)
-	if err != nil {
-		return
-	}
-	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + host.String())
-	if err != nil {
-		return
-	}
-	info.Addrs = []ma.Multiaddr{addr}
-	// If we're creating the log, we're 'managing' it
-	info.Managed = true
-	return info, nil
 }
