@@ -904,12 +904,22 @@ func (n *net) putRecordUnsafe(ctx context.Context, id thread.ID, lid peer.ID, re
 		}
 
 		if con != nil {
-			identity := &thread.Libp2pPubKey{}
-			if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
+			key, err := n.store.ReadKey(id)
+			if err != nil {
 				return err
 			}
-			if err = con.ValidateNetRecordBody(ctx, body, identity); err != nil {
-				return err
+			if key != nil {
+				dbody, err := event.GetBody(ctx, n, key)
+				if err != nil {
+					return err
+				}
+				identity := &thread.Libp2pPubKey{}
+				if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
+					return err
+				}
+				if err = con.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
+					return err
+				}
 			}
 		}
 
