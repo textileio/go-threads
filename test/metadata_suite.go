@@ -9,18 +9,20 @@ import (
 )
 
 const (
-	errStrNotFoundKey      = "should return nil without errors"
-	errStrPut              = "put failed for key %s: %v"
-	errStrGet              = "get failed for key %s: %v"
-	errStrValueMatch       = "expected %v, got %v"
-	errStrValueShouldExist = "value should exist for key"
+	errStrNotFoundKey         = "should return nil without errors"
+	errStrPut                 = "put failed for key %s: %v"
+	errStrGet                 = "get failed for key %s: %v"
+	errStrValueMatch          = "expected %v, got %v"
+	errStrValueShouldExist    = "value should exist for key"
+	errStrValueShouldNotExist = "value should not exist for key"
 )
 
 var metadataBookSuite = map[string]func(mb core.ThreadMetadata) func(*testing.T){
-	"Int64":    testMetadataBookInt64,
-	"String":   testMetadataBookString,
-	"Byte":     testMetadataBookBytes,
-	"NotFound": testMetadataBookNotFound,
+	"Int64":         testMetadataBookInt64,
+	"String":        testMetadataBookString,
+	"Byte":          testMetadataBookBytes,
+	"NotFound":      testMetadataBookNotFound,
+	"ClearMetadata": testClearMetadata,
 }
 
 type MetadataBookFactory func() (core.ThreadMetadata, func())
@@ -156,5 +158,26 @@ func testMetadataBookNotFound(mb core.ThreadMetadata) func(*testing.T) {
 				t.Fatalf(errStrNotFoundKey)
 			}
 		})
+	}
+}
+
+func testClearMetadata(mb core.ThreadMetadata) func(*testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		key, value := "key", []byte("textile")
+		if err := mb.PutBytes(tid, key, value); err != nil {
+			t.Fatalf(errStrPut, key, err)
+		}
+		if err := mb.ClearMetadata(tid); err != nil {
+			t.Fatalf("clear metadata failed: %v", err)
+		}
+		v, err := mb.GetBytes(tid, key)
+		if err != nil {
+			t.Fatalf(errStrGet, key, err)
+		}
+		if v != nil {
+			t.Fatalf(errStrValueShouldNotExist)
+		}
 	}
 }

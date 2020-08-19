@@ -502,7 +502,7 @@ func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
 		}
 	}
 
-	return n.store.DeleteThread(id) // Delete logstore keys, addresses, and heads
+	return n.store.DeleteThread(id) // Delete logstore keys, addresses, heads, and metadata
 }
 
 func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...core.ThreadOption) (pid peer.ID, err error) {

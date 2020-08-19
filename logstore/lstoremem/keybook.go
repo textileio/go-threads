@@ -149,7 +149,7 @@ func (mkb *memoryKeyBook) ClearKeys(t thread.ID) error {
 	return nil
 }
 
-func (mkb *memoryKeyBook) ClearLogKeys(t thread.ID, p peer.ID) error {
+func (mkb *memoryKeyBook) ClearLogKeys(t thread.ID, _ peer.ID) error {
 	mkb.Lock()
 	delete(mkb.pks, t)
 	delete(mkb.sks, t)

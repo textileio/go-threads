@@ -191,6 +191,10 @@ func (ls *logstore) DeleteThread(id thread.ID) error {
 		return err
 	}
 
+	if err := ls.ClearMetadata(id); err != nil {
+		return err
+	}
+
 	set, err := ls.getLogIDs(id)
 	if err != nil {
 		return nil
