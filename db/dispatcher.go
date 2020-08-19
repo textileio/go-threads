@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"sync"
 
-	datastore "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/query"
+	datastore "github.com/textileio/go-datastore"
+	"github.com/textileio/go-datastore/query"
 	core "github.com/textileio/go-threads/core/db"
 	"golang.org/x/sync/errgroup"
 )
@@ -103,7 +103,7 @@ func (d *dispatcher) Dispatch(events []core.Event) error {
 }
 
 // Query searches the internal event store and returns a query result.
-// This is a syncronouse version of github.com/ipfs/go-datastore's Query method.
+// This is a syncronouse version of github.com/textileio/go-datastore's Query method.
 func (d *dispatcher) Query(query query.Query) ([]query.Entry, error) {
 	result, err := d.store.Query(query)
 	if err != nil {

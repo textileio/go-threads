@@ -1,9 +1,9 @@
 package db
 
 import (
-	ds "github.com/ipfs/go-datastore"
-	kt "github.com/ipfs/go-datastore/keytransform"
-	dsq "github.com/ipfs/go-datastore/query"
+	ds "github.com/textileio/go-datastore"
+	kt "github.com/textileio/go-datastore/keytransform"
+	dsq "github.com/textileio/go-datastore/query"
 )
 
 func wrapTxnDatastore(child ds.TxnDatastore, t kt.KeyTransform) *Datastore {

@@ -3,7 +3,7 @@ package lstoreds
 import (
 	"fmt"
 
-	ds "github.com/ipfs/go-datastore"
+	ds "github.com/textileio/go-datastore"
 )
 
 // how many operations are queued in a cyclic batch before we flush it.

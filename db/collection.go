@@ -10,7 +10,7 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
 	jsonpatch "github.com/evanphx/json-patch"
-	ds "github.com/ipfs/go-datastore"
+	ds "github.com/textileio/go-datastore"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"

@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	datastore "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/query"
+	datastore "github.com/textileio/go-datastore"
+	"github.com/textileio/go-datastore/query"
 	core "github.com/textileio/go-threads/core/db"
 )
 

@@ -13,8 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	"github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/query"
+	datastore "github.com/ipfs/go-datastore"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -23,6 +22,7 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/discovery"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-datastore/query"
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/net"

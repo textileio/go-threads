@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 
 	"github.com/dgraph-io/badger/options"
-	ds "github.com/ipfs/go-datastore"
-	badger "github.com/ipfs/go-ds-badger"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	ds "github.com/textileio/go-datastore"
+	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/jsonpatcher"

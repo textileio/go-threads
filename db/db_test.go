@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
+	ds "github.com/textileio/go-datastore"
 	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
