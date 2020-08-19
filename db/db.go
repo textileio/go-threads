@@ -53,7 +53,7 @@ var (
 	dsSchemas    = dsPrefix.ChildString("schema")
 	dsIndexes    = dsPrefix.ChildString("index")
 	dsValidators = dsPrefix.ChildString("validator")
-	dsFilters    = dsPrefix.ChildString("filters")
+	dsFilters    = dsPrefix.ChildString("filter")
 )
 
 func init() {
@@ -188,7 +188,6 @@ func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 
 	connector, err := n.ConnectApp(d, id)
 	if err != nil {
-		// @todo: Consider making this fatal again after fixing #400
 		return nil, err
 	}
 	d.connector = connector
@@ -251,7 +250,12 @@ func (d *DB) reCreateCollections() error {
 		if err != nil && !errors.Is(err, ds.ErrNotFound) {
 			return err
 		}
-		c, err := newCollection(d, name, schema, wv, rf)
+		c, err := newCollection(d, CollectionConfig{
+			Name:           name,
+			Schema:         schema,
+			WriteValidator: string(wv),
+			ReadFilter:     string(rf),
+		})
 		if err != nil {
 			return err
 		}
@@ -272,23 +276,28 @@ func (d *DB) reCreateCollections() error {
 	return nil
 }
 
-// GetName returns the db name.
-func (d *DB) GetName() string {
-	return d.name
+// Info wraps info about a db.
+type Info struct {
+	Name  string
+	Addrs []ma.Multiaddr
+	Key   thread.Key
 }
 
 // GetDBInfo returns the addresses and key that can be used to join the DB thread.
-func (d *DB) GetDBInfo(opts ...Option) ([]ma.Multiaddr, thread.Key, error) {
+func (d *DB) GetDBInfo(opts ...Option) (info Info, err error) {
 	options := &Options{}
 	for _, opt := range opts {
 		opt(options)
 	}
-
-	tinfo, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
+	thrd, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
 	if err != nil {
-		return nil, thread.Key{}, err
+		return info, err
 	}
-	return tinfo.Addrs, tinfo.Key, nil
+	return Info{
+		Name:  d.name,
+		Addrs: thrd.Addrs,
+		Key:   thrd.Key,
+	}, nil
 }
 
 // CollectionConfig describes a new Collection.
@@ -301,15 +310,20 @@ type CollectionConfig struct {
 }
 
 // NewCollection creates a new db collection with config.
-// @todo: Handle token auth
 func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-
+	args := &Options{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, false); err != nil {
+		return nil, err
+	}
 	if _, ok := d.collections[config.Name]; ok {
 		return nil, ErrCollectionAlreadyRegistered
 	}
-	c, err := newCollection(d, config.Name, config.Schema, []byte(config.WriteValidator), []byte(config.ReadFilter))
+	c, err := newCollection(d, config)
 	if err != nil {
 		return nil, err
 	}
@@ -325,16 +339,21 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 // UpdateCollection updates an existing db collection with a new config.
 // Indexes to new paths will be created.
 // Indexes to removed paths will be dropped.
-// @todo: Handle token auth
 func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-
+	args := &Options{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, false); err != nil {
+		return nil, err
+	}
 	xc, ok := d.collections[config.Name]
 	if !ok {
 		return nil, ErrCollectionNotFound
 	}
-	c, err := newCollection(d, config.Name, config.Schema, []byte(config.WriteValidator), []byte(config.ReadFilter))
+	c, err := newCollection(d, config)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +364,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	// Drop indexes that are no longer requested
 	for _, index := range xc.indexes {
 		if _, ok := c.indexes[index.Path]; !ok {
-			if err := c.dropIndex(index.Path, opts...); err != nil {
+			if err := c.dropIndex(index.Path); err != nil {
 				return nil, err
 			}
 		}
@@ -388,25 +407,29 @@ func (d *DB) saveCollection(c *Collection) error {
 }
 
 // GetCollection returns a collection by name.
-// @todo: Handle token auth
 func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, true); err != nil {
+		return nil
 	}
 	return d.collections[name]
 }
 
 // ListCollections returns all collections.
-// @todo: Handle token auth
 func (d *DB) ListCollections(opts ...Option) []*Collection {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, true); err != nil {
+		return nil
 	}
 	list := make([]*Collection, len(d.collections))
 	var i int
@@ -418,15 +441,16 @@ func (d *DB) ListCollections(opts ...Option) []*Collection {
 }
 
 // DeleteCollection deletes collection by name and drops all indexes.
-// @todo: Handle token auth
 func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
 	}
-
+	if err := d.connector.Validate(args.Token, false); err != nil {
+		return err
+	}
 	c, ok := d.collections[name]
 	if !ok {
 		return ErrCollectionNotFound

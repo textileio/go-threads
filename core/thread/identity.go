@@ -209,8 +209,8 @@ func (t Token) PubKey() (PubKey, error) {
 	return key, nil
 }
 
-// Validate returns non-nil if token was issued by issuer.
-// If token is present and valid, the embedded public key is returned.
+// Validate token against an issuer.
+// If token is present and was issued by issuer (is valid), the embedded public key is returned.
 // If token is not present, both the returned public key and error will be nil.
 func (t Token) Validate(issuer crypto.PrivKey) (PubKey, error) {
 	var ok bool

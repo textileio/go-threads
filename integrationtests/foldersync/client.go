@@ -123,15 +123,15 @@ func newNetwork(repoPath string) (common.NetBoostrapper, error) {
 	return network, nil
 }
 
-func (c *client) getDBInfo() (ma.Multiaddr, thread.Key, error) {
-	addrs, key, err := c.db.GetDBInfo()
+func (c *client) getDBInfo() (db.Info, error) {
+	info, err := c.db.GetDBInfo()
 	if err != nil {
-		return nil, thread.Key{}, err
+		return db.Info{}, err
 	}
-	if len(addrs) < 1 {
-		return nil, thread.Key{}, errors.New("unable to get thread address")
+	if len(info.Addrs) < 1 {
+		return db.Info{}, errors.New("unable to get thread address")
 	}
-	return addrs[0], key, nil
+	return info, nil
 }
 
 func (c *client) getOrCreateMyFolderInstance(path string) (*folder, error) {

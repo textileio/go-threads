@@ -117,6 +117,10 @@ func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
 	return nil, nil // no-op
 }
 
+func (i *remoteIdentity) Equals(thread.Identity) bool {
+	return false
+}
+
 func (s *Service) GetToken(server pb.API_GetTokenServer) error {
 	log.Debugf("received get token request")
 

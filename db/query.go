@@ -288,6 +288,9 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 
 // Find queries for instances by Query
 func (t *Txn) Find(q *Query) ([][]byte, error) {
+	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
+		return nil, err
+	}
 	if q == nil {
 		q = &Query{}
 	}

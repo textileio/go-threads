@@ -53,11 +53,11 @@ type Collection struct {
 }
 
 // newCollection returns a new Collection from schema.
-func newCollection(d *DB, name string, schema *jsonschema.Schema, writeValidator, readFilter []byte) (*Collection, error) {
-	if name != "" && !nameRx.MatchString(name) {
+func newCollection(d *DB, config CollectionConfig) (*Collection, error) {
+	if config.Name != "" && !nameRx.MatchString(config.Name) {
 		return nil, ErrInvalidName
 	}
-	idType, err := getSchemaTypeAtPath(schema, idFieldName)
+	idType, err := getSchemaTypeAtPath(config.Schema, idFieldName)
 	if err != nil {
 		if errors.Is(err, ErrInvalidCollectionSchemaPath) {
 			return nil, ErrInvalidCollectionSchema
@@ -67,25 +67,25 @@ func newCollection(d *DB, name string, schema *jsonschema.Schema, writeValidator
 	if idType.Type != "string" {
 		return nil, ErrInvalidCollectionSchema
 	}
-	sb, err := json.Marshal(schema)
+	sb, err := json.Marshal(config.Schema)
 	if err != nil {
 		return nil, err
 	}
-	writeValidator, err = compileJSFunc(writeValidator, "writer", "event", "instance")
+	wv, err := compileJSFunc([]byte(config.WriteValidator), "writer", "event", "instance")
 	if err != nil {
 		return nil, err
 	}
-	readFilter, err = compileJSFunc(readFilter, "reader", "instance")
+	rf, err := compileJSFunc([]byte(config.ReadFilter), "reader", "instance")
 	if err != nil {
 		return nil, err
 	}
 	return &Collection{
-		name:           name,
+		name:           config.Name,
 		schemaLoader:   gojsonschema.NewBytesLoader(sb),
 		db:             d,
 		indexes:        make(map[string]Index),
-		writeValidator: writeValidator,
-		readFilter:     readFilter,
+		writeValidator: wv,
+		readFilter:     rf,
 	}, nil
 }
 
@@ -431,13 +431,32 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 
 // Has returns true if all IDs exists in the collection, false otherwise.
 func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
+	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
+		return false, err
+	}
+	pk, err := t.token.PubKey()
+	if err != nil {
+		return false, err
+	}
 	for i := range ids {
 		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
 		exists, err := t.collection.db.datastore.Has(key)
 		if err != nil {
 			return false, err
 		}
-		if !exists {
+		if exists {
+			bytes, err := t.collection.db.datastore.Get(key)
+			if err != nil {
+				return false, err
+			}
+			bytes, err = t.collection.filterRead(pk, bytes)
+			if err != nil {
+				return false, err
+			}
+			if bytes == nil { // Access denied
+				return false, nil
+			}
+		} else {
 			return false, nil
 		}
 	}
@@ -446,6 +465,9 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
+	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
+		return nil, err
+	}
 	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 	bytes, err := t.collection.db.datastore.Get(key)
 	if errors.Is(err, ds.ErrNotFound) {

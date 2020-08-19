@@ -147,7 +147,7 @@ func TestWithNewName(t *testing.T) {
 		t.Fatalf("expected name %s, got %s", name, d.name)
 	}
 
-	_, key, err := d.GetDBInfo()
+	info, err := d.GetDBInfo()
 	checkErr(t, err)
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
@@ -159,7 +159,7 @@ func TestWithNewName(t *testing.T) {
 	checkErr(t, err)
 	defer n.Close()
 	defer d.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewThreadKey(key))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewThreadKey(info.Key))
 	checkErr(t, err)
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
@@ -192,7 +192,7 @@ func TestWithNewEventCodec(t *testing.T) {
 		t.Fatalf("custom event codec wasn't called")
 	}
 
-	_, key, err := d.GetDBInfo()
+	info, err := d.GetDBInfo()
 	checkErr(t, err)
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
@@ -203,7 +203,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewThreadKey(key))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewThreadKey(info.Key))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }
