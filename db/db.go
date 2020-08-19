@@ -180,17 +180,17 @@ func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 	}
 	d.dispatcher.Register(d)
 
-	for _, cc := range opts.Collections {
-		if _, err := d.NewCollection(cc); err != nil {
-			return nil, err
-		}
-	}
-
 	connector, err := n.ConnectApp(d, id)
 	if err != nil {
 		return nil, err
 	}
 	d.connector = connector
+
+	for _, cc := range opts.Collections {
+		if _, err := d.NewCollection(cc); err != nil {
+			return nil, err
+		}
+	}
 	return d, nil
 }
 

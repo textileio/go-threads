@@ -127,7 +127,7 @@ func BenchmarkNoIndexSave(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < len(res); i++ {
 		updated, err := sjson.SetBytes(benchItem, "_id", res[i].String())
 		if err != nil {
 			b.Fatalf("Error setting instance id: %s", err)
@@ -162,7 +162,7 @@ func BenchmarkIndexSave(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < len(res); i++ {
 		updated, err := sjson.SetBytes(benchItem, "_id", res[i].String())
 		if err != nil {
 			b.Fatalf("Error setting instance id: %s", err)

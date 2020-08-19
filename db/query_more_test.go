@@ -99,7 +99,6 @@ func TestCollectionQuery(t *testing.T) {
 	for _, q := range queries {
 		q := q
 		t.Run(q.name, func(t *testing.T) {
-			t.Parallel()
 			ret, err := c.Find(q.query)
 			if err != nil {
 				t.Fatalf("error when executing query: %v", err)

@@ -56,7 +56,6 @@ func TestE2EWithThreads(t *testing.T) {
 	}
 
 	// Boilerplate to generate peer1 thread-addr
-	// @todo: This should be a network method
 	peer1Addr := n1.Host().Addrs()[0]
 	peer1ID, err := multiaddr.NewComponent("p2p", n1.Host().ID().String())
 	checkErr(t, err)

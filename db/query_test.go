@@ -270,7 +270,6 @@ func TestQuery(t *testing.T) {
 	for _, q := range jsonQueries {
 		q := q
 		t.Run(q.name, func(t *testing.T) {
-			t.Parallel()
 			res, err := c.Find(q.query)
 			checkErr(t, err)
 			if len(q.resIdx) != len(res) {
