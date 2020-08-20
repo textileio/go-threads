@@ -3,13 +3,10 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sync"
 	"time"
 
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -22,22 +19,22 @@ var (
 	// ErrThreadInUse indicates an operation could not be completed because the
 	// thread is bound to an app.
 	ErrThreadInUse = errors.New("thread is in use")
+
+	// ErrInvalidNetRecordBody indicates the app determined the record body should not be accepted.
+	ErrInvalidNetRecordBody = errors.New("app denied net record body")
 )
 
-const (
-	busTimeout        = time.Second * 10
-	addRecordTimeout  = time.Second * 10
-	fetchEventTimeout = time.Second * 15
-)
+const busTimeout = time.Second * 10
 
 // App provides a bidirectional hook for thread-based apps.
 type App interface {
-	// LocalEventListen returns a listener that is notified of *locally generated*
-	// events. Caller should call .Discard() when done.
-	LocalEventListen() *LocalEventListener
+	// ValidateNetRecordBody provides the app an opportunity to validate the contents
+	// of a record before it's committed to a thread log.
+	// identity is the author's public key.
+	ValidateNetRecordBody(ctx context.Context, body format.Node, identity thread.PubKey) error
 
 	// HandleNetRecord handles an inbound thread record from net.
-	HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, timeout time.Duration) error
+	HandleNetRecord(ctx context.Context, rec net.ThreadRecord, key thread.Key) error
 }
 
 // LocalEventsBus wraps a broadcaster for local events.
@@ -106,65 +103,38 @@ type Net interface {
 
 	// ConnectApp returns an app<->thread connector.
 	ConnectApp(App, thread.ID) (*Connector, error)
+
+	// Validate thread ID and token against the net host.
+	// If token is present and was issued the net host (is valid), the embedded public key is returned.
+	// If token is not present, both the returned public key and error will be nil.
+	Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error)
 }
 
 // Connector connects an app to a thread.
 type Connector struct {
 	Net Net
 
-	app        App
-	token      net.Token
-	threadID   thread.ID
-	threadKey  thread.Key
-	logID      peer.ID
-	closeChan  chan struct{}
-	goRoutines sync.WaitGroup
-
-	lock   sync.Mutex
-	closed bool
+	app       App
+	token     net.Token
+	threadID  thread.ID
+	threadKey thread.Key
 }
 
 // Connection receives new thread records, which are pumped to the app.
 type Connection func(context.Context, thread.ID) (<-chan net.ThreadRecord, error)
 
 // NewConnector creates bidirectional connection between an app and a thread.
-func NewConnector(app App, net Net, tinfo thread.Info, conn Connection) (*Connector, error) {
+func NewConnector(app App, net Net, tinfo thread.Info) (*Connector, error) {
 	if !tinfo.Key.CanRead() {
 		log.Fatalf("read key not found for thread %s", tinfo.ID)
 	}
-	lg := tinfo.GetOwnLog()
-	if lg == nil {
-		return nil, fmt.Errorf("own log for thread %s does not exist", tinfo.ID)
-	}
-	a := &Connector{
+	return &Connector{
 		Net:       net,
 		app:       app,
 		token:     util.GenerateRandomBytes(32),
 		threadID:  tinfo.ID,
 		threadKey: tinfo.Key,
-		logID:     lg.ID,
-		closeChan: make(chan struct{}),
-	}
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go a.threadToApp(conn, &wg)
-	go a.appToThread(&wg)
-	wg.Wait()
-	a.goRoutines.Add(2)
-	return a, nil
-}
-
-// Close stops the bidirectional connection between the app and thread.
-func (c *Connector) Close() error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if c.closed {
-		return nil
-	}
-	c.closed = true
-	close(c.closeChan)
-	c.goRoutines.Wait()
-	return nil
+	}, nil
 }
 
 // ThreadID returns the underlying thread's ID.
@@ -177,53 +147,23 @@ func (c *Connector) Token() net.Token {
 	return c.token
 }
 
-func (c *Connector) threadToApp(con Connection, wg *sync.WaitGroup) {
-	defer c.goRoutines.Done()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	sub, err := con(ctx, c.threadID)
-	if err != nil {
-		log.Fatalf("error getting thread subscription: %v", err)
-	}
-	wg.Done()
-	for {
-		select {
-		case <-c.closeChan:
-			log.Debugf("closing thread-to-app flow on thread %s", c.threadID)
-			return
-		case rec, ok := <-sub:
-			if !ok {
-				log.Debug("notification channel closed, not listening to external changes anymore")
-				return
-			}
-			if err = c.app.HandleNetRecord(rec, c.threadKey, c.logID, fetchEventTimeout); err != nil {
-				log.Fatal(err)
-			}
-		}
-	}
+// CreateNetRecord calls net.CreateRecord while supplying thread ID and API token.
+func (c *Connector) CreateNetRecord(ctx context.Context, body format.Node, token thread.Token) (net.ThreadRecord, error) {
+	return c.Net.CreateRecord(ctx, c.threadID, body, net.WithThreadToken(token), net.WithAPIToken(c.token))
 }
 
-func (c *Connector) appToThread(wg *sync.WaitGroup) {
-	defer c.goRoutines.Done()
-	l := c.app.LocalEventListen()
-	defer l.Discard()
-	wg.Done()
+// Validate thread token against the net host.
+func (c *Connector) Validate(token thread.Token, readOnly bool) error {
+	_, err := c.Net.Validate(c.threadID, token, readOnly)
+	return err
+}
 
-	for {
-		select {
-		case <-c.closeChan:
-			log.Debugf("closing app-to-thread flow on thread %s", c.threadID)
-			return
-		case event, ok := <-l.Channel():
-			if !ok {
-				log.Errorf("ending sending app local event to own thread since channel was closed for thread %s", c.threadID)
-				return
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), addRecordTimeout)
-			if _, err := c.Net.CreateRecord(ctx, c.threadID, event.Node, net.WithThreadToken(event.Token), net.WithAPIToken(c.token)); err != nil {
-				log.Fatalf("error writing record: %v", err)
-			}
-			cancel()
-		}
-	}
+// ValidateNetRecordBody calls the connection app's ValidateNetRecordBody.
+func (c *Connector) ValidateNetRecordBody(ctx context.Context, body format.Node, identity thread.PubKey) error {
+	return c.app.ValidateNetRecordBody(ctx, body, identity)
+}
+
+// HandleNetRecord calls the connection app's HandleNetRecord while supplying thread key.
+func (c *Connector) HandleNetRecord(ctx context.Context, rec net.ThreadRecord) error {
+	return c.app.HandleNetRecord(ctx, rec, c.threadKey)
 }

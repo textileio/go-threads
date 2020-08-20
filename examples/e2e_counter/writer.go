@@ -16,7 +16,7 @@ import (
 )
 
 type myCounter struct {
-	ID    core.InstanceID
+	ID    core.InstanceID `json:"_id"`
 	Name  string
 	Count int
 }

@@ -49,7 +49,7 @@ func TestSimple(t *testing.T) {
 
 	c0 := db0.GetCollection(collectionName)
 
-	addrs0, key0, err := db0.GetDBInfo()
+	info0, err := db0.GetDBInfo()
 	checkErr(t, err)
 
 	// db1
@@ -60,7 +60,7 @@ func TestSimple(t *testing.T) {
 	network1, err := newNetwork(repoPath1)
 	checkErr(t, err)
 
-	db1, err := db.NewDBFromAddr(context.Background(), network1, addrs0[0], key0, db.WithNewRepoPath(repoPath1), db.WithNewCollections(cc))
+	db1, err := db.NewDBFromAddr(context.Background(), network1, info0.Addrs[0], info0.Key, db.WithNewRepoPath(repoPath1), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db1.Close()
 
@@ -74,7 +74,7 @@ func TestSimple(t *testing.T) {
 	network2, err := newNetwork(repoPath2)
 	checkErr(t, err)
 
-	db2, err := db.NewDBFromAddr(context.Background(), network2, addrs0[0], key0, db.WithNewRepoPath(repoPath2), db.WithNewCollections(cc))
+	db2, err := db.NewDBFromAddr(context.Background(), network2, info0.Addrs[0], info0.Key, db.WithNewRepoPath(repoPath2), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db2.Close()
 
@@ -88,7 +88,7 @@ func TestSimple(t *testing.T) {
 	network3, err := newNetwork(repoPath3)
 	checkErr(t, err)
 
-	db3, err := db.NewDBFromAddr(context.Background(), network3, addrs0[0], key0, db.WithNewRepoPath(repoPath3), db.WithNewCollections(cc))
+	db3, err := db.NewDBFromAddr(context.Background(), network3, info0.Addrs[0], info0.Key, db.WithNewRepoPath(repoPath3), db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db3.Close()
 
@@ -167,20 +167,20 @@ func TestNUsersBootstrap(t *testing.T) {
 			defer clean0()
 			clients = append(clients, client0)
 
-			addr, key, err := client0.getDBInfo()
+			info, err := client0.getDBInfo()
 			checkErr(t, err)
 
 			for i := 1; i < tt.totalCorePeers; i++ {
-				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), addr, key)
+				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), info.Addrs[0], info.Key)
 				defer clean()
 				clients = append(clients, client)
 			}
 
 			for i := tt.totalCorePeers; i < tt.totalClients; i++ {
-				addr, key, err := clients[i%tt.totalCorePeers].getDBInfo()
+				info, err := clients[i%tt.totalCorePeers].getDBInfo()
 				checkErr(t, err)
 
-				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), addr, key)
+				client, clean := createJoinerClient(t, fmt.Sprintf("client%d", i), info.Addrs[0], info.Key)
 				defer clean()
 				clients = append(clients, client)
 			}

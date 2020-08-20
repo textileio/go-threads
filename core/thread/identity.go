@@ -32,6 +32,8 @@ type Identity interface {
 	GetPublic() PubKey
 	// Decrypt returns decrypted data.
 	Decrypt(context.Context, []byte) ([]byte, error)
+	// Equals returns true if the identities are equal.
+	Equals(Identity) bool
 }
 
 // Libp2pIdentity wraps crypto.PrivKey, overwriting GetPublic with thread.PubKey.
@@ -72,6 +74,14 @@ func (p *Libp2pIdentity) Decrypt(_ context.Context, data []byte) ([]byte, error)
 	return dk.Decrypt(data)
 }
 
+func (p *Libp2pIdentity) Equals(i Identity) bool {
+	li, ok := i.(*Libp2pIdentity)
+	if !ok {
+		return false
+	}
+	return p.PrivKey.Equals(li.PrivKey)
+}
+
 // Pubkey can be anything that provides a verify method.
 type PubKey interface {
 	encoding.BinaryMarshaler
@@ -84,7 +94,9 @@ type PubKey interface {
 	// Verify that 'sig' is the signed hash of 'data'
 	Verify(data []byte, sig []byte) (bool, error)
 	// Encrypt data with the public key.
-	Encrypt(data []byte) ([]byte, error)
+	Encrypt([]byte) ([]byte, error)
+	// Equals returns true if the keys are equal.
+	Equals(PubKey) bool
 }
 
 // Libp2pPubKey wraps crypto.PubKey.
@@ -138,6 +150,14 @@ func (p *Libp2pPubKey) Encrypt(data []byte) ([]byte, error) {
 	return ek.Encrypt(data)
 }
 
+func (p *Libp2pPubKey) Equals(k PubKey) bool {
+	lk, ok := k.(*Libp2pPubKey)
+	if !ok {
+		return false
+	}
+	return p.PubKey.Equals(lk.PubKey)
+}
+
 // Token is a concrete type for a JWT token string, which provides
 // a claim to an identity.
 type Token string
@@ -167,8 +187,30 @@ func NewToken(issuer crypto.PrivKey, key PubKey) (tok Token, err error) {
 	return Token(str), nil
 }
 
-// Validate returns non-nil if token was issued by issuer.
-// If token is present and valid, the embedded public key is returned.
+// PubKey returns the public key encoded in the token.
+// Note: This does NOT verify the token.
+func (t Token) PubKey() (PubKey, error) {
+	if t == "" {
+		return nil, nil
+	}
+	var claims jwt.StandardClaims
+	tok, _, err := new(jwt.Parser).ParseUnverified(string(t), &claims)
+	if err != nil {
+		if tok == nil {
+			return nil, ErrTokenNotFound
+		} else {
+			return nil, ErrInvalidToken
+		}
+	}
+	key := &Libp2pPubKey{}
+	if err = key.UnmarshalString(claims.Subject); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+// Validate token against an issuer.
+// If token is present and was issued by issuer (is valid), the embedded public key is returned.
 // If token is not present, both the returned public key and error will be nil.
 func (t Token) Validate(issuer crypto.PrivKey) (PubKey, error) {
 	var ok bool
@@ -191,7 +233,6 @@ func (t Token) Validate(issuer crypto.PrivKey) (PubKey, error) {
 			return nil, ErrInvalidToken
 		}
 	}
-
 	key := &Libp2pPubKey{}
 	if err = key.UnmarshalString(claims.Subject); err != nil {
 		return nil, err

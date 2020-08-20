@@ -120,6 +120,10 @@ func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
 	return nil, nil // no-op
 }
 
+func (i *remoteIdentity) Equals(thread.Identity) bool {
+	return false
+}
+
 func (s *Service) GetToken(server pb.API_GetTokenServer) error {
 	log.Debugf("received get token request")
 
@@ -232,9 +236,11 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 		return db.CollectionConfig{}, err
 	}
 	return db.CollectionConfig{
-		Name:    pbc.Name,
-		Schema:  schema,
-		Indexes: indexes,
+		Name:           pbc.Name,
+		Schema:         schema,
+		Indexes:        indexes,
+		WriteValidator: pbc.WriteValidator,
+		ReadFilter:     pbc.ReadFilter,
 	}, nil
 }
 
@@ -282,18 +288,18 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 }
 
 func dBInfoToPb(d *db.DB, token thread.Token) (*pb.GetDBInfoReply, error) {
-	addrs, key, err := d.GetDBInfo(db.WithToken(token))
+	info, err := d.GetDBInfo(db.WithToken(token))
 	if err != nil {
 		return nil, err
 	}
-	res := make([][]byte, len(addrs))
-	for i := range addrs {
-		res[i] = addrs[i].Bytes()
+	res := make([][]byte, len(info.Addrs))
+	for i := range info.Addrs {
+		res[i] = info.Addrs[i].Bytes()
 	}
 	return &pb.GetDBInfoReply{
-		Name:  d.GetName(),
+		Name:  info.Name,
 		Addrs: res,
-		Key:   key.Bytes(),
+		Key:   info.Key.Bytes(),
 	}, nil
 }
 
@@ -805,12 +811,12 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			switch action.Type {
 			case db.ActionCreate:
 				replyAction = pb.ListenReply_CREATE
-				instance, err = s.instanceForAction(d, action)
+				instance, err = s.instanceForAction(d, action, token)
 			case db.ActionDelete:
 				replyAction = pb.ListenReply_DELETE
 			case db.ActionSave:
 				replyAction = pb.ListenReply_SAVE
-				instance, err = s.instanceForAction(d, action)
+				instance, err = s.instanceForAction(d, action, token)
 			default:
 				err = status.Errorf(codes.Internal, "unknown action type %v", action.Type)
 			}
@@ -830,12 +836,12 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 }
 
-func (s *Service) instanceForAction(d *db.DB, action db.Action) ([]byte, error) {
-	collection := d.GetCollection(action.Collection)
+func (s *Service) instanceForAction(d *db.DB, action db.Action, token thread.Token) ([]byte, error) {
+	collection := d.GetCollection(action.Collection, db.WithToken(token))
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
 	}
-	res, err := collection.FindByID(action.ID)
+	res, err := collection.FindByID(action.ID, db.WithTxnToken(token))
 	if err != nil {
 		return nil, err
 	}

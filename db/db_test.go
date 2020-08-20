@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
+	ds "github.com/textileio/go-datastore"
 	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
@@ -56,7 +56,6 @@ func TestE2EWithThreads(t *testing.T) {
 	}
 
 	// Boilerplate to generate peer1 thread-addr
-	// @todo: This should be a network method
 	peer1Addr := n1.Host().Addrs()[0]
 	peer1ID, err := multiaddr.NewComponent("p2p", n1.Host().ID().String())
 	checkErr(t, err)
@@ -147,7 +146,7 @@ func TestWithNewName(t *testing.T) {
 		t.Fatalf("expected name %s, got %s", name, d.name)
 	}
 
-	_, key, err := d.GetDBInfo()
+	info, err := d.GetDBInfo()
 	checkErr(t, err)
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
@@ -159,7 +158,7 @@ func TestWithNewName(t *testing.T) {
 	checkErr(t, err)
 	defer n.Close()
 	defer d.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewThreadKey(key))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewThreadKey(info.Key))
 	checkErr(t, err)
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
@@ -192,7 +191,7 @@ func TestWithNewEventCodec(t *testing.T) {
 		t.Fatalf("custom event codec wasn't called")
 	}
 
-	_, key, err := d.GetDBInfo()
+	info, err := d.GetDBInfo()
 	checkErr(t, err)
 
 	// Re-do again to re-use key. If something wasn't closed correctly, would fail
@@ -203,7 +202,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewThreadKey(key))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewThreadKey(info.Key))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }

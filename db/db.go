@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/alecthomas/jsonschema"
-	ds "github.com/ipfs/go-datastore"
-	kt "github.com/ipfs/go-datastore/keytransform"
-	"github.com/ipfs/go-datastore/query"
+	"github.com/dop251/goja"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
-	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	ds "github.com/textileio/go-datastore"
+	kt "github.com/textileio/go-datastore/keytransform"
+	"github.com/textileio/go-datastore/query"
 	threadcbor "github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
@@ -33,6 +33,7 @@ const (
 	getBlockRetries             = 3
 	getBlockInitialTimeout      = time.Millisecond * 500
 	pullThreadBackgroundTimeout = time.Hour
+	createNetRecordTimeout      = time.Second * 15
 )
 
 var (
@@ -47,10 +48,12 @@ var (
 
 	nameRx *regexp.Regexp
 
-	dsPrefix  = ds.NewKey("/db")
-	dsName    = dsPrefix.ChildString("name")
-	dsSchemas = dsPrefix.ChildString("schema")
-	dsIndexes = dsPrefix.ChildString("index")
+	dsPrefix     = ds.NewKey("/db")
+	dsName       = dsPrefix.ChildString("name")
+	dsSchemas    = dsPrefix.ChildString("schema")
+	dsIndexes    = dsPrefix.ChildString("index")
+	dsValidators = dsPrefix.ChildString("validator")
+	dsFilters    = dsPrefix.ChildString("filter")
 )
 
 func init() {
@@ -88,8 +91,8 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption
 		opt(args)
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token), net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey)); err != nil {
-		if !errors.Is(err, lstore.ErrThreadExists) {
+	if _, err := network.CreateThread(ctx, id, net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
+		if !errors.Is(err, lstore.ErrThreadExists) && !errors.Is(err, lstore.ErrLogExists) {
 			return nil, err
 		}
 	}
@@ -105,7 +108,7 @@ func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key 
 		opt(args)
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(args.Token))
+	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token))
 	if err != nil {
 		return nil, err
 	}
@@ -177,18 +180,17 @@ func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 	}
 	d.dispatcher.Register(d)
 
+	connector, err := n.ConnectApp(d, id)
+	if err != nil {
+		return nil, err
+	}
+	d.connector = connector
+
 	for _, cc := range opts.Collections {
 		if _, err := d.NewCollection(cc); err != nil {
 			return nil, err
 		}
 	}
-
-	connector, err := n.ConnectApp(d, id)
-	if err != nil {
-		// @todo: Consider making this fatal again after fixing #400
-		return nil, err
-	}
-	d.connector = connector
 	return d, nil
 }
 
@@ -240,7 +242,20 @@ func (d *DB) reCreateCollections() error {
 		if err := json.Unmarshal(res.Value, schema); err != nil {
 			return err
 		}
-		c, err := newCollection(name, schema, d)
+		wv, err := d.datastore.Get(dsValidators.ChildString(name))
+		if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			return err
+		}
+		rf, err := d.datastore.Get(dsFilters.ChildString(name))
+		if err != nil && !errors.Is(err, ds.ErrNotFound) {
+			return err
+		}
+		c, err := newCollection(d, CollectionConfig{
+			Name:           name,
+			Schema:         schema,
+			WriteValidator: string(wv),
+			ReadFilter:     string(rf),
+		})
 		if err != nil {
 			return err
 		}
@@ -261,42 +276,54 @@ func (d *DB) reCreateCollections() error {
 	return nil
 }
 
-// GetName returns the db name.
-func (d *DB) GetName() string {
-	return d.name
+// Info wraps info about a db.
+type Info struct {
+	Name  string
+	Addrs []ma.Multiaddr
+	Key   thread.Key
 }
 
 // GetDBInfo returns the addresses and key that can be used to join the DB thread.
-func (d *DB) GetDBInfo(opts ...Option) ([]ma.Multiaddr, thread.Key, error) {
+func (d *DB) GetDBInfo(opts ...Option) (info Info, err error) {
 	options := &Options{}
 	for _, opt := range opts {
 		opt(options)
 	}
-
-	tinfo, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
+	thrd, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
 	if err != nil {
-		return nil, thread.Key{}, err
+		return info, err
 	}
-	return tinfo.Addrs, tinfo.Key, nil
+	return Info{
+		Name:  d.name,
+		Addrs: thrd.Addrs,
+		Key:   thrd.Key,
+	}, nil
 }
 
 // CollectionConfig describes a new Collection.
 type CollectionConfig struct {
-	Name    string
-	Schema  *jsonschema.Schema
-	Indexes []Index
+	Name           string
+	Schema         *jsonschema.Schema
+	Indexes        []Index
+	WriteValidator string
+	ReadFilter     string
 }
 
 // NewCollection creates a new db collection with config.
-// @todo: Handle token auth
 func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-
+	args := &Options{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, false); err != nil {
+		return nil, err
+	}
 	if _, ok := d.collections[config.Name]; ok {
 		return nil, ErrCollectionAlreadyRegistered
 	}
-	c, err := newCollection(config.Name, config.Schema, d)
+	c, err := newCollection(d, config)
 	if err != nil {
 		return nil, err
 	}
@@ -312,16 +339,21 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 // UpdateCollection updates an existing db collection with a new config.
 // Indexes to new paths will be created.
 // Indexes to removed paths will be dropped.
-// @todo: Handle token auth
 func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-
+	args := &Options{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, false); err != nil {
+		return nil, err
+	}
 	xc, ok := d.collections[config.Name]
 	if !ok {
 		return nil, ErrCollectionNotFound
 	}
-	c, err := newCollection(config.Name, config.Schema, d)
+	c, err := newCollection(d, config)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +364,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	// Drop indexes that are no longer requested
 	for _, index := range xc.indexes {
 		if _, ok := c.indexes[index.Path]; !ok {
-			if err := c.dropIndex(index.Path, opts...); err != nil {
+			if err := c.dropIndex(index.Path); err != nil {
 				return nil, err
 			}
 		}
@@ -360,30 +392,44 @@ func (d *DB) saveCollection(c *Collection) error {
 	if err := d.datastore.Put(dsSchemas.ChildString(c.name), c.GetSchema()); err != nil {
 		return err
 	}
+	if c.writeValidator != nil {
+		if err := d.datastore.Put(dsValidators.ChildString(c.name), c.writeValidator); err != nil {
+			return err
+		}
+	}
+	if c.readFilter != nil {
+		if err := d.datastore.Put(dsFilters.ChildString(c.name), c.readFilter); err != nil {
+			return err
+		}
+	}
 	d.collections[c.name] = c
 	return nil
 }
 
 // GetCollection returns a collection by name.
-// @todo: Handle token auth
 func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, true); err != nil {
+		return nil
 	}
 	return d.collections[name]
 }
 
 // ListCollections returns all collections.
-// @todo: Handle token auth
 func (d *DB) ListCollections(opts ...Option) []*Collection {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
+	}
+	if err := d.connector.Validate(args.Token, true); err != nil {
+		return nil
 	}
 	list := make([]*Collection, len(d.collections))
 	var i int
@@ -395,15 +441,16 @@ func (d *DB) ListCollections(opts ...Option) []*Collection {
 }
 
 // DeleteCollection deletes collection by name and drops all indexes.
-// @todo: Handle token auth
 func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
 	}
-
+	if err := d.connector.Validate(args.Token, false); err != nil {
+		return err
+	}
 	c, ok := d.collections[name]
 	if !ok {
 		return ErrCollectionNotFound
@@ -416,6 +463,12 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 		return err
 	}
 	if err := txn.Delete(dsSchemas.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Delete(dsValidators.ChildString(c.name)); err != nil {
+		return err
+	}
+	if err := txn.Delete(dsFilters.ChildString(c.name)); err != nil {
 		return err
 	}
 	if err := txn.Commit(); err != nil {
@@ -436,11 +489,6 @@ func (d *DB) Close() error {
 	}
 	d.closed = true
 
-	if d.connector != nil {
-		if err := d.connector.Close(); err != nil {
-			return err
-		}
-	}
 	d.localEventsBus.Discard()
 	if !managedDatastore(d.datastore) {
 		if err := d.datastore.Close(); err != nil {
@@ -491,12 +539,29 @@ func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newDat
 	}
 }
 
-func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, timeout time.Duration) error {
-	if rec.LogID() == lid {
-		return nil // Ignore our own events since DB already dispatches to DB reducers
+func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity thread.PubKey) error {
+	events, err := d.eventcodec.EventsFromBytes(body.RawData())
+	if err != nil {
+		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	if len(events) == 0 {
+		return nil
+	}
+	for _, e := range events {
+		c, ok := d.collections[e.Collection()]
+		if !ok {
+			return ErrCollectionNotFound
+		}
+		return c.validWrite(identity, e)
+	}
+	return nil
+}
+
+func parseJSON(vm *goja.Runtime, val []byte) (goja.Value, error) {
+	return vm.RunString(fmt.Sprintf(`JSON.parse('%s');`, string(val)))
+}
+
+func (d *DB) HandleNetRecord(ctx context.Context, rec net.ThreadRecord, key thread.Key) error {
 	event, err := threadcbor.EventFromRecord(ctx, d.connector.Net, rec.Value())
 	if err != nil {
 		block, err := d.getBlockWithRetry(ctx, rec.Value())
@@ -508,16 +573,16 @@ func (d *DB) HandleNetRecord(rec net.ThreadRecord, key thread.Key, lid peer.ID, 
 			return fmt.Errorf("error when decoding block to event: %v", err)
 		}
 	}
-	node, err := event.GetBody(ctx, d.connector.Net, key.Read())
+	body, err := event.GetBody(ctx, d.connector.Net, key.Read())
 	if err != nil {
 		return fmt.Errorf("error when getting body of event on thread %s/%s: %v", d.connector.ThreadID(), rec.LogID(), err)
 	}
-	dbEvents, err := d.eventsFromBytes(node.RawData())
+	events, err := d.eventcodec.EventsFromBytes(body.RawData())
 	if err != nil {
 		return fmt.Errorf("error when unmarshaling event from bytes: %v", err)
 	}
 	log.Debugf("dispatching new record: %s/%s", rec.ThreadID(), rec.LogID())
-	return d.dispatch(dbEvents)
+	return d.dispatch(events)
 }
 
 // getBlockWithRetry gets a record block with exponential backoff.
@@ -542,12 +607,6 @@ func (d *DB) dispatch(events []core.Event) error {
 	d.txnlock.Lock()
 	defer d.txnlock.Unlock()
 	return d.dispatcher.Dispatch(events)
-}
-
-// eventFromBytes generates an Event from its binary representation using
-// the underlying EventCodec configured in the DB.
-func (d *DB) eventsFromBytes(data []byte) ([]core.Event, error) {
-	return d.eventcodec.EventsFromBytes(data)
 }
 
 func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {

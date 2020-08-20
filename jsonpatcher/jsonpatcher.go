@@ -3,17 +3,18 @@ package jsonpatcher
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	ds "github.com/ipfs/go-datastore"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
+	ds "github.com/textileio/go-datastore"
 	core "github.com/textileio/go-threads/core/db"
 )
 
@@ -22,8 +23,20 @@ type operationType int
 const (
 	create operationType = iota
 	save
-	delete
+	del
 )
+
+func (ot operationType) String() (s string) {
+	switch ot {
+	case create:
+		s = "create"
+	case save:
+		s = "save"
+	case del:
+		s = "delete"
+	}
+	return s
+}
 
 var (
 	log                           = logging.Logger("jsonpatcher")
@@ -47,7 +60,6 @@ func init() {
 	cbornode.RegisterCborType(patchEvent{})
 	cbornode.RegisterCborType(recordEvents{})
 	cbornode.RegisterCborType(operation{})
-	cbornode.RegisterCborType(time.Time{})
 }
 
 // New returns a JSON-Patcher EventCodec
@@ -78,7 +90,7 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 			return nil, nil, err
 		}
 		revents.Patches[i] = patchEvent{
-			Timestamp:      time.Now(),
+			Timestamp:      time.Now().UnixNano(),
 			ID:             actions[i].InstanceID,
 			CollectionName: actions[i].CollectionName,
 			Patch:          *op,
@@ -108,7 +120,7 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 			return false
 		}
 
-		return ei.Timestamp.Before(ej.Timestamp)
+		return ei.Timestamp < ej.Timestamp
 	})
 
 	actions := make([]core.ReduceAction, len(events))
@@ -155,7 +167,7 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 			}
 			actions[i] = core.ReduceAction{Type: core.Save, Collection: e.Collection(), InstanceID: e.InstanceID()}
 			log.Debug("\tsave operation applied")
-		case delete:
+		case del:
 			value, err := txn.Get(key)
 			if err != nil {
 				return nil, err
@@ -220,21 +232,21 @@ func saveEvent(id core.InstanceID, prev []byte, curr []byte) (*operation, error)
 
 func deleteEvent(id core.InstanceID) (*operation, error) {
 	return &operation{
-		Type:       delete,
+		Type:       del,
 		InstanceID: id,
 		JSONPatch:  nil,
 	}, nil
 }
 
 type patchEvent struct {
-	Timestamp      time.Time
+	Timestamp      int64
 	ID             core.InstanceID
 	CollectionName string
 	Patch          operation
 }
 
 func (je patchEvent) Time() []byte {
-	t := je.Timestamp.UnixNano()
+	t := je.Timestamp
 	buf := new(bytes.Buffer)
 	// Use big endian to preserve lexicographic sorting
 	_ = binary.Write(buf, binary.BigEndian, t)
@@ -247,6 +259,36 @@ func (je patchEvent) InstanceID() core.InstanceID {
 
 func (je patchEvent) Collection() string {
 	return je.CollectionName
+}
+
+type patchEventJson struct {
+	Timestamp      int64         `json:"timestamp"`
+	ID             string        `json:"_id"`
+	CollectionName string        `json:"collection_name"`
+	Patch          operationJson `json:"patch"`
+}
+
+type operationJson struct {
+	Type       string      `json:"type"`
+	InstanceID string      `json:"instance_id"`
+	JSONPatch  interface{} `json:"json_patch"`
+}
+
+func (je patchEvent) Marshal() ([]byte, error) {
+	var patch interface{}
+	if err := json.Unmarshal(je.Patch.JSONPatch, &patch); err != nil {
+		return nil, err
+	}
+	return json.Marshal(patchEventJson{
+		Timestamp:      je.Timestamp,
+		ID:             string(je.ID),
+		CollectionName: je.CollectionName,
+		Patch: operationJson{
+			Type:       je.Patch.Type.String(),
+			InstanceID: string(je.Patch.InstanceID),
+			JSONPatch:  patch,
+		},
+	})
 }
 
 var _ core.Event = (*patchEvent)(nil)

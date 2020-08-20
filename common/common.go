@@ -7,8 +7,7 @@ import (
 	"time"
 
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	"github.com/ipfs/go-datastore"
-	badger "github.com/ipfs/go-ds-badger"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	cconnmgr "github.com/libp2p/go-libp2p-core/connmgr"
@@ -102,7 +101,7 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		cancel()
 		return nil, err
 	}
-	logstore, err := badger.NewDatastore(logstorePath, &badger.DefaultOptions)
+	logstore, err := ipfslite.BadgerDatastore(logstorePath)
 	if err != nil {
 		cancel()
 		litestore.Close()

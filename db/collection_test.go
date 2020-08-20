@@ -102,6 +102,48 @@ func TestNewCollection(t *testing.T) {
 			t.Fatalf("expected %d indexes, got %d", 2, len(indexes))
 		}
 	})
+	t.Run("WithWriteValidator", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:           "Dog",
+			Schema:         util.SchemaFromInstance(&Dog{}, false),
+			WriteValidator: `return true`,
+		})
+		checkErr(t, err)
+		dog := Dog{Name: "Fido", Comments: []Comment{}}
+		id, err := c.Create(util.JSONFromInstance(dog))
+		checkErr(t, err)
+		dog.ID = id
+		dog.Name = "Clyde"
+		err = c.Save(util.JSONFromInstance(dog))
+		checkErr(t, err)
+	})
+	t.Run("WithReadFilter", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			ReadFilter: `
+				instance.Name = "Clyde"
+				return instance
+			`,
+		})
+		checkErr(t, err)
+		dog := Dog{Name: "Fido", Comments: []Comment{}}
+		id, err := c.Create(util.JSONFromInstance(dog))
+		checkErr(t, err)
+		res, err := c.FindByID(id)
+		checkErr(t, err)
+		filtered := Dog{}
+		util.InstanceFromJSON(res, &filtered)
+		if filtered.Name != "Clyde" {
+			t.Fatal("name should have been modified by read filter")
+		}
+	})
 	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
@@ -828,7 +870,7 @@ func TestDeleteInstance(t *testing.T) {
 }
 
 type PersonFake struct {
-	ID   core.InstanceID
+	ID   core.InstanceID `json:"_id"`
 	Name string
 }
 

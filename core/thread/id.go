@@ -353,9 +353,10 @@ type Info struct {
 	Addrs []ma.Multiaddr
 }
 
-// GetOwnLog returns the first log found with a private key.
+// GetFirstPrivKeyLog returns the first log found with a private key.
 // This is a strict owership check, vs returning all directly 'managed' logs.
-func (i Info) GetOwnLog() *LogInfo {
+// Deprecated: This is no longer safe to use.
+func (i Info) GetFirstPrivKeyLog() *LogInfo {
 	for _, lg := range i.Logs {
 		if lg.PrivKey != nil {
 			return &lg

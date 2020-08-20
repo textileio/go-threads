@@ -6,11 +6,11 @@ import (
 	"io"
 	"strings"
 
-	ds "github.com/ipfs/go-datastore"
-	kt "github.com/ipfs/go-datastore/keytransform"
-	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
+	ds "github.com/textileio/go-datastore"
+	kt "github.com/textileio/go-datastore/keytransform"
+	"github.com/textileio/go-datastore/query"
 	"github.com/textileio/go-threads/core/app"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -127,7 +127,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 		return nil, ErrInvalidName
 	}
 
-	if _, err := m.network.CreateThread(ctx, id, net.WithNewThreadToken(args.Token)); err != nil {
+	if _, err := m.network.CreateThread(ctx, id, net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
 
@@ -162,7 +162,7 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, ErrInvalidName
 	}
 
-	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithNewThreadToken(args.Token)); err != nil {
+	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
 

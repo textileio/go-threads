@@ -15,9 +15,9 @@
     "threadsnet_pb_service.d.ts"
   ],
   "dependencies": {
-    "@improbable-eng/grpc-web": "^0.12.0",
-    "@types/google-protobuf": "^3.7.2",
-    "google-protobuf": "^3.12.1"
+    "@improbable-eng/grpc-web": "^0.13.0",
+    "@types/google-protobuf": "^3.7.3",
+    "google-protobuf": "^3.13.0"
   },
   "devDependencies": {
     "ts-protoc-gen": "^0.12.0"

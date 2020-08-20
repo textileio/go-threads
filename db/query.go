@@ -288,6 +288,9 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 
 // Find queries for instances by Query
 func (t *Txn) Find(q *Query) ([][]byte, error) {
+	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
+		return nil, err
+	}
 	if q == nil {
 		q = &Query{}
 	}
@@ -302,13 +305,23 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 	iter := newIterator(txn, t.collection.baseKey(), q)
 	defer iter.Close()
 
+	pk, err := t.token.PubKey()
+	if err != nil {
+		return nil, err
+	}
 	var values []MarshaledResult
 	for {
 		res, ok := iter.NextSync()
 		if !ok {
 			break
 		}
-		values = append(values, res)
+		res.Value, err = t.collection.filterRead(pk, res.Value)
+		if err != nil {
+			return nil, err
+		}
+		if res.Value != nil {
+			values = append(values, res)
+		}
 	}
 
 	if q.Sort.FieldPath != "" && q.Sort.FieldPath != idFieldName {

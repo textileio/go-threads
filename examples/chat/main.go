@@ -13,7 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	"github.com/ipfs/go-datastore"
+	datastore "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log"
@@ -451,7 +451,7 @@ func threadAddressCmd(id thread.ID) (out string, err error) {
 	if err != nil {
 		return
 	}
-	lg := info.GetOwnLog()
+	lg := info.GetFirstPrivKeyLog()
 	if lg == nil {
 		lg = &thread.LogInfo{}
 	}

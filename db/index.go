@@ -12,8 +12,8 @@ import (
 	"sort"
 
 	"github.com/alecthomas/jsonschema"
-	ds "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-datastore/query"
+	ds "github.com/textileio/go-datastore"
+	"github.com/textileio/go-datastore/query"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -68,11 +68,10 @@ func (c *Collection) GetIndexes() []Index {
 // Adding an index will override any overlapping index values if they already exist.
 // @note: This does NOT currently build the index. If items have been added prior to adding
 // a new index, they will NOT be indexed a posteriori.
-// @todo: Handle token auth
 func (c *Collection) addIndex(schema *jsonschema.Schema, index Index, opts ...Option) error {
-	options := &Options{}
+	args := &Options{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
 	}
 
 	// Don't allow the default index to be overwritten
@@ -106,7 +105,7 @@ func (c *Collection) addIndex(schema *jsonschema.Schema, index Index, opts ...Op
 	// Ensure collection does not contain multiple instances with the same value at path
 	if index.Unique && index.Path != idFieldName {
 		vals := make(map[interface{}]struct{})
-		all, err := c.Find(&Query{}, WithTxnToken(options.Token))
+		all, err := c.Find(&Query{}, WithTxnToken(args.Token))
 		if err != nil {
 			return err
 		}
@@ -128,13 +127,7 @@ func (c *Collection) addIndex(schema *jsonschema.Schema, index Index, opts ...Op
 }
 
 // dropIndex drops the index at path.
-// @todo: Handle token auth
-func (c *Collection) dropIndex(pth string, opts ...Option) error {
-	options := &Options{}
-	for _, opt := range opts {
-		opt(options)
-	}
-
+func (c *Collection) dropIndex(pth string) error {
 	// Don't allow the default index to be dropped
 	if pth == idFieldName {
 		return errors.New(idFieldName + " index cannot be dropped")

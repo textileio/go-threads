@@ -424,5 +424,8 @@ func threadRecordFromProto(reply *pb.NewRecordReply, key crypto.DecryptionKey) (
 	if err != nil {
 		return nil, err
 	}
-	return net.NewRecord(rec, threadID, logID)
+	if err = threadID.Validate(); err != nil {
+		return nil, err
+	}
+	return net.NewRecord(rec, threadID, logID), nil
 }

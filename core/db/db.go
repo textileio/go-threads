@@ -4,9 +4,9 @@ import (
 	"crypto/rand"
 	"strings"
 
-	ds "github.com/ipfs/go-datastore"
 	format "github.com/ipfs/go-ipld-format"
 	ulid "github.com/oklog/ulid/v2"
+	ds "github.com/textileio/go-datastore"
 )
 
 const (
@@ -36,6 +36,8 @@ type Event interface {
 	InstanceID() InstanceID
 	// Collection is the associated instance's collection name.
 	Collection() string
+	// Marshal the event to JSON.
+	Marshal() ([]byte, error)
 }
 
 // ActionType is the type used by actions done in a txn.
