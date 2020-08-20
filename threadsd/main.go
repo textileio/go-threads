@@ -55,7 +55,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	util.SetupDefaultLoggingConfig(*repo)
+	if err := util.SetupDefaultLoggingConfig(*repo); err != nil {
+		log.Fatal(err)
+	}
 	if *debug {
 		if err := logging.SetLogLevel("threadsd", "debug"); err != nil {
 			log.Fatal(err)

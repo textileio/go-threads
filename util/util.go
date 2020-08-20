@@ -11,7 +11,7 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	swarm "github.com/libp2p/go-libp2p-swarm"
@@ -38,11 +38,20 @@ func CanDial(addr ma.Multiaddr, s *swarm.Swarm) bool {
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
-func SetupDefaultLoggingConfig(repoPath string) {
-	_ = os.Setenv("GOLOG_LOG_FMT", "color")
-	_ = os.Setenv("GOLOG_FILE", filepath.Join(repoPath, "log", "threads.log"))
-	logging.SetupLogging()
-	logging.SetAllLoggers(logging.LevelError)
+func SetupDefaultLoggingConfig(repoPath string) error {
+	folder := filepath.Join(repoPath, "log")
+	if err := os.MkdirAll(folder, os.ModePerm); err != nil {
+		return err
+	}
+	c := logging.Config{
+		Format: logging.ColorizedOutput,
+		Stderr: true,
+		File:   filepath.Join(folder, "threads.log"),
+		Level:  logging.LevelError,
+	}
+	logging.SetupLogging(c)
+
+	return nil
 }
 
 // SetLogLevels sets levels for the given systems.
