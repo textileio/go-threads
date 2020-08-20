@@ -5,8 +5,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/peer"
-	ds "github.com/textileio/go-datastore"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/pb"

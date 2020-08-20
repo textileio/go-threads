@@ -17,7 +17,6 @@ import (
 	"github.com/libp2p/go-libp2p-kad-dht/dual"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
-	badger "github.com/textileio/go-ds-badger"
 	"github.com/textileio/go-threads/core/app"
 	"github.com/textileio/go-threads/logstore/lstoreds"
 	"github.com/textileio/go-threads/net"
@@ -102,7 +101,7 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		cancel()
 		return nil, err
 	}
-	logstore, err := badger.NewDatastore(logstorePath, &badger.DefaultOptions)
+	logstore, err := ipfslite.BadgerDatastore(logstorePath)
 	if err != nil {
 		cancel()
 		litestore.Close()

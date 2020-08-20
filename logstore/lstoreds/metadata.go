@@ -5,8 +5,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	ds "github.com/textileio/go-datastore"
-	"github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/whyrusleeping/base32"

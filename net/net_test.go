@@ -7,6 +7,8 @@ import (
 	"time"
 
 	bserv "github.com/ipfs/go-blockservice"
+	ds "github.com/ipfs/go-datastore"
+	syncds "github.com/ipfs/go-datastore/sync"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
 	cbornode "github.com/ipfs/go-ipld-cbor"
@@ -16,8 +18,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
-	ds "github.com/textileio/go-datastore"
-	syncds "github.com/textileio/go-datastore/sync"
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"

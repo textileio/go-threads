@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	query "github.com/textileio/go-datastore/query"
+	query "github.com/ipfs/go-datastore/query"
 	pb "github.com/textileio/go-threads/net/pb"
 )
 
