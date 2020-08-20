@@ -1117,9 +1117,8 @@ func (n *net) createLog(id thread.ID, key crypto.Key, identity thread.PubKey) (i
 	return info, nil
 }
 
-// getOrCreateOwnLoad returns the first log 'owned' by the host under the given thread.
-// If no log exists, a new one is created under the given thread and returned.
-// This is a strict 'ownership' check vs returning managed logs.
+// getOrCreateLog returns a log for identity under the given thread.
+// If no log exists, a new one is created.
 func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.LogInfo, err error) {
 	if identity == nil {
 		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())

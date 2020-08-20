@@ -34,7 +34,7 @@ var (
 	ErrInvalidSchemaInstance = errors.New("instance doesn't correspond to schema")
 
 	errMissingInstanceID           = errors.New("invalid instance: missing _id attribute")
-	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/commited txn")
+	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/committed txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
@@ -312,7 +312,7 @@ type Txn struct {
 	collection *Collection
 	token      thread.Token
 	discarded  bool
-	commited   bool
+	committed  bool
 	readonly   bool
 
 	actions []core.Action
@@ -445,6 +445,9 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 			return false, err
 		}
 		if exists {
+			if t.collection.readFilter == nil {
+				continue
+			}
 			bytes, err := t.collection.db.datastore.Get(key)
 			if err != nil {
 				return false, err
@@ -494,7 +497,7 @@ func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 // to the collection. This is a syncrhonous call so changes can
 // be assumed to be applied on function return.
 func (t *Txn) Commit() error {
-	if t.discarded || t.commited {
+	if t.discarded || t.committed {
 		return errAlreadyDiscardedCommitedTxn
 	}
 	events, node, err := t.collection.db.eventcodec.Create(t.actions)

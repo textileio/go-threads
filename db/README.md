@@ -133,7 +133,7 @@ Main responsibility: Delivering durable persistence for data.
 #### Local Event Bus
 This is an internal component not available in the public API.
 Main responsibility: Deliver `format.Node` encoded information of changes 
-done in local commited transactions. Currently, only to `SingleThreadAdapter` 
+done in local committed transactions. Currently, only to `SingleThreadAdapter` 
 is listening to this bus. 
 
 

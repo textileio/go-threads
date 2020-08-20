@@ -29,7 +29,7 @@ const busTimeout = time.Second * 10
 // App provides a bidirectional hook for thread-based apps.
 type App interface {
 	// ValidateNetRecordBody provides the app an opportunity to validate the contents
-	// of a record before it's commited to a thread log.
+	// of a record before it's committed to a thread log.
 	// identity is the author's public key.
 	ValidateNetRecordBody(ctx context.Context, body format.Node, identity thread.PubKey) error
 
