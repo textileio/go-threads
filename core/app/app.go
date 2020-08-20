@@ -105,7 +105,7 @@ type Net interface {
 	ConnectApp(App, thread.ID) (*Connector, error)
 
 	// Validate thread ID and token against the net host.
-	// If token is present and was issued the nest host (is valid), the embedded public key is returned.
+	// If token is present and was issued the net host (is valid), the embedded public key is returned.
 	// If token is not present, both the returned public key and error will be nil.
 	Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error)
 }

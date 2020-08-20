@@ -16,7 +16,6 @@ import (
 
 // Basic benchmarking template. Currently, shows marked speedups for indexes queries.
 // The following tests don't push the limits of this in order to keep CI runs shorter.
-// @todo: Run more nuanced benchmarks.
 
 const (
 	testBenchSchema = `{
@@ -127,8 +126,8 @@ func BenchmarkNoIndexSave(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < len(res); i++ {
-		updated, err := sjson.SetBytes(benchItem, "_id", res[i].String())
+	for i := 0; i < b.N; i++ {
+		updated, err := sjson.SetBytes(benchItem, "_id", res[0].String())
 		if err != nil {
 			b.Fatalf("Error setting instance id: %s", err)
 		}
@@ -162,8 +161,8 @@ func BenchmarkIndexSave(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < len(res); i++ {
-		updated, err := sjson.SetBytes(benchItem, "_id", res[i].String())
+	for i := 0; i < b.N; i++ {
+		updated, err := sjson.SetBytes(benchItem, "_id", res[0].String())
 		if err != nil {
 			b.Fatalf("Error setting instance id: %s", err)
 		}

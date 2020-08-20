@@ -587,10 +587,7 @@ func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 }
 
 func compileJSFunc(v []byte, args ...string) ([]byte, error) {
-	if v != nil && len(v) == 0 {
-		v = nil
-	}
-	if v == nil {
+	if len(v) == 0 {
 		return nil, nil
 	}
 	script := fmt.Sprintf(`function _fn(%s) {%s}`, strings.Join(args, ","), string(v))
