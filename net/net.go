@@ -1137,7 +1137,7 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 		if ownLog != nil {
 			return *ownLog, nil
 		}
-	} else {
+	} else if lidb != nil {
 		lid, err := peer.IDFromBytes(*lidb)
 		if err != nil {
 			return info, err
