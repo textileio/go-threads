@@ -121,7 +121,7 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, net.Config{
 		Debug:  config.Debug,
 		PubSub: config.PubSub,
-	}, config.GRPCOptions...)
+	}, config.GRPCOptions, config.GRPCInternalOptions)
 	if err != nil {
 		cancel()
 		if err := logstore.Close(); err != nil {
@@ -144,11 +144,12 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 }
 
 type NetConfig struct {
-	HostAddr    ma.Multiaddr
-	ConnManager cconnmgr.ConnManager
-	Debug       bool
-	GRPCOptions []grpc.ServerOption
-	PubSub      bool
+	HostAddr            ma.Multiaddr
+	ConnManager         cconnmgr.ConnManager
+	Debug               bool
+	GRPCOptions         []grpc.ServerOption
+	GRPCInternalOptions []grpc.DialOption
+	PubSub              bool
 }
 
 type NetOption func(c *NetConfig) error
@@ -177,6 +178,13 @@ func WithNetDebug(enabled bool) NetOption {
 func WithNetGRPCOptions(opts ...grpc.ServerOption) NetOption {
 	return func(c *NetConfig) error {
 		c.GRPCOptions = opts
+		return nil
+	}
+}
+
+func WithNetGRPCInternalOptions(opts ...grpc.DialOption) NetOption {
+	return func(c *NetConfig) error {
+		c.GRPCInternalOptions = opts
 		return nil
 	}
 }

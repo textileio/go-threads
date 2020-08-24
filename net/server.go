@@ -25,15 +25,25 @@ type server struct {
 	sync.Mutex
 	net   *net
 	ps    *PubSub
+	opts  []grpc.DialOption
 	conns map[peer.ID]*grpc.ClientConn
 }
 
 // newServer creates a new network server.
-func newServer(n *net, enablePubSub bool) (*server, error) {
-	s := &server{
-		net:   n,
-		conns: make(map[peer.ID]*grpc.ClientConn),
-	}
+func newServer(n *net, enablePubSub bool, opts ...grpc.DialOption) (*server, error) {
+	var (
+		s = &server{
+			net:   n,
+			conns: make(map[peer.ID]*grpc.ClientConn),
+		}
+
+		defaultOpts = []grpc.DialOption{
+			s.getLibp2pDialer(),
+			grpc.WithInsecure(),
+		}
+	)
+
+	s.opts = append(defaultOpts, opts...)
 
 	if enablePubSub {
 		ps, err := pubsub.NewGossipSub(

@@ -404,7 +404,7 @@ func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), DialTimeout)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.getLibp2pDialer(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.opts...)
 	if err != nil {
 		return nil, err
 	}

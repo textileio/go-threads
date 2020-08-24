@@ -82,7 +82,16 @@ type Config struct {
 }
 
 // NewNetwork creates an instance of net from the given host and thread store.
-func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds format.DAGService, ls lstore.Logstore, conf Config, opts ...grpc.ServerOption) (app.Net, error) {
+func NewNetwork(
+	ctx context.Context,
+	h host.Host,
+	bstore bs.Blockstore,
+	ds format.DAGService,
+	ls lstore.Logstore,
+	conf Config,
+	serverOpts []grpc.ServerOption,
+	internalOpts []grpc.DialOption,
+) (app.Net, error) {
 	var err error
 	if conf.Debug {
 		if err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -99,14 +108,15 @@ func NewNetwork(ctx context.Context, h host.Host, bstore bs.Blockstore, ds forma
 		host:       h,
 		bstore:     bstore,
 		store:      ls,
-		rpc:        grpc.NewServer(opts...),
+		rpc:        grpc.NewServer(serverOpts...),
 		bus:        broadcast.NewBroadcaster(0),
 		connectors: make(map[thread.ID]*app.Connector),
 		ctx:        ctx,
 		cancel:     cancel,
 		pullLocks:  make(map[thread.ID]chan struct{}),
 	}
-	t.server, err = newServer(t, conf.PubSub)
+
+	t.server, err = newServer(t, conf.PubSub, internalOpts...)
 	if err != nil {
 		return nil, err
 	}
