@@ -89,8 +89,8 @@ func NewNetwork(
 	ds format.DAGService,
 	ls lstore.Logstore,
 	conf Config,
-	serverOpts []grpc.ServerOption,
-	internalOpts []grpc.DialOption,
+	serverOptions []grpc.ServerOption,
+	dialOptions []grpc.DialOption,
 ) (app.Net, error) {
 	var err error
 	if conf.Debug {
@@ -108,7 +108,7 @@ func NewNetwork(
 		host:       h,
 		bstore:     bstore,
 		store:      ls,
-		rpc:        grpc.NewServer(serverOpts...),
+		rpc:        grpc.NewServer(serverOptions...),
 		bus:        broadcast.NewBroadcaster(0),
 		connectors: make(map[thread.ID]*app.Connector),
 		ctx:        ctx,
@@ -116,7 +116,7 @@ func NewNetwork(
 		pullLocks:  make(map[thread.ID]chan struct{}),
 	}
 
-	t.server, err = newServer(t, conf.PubSub, internalOpts...)
+	t.server, err = newServer(t, conf.PubSub, dialOptions...)
 	if err != nil {
 		return nil, err
 	}
