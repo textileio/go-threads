@@ -271,13 +271,15 @@ type patchEventJson struct {
 type operationJson struct {
 	Type       string      `json:"type"`
 	InstanceID string      `json:"instance_id"`
-	JSONPatch  interface{} `json:"json_patch"`
+	JSONPatch  interface{} `json:"json_patch,omitempty"`
 }
 
 func (je patchEvent) Marshal() ([]byte, error) {
 	var patch interface{}
-	if err := json.Unmarshal(je.Patch.JSONPatch, &patch); err != nil {
-		return nil, err
+	if je.Patch.JSONPatch != nil {
+		if err := json.Unmarshal(je.Patch.JSONPatch, &patch); err != nil {
+			return nil, err
+		}
 	}
 	return json.Marshal(patchEventJson{
 		Timestamp:      je.Timestamp,
