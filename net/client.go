@@ -111,13 +111,13 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 
 	client, err := s.dial(pid)
 	if err != nil {
-		return fmt.Errorf("dial %s failed: %s", pid, err)
+		return fmt.Errorf("dial %s failed: %w", pid, err)
 	}
 	cctx, cancel := context.WithTimeout(ctx, PushTimeout)
 	defer cancel()
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
-		return fmt.Errorf("push log to %s failed: %s", pid, err)
+		return fmt.Errorf("push log to %s failed: %w", pid, err)
 	}
 	return err
 }
@@ -417,12 +417,12 @@ func (s *server) getLibp2pDialer() grpc.DialOption {
 	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (nnet.Conn, error) {
 		id, err := peer.Decode(peerIDStr)
 		if err != nil {
-			return nil, fmt.Errorf("grpc tried to dial non peerID: %s", err)
+			return nil, fmt.Errorf("grpc tried to dial non peerID: %w", err)
 		}
 
 		conn, err := gostream.Dial(ctx, s.net.host, id, thread.Protocol)
 		if err != nil {
-			return nil, fmt.Errorf("gostream dial failed: %s", err.Error())
+			return nil, fmt.Errorf("gostream dial failed: %w", err)
 		}
 
 		return conn, nil
