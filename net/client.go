@@ -26,9 +26,11 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-const (
+var (
 	// DialTimeout is the max time duration to wait when dialing a peer.
 	DialTimeout = time.Second * 10
+	PushTimeout = time.Second * 10
+	PullTimeout = time.Second * 10
 )
 
 // getLogs in a thread.
@@ -63,7 +65,7 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 	if err != nil {
 		return nil, err
 	}
-	cctx, cancel := context.WithTimeout(ctx, DialTimeout)
+	cctx, cancel := context.WithTimeout(ctx, PullTimeout)
 	defer cancel()
 	reply, err := client.GetLogs(cctx, req)
 	if err != nil {
@@ -109,13 +111,13 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 
 	client, err := s.dial(pid)
 	if err != nil {
-		return fmt.Errorf("dial %s failed: %s", pid, err)
+		return fmt.Errorf("dial %s failed: %w", pid, err)
 	}
-	cctx, cancel := context.WithTimeout(ctx, DialTimeout)
+	cctx, cancel := context.WithTimeout(ctx, PushTimeout)
 	defer cancel()
 	_, err = client.PushLog(cctx, lreq)
 	if err != nil {
-		return fmt.Errorf("push log to %s failed: %s", pid, err)
+		return fmt.Errorf("push log to %s failed: %w", pid, err)
 	}
 	return err
 }
@@ -232,7 +234,7 @@ func (s *server) getRecords(ctx context.Context, id thread.ID, lid peer.ID, offs
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			cctx, cancel := context.WithTimeout(ctx, DialTimeout)
+			cctx, cancel := context.WithTimeout(ctx, PullTimeout)
 			defer cancel()
 			reply, err := client.GetRecords(cctx, req)
 			if err != nil {
@@ -337,7 +339,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 				log.Errorf("dial %s failed: %s", p, err)
 				return
 			}
-			cctx, cancel := context.WithTimeout(context.Background(), DialTimeout)
+			cctx, cancel := context.WithTimeout(context.Background(), PushTimeout)
 			defer cancel()
 			if _, err = client.PushRecord(cctx, req); err != nil {
 				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
@@ -402,7 +404,7 @@ func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), DialTimeout)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.getLibp2pDialer(), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, peerID.Pretty(), s.opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -415,9 +417,15 @@ func (s *server) getLibp2pDialer() grpc.DialOption {
 	return grpc.WithContextDialer(func(ctx context.Context, peerIDStr string) (nnet.Conn, error) {
 		id, err := peer.Decode(peerIDStr)
 		if err != nil {
-			return nil, fmt.Errorf("grpc tried to dial non peerID: %s", err)
+			return nil, fmt.Errorf("grpc tried to dial non peerID: %w", err)
 		}
-		return gostream.Dial(ctx, s.net.host, id, thread.Protocol)
+
+		conn, err := gostream.Dial(ctx, s.net.host, id, thread.Protocol)
+		if err != nil {
+			return nil, fmt.Errorf("gostream dial failed: %w", err)
+		}
+
+		return conn, nil
 	})
 }
 

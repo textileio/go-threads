@@ -447,7 +447,7 @@ func makeNetwork(t *testing.T) core.Net {
 		Config{
 			Debug:  true,
 			PubSub: true,
-		})
+		}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
