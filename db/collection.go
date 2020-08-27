@@ -41,15 +41,23 @@ var (
 	baseKey = dsPrefix.ChildString("collection")
 )
 
+const (
+	writeValidatorFn = "_validate"
+	readFilterFn     = "_filter"
+)
+
 // Collection is a group of instances sharing a schema.
 // Collections are like RDBMS tables. They can only exist in a single database.
 type Collection struct {
-	name           string
-	schemaLoader   gojsonschema.JSONLoader
-	db             *DB
-	indexes        map[string]Index
-	writeValidator []byte
-	readFilter     []byte
+	name              string
+	schemaLoader      gojsonschema.JSONLoader
+	db                *DB
+	indexes           map[string]Index
+	vm                *goja.Runtime
+	rawWriteValidator []byte
+	writeValidator    goja.Callable
+	rawReadFilter     []byte
+	readFilter        goja.Callable
 }
 
 // newCollection returns a new Collection from schema.
@@ -71,22 +79,39 @@ func newCollection(d *DB, config CollectionConfig) (*Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	wv, err := compileJSFunc([]byte(config.WriteValidator), "writer", "event", "instance")
+	vm := goja.New()
+	wv := []byte(config.WriteValidator)
+	rf := []byte(config.ReadFilter)
+	c := &Collection{
+		name:              config.Name,
+		schemaLoader:      gojsonschema.NewBytesLoader(sb),
+		db:                d,
+		indexes:           make(map[string]Index),
+		vm:                vm,
+		rawWriteValidator: wv,
+		rawReadFilter:     rf,
+	}
+	wvObj, err := compileJSFunc(wv, writeValidatorFn, "writer", "event", "instance")
 	if err != nil {
 		return nil, err
 	}
-	rf, err := compileJSFunc([]byte(config.ReadFilter), "reader", "instance")
+	if wvObj != nil {
+		c.writeValidator, err = loadJSFunc(vm, writeValidatorFn, wvObj)
+		if err != nil {
+			return nil, err
+		}
+	}
+	rfObj, err := compileJSFunc(rf, readFilterFn, "reader", "instance")
 	if err != nil {
 		return nil, err
 	}
-	return &Collection{
-		name:           config.Name,
-		schemaLoader:   gojsonschema.NewBytesLoader(sb),
-		db:             d,
-		indexes:        make(map[string]Index),
-		writeValidator: wv,
-		readFilter:     rf,
-	}, nil
+	if rfObj != nil {
+		c.readFilter, err = loadJSFunc(vm, readFilterFn, rfObj)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c, nil
 }
 
 // baseKey returns the collections base key.
@@ -102,6 +127,16 @@ func (c *Collection) GetName() string {
 // GetSchema returns the current collection schema.
 func (c *Collection) GetSchema() []byte {
 	return c.schemaLoader.JsonSource().([]byte)
+}
+
+// GetWriteValidator returns the current collection write validator.
+func (c *Collection) GetWriteValidator() []byte {
+	return c.rawWriteValidator
+}
+
+// GetReadFilter returns the current collection read filter.
+func (c *Collection) GetReadFilter() []byte {
+	return c.rawReadFilter
 }
 
 // ReadTxn creates an explicit readonly transaction. Any operation
@@ -236,8 +271,7 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 	if c.writeValidator == nil {
 		return nil
 	}
-	vm := goja.New()
-	validate, writer, err := getJSFunc(vm, c.writeValidator, identity)
+	writer, err := loadJSIdentity(c.vm, identity)
 	if err != nil {
 		return err
 	}
@@ -245,7 +279,7 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 	if err != nil {
 		return fmt.Errorf("marshal event in validate write: %v", err)
 	}
-	event, err := parseJSON(vm, data)
+	event, err := parseJSON(c.vm, data)
 	if err != nil {
 		return fmt.Errorf("parsing event in validate write: %v", err)
 	}
@@ -255,12 +289,12 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 		return err
 	}
 	if val != nil {
-		inv, err = parseJSON(vm, val)
+		inv, err = parseJSON(c.vm, val)
 		if err != nil {
 			return fmt.Errorf("parsing instance in validate write: %v", err)
 		}
 	}
-	res, err := validate(nil, writer, event, inv)
+	res, err := c.writeValidator(nil, writer, event, inv)
 	if err != nil {
 		return fmt.Errorf("running write validator func: %v", err)
 	}
@@ -284,16 +318,15 @@ func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte
 	if c.readFilter == nil {
 		return instance, nil
 	}
-	vm := goja.New()
-	filter, reader, err := getJSFunc(vm, c.readFilter, identity)
+	reader, err := loadJSIdentity(c.vm, identity)
 	if err != nil {
 		return nil, err
 	}
-	inv, err := parseJSON(vm, instance)
+	inv, err := parseJSON(c.vm, instance)
 	if err != nil {
 		return nil, fmt.Errorf("parsing instance in filter read: %v", err)
 	}
-	res, err := filter(nil, reader, inv)
+	res, err := c.readFilter(nil, reader, inv)
 	if err != nil {
 		return nil, fmt.Errorf("running read filter func: %v", err)
 	}
@@ -586,11 +619,11 @@ func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 	return newID, patchedValue
 }
 
-func compileJSFunc(v []byte, args ...string) ([]byte, error) {
+func compileJSFunc(v []byte, name string, args ...string) ([]byte, error) {
 	if len(v) == 0 {
 		return nil, nil
 	}
-	script := fmt.Sprintf(`function _fn(%s) {%s}`, strings.Join(args, ","), string(v))
+	script := fmt.Sprintf(`function %s(%s) {%s}`, name, strings.Join(args, ","), string(v))
 	script = strings.Replace(script, "\t", "", -1)
 	if _, err := goja.Compile("", script, true); err != nil {
 		return nil, fmt.Errorf("compiling js func: %v", err)
@@ -598,21 +631,21 @@ func compileJSFunc(v []byte, args ...string) ([]byte, error) {
 	return []byte(script), nil
 }
 
-func getJSFunc(vm *goja.Runtime, obj []byte, id thread.PubKey) (goja.Callable, goja.Value, error) {
+func loadJSFunc(vm *goja.Runtime, name string, obj []byte) (goja.Callable, error) {
 	_, err := vm.RunString(string(obj))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	fn, ok := goja.AssertFunction(vm.Get("_fn"))
+	fn, ok := goja.AssertFunction(vm.Get(name))
 	if !ok {
-		return nil, nil, fmt.Errorf("object is not a function: %s", string(obj))
+		return nil, fmt.Errorf("object is not a function: %s", string(obj))
 	}
-	var idv goja.Value
-	if id != nil {
-		idv, err = vm.RunString(fmt.Sprintf("'%s'", id.String()))
-		if err != nil {
-			return nil, nil, err
-		}
+	return fn, nil
+}
+
+func loadJSIdentity(vm *goja.Runtime, identity thread.PubKey) (goja.Value, error) {
+	if identity == nil {
+		return nil, nil
 	}
-	return fn, idv, nil
+	return vm.RunString(fmt.Sprintf("'%s'", identity.String()))
 }

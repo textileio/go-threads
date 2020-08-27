@@ -392,13 +392,13 @@ func (d *DB) saveCollection(c *Collection) error {
 	if err := d.datastore.Put(dsSchemas.ChildString(c.name), c.GetSchema()); err != nil {
 		return err
 	}
-	if c.writeValidator != nil {
-		if err := d.datastore.Put(dsValidators.ChildString(c.name), c.writeValidator); err != nil {
+	if c.rawWriteValidator != nil {
+		if err := d.datastore.Put(dsValidators.ChildString(c.name), c.rawWriteValidator); err != nil {
 			return err
 		}
 	}
-	if c.readFilter != nil {
-		if err := d.datastore.Put(dsFilters.ChildString(c.name), c.readFilter); err != nil {
+	if c.rawReadFilter != nil {
+		if err := d.datastore.Put(dsFilters.ChildString(c.name), c.rawReadFilter); err != nil {
 			return err
 		}
 	}

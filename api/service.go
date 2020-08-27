@@ -402,9 +402,11 @@ func (s *Service) GetCollectionInfo(ctx context.Context, req *pb.GetCollectionIn
 		return nil, err
 	}
 	return &pb.GetCollectionInfoReply{
-		Name:    collection.GetName(),
-		Schema:  collection.GetSchema(),
-		Indexes: indexesToPb(collection.GetIndexes()),
+		Name:           collection.GetName(),
+		Schema:         collection.GetSchema(),
+		Indexes:        indexesToPb(collection.GetIndexes()),
+		WriteValidator: string(collection.GetWriteValidator()),
+		ReadFilter:     string(collection.GetReadFilter()),
 	}, nil
 }
 
@@ -454,9 +456,11 @@ func (s *Service) ListCollections(ctx context.Context, req *pb.ListCollectionsRe
 	pblist := make([]*pb.GetCollectionInfoReply, len(list))
 	for i, c := range list {
 		pblist[i] = &pb.GetCollectionInfoReply{
-			Name:    c.GetName(),
-			Schema:  c.GetSchema(),
-			Indexes: indexesToPb(c.GetIndexes()),
+			Name:           c.GetName(),
+			Schema:         c.GetSchema(),
+			Indexes:        indexesToPb(c.GetIndexes()),
+			WriteValidator: string(c.GetWriteValidator()),
+			ReadFilter:     string(c.GetReadFilter()),
 		}
 	}
 	return &pb.ListCollectionsReply{Collections: pblist}, nil

@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 
+	"github.com/alecthomas/jsonschema"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -220,15 +221,8 @@ func collectionConfigToPb(c db.CollectionConfig) (*pb.CollectionConfig, error) {
 	}, nil
 }
 
-// DBInfo wraps info about a db.
-type DBInfo struct {
-	Name  string
-	Addrs []ma.Multiaddr
-	Key   thread.Key
-}
-
 // ListDBs lists all dbs.
-func (c *Client) ListDBs(ctx context.Context, opts ...db.ManagedOption) (map[thread.ID]*DBInfo, error) {
+func (c *Client) ListDBs(ctx context.Context, opts ...db.ManagedOption) (map[thread.ID]db.Info, error) {
 	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -239,7 +233,7 @@ func (c *Client) ListDBs(ctx context.Context, opts ...db.ManagedOption) (map[thr
 		return nil, err
 	}
 
-	dbs := make(map[thread.ID]*DBInfo)
+	dbs := make(map[thread.ID]db.Info)
 	for _, d := range res.Dbs {
 		id, err := thread.Cast(d.DbID)
 		if err != nil {
@@ -255,7 +249,7 @@ func (c *Client) ListDBs(ctx context.Context, opts ...db.ManagedOption) (map[thr
 }
 
 // GetDBInfo retrives db addresses and keys.
-func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) (*DBInfo, error) {
+func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) (db.Info, error) {
 	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -265,25 +259,25 @@ func (c *Client) GetDBInfo(ctx context.Context, dbID thread.ID, opts ...db.Manag
 		DbID: dbID.Bytes(),
 	})
 	if err != nil {
-		return nil, err
+		return db.Info{}, err
 	}
 	return dbInfoFromPb(res)
 }
 
-func dbInfoFromPb(pi *pb.GetDBInfoReply) (*DBInfo, error) {
+func dbInfoFromPb(pi *pb.GetDBInfoReply) (db.Info, error) {
 	addrs := make([]ma.Multiaddr, len(pi.Addrs))
 	for i, bytes := range pi.Addrs {
 		addr, err := ma.NewMultiaddrBytes(bytes)
 		if err != nil {
-			return nil, err
+			return db.Info{}, err
 		}
 		addrs[i] = addr
 	}
 	key, err := thread.KeyFromBytes(pi.Key)
 	if err != nil {
-		return nil, err
+		return db.Info{}, err
 	}
-	return &DBInfo{Name: pi.Name, Addrs: addrs, Key: key}, nil
+	return db.Info{Name: pi.Name, Addrs: addrs, Key: key}, nil
 }
 
 // DeleteDB deletes a db.
@@ -346,17 +340,8 @@ func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name stri
 	return err
 }
 
-// CollectionInfo wraps info about a collection.
-type CollectionInfo struct {
-	Name           string
-	Schema         []byte
-	Indexes        []db.Index
-	WriteValidator string
-	ReadFilter     string
-}
-
 // GetCollectionInfo returns information about an existing collection.
-func (c *Client) GetCollectionInfo(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedOption) (*CollectionInfo, error) {
+func (c *Client) GetCollectionInfo(ctx context.Context, dbID thread.ID, name string, opts ...db.ManagedOption) (db.CollectionConfig, error) {
 	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -366,11 +351,16 @@ func (c *Client) GetCollectionInfo(ctx context.Context, dbID thread.ID, name str
 		Name: name,
 	})
 	if err != nil {
-		return nil, err
+		return db.CollectionConfig{}, err
 	}
-	return &CollectionInfo{
+	schema := &jsonschema.Schema{}
+	err = json.Unmarshal(resp.Schema, schema)
+	if err != nil {
+		return db.CollectionConfig{}, err
+	}
+	return db.CollectionConfig{
 		Name:           resp.Name,
-		Schema:         resp.Schema,
+		Schema:         schema,
 		Indexes:        indexesFromPb(resp.Indexes),
 		WriteValidator: resp.WriteValidator,
 		ReadFilter:     resp.ReadFilter,
@@ -406,7 +396,7 @@ func (c *Client) GetCollectionIndexes(ctx context.Context, dbID thread.ID, name 
 }
 
 // ListCollections returns information about all existing collections.
-func (c *Client) ListCollections(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) ([]CollectionInfo, error) {
+func (c *Client) ListCollections(ctx context.Context, dbID thread.ID, opts ...db.ManagedOption) ([]db.CollectionConfig, error) {
 	args := &db.ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -417,11 +407,16 @@ func (c *Client) ListCollections(ctx context.Context, dbID thread.ID, opts ...db
 	if err != nil {
 		return nil, err
 	}
-	list := make([]CollectionInfo, len(resp.Collections))
+	list := make([]db.CollectionConfig, len(resp.Collections))
 	for i, c := range resp.Collections {
-		list[i] = CollectionInfo{
+		schema := &jsonschema.Schema{}
+		err = json.Unmarshal(c.Schema, schema)
+		if err != nil {
+			return nil, err
+		}
+		list[i] = db.CollectionConfig{
 			Name:           c.Name,
-			Schema:         c.Schema,
+			Schema:         schema,
 			Indexes:        indexesFromPb(c.Indexes),
 			WriteValidator: c.WriteValidator,
 			ReadFilter:     c.ReadFilter,

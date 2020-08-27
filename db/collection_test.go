@@ -443,6 +443,40 @@ func TestGetSchema(t *testing.T) {
 	}
 }
 
+func TestGetWriteValidator(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	wv := "return true"
+	c, err := db.NewCollection(CollectionConfig{
+		Name:           "Person",
+		Schema:         schema,
+		WriteValidator: wv,
+	})
+	checkErr(t, err)
+	if !bytes.Equal(c.GetWriteValidator(), []byte(wv)) {
+		t.Fatal("got write validator does not match original")
+	}
+}
+
+func TestGetReadFilter(t *testing.T) {
+	t.Parallel()
+	db, clean := createTestDB(t)
+	defer clean()
+	schema := util.SchemaFromInstance(&Person2{}, false)
+	rf := "return instance"
+	c, err := db.NewCollection(CollectionConfig{
+		Name:       "Person",
+		Schema:     schema,
+		ReadFilter: rf,
+	})
+	checkErr(t, err)
+	if !bytes.Equal(c.GetReadFilter(), []byte(rf)) {
+		t.Fatal("got read filter does not match original")
+	}
+}
+
 func TestGetIndexes(t *testing.T) {
 	t.Parallel()
 	db, clean := createTestDB(t)
