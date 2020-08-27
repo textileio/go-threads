@@ -245,8 +245,10 @@ func TestClient_GetCollectionInfo(t *testing.T) {
 		}
 		sb, err := json.Marshal(jschema)
 		checkErr(t, err)
-		if !bytes.Equal(info.Schema, sb) {
-			t.Fatalf("expected %s, but got %s", string(sb), string(info.Schema))
+		isb, err := json.Marshal(info.Schema)
+		checkErr(t, err)
+		if !bytes.Equal(isb, sb) {
+			t.Fatalf("expected %s, but got %s", string(sb), string(isb))
 		}
 		if len(info.Indexes) != 1 {
 			t.Fatalf("expected 1 indexes, but got %v", len(info.Indexes))
