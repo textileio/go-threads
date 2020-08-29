@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
@@ -58,6 +59,7 @@ type Collection struct {
 	writeValidator    goja.Callable
 	rawReadFilter     []byte
 	readFilter        goja.Callable
+	sync.Mutex
 }
 
 // newCollection returns a new Collection from schema.
@@ -268,6 +270,8 @@ func (c *Collection) validInstance(v []byte) error {
 
 // validWrite validates new events against the identity and user-defined write validator function.
 func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
+	c.Lock()
+	defer c.Unlock()
 	if c.writeValidator == nil {
 		return nil
 	}
@@ -315,6 +319,8 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 
 // filterRead filters an instance against the identity and user-defined read filter function.
 func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte, error) {
+	c.Lock()
+	defer c.Unlock()
 	if c.readFilter == nil {
 		return instance, nil
 	}
