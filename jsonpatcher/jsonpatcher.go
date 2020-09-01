@@ -90,7 +90,7 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 			return nil, nil, err
 		}
 		revents.Patches[i] = patchEvent{
-			Timestamp:      time.Now().UnixNano(),
+			Timestamp:      time.Now(),
 			ID:             actions[i].InstanceID,
 			CollectionName: actions[i].CollectionName,
 			Patch:          *op,
@@ -120,7 +120,7 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 			return false
 		}
 
-		return ei.Timestamp < ej.Timestamp
+		return ei.Timestamp.Before(ej.Timestamp)
 	})
 
 	actions := make([]core.ReduceAction, len(events))
@@ -239,7 +239,7 @@ func deleteEvent(id core.InstanceID) (*operation, error) {
 }
 
 type patchEvent struct {
-	Timestamp      int64
+	Timestamp      time.Time
 	ID             core.InstanceID
 	CollectionName string
 	Patch          operation
@@ -282,7 +282,7 @@ func (je patchEvent) Marshal() ([]byte, error) {
 		}
 	}
 	return json.Marshal(patchEventJson{
-		Timestamp:      je.Timestamp,
+		Timestamp:      je.Timestamp.UnixNano(),
 		ID:             string(je.ID),
 		CollectionName: je.CollectionName,
 		Patch: operationJson{
