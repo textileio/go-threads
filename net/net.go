@@ -45,6 +45,9 @@ var (
 	// PullInterval is the interval between automatic log pulls.
 	PullInterval = time.Second * 10
 
+	// EventBusCapacity is the buffer size of local event bus listeners.
+	EventBusCapacity = 1
+
 	// notifyTimeout is the duration to wait for a subscriber to read a new record.
 	notifyTimeout = time.Second * 5
 
@@ -108,7 +111,7 @@ func NewNetwork(
 		bstore:     bstore,
 		store:      ls,
 		rpc:        grpc.NewServer(serverOptions...),
-		bus:        broadcast.NewBroadcaster(0),
+		bus:        broadcast.NewBroadcaster(EventBusCapacity),
 		connectors: make(map[thread.ID]*app.Connector),
 		ctx:        ctx,
 		cancel:     cancel,
