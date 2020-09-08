@@ -71,6 +71,8 @@ type net struct {
 	bus    *broadcast.Broadcaster
 
 	connectors map[thread.ID]*app.Connector
+	connLock   sync.Mutex
+
 	semaphores *util.SemaphorePool
 
 	ctx    context.Context
@@ -449,7 +451,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	if _, err := n.Validate(id, args.Token, false); err != nil {
 		return err
 	}
-	if _, ok := n.getConnector(id, args.APIToken); !ok {
+	if _, ok := n.getConnectorProtected(id, args.APIToken); !ok {
 		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
 	}
 
@@ -618,7 +620,7 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	if identity == nil {
 		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
 	}
-	con, ok := n.getConnector(id, args.APIToken)
+	con, ok := n.getConnectorProtected(id, args.APIToken)
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
 	} else if con != nil {
@@ -793,7 +795,7 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error making connector %s: %v", id, err)
 	}
-	n.connectors[id] = con
+	n.addConnector(id, con)
 	return con, nil
 }
 
@@ -805,11 +807,25 @@ func (n *net) Validate(id thread.ID, token thread.Token, readOnly bool) (thread.
 	return token.Validate(n.getPrivKey())
 }
 
-// getConnector returns the connector tied to the thread if it exists
+func (n *net) addConnector(id thread.ID, conn *app.Connector) {
+	n.connLock.Lock()
+	n.connectors[id] = conn
+	n.connLock.Unlock()
+}
+
+func (n *net) getConnector(id thread.ID) (*app.Connector, bool) {
+	n.connLock.Lock()
+	defer n.connLock.Unlock()
+
+	conn, exist := n.connectors[id]
+	return conn, exist
+}
+
+// getConnectorProtected returns the connector tied to the thread if it exists
 // and whether or not the token is valid.
-func (n *net) getConnector(id thread.ID, token core.Token) (*app.Connector, bool) {
-	c, ok := n.connectors[id]
-	if !ok {
+func (n *net) getConnectorProtected(id thread.ID, token core.Token) (*app.Connector, bool) {
+	c, exist := n.getConnector(id)
+	if !exist {
 		return nil, true // thread is not owned by a connector
 	}
 	if !token.Equal(c.Token()) {
