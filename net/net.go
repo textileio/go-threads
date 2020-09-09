@@ -843,111 +843,183 @@ func (n *net) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 }
 
 // putRecord adds an existing record. This method is thread-safe.
-func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
-	ts := n.semaphores.GetSemaphore(id)
-	ts.Acquire()
-	defer ts.Release()
-
-	return n.putRecordUnsafe(ctx, id, lid, rec)
-}
-
-// putRecordUnsafe adds an existing record. See PutOption for more. This method
-// *should be thread-guarded*.
-func (n *net) putRecordUnsafe(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
-	var unknownRecords []core.Record
-	c := rec.Cid()
-	for c.Defined() {
-		exist, err := n.bstore.Has(c)
-		if err != nil {
-			return err
-		}
-		if exist {
-			break
-		}
-		var r core.Record
-		if c.String() != rec.Cid().String() {
-			r, err = n.getRecord(ctx, id, c)
-			if err != nil {
-				return err
-			}
-		} else {
-			r = rec
-		}
-		unknownRecords = append(unknownRecords, r)
-		c = r.PrevID()
-	}
-	if len(unknownRecords) == 0 {
+func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record) error {
+	unknown, head, err := n.loadUnknownRecords(ctx, tid, lid, rec)
+	if err != nil {
+		return fmt.Errorf("loading records failed: %w", err)
+	} else if len(unknown) == 0 {
 		return nil
 	}
-	lg, err := n.store.GetLog(id, lid)
-	if err != nil {
-		return err
+
+	ts := n.semaphores.GetSemaphore(tid)
+	ts.Acquire()
+
+	// check head again to detect if some other process concurrently have changed the log
+	if current, err := n.currentHead(tid, lid); err != nil {
+		ts.Release()
+		return fmt.Errorf("fetching head failed: %w", err)
+	} else if current != head {
+		ts.Release()
+		return n.putRecord(ctx, tid, lid, rec)
 	}
 
-	con := n.connectors[id]
-	for i := len(unknownRecords) - 1; i >= 0; i-- {
-		r := unknownRecords[i]
-		// Save the record locally
-		// Note: These get methods will return cached nodes.
-		block, err := r.GetBlock(ctx, n)
-		if err != nil {
+	connector, appConnected := n.getConnector(tid)
+	for _, record := range unknown {
+		if err := n.store.SetHead(tid, lid, record.Value().Cid()); err != nil {
+			return fmt.Errorf("setting log head failed: %w", err)
+		}
+
+		if appConnected {
+			if err := connector.HandleNetRecord(ctx, record); err != nil {
+				// Future improvement notes.
+				// If record handling fails there are two options available:
+				// 1. Just interrupt and return error (current behaviour). Log head remains moved and some events
+				//    from the record possibly won't reach reducers/listeners or even get dispatched.
+				// 2. Rollback log head to the previous record. In this case record handling will be retried until
+				//    success, but reducers must guarantee its idempotence and there is a chance of getting stuck
+				//    with bad event and not making any progress at all.
+				return fmt.Errorf("handling record failed: %w", err)
+			}
+		}
+
+		// Generally broadcasting should not block for too long, i.e. we have to run it
+		// under the semaphore to ensure consistent order seen by the listeners. Record
+		// bursts could be overcome by adjusting listener buffers (EventBusCapacity).
+		if err = n.bus.SendWithTimeout(record, notifyTimeout); err != nil {
 			return err
 		}
+	}
+
+	ts.Release()
+	return nil
+}
+
+// Load, validate and cache all records in log between currentHead and last.
+func (n *net) loadUnknownRecords(
+	ctx context.Context,
+	tid thread.ID,
+	lid peer.ID,
+	//currentHead cid.Cid,
+	last core.Record,
+) ([]core.ThreadRecord, cid.Cid, error) {
+	// check if last record was already loaded and processed
+	if exist, err := n.bstore.Has(last.Cid()); err != nil {
+		return nil, cid.Undef, err
+	} else if exist || !last.Cid().Defined() {
+		return nil, cid.Undef, nil
+	}
+
+	var (
+		c       = last.PrevID()
+		unknown = []core.Record{last}
+	)
+
+	head, err := n.currentHead(tid, lid)
+	if err != nil {
+		return nil, head, err
+	}
+
+	// load record chain between the last and current head
+	for c.Defined() {
+		if c == head {
+			break
+		}
+
+		r, err := n.getRecord(ctx, tid, c)
+		if err != nil {
+			return nil, head, err
+		}
+
+		unknown = append(unknown, r)
+		c = r.PrevID()
+	}
+
+	if len(unknown) == 0 {
+		return nil, head, nil
+	}
+
+	var (
+		connector, appConnected = n.getConnector(tid)
+		identity                = &thread.Libp2pPubKey{}
+		tRecords                = make([]core.ThreadRecord, 0, len(unknown))
+		readKey                 *sym.Key
+		validate                bool
+	)
+
+	if appConnected {
+		var err error
+		if readKey, err = n.store.ReadKey(tid); err != nil {
+			return nil, head, err
+		} else if readKey != nil {
+			validate = true
+		}
+	}
+
+	for i := len(unknown) - 1; i >= 0; i-- {
+		var r = unknown[i]
+		block, err := r.GetBlock(ctx, n)
+		if err != nil {
+			return nil, head, err
+		}
+
 		event, ok := block.(*cbor.Event)
 		if !ok {
 			event, err = cbor.EventFromNode(block)
 			if err != nil {
-				return fmt.Errorf("invalid event: %v", err)
+				return nil, head, fmt.Errorf("invalid event: %w", err)
 			}
 		}
+
 		header, err := event.GetHeader(ctx, n, nil)
 		if err != nil {
-			return err
+			return nil, head, err
 		}
+
 		body, err := event.GetBody(ctx, n, nil)
 		if err != nil {
-			return err
+			return nil, head, err
 		}
 
-		if con != nil {
-			key, err := n.store.ReadKey(id)
+		if validate {
+			dbody, err := event.GetBody(ctx, n, readKey)
 			if err != nil {
-				return err
+				return nil, head, err
 			}
-			if key != nil {
-				dbody, err := event.GetBody(ctx, n, key)
-				if err != nil {
-					return err
-				}
-				identity := &thread.Libp2pPubKey{}
-				if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
-					return err
-				}
-				if err = con.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
-					return err
-				}
+
+			if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
+				return nil, head, err
+			}
+
+			if err = connector.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
+				return nil, head, err
 			}
 		}
 
+		// store blocks locally
 		if err = n.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
-			return err
+			return nil, head, err
 		}
-		if err = n.store.SetHead(id, lg.ID, r.Cid()); err != nil {
-			return err
-		}
-		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
-		tr := NewRecord(r, id, lg.ID)
-		if con != nil {
-			if err = con.HandleNetRecord(ctx, tr); err != nil {
-				return err
-			}
-		}
-		if err = n.bus.SendWithTimeout(tr, notifyTimeout); err != nil {
-			return err
-		}
+		tRecords = append(tRecords, NewRecord(r, tid, lid))
 	}
-	return nil
+
+	return tRecords, head, nil
+}
+
+func (n *net) currentHead(tid thread.ID, lid peer.ID) (cid.Cid, error) {
+	var head cid.Cid
+	heads, err := n.store.Heads(tid, lid)
+	if err != nil {
+		return head, err
+	}
+
+	if len(heads) > 0 {
+		head = heads[0]
+	} else {
+		head = cid.Undef
+	}
+
+	return head, nil
 }
 
 // newRecord creates a new record with the given body as a new event body.
