@@ -58,6 +58,26 @@ var (
 	tokenChallengeTimeout = time.Minute
 )
 
+var (
+	_ util.SemaphoreKey = (logSemaphore)(nil)
+	_ util.SemaphoreKey = (threadSemaphore)(nil)
+)
+
+type threadSemaphore thread.ID
+
+func (t threadSemaphore) Key() string {
+	return string(t)
+}
+
+type logSemaphore struct {
+	t thread.ID
+	l peer.ID
+}
+
+func (l logSemaphore) Key() string {
+	return fmt.Sprintf("t:%s/l:%s", l.t, l.l)
+}
+
 // net is an implementation of core.DBNet.
 type net struct {
 	format.DAGService
@@ -375,7 +395,7 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 
 func (n *net) pullThread(ctx context.Context, id thread.ID) error {
 	log.Debugf("pulling thread %s...", id)
-	ts := n.semaphores.GetSemaphore(id)
+	ts := n.semaphores.Get(threadSemaphore(id))
 
 	if ts.TryAcquire() {
 		defer ts.Release()
@@ -456,7 +476,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	}
 
 	log.Debugf("deleting thread %s...", id)
-	ts := n.semaphores.GetSemaphore(id)
+	ts := n.semaphores.Get(threadSemaphore(id))
 
 	// Must block in case the thread is being pulled
 	ts.Acquire()
@@ -851,7 +871,7 @@ func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec cor
 		return nil
 	}
 
-	ts := n.semaphores.GetSemaphore(tid)
+	ts := n.semaphores.Get(threadSemaphore(tid))
 	ts.Acquire()
 
 	// check head again to detect if some other process concurrently have changed the log
@@ -1224,7 +1244,7 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
 func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey, privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
-	ts := n.semaphores.GetSemaphore(tid)
+	ts := n.semaphores.Get(threadSemaphore(tid))
 	ts.Acquire()
 	defer ts.Release()
 
@@ -1303,7 +1323,7 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
 // and will add them in the local peer store. It assumes  Is thread-safe.
 func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
-	ts := n.semaphores.GetSemaphore(tid)
+	ts := n.semaphores.Get(threadSemaphore(tid))
 	ts.Acquire()
 	defer ts.Release()
 

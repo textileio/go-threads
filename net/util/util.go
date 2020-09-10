@@ -3,7 +3,6 @@ package util
 import (
 	"sync"
 
-	"github.com/textileio/go-threads/core/thread"
 	apipb "github.com/textileio/go-threads/net/api/pb"
 	netpb "github.com/textileio/go-threads/net/pb"
 )
@@ -57,26 +56,31 @@ func (s *Semaphore) Release() {
 	}
 }
 
+type SemaphoreKey interface {
+	Key() string
+}
+
 func NewSemaphorePool(semaCap int) *SemaphorePool {
-	return &SemaphorePool{ss: make(map[thread.ID]*Semaphore), semaCap: semaCap}
+	return &SemaphorePool{ss: make(map[string]*Semaphore), semaCap: semaCap}
 }
 
 type SemaphorePool struct {
-	ss      map[thread.ID]*Semaphore
+	ss      map[string]*Semaphore
 	semaCap int
 	mu      sync.Mutex
 }
 
-func (p *SemaphorePool) GetSemaphore(id thread.ID) *Semaphore {
+func (p *SemaphorePool) GetSemaphore(k SemaphoreKey) *Semaphore {
 	var (
 		s     *Semaphore
 		exist bool
+		key   = k.Key()
 	)
 
 	p.mu.Lock()
-	if s, exist = p.ss[id]; !exist {
+	if s, exist = p.ss[key]; !exist {
 		s = NewSemaphore(p.semaCap)
-		p.ss[id] = s
+		p.ss[key] = s
 	}
 	p.mu.Unlock()
 
