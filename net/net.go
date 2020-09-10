@@ -1076,13 +1076,12 @@ func (n *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 		return nil, fmt.Errorf("a service-key is required to get records")
 	}
 
-	var recs []core.Record
-	if limit <= 0 {
-		return recs, nil
-	}
+	var (
+		cursor = lg.Head
+		recs   []core.Record
+	)
 
-	cursor := lg.Head
-	for {
+	for len(recs) < limit {
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
@@ -1091,9 +1090,6 @@ func (n *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 			return nil, err
 		}
 		recs = append([]core.Record{r}, recs...)
-		if len(recs) >= MaxPullLimit {
-			break
-		}
 		cursor = r.PrevID()
 	}
 
