@@ -70,7 +70,7 @@ type SemaphorePool struct {
 	mu      sync.Mutex
 }
 
-func (p *SemaphorePool) GetSemaphore(k SemaphoreKey) *Semaphore {
+func (p *SemaphorePool) Get(k SemaphoreKey) *Semaphore {
 	var (
 		s     *Semaphore
 		exist bool

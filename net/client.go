@@ -263,7 +263,7 @@ func (s *server) getRecords(
 				var logID = l.LogID.ID
 				log.Debugf("received %d records in log %s from %s", len(l.Records), logID, pid)
 
-				if len(l.Log.Addrs) > 0 {
+				if l.Log != nil && len(l.Log.Addrs) > 0 {
 					if err = s.net.store.AddAddrs(tid, logID, addrsFromProto(l.Log.Addrs), pstore.PermanentAddrTTL); err != nil {
 						return err
 					}

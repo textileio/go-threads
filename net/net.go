@@ -59,8 +59,8 @@ var (
 )
 
 var (
-	_ util.SemaphoreKey = (logSemaphore)(nil)
-	_ util.SemaphoreKey = (threadSemaphore)(nil)
+	_ util.SemaphoreKey = (*logSemaphore)(nil)
+	_ util.SemaphoreKey = (*threadSemaphore)(nil)
 )
 
 type threadSemaphore thread.ID
@@ -393,22 +393,8 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 	return n.pullThread(ctx, id)
 }
 
+// pullThread for the new records. This method is thread-safe.
 func (n *net) pullThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("pulling thread %s...", id)
-	ts := n.semaphores.Get(threadSemaphore(id))
-
-	if ts.TryAcquire() {
-		defer ts.Release()
-		return n.pullThreadUnsafe(ctx, id)
-	}
-
-	log.Warnf("pull thread %s ignored since already being pulled", id)
-	return nil
-}
-
-// pullThreadUnsafe for new records.
-// This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
-func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	info, err := n.store.GetThread(id)
 	if err != nil {
 		return err
@@ -430,9 +416,13 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 			offsets[lg.ID] = cid.Undef
 		}
 	}
-	var lock sync.Mutex
-	var fetchedRcs []map[peer.ID][]core.Record
-	wg := sync.WaitGroup{}
+
+	var (
+		fetchedRcs []map[peer.ID][]core.Record
+		lock       sync.Mutex
+		wg         sync.WaitGroup
+	)
+
 	for _, lg := range info.Logs {
 		wg.Add(1)
 		go func(lg thread.LogInfo) {
@@ -440,19 +430,26 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 			// Pull from addresses
 			recs, err := n.server.getRecords(ctx, id, lg.ID, offsets, MaxPullLimit)
 			if err != nil {
-				log.Error(err)
+				if errors.Is(err, errConcurrentPull) {
+					log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", id, lg.ID)
+				} else {
+					log.Error(err)
+				}
 				return
 			}
+
 			lock.Lock()
 			fetchedRcs = append(fetchedRcs, recs)
 			lock.Unlock()
 		}(lg)
 	}
 	wg.Wait()
+
+	// maybe we should preliminary deduplicate records?
 	for _, recs := range fetchedRcs {
 		for lid, rs := range recs {
 			for _, r := range rs {
-				if err = n.putRecordUnsafe(ctx, id, lid, r); err != nil {
+				if err = n.putRecord(ctx, id, lid, r); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -883,6 +880,8 @@ func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec cor
 		return n.putRecord(ctx, tid, lid, rec)
 	}
 
+	defer ts.Release()
+
 	connector, appConnected := n.getConnector(tid)
 	for _, record := range unknown {
 		if err := n.store.SetHead(tid, lid, record.Value().Cid()); err != nil {
@@ -910,7 +909,6 @@ func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec cor
 		}
 	}
 
-	ts.Release()
 	return nil
 }
 
@@ -919,7 +917,6 @@ func (n *net) loadUnknownRecords(
 	ctx context.Context,
 	tid thread.ID,
 	lid peer.ID,
-	//currentHead cid.Cid,
 	last core.Record,
 ) ([]core.ThreadRecord, cid.Cid, error) {
 	// check if last record was already loaded and processed
@@ -1321,12 +1318,8 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 }
 
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
-// and will add them in the local peer store. It assumes  Is thread-safe.
+// and will add them in the local peer store. Method is thread-safe.
 func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
-	ts := n.semaphores.Get(threadSemaphore(tid))
-	ts.Acquire()
-	defer ts.Release()
-
 	// Get log records for this new log
 	recs, err := n.server.getRecords(
 		n.ctx,
@@ -1335,12 +1328,17 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		map[peer.ID]cid.Cid{lid: cid.Undef},
 		MaxPullLimit)
 	if err != nil {
-		log.Error(err)
+		if errors.Is(err, errConcurrentPull) {
+			log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", tid, lid)
+		} else {
+			log.Error(err)
+		}
 		return
 	}
+
 	for lid, rs := range recs {
 		for _, r := range rs {
-			if err = n.putRecordUnsafe(n.ctx, tid, lid, r); err != nil {
+			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
 				log.Error(err)
 				return
 			}
