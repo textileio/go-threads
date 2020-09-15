@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -120,5 +121,11 @@ func (t *ReadTransaction) Find(query *db.Query, dummy interface{}) (interface{},
 
 // end ends the active transaction.
 func (t *ReadTransaction) end() error {
-	return t.client.CloseSend()
+	if err := t.client.CloseSend(); err != nil {
+		return err
+	}
+	if _, err := t.client.Recv(); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
