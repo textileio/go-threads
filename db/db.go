@@ -13,7 +13,7 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	ds "github.com/textileio/go-datastore"

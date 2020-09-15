@@ -11,7 +11,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
 	ds "github.com/textileio/go-datastore"

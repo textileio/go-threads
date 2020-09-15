@@ -357,6 +357,53 @@ func TestClient_Create(t *testing.T) {
 	})
 }
 
+func TestClient_Verify(t *testing.T) {
+	t.Parallel()
+	client, done := setup(t)
+	defer done()
+
+	t.Run("test collection verify", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
+			Name:   collectionName,
+			Schema: util.SchemaFromSchemaString(schema),
+			WriteValidator: `
+				var type = event.patch.type
+				var patch = event.patch.json_patch
+				switch (type) {
+				  case "delete":
+				    return false
+				  default:
+				    if (patch.age > 50) {
+				      return false
+				    }
+				    return true
+				}
+			`,
+		})
+		checkErr(t, err)
+
+		person := createPerson()
+
+		ids, err := client.Create(context.Background(), id, collectionName, Instances{person})
+		checkErr(t, err)
+
+		person.ID = ids[0]
+		person.Age = 51
+		err = client.Verify(context.Background(), id, collectionName, Instances{person})
+		if err == nil {
+			t.Fatalf("failed to verify instance")
+		}
+		person.Age = 50
+		err = client.Verify(context.Background(), id, collectionName, Instances{person})
+		if err != nil {
+			t.Fatalf("failed to verify instance")
+		}
+	})
+}
+
 func TestClient_Save(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)
@@ -687,6 +734,10 @@ func TestClient_WriteTransaction(t *testing.T) {
 		}
 
 		existingPerson.Age = 99
+		err = txn.Verify(existingPerson)
+		if err != nil {
+			t.Fatalf("failed to verify in write txn: %v", err)
+		}
 		err = txn.Save(existingPerson)
 		if err != nil {
 			t.Fatalf("failed to save in write txn: %v", err)

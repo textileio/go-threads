@@ -3,7 +3,7 @@ package cbor
 import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/crypto"
 )

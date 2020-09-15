@@ -482,6 +482,22 @@ func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.Create
 	return s.processCreateRequest(req, token, collection.CreateMany)
 }
 
+func (s *Service) Verify(ctx context.Context, req *pb.VerifyRequest) (*pb.VerifyReply, error) {
+	id, err := thread.Cast(req.DbID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	token, err := thread.NewTokenFromMD(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := s.getCollection(ctx, req.CollectionName, id, token)
+	if err != nil {
+		return nil, err
+	}
+	return s.processVerifyRequest(req, token, collection.VerifyMany)
+}
+
 func (s *Service) Save(ctx context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
@@ -728,6 +744,17 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
+			case *pb.WriteTransactionRequest_VerifyRequest:
+				innerReply, err := s.processVerifyRequest(x.VerifyRequest, token, func(ids [][]byte, _ ...db.TxnOption) error {
+					return txn.Verify(ids...)
+				})
+				if err != nil {
+					return err
+				}
+				option := &pb.WriteTransactionReply_VerifyReply{VerifyReply: innerReply}
+				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
+					return err
+				}
 			case *pb.WriteTransactionRequest_SaveRequest:
 				innerReply, err := s.processSaveRequest(x.SaveRequest, token, func(ids [][]byte, _ ...db.TxnOption) error {
 					return txn.Save(ids...)
@@ -865,6 +892,13 @@ func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token
 		InstanceIDs: ids,
 	}
 	return reply, nil
+}
+
+func (s *Service) processVerifyRequest(req *pb.VerifyRequest, token thread.Token, verifyFunc func([][]byte, ...db.TxnOption) error) (*pb.VerifyReply, error) {
+	if err := verifyFunc(req.Instances, db.WithTxnToken(token)); err != nil {
+		return nil, err
+	}
+	return &pb.VerifyReply{}, nil
 }
 
 func (s *Service) processSaveRequest(req *pb.SaveRequest, token thread.Token, saveFunc func([][]byte, ...db.TxnOption) error) (*pb.SaveReply, error) {
