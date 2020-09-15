@@ -552,7 +552,9 @@ func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity
 		if !ok {
 			return ErrCollectionNotFound
 		}
-		return c.validWrite(identity, e)
+		if err := c.validWrite(identity, e); err != nil {
+			return err
+		}
 	}
 	return nil
 }

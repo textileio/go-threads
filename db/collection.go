@@ -430,6 +430,14 @@ func (t *Txn) Save(updated ...[]byte) error {
 		if err != nil {
 			return err
 		}
+		pk, err := t.token.PubKey()
+		if err != nil {
+			return err
+		}
+		beforeBytes, err = t.collection.filterRead(pk, beforeBytes)
+		if err != nil {
+			return err
+		}
 
 		t.actions = append(t.actions, core.Action{
 			Type:           core.Save,
