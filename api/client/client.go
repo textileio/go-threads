@@ -447,6 +447,25 @@ func (c *Client) Create(ctx context.Context, dbID thread.ID, collectionName stri
 	return resp.GetInstanceIDs(), nil
 }
 
+// Verify verifies existing instance changes.
+func (c *Client) Verify(ctx context.Context, dbID thread.ID, collectionName string, instances Instances, opts ...db.TxnOption) error {
+	args := &db.TxnOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+	values, err := marshalItems(instances)
+	if err != nil {
+		return err
+	}
+	ctx = thread.NewTokenContext(ctx, args.Token)
+	_, err = c.c.Verify(ctx, &pb.VerifyRequest{
+		DbID:           dbID.Bytes(),
+		CollectionName: collectionName,
+		Instances:      values,
+	})
+	return err
+}
+
 // Save saves existing instances.
 func (c *Client) Save(ctx context.Context, dbID thread.ID, collectionName string, instances Instances, opts ...db.TxnOption) error {
 	args := &db.TxnOptions{}

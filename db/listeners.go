@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"

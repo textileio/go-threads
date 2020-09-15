@@ -12,7 +12,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"

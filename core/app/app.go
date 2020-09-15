@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/core/net"

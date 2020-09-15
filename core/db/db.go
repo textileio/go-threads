@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"strings"
 
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	ulid "github.com/oklog/ulid/v2"
 	ds "github.com/textileio/go-datastore"
 )

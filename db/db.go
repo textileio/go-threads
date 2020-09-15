@@ -13,7 +13,7 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	ds "github.com/textileio/go-datastore"
@@ -552,7 +552,9 @@ func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity
 		if !ok {
 			return ErrCollectionNotFound
 		}
-		return c.validWrite(identity, e)
+		if err := c.validWrite(identity, e); err != nil {
+			return err
+		}
 	}
 	return nil
 }

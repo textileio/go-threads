@@ -137,6 +137,14 @@ message CreateReply {
     repeated string instanceIDs = 1;
 }
 
+message VerifyRequest {
+    bytes dbID = 1;
+    string collectionName = 2;
+    repeated bytes instances = 3;
+}
+
+message VerifyReply {}
+
 message SaveRequest {
     bytes dbID = 1;
     string collectionName = 2;
@@ -209,6 +217,7 @@ message WriteTransactionRequest {
     oneof option {
         StartTransactionRequest startTransactionRequest = 1;
         CreateRequest createRequest = 2;
+        VerifyRequest verifyRequest = 8;
         SaveRequest saveRequest = 3;
         DeleteRequest deleteRequest = 4;
         HasRequest hasRequest = 5;
@@ -220,6 +229,7 @@ message WriteTransactionRequest {
 message WriteTransactionReply {
     oneof option {
         CreateReply createReply = 1;
+        VerifyReply verifyReply = 7;
         SaveReply saveReply = 2;
         DeleteReply deleteReply = 3;
         HasReply hasReply = 4;
@@ -274,6 +284,7 @@ service API {
     }
     rpc ListCollections(ListCollectionsRequest) returns (ListCollectionsReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
+    rpc Verify(VerifyRequest) returns (VerifyReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}
     rpc Delete(DeleteRequest) returns (DeleteReply) {}
     rpc Has(HasRequest) returns (HasReply) {}

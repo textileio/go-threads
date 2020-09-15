@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -144,6 +145,35 @@ func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	}
 }
 
+// Verify verifies existing instance changes.
+func (t *WriteTransaction) Verify(items ...interface{}) error {
+	values, err := marshalItems(items)
+	if err != nil {
+		return err
+	}
+	innerReq := &pb.VerifyRequest{
+		Instances: values,
+	}
+	option := &pb.WriteTransactionRequest_VerifyRequest{
+		VerifyRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	if resp, err = t.client.Recv(); err != nil {
+		return err
+	}
+	switch x := resp.GetOption().(type) {
+	case *pb.WriteTransactionReply_VerifyReply:
+		return nil
+	default:
+		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+	}
+}
+
 // Save saves existing instances.
 func (t *WriteTransaction) Save(items ...interface{}) error {
 	values, err := marshalItems(items)
@@ -201,5 +231,11 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 
 // end ends the active transaction.
 func (t *WriteTransaction) end() error {
-	return t.client.CloseSend()
+	if err := t.client.CloseSend(); err != nil {
+		return err
+	}
+	if _, err := t.client.Recv(); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
