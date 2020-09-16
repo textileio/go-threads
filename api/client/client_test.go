@@ -683,15 +683,15 @@ func TestClient_WriteTransaction(t *testing.T) {
 		}
 
 		end, err := txn.Start()
+		if err != nil {
+			t.Fatalf("failed to start write txn: %v", err)
+		}
 		defer func() {
 			err = end()
 			if err != nil {
 				t.Fatalf("failed to end txn: %v", err)
 			}
 		}()
-		if err != nil {
-			t.Fatalf("failed to start write txn: %v", err)
-		}
 
 		person := createPerson()
 
@@ -746,6 +746,49 @@ func TestClient_WriteTransaction(t *testing.T) {
 		err = txn.Delete(existingPerson.ID)
 		if err != nil {
 			t.Fatalf("failed to delete in write txn: %v", err)
+		}
+	})
+
+	t.Run("test discard write transaction", func(t *testing.T) {
+		id := thread.NewIDV1(thread.Raw, 32)
+		err := client.NewDB(context.Background(), id)
+		checkErr(t, err)
+		err = client.NewCollection(context.Background(), id, db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)})
+		checkErr(t, err)
+
+		existingPerson := createPerson()
+
+		ids, err := client.Create(context.Background(), id, collectionName, Instances{existingPerson})
+		checkErr(t, err)
+
+		existingPerson.ID = ids[0]
+
+		txn, err := client.WriteTransaction(context.Background(), id, collectionName)
+		if err != nil {
+			t.Fatalf("failed to create write txn: %v", err)
+		}
+
+		end, err := txn.Start()
+		if err != nil {
+			t.Fatalf("failed to start write txn: %v", err)
+		}
+		defer func() {
+			err = end()
+			if err == nil {
+				t.Fatalf("failed to error when saving discarded txn")
+			}
+		}()
+
+		existingPerson.Age = 38
+
+		err = txn.Discard()
+		if err != nil {
+			t.Fatalf("failed to write txn discard: %v", err)
+		}
+
+		err = txn.Save(existingPerson)
+		if err != nil {
+			t.Fatalf("failed to write txn save: %v", err)
 		}
 	})
 }

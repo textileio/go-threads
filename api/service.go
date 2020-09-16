@@ -777,6 +777,12 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
 					return err
 				}
+			case *pb.WriteTransactionRequest_DiscardRequest:
+				txn.Discard()
+				option := &pb.WriteTransactionReply_DiscardReply{DiscardReply: &pb.DiscardReply{}}
+				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
+					return err
+				}
 			case nil:
 				return fmt.Errorf("no WriteTransactionRequest type set")
 			default:

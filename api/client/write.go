@@ -229,6 +229,29 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 	}
 }
 
+// Discard discards transaction changes.
+func (t *WriteTransaction) Discard() error {
+	option := &pb.WriteTransactionRequest_DiscardRequest{
+		DiscardRequest: &pb.DiscardRequest{},
+	}
+	if err := t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	var err error
+	if resp, err = t.client.Recv(); err != nil {
+		return err
+	}
+	switch x := resp.GetOption().(type) {
+	case *pb.WriteTransactionReply_DiscardReply:
+		return nil
+	default:
+		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+	}
+}
+
 // end ends the active transaction.
 func (t *WriteTransaction) end() error {
 	if err := t.client.CloseSend(); err != nil {
