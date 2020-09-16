@@ -191,6 +191,10 @@ message FindByIDReply {
     bytes instance = 1;
 }
 
+message DiscardRequest {}
+
+message DiscardReply {}
+
 message StartTransactionRequest {
     bytes dbID = 1;
     string collectionName = 2;
@@ -223,6 +227,7 @@ message WriteTransactionRequest {
         HasRequest hasRequest = 5;
         FindRequest findRequest = 6;
         FindByIDRequest findByIDRequest = 7;
+        DiscardRequest discardRequest = 9;
     }
 }
 
@@ -235,6 +240,7 @@ message WriteTransactionReply {
         HasReply hasReply = 4;
         FindReply findReply = 5;
         FindByIDReply findByIDReply = 6;
+        DiscardReply discardReply = 8;
     }
 }
 
