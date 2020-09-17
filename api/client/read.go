@@ -57,7 +57,7 @@ func (t *ReadTransaction) Has(instanceIDs ...string) (bool, error) {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_HasReply:
-		return x.HasReply.GetExists(), nil
+		return x.HasReply.GetExists(), txnError(x.HasReply.TransactionError)
 	default:
 		return false, fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
 	}
@@ -83,7 +83,11 @@ func (t *ReadTransaction) FindByID(instanceID string, instance interface{}) erro
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_FindByIDReply:
-		err := json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
+		err := txnError(x.FindByIDReply.TransactionError)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
 		return err
 	default:
 		return fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)

@@ -386,7 +386,6 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 }
 
 func (n *net) pullThread(ctx context.Context, id thread.ID) error {
-	log.Debugf("pulling thread %s...", id)
 	ptl := n.getThreadSemaphore(id)
 	select {
 	case ptl <- struct{}{}:

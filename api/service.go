@@ -617,13 +617,16 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 			if err != nil {
 				return err
 			}
+			if err := txn.RefreshCollection(); err != nil {
+				return err
+			}
 			switch x := req.Option.(type) {
 			case *pb.ReadTransactionRequest_HasRequest:
 				innerReply, err := s.processHasRequest(x.HasRequest, token, func(ids []core.InstanceID, _ ...db.TxnOption) (bool, error) {
 					return txn.Has(ids...)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.ReadTransactionReply_HasReply{HasReply: innerReply}
 				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
@@ -634,7 +637,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 					return txn.FindByID(id)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.ReadTransactionReply_FindByIDReply{FindByIDReply: innerReply}
 				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
@@ -645,7 +648,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 					return txn.Find(q)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.ReadTransactionReply_FindReply{FindReply: innerReply}
 				if err := stream.Send(&pb.ReadTransactionReply{Option: option}); err != nil {
@@ -699,13 +702,16 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 			if err != nil {
 				return err
 			}
+			if err := txn.RefreshCollection(); err != nil {
+				return err
+			}
 			switch x := req.Option.(type) {
 			case *pb.WriteTransactionRequest_HasRequest:
 				innerReply, err := s.processHasRequest(x.HasRequest, token, func(ids []core.InstanceID, _ ...db.TxnOption) (bool, error) {
 					return txn.Has(ids...)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_HasReply{HasReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -716,7 +722,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return txn.FindByID(id)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_FindByIDReply{FindByIDReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -727,7 +733,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return txn.Find(q)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_FindReply{FindReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -738,7 +744,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return txn.Create(new...)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_CreateReply{CreateReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -749,7 +755,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return txn.Verify(ids...)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_VerifyReply{VerifyReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -760,7 +766,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return txn.Save(ids...)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_SaveReply{SaveReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -771,7 +777,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 					return txn.Delete(ids...)
 				})
 				if err != nil {
-					return err
+					innerReply.TransactionError = err.Error()
 				}
 				option := &pb.WriteTransactionReply_DeleteReply{DeleteReply: innerReply}
 				if err := stream.Send(&pb.WriteTransactionReply{Option: option}); err != nil {
@@ -888,30 +894,23 @@ func (s *Service) instanceForAction(d *db.DB, action db.Action, token thread.Tok
 func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token, createFunc func([][]byte, ...db.TxnOption) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
 	res, err := createFunc(req.Instances, db.WithTxnToken(token))
 	if err != nil {
-		return nil, err
+		return &pb.CreateReply{}, err
 	}
 	ids := make([]string, len(res))
 	for i, id := range res {
 		ids[i] = id.String()
 	}
-	reply := &pb.CreateReply{
-		InstanceIDs: ids,
-	}
-	return reply, nil
+	return &pb.CreateReply{InstanceIDs: ids}, nil
 }
 
 func (s *Service) processVerifyRequest(req *pb.VerifyRequest, token thread.Token, verifyFunc func([][]byte, ...db.TxnOption) error) (*pb.VerifyReply, error) {
-	if err := verifyFunc(req.Instances, db.WithTxnToken(token)); err != nil {
-		return nil, err
-	}
-	return &pb.VerifyReply{}, nil
+	err := verifyFunc(req.Instances, db.WithTxnToken(token))
+	return &pb.VerifyReply{}, err
 }
 
 func (s *Service) processSaveRequest(req *pb.SaveRequest, token thread.Token, saveFunc func([][]byte, ...db.TxnOption) error) (*pb.SaveReply, error) {
-	if err := saveFunc(req.Instances, db.WithTxnToken(token)); err != nil {
-		return nil, err
-	}
-	return &pb.SaveReply{}, nil
+	err := saveFunc(req.Instances, db.WithTxnToken(token))
+	return &pb.SaveReply{}, err
 }
 
 func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token, deleteFunc func([]core.InstanceID, ...db.TxnOption) error) (*pb.DeleteReply, error) {
@@ -919,10 +918,8 @@ func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
 	}
-	if err := deleteFunc(instanceIDs, db.WithTxnToken(token)); err != nil {
-		return nil, err
-	}
-	return &pb.DeleteReply{}, nil
+	err := deleteFunc(instanceIDs, db.WithTxnToken(token))
+	return &pb.DeleteReply{}, err
 }
 
 func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasFunc func([]core.InstanceID, ...db.TxnOption) (bool, error)) (*pb.HasReply, error) {
@@ -931,31 +928,22 @@ func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasF
 		instanceIDs[i] = core.InstanceID(ID)
 	}
 	exists, err := hasFunc(instanceIDs, db.WithTxnToken(token))
-	if err != nil {
-		return nil, err
-	}
-	return &pb.HasReply{Exists: exists}, nil
+	return &pb.HasReply{Exists: exists}, err
 }
 
 func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, token thread.Token, findFunc func(id core.InstanceID, opts ...db.TxnOption) ([]byte, error)) (*pb.FindByIDReply, error) {
 	instanceID := core.InstanceID(req.InstanceID)
 	found, err := findFunc(instanceID, db.WithTxnToken(token))
-	if err != nil {
-		return nil, err
-	}
-	return &pb.FindByIDReply{Instance: found}, nil
+	return &pb.FindByIDReply{Instance: found}, err
 }
 
 func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, findFunc func(q *db.Query, opts ...db.TxnOption) (ret [][]byte, err error)) (*pb.FindReply, error) {
 	q := &db.Query{}
 	if err := json.Unmarshal(req.QueryJSON, q); err != nil {
-		return nil, err
+		return &pb.FindReply{}, err
 	}
 	instances, err := findFunc(q, db.WithTxnToken(token))
-	if err != nil {
-		return nil, err
-	}
-	return &pb.FindReply{Instances: instances}, nil
+	return &pb.FindReply{Instances: instances}, err
 }
 
 func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (*db.DB, error) {

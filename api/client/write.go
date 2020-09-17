@@ -54,7 +54,7 @@ func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_HasReply:
-		return x.HasReply.GetExists(), nil
+		return x.HasReply.GetExists(), txnError(x.HasReply.TransactionError)
 	default:
 		return false, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
@@ -80,7 +80,11 @@ func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_FindByIDReply:
-		err := json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
+		err := txnError(x.FindByIDReply.TransactionError)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
 		return err
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
@@ -139,7 +143,7 @@ func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_CreateReply:
-		return x.CreateReply.GetInstanceIDs(), nil
+		return x.CreateReply.GetInstanceIDs(), txnError(x.CreateReply.TransactionError)
 	default:
 		return nil, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
@@ -168,7 +172,7 @@ func (t *WriteTransaction) Verify(items ...interface{}) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_VerifyReply:
-		return nil
+		return txnError(x.VerifyReply.TransactionError)
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
@@ -197,7 +201,7 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_SaveReply:
-		return nil
+		return txnError(x.SaveReply.TransactionError)
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
@@ -223,7 +227,7 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_DeleteReply:
-		return nil
+		return txnError(x.DeleteReply.TransactionError)
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}

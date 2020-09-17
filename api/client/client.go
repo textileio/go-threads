@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -668,6 +669,9 @@ func (c *Client) Listen(ctx context.Context, dbID thread.ID, listenOptions []Lis
 }
 
 func processFindReply(reply *pb.FindReply, dummy interface{}) (interface{}, error) {
+	if err := txnError(reply.TransactionError); err != nil {
+		return nil, err
+	}
 	sliceType := reflect.TypeOf(dummy)
 	elementType := sliceType.Elem()
 	length := len(reply.GetInstances())
@@ -694,4 +698,11 @@ func marshalItems(items []interface{}) ([][]byte, error) {
 		values[i] = bytes
 	}
 	return values, nil
+}
+
+func txnError(s string) (err error) {
+	if s != "" {
+		err = errors.New(s)
+	}
+	return
 }
