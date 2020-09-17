@@ -135,6 +135,7 @@ message CreateRequest {
 
 message CreateReply {
     repeated string instanceIDs = 1;
+    string transactionError = 2;
 }
 
 message VerifyRequest {
@@ -143,7 +144,9 @@ message VerifyRequest {
     repeated bytes instances = 3;
 }
 
-message VerifyReply {}
+message VerifyReply {
+    string transactionError = 1;
+}
 
 message SaveRequest {
     bytes dbID = 1;
@@ -151,7 +154,9 @@ message SaveRequest {
     repeated bytes instances = 3;
 }
 
-message SaveReply {}
+message SaveReply {
+    string transactionError = 1;
+}
 
 message DeleteRequest {
     bytes dbID = 1;
@@ -159,7 +164,9 @@ message DeleteRequest {
     repeated string instanceIDs = 3;
 }
 
-message DeleteReply {}
+message DeleteReply {
+    string transactionError = 1;
+}
 
 message HasRequest {
     bytes dbID = 1;
@@ -169,6 +176,7 @@ message HasRequest {
 
 message HasReply {
     bool exists = 1;
+    string transactionError = 2;
 }
 
 message FindRequest {
@@ -179,6 +187,7 @@ message FindRequest {
 
 message FindReply {
     repeated bytes instances = 1;
+    string transactionError = 2;
 }
 
 message FindByIDRequest {
@@ -189,6 +198,7 @@ message FindByIDRequest {
 
 message FindByIDReply {
     bytes instance = 1;
+    string transactionError = 2;
 }
 
 message DiscardRequest {}

@@ -619,6 +619,17 @@ func (t *Txn) Discard() {
 	t.discarded = true
 }
 
+// RefreshCollection updates the transaction's collection reference from the master db map,
+// which may have received updates while the transaction is open.
+func (t *Txn) RefreshCollection() error {
+	c, ok := t.collection.db.collections[t.collection.name]
+	if !ok {
+		return ErrCollectionNotFound
+	}
+	t.collection = c
+	return nil
+}
+
 func getSchemaTypeAtPath(schema *jsonschema.Schema, pth string) (*jsonschema.Type, error) {
 	parts := strings.Split(pth, ".")
 	jt := schema.Type
