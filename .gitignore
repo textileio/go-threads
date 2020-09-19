@@ -14,11 +14,6 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 
-# Examples repo
-.threads*/
-.e2e_counter_writeraddr
-docker-compose.yml
-
 # JS PB files
 *.js
 *.d.ts
@@ -37,3 +32,7 @@ tags
 
 # Misc
 **.DS_Store
+
+# Other
+.threads*/
+.env

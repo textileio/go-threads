@@ -25,7 +25,8 @@ Go to [the docs](https://docs.textile.io/) for more about the motivations behind
 
 ## Install
 
-ThreadsDB has two distict layers:
+ThreadsDB has two distinct layers:
+
 -   ***`db`***:  The database layer is a document store, which internally leverages the `net` API. Most applications will only interface with this layer.
 -   ***`net`***: The network layer maintains and orchestrates event logs between the network participants. Some applications, like event logging, may choose to rely on this layer directly.
 
@@ -49,17 +50,85 @@ go get ./threadsd
 import "github.com/textileio/go-threads/api/client"
 ```
 
-## Getting Started 
+## Getting Started
+
+You can think of the [DB client](github.com/textileio/go-threads/api/client) as a gRPC client wrapper around the internal `db` package API, and the [Network client](github.com/textileio/go-threads/net/api/client) as a gRPC client wrapper around the internal `net` package API. This section will only focus on getting started with the gRPC clients, but Golang apps may choose to interact directly with `db` and/or `net`.
 
 ### Running ThreadsDB
+
+The `threadsd` daemon can be run as a server or alongside desktop apps or command-line tools. The easiest way to run `threadsd` is by using the provided Docker Compose files. If you're new to Docker and/or Docker Compose, get started [here](https://docs.docker.com/compose/gettingstarted/). Once you are setup, you should have `docker-compose` in your `PATH`.
+
+Create an `.env` file and add the following values:  
+
+```
+REPO_PATH=~/myrepo
+THRDS_DEBUG=true
+```
+
+Copy [this compose file](https://github.com/textileio/go-threads/blob/master/docker-compose.yml) and run it with the following command.
+
+```
+docker-compose -f docker-compose.yml up 
+```
+
+You should see some console output:
+
+```
+threads_1  | 2020-09-19T16:34:06.420Z	DEBUG	threadsd	repo: /data/threads
+threads_1  | 2020-09-19T16:34:06.420Z	DEBUG	threadsd	hostAddr: /ip4/0.0.0.0/tcp/4006
+threads_1  | 2020-09-19T16:34:06.421Z	DEBUG	threadsd	apiAddr: /ip4/0.0.0.0/tcp/6006
+threads_1  | 2020-09-19T16:34:06.421Z	DEBUG	threadsd	apiProxyAddr: /ip4/0.0.0.0/tcp/6007
+threads_1  | 2020-09-19T16:34:06.421Z	DEBUG	threadsd	connLowWater: 100
+threads_1  | 2020-09-19T16:34:06.421Z	DEBUG	threadsd	connHighWater: 400
+threads_1  | 2020-09-19T16:34:06.422Z	DEBUG	threadsd	connGracePeriod: 20s
+threads_1  | 2020-09-19T16:34:06.423Z	DEBUG	threadsd	keepAliveInterval: 5s
+threads_1  | 2020-09-19T16:34:06.423Z	DEBUG	threadsd	enableNetPubsub: false
+threads_1  | 2020-09-19T16:34:06.424Z	DEBUG	threadsd	debug: true
+threads_1  | Welcome to Threads!
+threads_1  | Your peer ID is 12D3KooWFCXqmQTwvpfYFWK3DjXChEc4NoPt8pp5jjC8REZ3g6NZ
+```
+
+Congrats! Now you have ThreadsDB running locally.
+
+#### Configuration values
+
+Note the various configuration values shown in the output above. These can be modified with environment variables show below.
+
+-   ***`THRDS_REPO`***: Repo location. `.threads` by default.
+-   ***`THRDS_HOSTADDR`***: Libp2p host bind address. `/ip4/0.0.0.0/tcp/4006` by default.
+-   ***`THRDS_APIADDR`***: gRPC API bind address. `/ip4/0.0.0.0/tcp/6006` by default.
+-   ***`THRDS_APIPROXYADDR`***: gRPC API web proxy bind address. `/ip4/0.0.0.0/tcp/6007` by default.
+-   ***`THRDS_CONNLOWWATER`***: Low watermark of libp2p connections that'll be maintained. `100` by default.
+-   ***`THRDS_CONNHIGHWATER`***: High watermark of libp2p connections that'll be maintained. `400` by default.
+-   ***`THRDS_CONNGRACEPERIOD`***: Duration a new opened connection is not subject to pruning. `20` seconds by default.
+-   ***`THRDS_KEEPALIVEINTERVAL`***: Websocket keepalive interval (must be >= 1s). `5` seconds by default.
+-   ***`THRDS_ENABLENETPUBSUB`***: Enables thread networking over libp2p pubsub. `false` by default.
+-   ***`THRDS_DEBUG`***: Enables debug logging. `false` by default.
 
 ### The DB API
 
 The full API spec is available [here](https://github.com/textileio/go-threads/blob/master/api/pb/threads.proto).
 
-As described in the [paper](https://docsend.com/view/gu3ywqi), ThreadDB's network layer orchestrates groups of event logs, or _threads_. In the current implementation, a single database leverage a single network-layer thread for state orchestration.
+As described in the [paper](https://docsend.com/view/gu3ywqi), ThreadDB's network layer orchestrates groups of event logs, or _threads_. In the current implementation, a single database leverages a single network-layer thread for state orchestration.
+
+#### Starting the client
+
+```
+import "github.com/textileio/go-threads/api/client"
+...
+
+db, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
+
+```
 
 #### Getting a thread token
+
+```
+privateKey, _, err := crypto.GenerateEd25519Key(rand.Reader)
+identity := thread.NewLibp2pIdentity(privateKey)
+
+myToken, err := db.GetToken(context.Background(), identity)
+```
 
 #### Creating a new DB
 
