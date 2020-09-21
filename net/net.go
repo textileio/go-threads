@@ -59,23 +59,22 @@ var (
 )
 
 var (
-	_ util.SemaphoreKey = (*logSemaphore)(nil)
-	_ util.SemaphoreKey = (*threadSemaphore)(nil)
+	_ util.SemaphoreKey = (*semaThreadPull)(nil)
+	_ util.SemaphoreKey = (*semaThreadUpdate)(nil)
 )
 
-type threadSemaphore thread.ID
+// semaphore protecting thread info updates
+type semaThreadUpdate thread.ID
 
-func (t threadSemaphore) Key() string {
-	return string(t)
+func (t semaThreadUpdate) Key() string {
+	return "tu:" + string(t)
 }
 
-type logSemaphore struct {
-	t thread.ID
-	l peer.ID
-}
+// semaphore eliminating concurrent pulls
+type semaThreadPull thread.ID
 
-func (l logSemaphore) Key() string {
-	return fmt.Sprintf("t:%s/l:%s", l.t, l.l)
+func (t semaThreadPull) Key() string {
+	return "tp:" + string(t)
 }
 
 // net is an implementation of core.DBNet.
@@ -395,8 +394,15 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 
 // pullThread for the new records. This method is thread-safe.
 func (n *net) pullThread(ctx context.Context, id thread.ID) error {
+	tps := n.semaphores.Get(semaThreadPull(id))
+	if !tps.TryAcquire() {
+		log.Debugf("skip pulling thread %s: concurrent pull in progress", id)
+		return nil
+	}
+
 	info, err := n.store.GetThread(id)
 	if err != nil {
+		tps.Release()
 		return err
 	}
 
@@ -407,6 +413,7 @@ func (n *net) pullThread(ctx context.Context, id thread.ID) error {
 		if lg.Head.Defined() {
 			has, err = n.bstore.Has(lg.Head)
 			if err != nil {
+				tps.Release()
 				return err
 			}
 		}
@@ -430,11 +437,7 @@ func (n *net) pullThread(ctx context.Context, id thread.ID) error {
 			// Pull from addresses
 			recs, err := n.server.getRecords(ctx, id, lg.ID, offsets, MaxPullLimit)
 			if err != nil {
-				if errors.Is(err, errConcurrentPull) {
-					log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", id, lg.ID)
-				} else {
-					log.Error(err)
-				}
+				log.Error(err)
 				return
 			}
 
@@ -444,6 +447,7 @@ func (n *net) pullThread(ctx context.Context, id thread.ID) error {
 		}(lg)
 	}
 	wg.Wait()
+	tps.Release()
 
 	// maybe we should preliminary deduplicate records?
 	for _, recs := range fetchedRcs {
@@ -473,7 +477,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	}
 
 	log.Debugf("deleting thread %s...", id)
-	ts := n.semaphores.Get(threadSemaphore(id))
+	ts := n.semaphores.Get(semaThreadUpdate(id))
 
 	// Must block in case the thread is being pulled
 	ts.Acquire()
@@ -868,7 +872,7 @@ func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec cor
 		return nil
 	}
 
-	ts := n.semaphores.Get(threadSemaphore(tid))
+	ts := n.semaphores.Get(semaThreadUpdate(tid))
 	ts.Acquire()
 
 	// check head again to detect if some other process concurrently have changed the log
@@ -1241,7 +1245,7 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
 func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey, privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
-	ts := n.semaphores.Get(threadSemaphore(tid))
+	ts := n.semaphores.Get(semaThreadUpdate(tid))
 	ts.Acquire()
 	defer ts.Release()
 
@@ -1320,6 +1324,12 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
 // and will add them in the local peer store. Method is thread-safe.
 func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
+	tps := n.semaphores.Get(semaThreadPull(tid))
+	if !tps.TryAcquire() {
+		log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", tid, lid)
+		return
+	}
+
 	// Get log records for this new log
 	recs, err := n.server.getRecords(
 		n.ctx,
@@ -1327,12 +1337,9 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		lid,
 		map[peer.ID]cid.Cid{lid: cid.Undef},
 		MaxPullLimit)
+	tps.Release()
 	if err != nil {
-		if errors.Is(err, errConcurrentPull) {
-			log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", tid, lid)
-		} else {
-			log.Error(err)
-		}
+		log.Error(err)
 		return
 	}
 

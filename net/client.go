@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	nnet "net"
 	"sync"
@@ -32,8 +31,6 @@ var (
 	PushTimeout = time.Second * 10
 	PullTimeout = time.Second * 10
 )
-
-var errConcurrentPull = errors.New("concurrent pull")
 
 // getLogs in a thread.
 func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thread.LogInfo, error) {
@@ -175,12 +172,6 @@ func (s *server) getRecords(
 	offsets map[peer.ID]cid.Cid,
 	limit int,
 ) (map[peer.ID][]core.Record, error) {
-	sema := s.net.semaphores.Get(logSemaphore{tid, lid})
-	if !sema.TryAcquire() {
-		return nil, errConcurrentPull
-	}
-	defer sema.Release()
-
 	sk, err := s.net.store.ServiceKey(tid)
 	if err != nil {
 		return nil, err
