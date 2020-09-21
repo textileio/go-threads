@@ -135,6 +135,17 @@ message CreateRequest {
 
 message CreateReply {
     repeated string instanceIDs = 1;
+    string transactionError = 2;
+}
+
+message VerifyRequest {
+    bytes dbID = 1;
+    string collectionName = 2;
+    repeated bytes instances = 3;
+}
+
+message VerifyReply {
+    string transactionError = 1;
 }
 
 message SaveRequest {
@@ -143,7 +154,9 @@ message SaveRequest {
     repeated bytes instances = 3;
 }
 
-message SaveReply {}
+message SaveReply {
+    string transactionError = 1;
+}
 
 message DeleteRequest {
     bytes dbID = 1;
@@ -151,7 +164,9 @@ message DeleteRequest {
     repeated string instanceIDs = 3;
 }
 
-message DeleteReply {}
+message DeleteReply {
+    string transactionError = 1;
+}
 
 message HasRequest {
     bytes dbID = 1;
@@ -161,6 +176,7 @@ message HasRequest {
 
 message HasReply {
     bool exists = 1;
+    string transactionError = 2;
 }
 
 message FindRequest {
@@ -171,6 +187,7 @@ message FindRequest {
 
 message FindReply {
     repeated bytes instances = 1;
+    string transactionError = 2;
 }
 
 message FindByIDRequest {
@@ -181,7 +198,12 @@ message FindByIDRequest {
 
 message FindByIDReply {
     bytes instance = 1;
+    string transactionError = 2;
 }
+
+message DiscardRequest {}
+
+message DiscardReply {}
 
 message StartTransactionRequest {
     bytes dbID = 1;
@@ -209,22 +231,26 @@ message WriteTransactionRequest {
     oneof option {
         StartTransactionRequest startTransactionRequest = 1;
         CreateRequest createRequest = 2;
+        VerifyRequest verifyRequest = 8;
         SaveRequest saveRequest = 3;
         DeleteRequest deleteRequest = 4;
         HasRequest hasRequest = 5;
         FindRequest findRequest = 6;
         FindByIDRequest findByIDRequest = 7;
+        DiscardRequest discardRequest = 9;
     }
 }
 
 message WriteTransactionReply {
     oneof option {
         CreateReply createReply = 1;
+        VerifyReply verifyReply = 7;
         SaveReply saveReply = 2;
         DeleteReply deleteReply = 3;
         HasReply hasReply = 4;
         FindReply findReply = 5;
         FindByIDReply findByIDReply = 6;
+        DiscardReply discardReply = 8;
     }
 }
 
@@ -274,6 +300,7 @@ service API {
     }
     rpc ListCollections(ListCollectionsRequest) returns (ListCollectionsReply) {}
     rpc Create(CreateRequest) returns (CreateReply) {}
+    rpc Verify(VerifyRequest) returns (VerifyReply) {}
     rpc Save(SaveRequest) returns (SaveReply) {}
     rpc Delete(DeleteRequest) returns (DeleteReply) {}
     rpc Has(HasRequest) returns (HasReply) {}

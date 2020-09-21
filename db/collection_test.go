@@ -107,18 +107,39 @@ func TestNewCollection(t *testing.T) {
 		db, clean := createTestDB(t)
 		defer clean()
 		c, err := db.NewCollection(CollectionConfig{
-			Name:           "Dog",
-			Schema:         util.SchemaFromInstance(&Dog{}, false),
-			WriteValidator: `return true`,
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			WriteValidator: `
+				var type = event.patch.type
+				var patch = event.patch.json_patch
+				switch (type) {
+				  case "delete":
+				    return false
+				  default:
+				    if (patch.Name !== "Fido" && patch.Name != "Clyde") {
+				      return false
+				    }
+				    return true
+				}
+			`,
 		})
 		checkErr(t, err)
 		dog := Dog{Name: "Fido", Comments: []Comment{}}
 		id, err := c.Create(util.JSONFromInstance(dog))
 		checkErr(t, err)
 		dog.ID = id
+		dog.Name = "Bob"
+		err = c.Save(util.JSONFromInstance(dog))
+		if err == nil {
+			t.Fatal("save should have been invalid")
+		}
 		dog.Name = "Clyde"
 		err = c.Save(util.JSONFromInstance(dog))
 		checkErr(t, err)
+		err = c.Delete(dog.ID)
+		if err == nil {
+			t.Fatal("delete should have been invalid")
+		}
 	})
 	t.Run("WithReadFilter", func(t *testing.T) {
 		t.Parallel()
@@ -808,6 +829,82 @@ func TestGetInstance(t *testing.T) {
 		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
 		}
+	})
+}
+
+func TestVerifyInstance(t *testing.T) {
+	t.Parallel()
+	t.Run("WithoutWriteValidator", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}, false),
+		})
+		checkErr(t, err)
+
+		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
+		var res []core.InstanceID
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			res, err = txn.Create(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		newPerson = util.JSONFromInstance(Person{ID: res[0], Name: "Alice", Age: 43})
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			err = txn.Verify(newPerson)
+			return
+		})
+		checkErr(t, err)
+	})
+	t.Run("WithWriteValidator", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}, false),
+			WriteValidator: `
+				var type = event.patch.type
+				var patch = event.patch.json_patch
+				switch (type) {
+				  case "delete":
+				    return false
+				  default:
+				    if (patch.Age > 50) {
+				      return false
+				    }
+				    return true
+				}
+			`,
+		})
+		checkErr(t, err)
+
+		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
+		var res []core.InstanceID
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			res, err = txn.Create(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		newPerson = util.JSONFromInstance(Person{ID: res[0], Name: "Alice", Age: 51})
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			err = txn.Verify(newPerson)
+			return
+		})
+		if err == nil {
+			t.Fatal("write should have been invalid")
+		}
+
+		newPerson = util.JSONFromInstance(Person{ID: res[0], Name: "Alice", Age: 43})
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			err = txn.Verify(newPerson)
+			return
+		})
+		checkErr(t, err)
 	})
 }
 

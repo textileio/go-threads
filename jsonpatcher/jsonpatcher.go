@@ -11,7 +11,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
 	ds "github.com/textileio/go-datastore"
@@ -51,8 +51,7 @@ type operation struct {
 	JSONPatch  []byte
 }
 
-type jsonPatcher struct {
-}
+type jsonPatcher struct{}
 
 var _ core.EventCodec = (*jsonPatcher)(nil)
 
@@ -120,7 +119,7 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 			return false
 		}
 
-		return ei.Timestamp < ej.Timestamp
+		return ei.time().Before(ej.time())
 	})
 
 	actions := make([]core.ReduceAction, len(events))
@@ -239,18 +238,34 @@ func deleteEvent(id core.InstanceID) (*operation, error) {
 }
 
 type patchEvent struct {
-	Timestamp      int64
+	Timestamp      interface{}
 	ID             core.InstanceID
 	CollectionName string
 	Patch          operation
 }
 
 func (je patchEvent) Time() []byte {
-	t := je.Timestamp
+	var nanos int64
+	switch ts := je.Timestamp.(type) {
+	case time.Time:
+		nanos = ts.UnixNano()
+	case int64:
+		nanos = ts
+	}
 	buf := new(bytes.Buffer)
 	// Use big endian to preserve lexicographic sorting
-	_ = binary.Write(buf, binary.BigEndian, t)
+	_ = binary.Write(buf, binary.BigEndian, nanos)
 	return buf.Bytes()
+}
+
+func (je patchEvent) time() (t time.Time) {
+	switch ts := je.Timestamp.(type) {
+	case time.Time:
+		t = ts
+	case int:
+		t = time.Unix(0, int64(ts))
+	}
+	return t
 }
 
 func (je patchEvent) InstanceID() core.InstanceID {
@@ -262,7 +277,7 @@ func (je patchEvent) Collection() string {
 }
 
 type patchEventJson struct {
-	Timestamp      int64         `json:"timestamp"`
+	Timestamp      interface{}   `json:"timestamp"`
 	ID             string        `json:"_id"`
 	CollectionName string        `json:"collection_name"`
 	Patch          operationJson `json:"patch"`

@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -56,7 +57,7 @@ func (t *ReadTransaction) Has(instanceIDs ...string) (bool, error) {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_HasReply:
-		return x.HasReply.GetExists(), nil
+		return x.HasReply.GetExists(), txnError(x.HasReply.TransactionError)
 	default:
 		return false, fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
 	}
@@ -82,7 +83,11 @@ func (t *ReadTransaction) FindByID(instanceID string, instance interface{}) erro
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.ReadTransactionReply_FindByIDReply:
-		err := json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
+		err := txnError(x.FindByIDReply.TransactionError)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
 		return err
 	default:
 		return fmt.Errorf("ReadTransactionReply.Option has unexpected type %T", x)
@@ -120,5 +125,11 @@ func (t *ReadTransaction) Find(query *db.Query, dummy interface{}) (interface{},
 
 // end ends the active transaction.
 func (t *ReadTransaction) end() error {
-	return t.client.CloseSend()
+	if err := t.client.CloseSend(); err != nil {
+		return err
+	}
+	if _, err := t.client.Recv(); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }

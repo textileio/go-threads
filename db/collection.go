@@ -11,6 +11,7 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ipfs/go-ipld-format"
 	ds "github.com/textileio/go-datastore"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
@@ -219,6 +220,20 @@ func (c *Collection) SaveMany(vs [][]byte, opts ...TxnOption) error {
 	}, opts...)
 }
 
+// Verify verifies changes of an instance in the collection.
+func (c *Collection) Verify(v []byte, opts ...TxnOption) error {
+	return c.WriteTxn(func(txn *Txn) error {
+		return txn.Verify(v)
+	}, opts...)
+}
+
+// VerifyMany verifies changes of multiple instances in the collection.
+func (c *Collection) VerifyMany(vs [][]byte, opts ...TxnOption) error {
+	return c.WriteTxn(func(txn *Txn) error {
+		return txn.Verify(vs...)
+	}, opts...)
+}
+
 // Has returns true if ID exists in the collection, false
 // otherwise.
 func (c *Collection) Has(id core.InstanceID, opts ...TxnOption) (exists bool, err error) {
@@ -404,42 +419,86 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 	return results, nil
 }
 
+// Verify verifies updated instances but does not save them.
+func (t *Txn) Verify(updated ...[]byte) error {
+	identity, err := t.token.PubKey()
+	if err != nil {
+		return err
+	}
+	actions, err := t.createSaveActions(identity, updated...)
+	if err != nil {
+		return err
+	}
+
+	events, _, err := t.createEvents(actions)
+	if err != nil {
+		return err
+	}
+	if len(events) == 0 {
+		return nil
+	}
+	for _, e := range events {
+		if err := t.collection.validWrite(identity, e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Save saves an instance changes to be committed when the current transaction commits.
 func (t *Txn) Save(updated ...[]byte) error {
+	identity, err := t.token.PubKey()
+	if err != nil {
+		return err
+	}
+	actions, err := t.createSaveActions(identity, updated...)
+	if err != nil {
+		return err
+	}
+	t.actions = append(t.actions, actions...)
+	return nil
+}
+
+func (t *Txn) createSaveActions(identity thread.PubKey, updated ...[]byte) ([]core.Action, error) {
+	var actions []core.Action
 	for i := range updated {
 		if t.readonly {
-			return ErrReadonlyTx
+			return nil, ErrReadonlyTx
 		}
 
-		item := make([]byte, len(updated[i]))
-		copy(item, updated[i])
+		next := make([]byte, len(updated[i]))
+		copy(next, updated[i])
 
-		if err := t.collection.validInstance(item); err != nil {
-			return err
+		if err := t.collection.validInstance(next); err != nil {
+			return nil, err
 		}
 
-		id, err := getInstanceID(item)
+		id, err := getInstanceID(next)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
-		beforeBytes, err := t.collection.db.datastore.Get(key)
+		previous, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
-			return errCantSaveNonExistentInstance
+			return nil, errCantSaveNonExistentInstance
 		}
 		if err != nil {
-			return err
+			return nil, err
+		}
+		previous, err = t.collection.filterRead(identity, previous)
+		if err != nil {
+			return nil, err
 		}
 
-		t.actions = append(t.actions, core.Action{
+		actions = append(actions, core.Action{
 			Type:           core.Save,
 			InstanceID:     id,
 			CollectionName: t.collection.name,
-			Previous:       beforeBytes,
-			Current:        item,
+			Previous:       previous,
+			Current:        next,
 		})
 	}
-	return nil
+	return actions, nil
 }
 
 // Delete deletes instances by ID when the current transaction commits.
@@ -536,18 +595,12 @@ func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 // to the collection. This is a syncrhonous call so changes can
 // be assumed to be applied on function return.
 func (t *Txn) Commit() error {
-	if t.discarded || t.committed {
-		return errAlreadyDiscardedCommitedTxn
-	}
-	events, node, err := t.collection.db.eventcodec.Create(t.actions)
+	events, node, err := t.createEvents(t.actions)
 	if err != nil {
 		return err
 	}
-	if len(events) == 0 && node == nil {
+	if node == nil {
 		return nil
-	}
-	if len(events) == 0 || node == nil {
-		return fmt.Errorf("created events and node must both be nil or not-nil")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), createNetRecordTimeout)
@@ -564,6 +617,17 @@ func (t *Txn) Commit() error {
 // Discard discards all changes done in the current transaction.
 func (t *Txn) Discard() {
 	t.discarded = true
+}
+
+// RefreshCollection updates the transaction's collection reference from the master db map,
+// which may have received updates while the transaction is open.
+func (t *Txn) RefreshCollection() error {
+	c, ok := t.collection.db.collections[t.collection.name]
+	if !ok {
+		return ErrCollectionNotFound
+	}
+	t.collection = c
+	return nil
 }
 
 func getSchemaTypeAtPath(schema *jsonschema.Schema, pth string) (*jsonschema.Type, error) {
@@ -623,6 +687,23 @@ func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 		log.Fatalf("while automatically patching autogenerated _id: %v", err)
 	}
 	return newID, patchedValue
+}
+
+func (t *Txn) createEvents(actions []core.Action) (events []core.Event, node format.Node, err error) {
+	if t.discarded || t.committed {
+		return nil, nil, errAlreadyDiscardedCommitedTxn
+	}
+	events, node, err = t.collection.db.eventcodec.Create(actions)
+	if err != nil {
+		return
+	}
+	if len(events) == 0 && node == nil {
+		return nil, nil, nil
+	}
+	if len(events) == 0 || node == nil {
+		return nil, nil, fmt.Errorf("created events and node must both be nil or not-nil")
+	}
+	return events, node, nil
 }
 
 func compileJSFunc(v []byte, name string, args ...string) ([]byte, error) {

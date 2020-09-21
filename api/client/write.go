@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
@@ -53,7 +54,7 @@ func (t *WriteTransaction) Has(instanceIDs ...string) (bool, error) {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_HasReply:
-		return x.HasReply.GetExists(), nil
+		return x.HasReply.GetExists(), txnError(x.HasReply.TransactionError)
 	default:
 		return false, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
@@ -79,7 +80,11 @@ func (t *WriteTransaction) FindByID(instanceID string, instance interface{}) err
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_FindByIDReply:
-		err := json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
+		err := txnError(x.FindByIDReply.TransactionError)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(x.FindByIDReply.GetInstance(), instance)
 		return err
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
@@ -138,9 +143,38 @@ func (t *WriteTransaction) Create(items ...interface{}) ([]string, error) {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_CreateReply:
-		return x.CreateReply.GetInstanceIDs(), nil
+		return x.CreateReply.GetInstanceIDs(), txnError(x.CreateReply.TransactionError)
 	default:
 		return nil, fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+	}
+}
+
+// Verify verifies existing instance changes.
+func (t *WriteTransaction) Verify(items ...interface{}) error {
+	values, err := marshalItems(items)
+	if err != nil {
+		return err
+	}
+	innerReq := &pb.VerifyRequest{
+		Instances: values,
+	}
+	option := &pb.WriteTransactionRequest_VerifyRequest{
+		VerifyRequest: innerReq,
+	}
+	if err = t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	if resp, err = t.client.Recv(); err != nil {
+		return err
+	}
+	switch x := resp.GetOption().(type) {
+	case *pb.WriteTransactionReply_VerifyReply:
+		return txnError(x.VerifyReply.TransactionError)
+	default:
+		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
 }
 
@@ -167,7 +201,7 @@ func (t *WriteTransaction) Save(items ...interface{}) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_SaveReply:
-		return nil
+		return txnError(x.SaveReply.TransactionError)
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
 	}
@@ -193,6 +227,29 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 	}
 	switch x := resp.GetOption().(type) {
 	case *pb.WriteTransactionReply_DeleteReply:
+		return txnError(x.DeleteReply.TransactionError)
+	default:
+		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
+	}
+}
+
+// Discard discards transaction changes.
+func (t *WriteTransaction) Discard() error {
+	option := &pb.WriteTransactionRequest_DiscardRequest{
+		DiscardRequest: &pb.DiscardRequest{},
+	}
+	if err := t.client.Send(&pb.WriteTransactionRequest{
+		Option: option,
+	}); err != nil {
+		return err
+	}
+	var resp *pb.WriteTransactionReply
+	var err error
+	if resp, err = t.client.Recv(); err != nil {
+		return err
+	}
+	switch x := resp.GetOption().(type) {
+	case *pb.WriteTransactionReply_DiscardReply:
 		return nil
 	default:
 		return fmt.Errorf("WriteTransactionReply.Option has unexpected type %T", x)
@@ -201,5 +258,11 @@ func (t *WriteTransaction) Delete(instanceIDs ...string) error {
 
 // end ends the active transaction.
 func (t *WriteTransaction) end() error {
-	return t.client.CloseSend()
+	if err := t.client.CloseSend(); err != nil {
+		return err
+	}
+	if _, err := t.client.Recv(); err != nil && err != io.EOF {
+		return err
+	}
+	return nil
 }
