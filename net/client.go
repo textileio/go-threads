@@ -212,20 +212,15 @@ func (s *server) getRecords(
 	}
 
 	var (
-		recs   = newRecords()
-		wg     sync.WaitGroup
-		logErr = func(addr ma.Multiaddr, f func(addr ma.Multiaddr) error) {
-			if err := f(addr); err != nil {
-				log.Error(err.Error())
-			}
-		}
+		recs = newRecords()
+		wg   sync.WaitGroup
 	)
 
 	// Pull from each address
 	for _, addr := range logAddrs {
 		wg.Add(1)
 
-		go logErr(addr, func(addr ma.Multiaddr) error {
+		go withErrLog(addr, func(addr ma.Multiaddr) error {
 			defer wg.Done()
 			pid, ok, err := s.callablePeer(addr)
 			if err != nil {
@@ -328,15 +323,9 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		Body: body,
 	}
 
-	logErr := func(addr ma.Multiaddr, f func(addr ma.Multiaddr) error) {
-		if err := f(addr); err != nil {
-			log.Error(err.Error())
-		}
-	}
-
 	// Push to each address
 	for _, addr := range addrs {
-		go logErr(addr, func(addr ma.Multiaddr) error {
+		go withErrLog(addr, func(addr ma.Multiaddr) error {
 			pid, ok, err := s.callablePeer(addr)
 			if err != nil {
 				return err
@@ -472,4 +461,10 @@ func (s *server) signRequestBody(msg proto.Marshaler) (sig []byte, pk crypto.Pub
 		return
 	}
 	return sig, sk.GetPublic(), nil
+}
+
+func withErrLog(addr ma.Multiaddr, f func(addr ma.Multiaddr) error) {
+	if err := f(addr); err != nil {
+		log.Error(err.Error())
+	}
 }
