@@ -3,6 +3,7 @@ package db
 
 import (
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,6 +59,8 @@ var (
 
 func init() {
 	nameRx = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-][A-Za-z0-9]+)*$`)
+	// register empty map in order to gob-encode old-format events with non-encodable time.Time which cbor decodes as map[string]interface{}
+	gob.Register(map[string]interface {}{})
 }
 
 // DB is the aggregate-root of events and state. External/remote events
