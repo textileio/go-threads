@@ -294,28 +294,36 @@ func verifyRequest(header *pb.Header, body proto.Marshaler) (pid peer.ID, err er
 
 // logToProto returns a proto log from a thread log.
 func logToProto(l thread.LogInfo) *pb.Log {
-	pbaddrs := make([]pb.ProtoAddr, len(l.Addrs))
-	for j, a := range l.Addrs {
-		pbaddrs[j] = pb.ProtoAddr{Multiaddr: a}
-	}
 	return &pb.Log{
 		ID:     &pb.ProtoPeerID{ID: l.ID},
 		PubKey: &pb.ProtoPubKey{PubKey: l.PubKey},
-		Addrs:  pbaddrs,
+		Addrs:  addrsToProto(l.Addrs),
 		Head:   &pb.ProtoCid{Cid: l.Head},
 	}
 }
 
 // logFromProto returns a thread log from a proto log.
 func logFromProto(l *pb.Log) thread.LogInfo {
-	addrs := make([]ma.Multiaddr, len(l.Addrs))
-	for j, a := range l.Addrs {
-		addrs[j] = a.Multiaddr
-	}
 	return thread.LogInfo{
 		ID:     l.ID.ID,
 		PubKey: l.PubKey.PubKey,
-		Addrs:  addrs,
+		Addrs:  addrsFromProto(l.Addrs),
 		Head:   l.Head.Cid,
 	}
+}
+
+func addrsToProto(mas []ma.Multiaddr) []pb.ProtoAddr {
+	pas := make([]pb.ProtoAddr, len(mas))
+	for i, a := range mas {
+		pas[i] = pb.ProtoAddr{Multiaddr: a}
+	}
+	return pas
+}
+
+func addrsFromProto(pa []pb.ProtoAddr) []ma.Multiaddr {
+	mas := make([]ma.Multiaddr, len(pa))
+	for i, a := range pa {
+		mas[i] = a.Multiaddr
+	}
+	return mas
 }

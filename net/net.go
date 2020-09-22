@@ -12,7 +12,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -28,7 +28,8 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
-	"github.com/textileio/go-threads/util"
+	"github.com/textileio/go-threads/net/util"
+	tu "github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
 
@@ -44,6 +45,9 @@ var (
 	// PullInterval is the interval between automatic log pulls.
 	PullInterval = time.Second * 10
 
+	// EventBusCapacity is the buffer size of local event bus listeners.
+	EventBusCapacity = 1
+
 	// notifyTimeout is the duration to wait for a subscriber to read a new record.
 	notifyTimeout = time.Second * 5
 
@@ -53,6 +57,25 @@ var (
 	// tokenChallengeTimeout is the duration of time given to an identity to complete a token challenge.
 	tokenChallengeTimeout = time.Minute
 )
+
+var (
+	_ util.SemaphoreKey = (*semaThreadPull)(nil)
+	_ util.SemaphoreKey = (*semaThreadUpdate)(nil)
+)
+
+// semaphore protecting thread info updates
+type semaThreadUpdate thread.ID
+
+func (t semaThreadUpdate) Key() string {
+	return "tu:" + string(t)
+}
+
+// semaphore eliminating concurrent pulls
+type semaThreadPull thread.ID
+
+func (t semaThreadPull) Key() string {
+	return "tp:" + string(t)
+}
 
 // net is an implementation of core.DBNet.
 type net struct {
@@ -67,12 +90,12 @@ type net struct {
 	bus    *broadcast.Broadcaster
 
 	connectors map[thread.ID]*app.Connector
+	connLock   sync.Mutex
+
+	semaphores *util.SemaphorePool
 
 	ctx    context.Context
 	cancel context.CancelFunc
-
-	pullLock  sync.Mutex
-	pullLocks map[thread.ID]chan struct{}
 }
 
 // Config is used to specify thread instance options.
@@ -94,7 +117,7 @@ func NewNetwork(
 ) (app.Net, error) {
 	var err error
 	if conf.Debug {
-		if err = util.SetLogLevels(map[string]logging.LogLevel{
+		if err = tu.SetLogLevels(map[string]logging.LogLevel{
 			"net":      logging.LevelDebug,
 			"logstore": logging.LevelDebug,
 		}); err != nil {
@@ -109,11 +132,11 @@ func NewNetwork(
 		bstore:     bstore,
 		store:      ls,
 		rpc:        grpc.NewServer(serverOptions...),
-		bus:        broadcast.NewBroadcaster(0),
+		bus:        broadcast.NewBroadcaster(EventBusCapacity),
 		connectors: make(map[thread.ID]*app.Connector),
 		ctx:        ctx,
 		cancel:     cancel,
-		pullLocks:  make(map[thread.ID]chan struct{}),
+		semaphores: util.NewSemaphorePool(1),
 	}
 
 	t.server, err = newServer(t, conf.PubSub, dialOptions...)
@@ -137,12 +160,8 @@ func NewNetwork(
 }
 
 func (n *net) Close() (err error) {
-	n.pullLock.Lock()
-	defer n.pullLock.Unlock()
 	// Wait for all thread pulls to finish
-	for _, semaph := range n.pullLocks {
-		semaph <- struct{}{}
-	}
+	n.semaphores.Stop()
 
 	// Close peer connections and shutdown the server
 	n.server.Lock()
@@ -362,18 +381,6 @@ func (n *net) getThreadWithAddrs(id thread.ID) (info thread.Info, err error) {
 	return tinfo, nil
 }
 
-func (n *net) getThreadSemaphore(id thread.ID) chan struct{} {
-	var ptl chan struct{}
-	var ok bool
-	n.pullLock.Lock()
-	defer n.pullLock.Unlock()
-	if ptl, ok = n.pullLocks[id]; !ok {
-		ptl = make(chan struct{}, 1)
-		n.pullLocks[id] = ptl
-	}
-	return ptl
-}
-
 func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
 	args := &core.ThreadOptions{}
 	for _, opt := range opts {
@@ -385,27 +392,17 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 	return n.pullThread(ctx, id)
 }
 
+// pullThread for the new records. This method is thread-safe.
 func (n *net) pullThread(ctx context.Context, id thread.ID) error {
-	ptl := n.getThreadSemaphore(id)
-	select {
-	case ptl <- struct{}{}:
-		err := n.pullThreadUnsafe(ctx, id)
-		if err != nil {
-			<-ptl
-			return err
-		}
-		<-ptl
-	default:
-		log.Warnf("pull thread %s ignored since already being pulled", id)
+	tps := n.semaphores.Get(semaThreadPull(id))
+	if !tps.TryAcquire() {
+		log.Debugf("skip pulling thread %s: concurrent pull in progress", id)
+		return nil
 	}
-	return nil
-}
 
-// pullThreadUnsafe for new records.
-// This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
-func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 	info, err := n.store.GetThread(id)
 	if err != nil {
+		tps.Release()
 		return err
 	}
 
@@ -416,6 +413,7 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 		if lg.Head.Defined() {
 			has, err = n.bstore.Has(lg.Head)
 			if err != nil {
+				tps.Release()
 				return err
 			}
 		}
@@ -425,9 +423,13 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 			offsets[lg.ID] = cid.Undef
 		}
 	}
-	var lock sync.Mutex
-	var fetchedRcs []map[peer.ID][]core.Record
-	wg := sync.WaitGroup{}
+
+	var (
+		fetchedRcs []map[peer.ID][]core.Record
+		lock       sync.Mutex
+		wg         sync.WaitGroup
+	)
+
 	for _, lg := range info.Logs {
 		wg.Add(1)
 		go func(lg thread.LogInfo) {
@@ -438,16 +440,20 @@ func (n *net) pullThreadUnsafe(ctx context.Context, id thread.ID) error {
 				log.Error(err)
 				return
 			}
+
 			lock.Lock()
 			fetchedRcs = append(fetchedRcs, recs)
 			lock.Unlock()
 		}(lg)
 	}
 	wg.Wait()
+	tps.Release()
+
+	// maybe we should preliminary deduplicate records?
 	for _, recs := range fetchedRcs {
 		for lid, rs := range recs {
 			for _, r := range rs {
-				if err = n.putRecordUnsafe(ctx, id, lid, r); err != nil {
+				if err = n.putRecord(ctx, id, lid, r); err != nil {
 					log.Error(err)
 					return err
 				}
@@ -466,22 +472,19 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	if _, err := n.Validate(id, args.Token, false); err != nil {
 		return err
 	}
-	if _, ok := n.getConnector(id, args.APIToken); !ok {
+	if _, ok := n.getConnectorProtected(id, args.APIToken); !ok {
 		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
 	}
 
 	log.Debugf("deleting thread %s...", id)
-	ptl := n.getThreadSemaphore(id)
-	select {
-	case ptl <- struct{}{}: // Must block in case the thread is being pulled
-		err := n.deleteThread(ctx, id)
-		if err != nil {
-			<-ptl
-			return err
-		}
-		<-ptl
-	}
-	return nil
+	ts := n.semaphores.Get(semaThreadUpdate(id))
+
+	// Must block in case the thread is being pulled
+	ts.Acquire()
+	err := n.deleteThread(ctx, id)
+	ts.Release()
+
+	return err
 }
 
 // deleteThread cleans up all the persistent and in-memory bits of a thread. This includes:
@@ -638,7 +641,7 @@ func (n *net) CreateRecord(ctx context.Context, id thread.ID, body format.Node, 
 	if identity == nil {
 		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
 	}
-	con, ok := n.getConnector(id, args.APIToken)
+	con, ok := n.getConnectorProtected(id, args.APIToken)
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
 	} else if con != nil {
@@ -813,7 +816,7 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error making connector %s: %v", id, err)
 	}
-	n.connectors[id] = con
+	n.addConnector(id, con)
 	return con, nil
 }
 
@@ -825,11 +828,25 @@ func (n *net) Validate(id thread.ID, token thread.Token, readOnly bool) (thread.
 	return token.Validate(n.getPrivKey())
 }
 
-// getConnector returns the connector tied to the thread if it exists
+func (n *net) addConnector(id thread.ID, conn *app.Connector) {
+	n.connLock.Lock()
+	n.connectors[id] = conn
+	n.connLock.Unlock()
+}
+
+func (n *net) getConnector(id thread.ID) (*app.Connector, bool) {
+	n.connLock.Lock()
+	defer n.connLock.Unlock()
+
+	conn, exist := n.connectors[id]
+	return conn, exist
+}
+
+// getConnectorProtected returns the connector tied to the thread if it exists
 // and whether or not the token is valid.
-func (n *net) getConnector(id thread.ID, token core.Token) (*app.Connector, bool) {
-	c, ok := n.connectors[id]
-	if !ok {
+func (n *net) getConnectorProtected(id thread.ID, token core.Token) (*app.Connector, bool) {
+	c, exist := n.getConnector(id)
+	if !exist {
 		return nil, true // thread is not owned by a connector
 	}
 	if !token.Equal(c.Token()) {
@@ -847,110 +864,183 @@ func (n *net) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 }
 
 // putRecord adds an existing record. This method is thread-safe.
-func (n *net) putRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
-	tsph := n.getThreadSemaphore(id)
-	tsph <- struct{}{}
-	defer func() { <-tsph }()
-	return n.putRecordUnsafe(ctx, id, lid, rec)
-}
-
-// putRecordUnsafe adds an existing record. See PutOption for more. This method
-// *should be thread-guarded*.
-func (n *net) putRecordUnsafe(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
-	var unknownRecords []core.Record
-	c := rec.Cid()
-	for c.Defined() {
-		exist, err := n.bstore.Has(c)
-		if err != nil {
-			return err
-		}
-		if exist {
-			break
-		}
-		var r core.Record
-		if c.String() != rec.Cid().String() {
-			r, err = n.getRecord(ctx, id, c)
-			if err != nil {
-				return err
-			}
-		} else {
-			r = rec
-		}
-		unknownRecords = append(unknownRecords, r)
-		c = r.PrevID()
-	}
-	if len(unknownRecords) == 0 {
+func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record) error {
+	unknown, head, err := n.loadUnknownRecords(ctx, tid, lid, rec)
+	if err != nil {
+		return fmt.Errorf("loading records failed: %w", err)
+	} else if len(unknown) == 0 {
 		return nil
 	}
-	lg, err := n.store.GetLog(id, lid)
-	if err != nil {
-		return err
+
+	ts := n.semaphores.Get(semaThreadUpdate(tid))
+	ts.Acquire()
+
+	// check head again to detect if some other process concurrently have changed the log
+	if current, err := n.currentHead(tid, lid); err != nil {
+		ts.Release()
+		return fmt.Errorf("fetching head failed: %w", err)
+	} else if current != head {
+		ts.Release()
+		return n.putRecord(ctx, tid, lid, rec)
 	}
 
-	con := n.connectors[id]
-	for i := len(unknownRecords) - 1; i >= 0; i-- {
-		r := unknownRecords[i]
-		// Save the record locally
-		// Note: These get methods will return cached nodes.
-		block, err := r.GetBlock(ctx, n)
-		if err != nil {
+	defer ts.Release()
+
+	connector, appConnected := n.getConnector(tid)
+	for _, record := range unknown {
+		if err := n.store.SetHead(tid, lid, record.Value().Cid()); err != nil {
+			return fmt.Errorf("setting log head failed: %w", err)
+		}
+
+		if appConnected {
+			if err := connector.HandleNetRecord(ctx, record); err != nil {
+				// Future improvement notes.
+				// If record handling fails there are two options available:
+				// 1. Just interrupt and return error (current behaviour). Log head remains moved and some events
+				//    from the record possibly won't reach reducers/listeners or even get dispatched.
+				// 2. Rollback log head to the previous record. In this case record handling will be retried until
+				//    success, but reducers must guarantee its idempotence and there is a chance of getting stuck
+				//    with bad event and not making any progress at all.
+				return fmt.Errorf("handling record failed: %w", err)
+			}
+		}
+
+		// Generally broadcasting should not block for too long, i.e. we have to run it
+		// under the semaphore to ensure consistent order seen by the listeners. Record
+		// bursts could be overcome by adjusting listener buffers (EventBusCapacity).
+		if err = n.bus.SendWithTimeout(record, notifyTimeout); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Load, validate and cache all records in log between currentHead and last.
+func (n *net) loadUnknownRecords(
+	ctx context.Context,
+	tid thread.ID,
+	lid peer.ID,
+	last core.Record,
+) ([]core.ThreadRecord, cid.Cid, error) {
+	// check if last record was already loaded and processed
+	if exist, err := n.bstore.Has(last.Cid()); err != nil {
+		return nil, cid.Undef, err
+	} else if exist || !last.Cid().Defined() {
+		return nil, cid.Undef, nil
+	}
+
+	var (
+		c       = last.PrevID()
+		unknown = []core.Record{last}
+	)
+
+	head, err := n.currentHead(tid, lid)
+	if err != nil {
+		return nil, head, err
+	}
+
+	// load record chain between the last and current head
+	for c.Defined() {
+		if c == head {
+			break
+		}
+
+		r, err := n.getRecord(ctx, tid, c)
+		if err != nil {
+			return nil, head, err
+		}
+
+		unknown = append(unknown, r)
+		c = r.PrevID()
+	}
+
+	if len(unknown) == 0 {
+		return nil, head, nil
+	}
+
+	var (
+		connector, appConnected = n.getConnector(tid)
+		identity                = &thread.Libp2pPubKey{}
+		tRecords                = make([]core.ThreadRecord, 0, len(unknown))
+		readKey                 *sym.Key
+		validate                bool
+	)
+
+	if appConnected {
+		var err error
+		if readKey, err = n.store.ReadKey(tid); err != nil {
+			return nil, head, err
+		} else if readKey != nil {
+			validate = true
+		}
+	}
+
+	for i := len(unknown) - 1; i >= 0; i-- {
+		var r = unknown[i]
+		block, err := r.GetBlock(ctx, n)
+		if err != nil {
+			return nil, head, err
+		}
+
 		event, ok := block.(*cbor.Event)
 		if !ok {
 			event, err = cbor.EventFromNode(block)
 			if err != nil {
-				return fmt.Errorf("invalid event: %v", err)
+				return nil, head, fmt.Errorf("invalid event: %w", err)
 			}
 		}
+
 		header, err := event.GetHeader(ctx, n, nil)
 		if err != nil {
-			return err
+			return nil, head, err
 		}
+
 		body, err := event.GetBody(ctx, n, nil)
 		if err != nil {
-			return err
+			return nil, head, err
 		}
 
-		if con != nil {
-			key, err := n.store.ReadKey(id)
+		if validate {
+			dbody, err := event.GetBody(ctx, n, readKey)
 			if err != nil {
-				return err
+				return nil, head, err
 			}
-			if key != nil {
-				dbody, err := event.GetBody(ctx, n, key)
-				if err != nil {
-					return err
-				}
-				identity := &thread.Libp2pPubKey{}
-				if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
-					return err
-				}
-				if err = con.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
-					return err
-				}
+
+			if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
+				return nil, head, err
+			}
+
+			if err = connector.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
+				return nil, head, err
 			}
 		}
 
+		// store blocks locally
 		if err = n.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
-			return err
+			return nil, head, err
 		}
-		if err = n.store.SetHead(id, lg.ID, r.Cid()); err != nil {
-			return err
-		}
-		log.Debugf("put record %s (thread=%s, log=%s)", r.Cid(), id, lg.ID)
 
-		tr := NewRecord(r, id, lg.ID)
-		if con != nil {
-			if err = con.HandleNetRecord(ctx, tr); err != nil {
-				return err
-			}
-		}
-		if err = n.bus.SendWithTimeout(tr, notifyTimeout); err != nil {
-			return err
-		}
+		tRecords = append(tRecords, NewRecord(r, tid, lid))
 	}
-	return nil
+
+	return tRecords, head, nil
+}
+
+func (n *net) currentHead(tid thread.ID, lid peer.ID) (cid.Cid, error) {
+	var head cid.Cid
+	heads, err := n.store.Heads(tid, lid)
+	if err != nil {
+		return head, err
+	}
+
+	if len(heads) > 0 {
+		head = heads[0]
+	} else {
+		head = cid.Undef
+	}
+
+	return head, nil
 }
 
 // newRecord creates a new record with the given body as a new event body.
@@ -1007,13 +1097,12 @@ func (n *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 		return nil, fmt.Errorf("a service-key is required to get records")
 	}
 
-	var recs []core.Record
-	if limit <= 0 {
-		return recs, nil
-	}
+	var (
+		cursor = lg.Head
+		recs   []core.Record
+	)
 
-	cursor := lg.Head
-	for {
+	for len(recs) < limit {
 		if !cursor.Defined() || cursor.String() == offset.String() {
 			break
 		}
@@ -1022,9 +1111,6 @@ func (n *net) getLocalRecords(ctx context.Context, id thread.ID, lid peer.ID, of
 			return nil, err
 		}
 		recs = append([]core.Record{r}, recs...)
-		if len(recs) >= MaxPullLimit {
-			break
-		}
 		cursor = r.PrevID()
 	}
 
@@ -1159,9 +1245,10 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created
 // log will have cid.Undef as the current head. Is thread-safe.
 func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey crypto.PubKey, privKey crypto.PrivKey, addrs []ma.Multiaddr) error {
-	tsph := n.getThreadSemaphore(tid)
-	tsph <- struct{}{}
-	defer func() { <-tsph }()
+	ts := n.semaphores.Get(semaThreadUpdate(tid))
+	ts.Acquire()
+	defer ts.Release()
+
 	currHeads, err := n.Store().Heads(tid, lid)
 	if err != nil {
 		return err
@@ -1174,9 +1261,7 @@ func (n *net) createExternalLogIfNotExist(tid thread.ID, lid peer.ID, pubKey cry
 			Addrs:   addrs,
 			Head:    cid.Undef,
 		}
-		if err := n.store.AddLog(tid, lginfo); err != nil {
-			return err
-		}
+		return n.store.AddLog(tid, lginfo)
 	}
 	return nil
 }
@@ -1237,11 +1322,14 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 }
 
 // updateRecordsFromLog will fetch lid addrs for new logs & records,
-// and will add them in the local peer store. It assumes  Is thread-safe.
+// and will add them in the local peer store. Method is thread-safe.
 func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
-	tsph := n.getThreadSemaphore(tid)
-	tsph <- struct{}{}
-	defer func() { <-tsph }()
+	tps := n.semaphores.Get(semaThreadPull(tid))
+	if !tps.TryAcquire() {
+		log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", tid, lid)
+		return
+	}
+
 	// Get log records for this new log
 	recs, err := n.server.getRecords(
 		n.ctx,
@@ -1249,13 +1337,15 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		lid,
 		map[peer.ID]cid.Cid{lid: cid.Undef},
 		MaxPullLimit)
+	tps.Release()
 	if err != nil {
 		log.Error(err)
 		return
 	}
+
 	for lid, rs := range recs {
 		for _, r := range rs {
-			if err = n.putRecordUnsafe(n.ctx, tid, lid, r); err != nil {
+			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
 				log.Error(err)
 				return
 			}
