@@ -396,70 +396,30 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 }
 
 // pullThread for the new records. This method is thread-safe.
-func (n *net) pullThread(ctx context.Context, id thread.ID) error {
-	tps := n.semaphores.Get(semaThreadPull(id))
+func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
+	tps := n.semaphores.Get(semaThreadPull(tid))
 	if !tps.TryAcquire() {
-		log.Debugf("skip pulling thread %s: concurrent pull in progress", id)
+		log.Debugf("skip pulling thread %s: concurrent pull in progress", tid)
 		return nil
 	}
 
-	info, err := n.store.GetThread(id)
+	offsets, err := n.threadOffsets(tid)
 	if err != nil {
 		tps.Release()
 		return err
 	}
 
-	// Gather offsets for each log
-	offsets := make(map[peer.ID]cid.Cid)
-	for _, lg := range info.Logs {
-		var has bool
-		if lg.Head.Defined() {
-			has, err = n.bstore.Has(lg.Head)
-			if err != nil {
-				tps.Release()
-				return err
-			}
-		}
-		if has {
-			offsets[lg.ID] = lg.Head
-		} else {
-			offsets[lg.ID] = cid.Undef
-		}
-	}
-
-	var (
-		fetchedRcs []map[peer.ID][]core.Record
-		lock       sync.Mutex
-		wg         sync.WaitGroup
-	)
-
-	for _, lg := range info.Logs {
-		wg.Add(1)
-		go func(lg thread.LogInfo) {
-			defer wg.Done()
-			// Pull from addresses
-			recs, err := n.server.getRecords(ctx, id, lg.ID, offsets, MaxPullLimit)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-
-			lock.Lock()
-			fetchedRcs = append(fetchedRcs, recs)
-			lock.Unlock()
-		}(lg)
-	}
-	wg.Wait()
+	// Pull from addresses
+	recs, err := n.server.getRecords(ctx, tid, offsets, MaxPullLimit)
 	tps.Release()
+	if err != nil {
+		return err
+	}
 
-	// maybe we should preliminary deduplicate records?
-	for _, recs := range fetchedRcs {
-		for lid, rs := range recs {
-			for _, r := range rs {
-				if err = n.putRecord(ctx, id, lid, r); err != nil {
-					log.Error(err)
-					return err
-				}
+	for lid, rs := range recs {
+		for _, r := range rs {
+			if err = n.putRecord(ctx, tid, lid, r); err != nil {
+				return err
 			}
 		}
 	}
@@ -1356,25 +1316,57 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		return
 	}
 
-	// Get log records for this new log
-	recs, err := n.server.getRecords(
-		n.ctx,
-		tid,
-		lid,
-		map[peer.ID]cid.Cid{lid: cid.Undef},
-		MaxPullLimit)
+	// TODO after protocol change request only new log
+	offsets, err := n.threadOffsets(tid)
+	if err != nil {
+		tps.Release()
+		log.Errorf("getting offsets for thread %s failed: %v", tid, err)
+		return
+	}
+
+	// request records for the new log
+	offsets[lid] = cid.Undef
+
+	recs, err := n.server.getRecords(n.ctx, tid, offsets, MaxPullLimit)
 	tps.Release()
 	if err != nil {
-		log.Error(err)
+		log.Errorf("getting records from new log %s (thread %s) failed: %v", lid, tid, err)
 		return
 	}
 
 	for lid, rs := range recs {
 		for _, r := range rs {
 			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
-				log.Error(err)
+				log.Errorf("putting records from new log %s (thread %s) failed: %v", lid, tid, err)
 				return
 			}
 		}
 	}
+}
+
+// get offsets for all known thread's logs
+func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]cid.Cid, error) {
+	info, err := n.store.GetThread(tid)
+	if err != nil {
+		return nil, err
+	}
+
+	var offsets = make(map[peer.ID]cid.Cid, len(info.Logs))
+	for _, lg := range info.Logs {
+		var has bool
+		if lg.Head.Defined() {
+			has, err = n.bstore.Has(lg.Head)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if has {
+			offsets[lg.ID] = lg.Head
+		} else {
+			offsets[lg.ID] = cid.Undef
+		}
+	}
+
+	return offsets, nil
 }

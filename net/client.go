@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	nnet "net"
 	"sync"
@@ -168,19 +169,17 @@ func (r *records) Store(p peer.ID, key cid.Cid, value core.Record) {
 func (s *server) getRecords(
 	ctx context.Context,
 	tid thread.ID,
-	lid peer.ID,
 	offsets map[peer.ID]cid.Cid,
 	limit int,
 ) (map[peer.ID][]core.Record, error) {
 	sk, err := s.net.store.ServiceKey(tid)
 	if err != nil {
 		return nil, err
-	}
-	if sk == nil {
-		return nil, fmt.Errorf("a service-key is required to request records")
+	} else if sk == nil {
+		return nil, errors.New("a service-key is required to request records")
 	}
 
-	pblgs := make([]*pb.GetRecordsRequest_Body_LogEntry, 0, len(offsets))
+	var pblgs = make([]*pb.GetRecordsRequest_Body_LogEntry, 0, len(offsets))
 	for lid, offset := range offsets {
 		pblgs = append(pblgs, &pb.GetRecordsRequest_Body_LogEntry{
 			LogID:  &pb.ProtoPeerID{ID: lid},
@@ -194,10 +193,12 @@ func (s *server) getRecords(
 		ServiceKey: &pb.ProtoKey{Key: sk},
 		Logs:       pblgs,
 	}
+
 	sig, key, err := s.signRequestBody(body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("signing GetRecords request: %w", err)
 	}
+
 	req := &pb.GetRecordsRequest{
 		Header: &pb.Header{
 			PubKey:    &pb.ProtoPubKey{PubKey: key},
@@ -206,9 +207,16 @@ func (s *server) getRecords(
 		Body: body,
 	}
 
-	logAddrs, err := s.net.store.Addrs(tid, lid)
-	if err != nil {
-		return nil, err
+	// set of unique log addresses
+	var logAddrs = make(map[ma.Multiaddr]struct{}, len(offsets))
+	for lid := range offsets {
+		las, err := s.net.store.Addrs(tid, lid)
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range las {
+			logAddrs[addr] = struct{}{}
+		}
 	}
 
 	var (
@@ -217,7 +225,7 @@ func (s *server) getRecords(
 	)
 
 	// Pull from each address
-	for _, addr := range logAddrs {
+	for addr := range logAddrs {
 		wg.Add(1)
 
 		go withErrLog(addr, func(addr ma.Multiaddr) error {
