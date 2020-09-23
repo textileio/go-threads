@@ -39,7 +39,7 @@ jobs:
           VERSION=${GITHUB_REF##*/}
           OUT=release
           mkdir -p ${OUT}
-          mkdir -p threadsd
+          rm threadsd/main.go
           cp LICENSE threadsd/
           cp dist/README.md threadsd/
           cp dist/install threadsd/
@@ -57,7 +57,6 @@ jobs:
                   mv threadsd_${VERSION}_${OSARCH}.tar.gz ${OUT}/
               fi
           done
-          rm -rf threadsd
           echo $(ls ./release)
       - name: Upload assets to release
         uses: AButler/upload-release-assets@v2.0
