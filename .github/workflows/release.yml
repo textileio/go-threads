@@ -34,66 +34,32 @@ jobs:
         run: |
           export PATH=${PATH}:`go env GOPATH`/bin
           gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
-          gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threads-{{.OS}}-{{.Arch}}" ./threads
       - name: Collect artifacts
         run: |
           VERSION=${GITHUB_REF##*/}
-          OUT=release/cli
+          OUT=release
           mkdir -p ${OUT}
-          mkdir -p install-threads
-          cp LICENSE install-threads/
-          cp dist/README.md install-threads/
-          cp dist/install install-threads/
+          mkdir -p threadsd
+          cp LICENSE threadsd/
+          cp dist/README.md threadsd/
+          cp dist/install threadsd/
           declare -a arr=("darwin-amd64" "windows-amd64.exe" "linux-amd64" "linux-386" "linux-arm")
           for i in "${arr[@]}"
           do
               OSARCH=${i%.*}
               EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
-              cp threadsd-${i} install-threads/threadsd${EXT}
-              cp threads-${i} install-threads/threads${EXT}
+              cp threadsd-${i} threadsd/threadsd${EXT}
               if [ "${EXT}" == ".exe" ]; then
-                  zip -r go-threads_${VERSION}_${OSARCH}.zip install-threads
-                  mv go-threads_${VERSION}_${OSARCH}.zip ${OUT}/
+                  zip -r threadsd_${VERSION}_${OSARCH}.zip threadsd
+                  mv threadsd_${VERSION}_${OSARCH}.zip ${OUT}/
               else
-                  tar -czvf go-threads_${VERSION}_${OSARCH}.tar.gz install-threads
-                  mv go-threads_${VERSION}_${OSARCH}.tar.gz ${OUT}/
+                  tar -czvf threadsd_${VERSION}_${OSARCH}.tar.gz threadsd
+                  mv threadsd_${VERSION}_${OSARCH}.tar.gz ${OUT}/
               fi
           done
-          rm -rf install-threads
-          echo $(ls ./release/cli)
-      - name: Upload multiple assets to release
+          rm -rf threadsd
+      - name: Upload assets to release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: 'release/cli/go-threads_*'
+          files: 'release/cli/threadsd_*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-  android-client:
-    name: Android Release
-    runs-on: ubuntu-latest
-    steps:
-      - name: set up JDK 1.8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-      - name: Install protoc
-        uses: arduino/setup-protoc@master
-        with:
-          version: '3.11.2'
-      - name: Install Android SDK
-        uses: malinskiy/action-android/install-sdk@release/0.0.5
-      - name: Check out code
-        uses: actions/checkout@v1
-      - name: Update Version
-        run: |
-          cd api/pb/android
-          sed -i.bak "s/<version>/${GITHUB_REF##*/}/g" manifest.gradle
-      - name: Install
-        run: |
-          cd api/pb/android
-          ./gradlew threads:install
-      - name: Publish
-        env:
-          BINTRAY_USERNAME: ${{ secrets.BINTRAY_USERNAME }}
-          BINTRAY_API_KEY: ${{ secrets.BINTRAY_API_KEY }}
-        run: |
-          cd api/pb/android
-          ./gradlew threads:bintrayUpload

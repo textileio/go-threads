@@ -1,0 +1,19 @@
+version: "3"
+services:
+  threads:
+    build:
+      context: .
+    environment:
+      - THRDS_HOSTADDR
+      - THRDS_APIADDR
+      - THRDS_APIPROXYADDR
+      - THRDS_CONNLOWWATER
+      - THRDS_CONNHIGHWATER
+      - THRDS_CONNGRACEPERIOD
+      - THRDS_KEEPALIVEINTERVAL
+      - THRDS_ENABLENETPUBSUB
+      - THRDS_DEBUG
+    ports:
+      - "4006:4006"
+      - "127.0.0.1:6006:6006"
+      - "127.0.0.1:6007:6007"

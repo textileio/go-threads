@@ -31,43 +31,41 @@ type API interface {
 	// GetHostID returns the host's peer id.
 	GetHostID(ctx context.Context) (peer.ID, error)
 
-	// GetToken returns a signed token representing an identity.
+	// GetToken returns a signed token representing an identity that can be used with other API methods, e.g.,
+	// CreateThread, AddThread, etc.
 	GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error)
 
-	// CreateThread with credentials.
+	// CreateThread creates and adds a new thread with id and opts.
 	CreateThread(ctx context.Context, id thread.ID, opts ...NewThreadOption) (thread.Info, error)
 
-	// AddThread with credentials from a multiaddress.
+	// AddThread adds an existing thread from a multiaddress and opts.
 	AddThread(ctx context.Context, addr ma.Multiaddr, opts ...NewThreadOption) (thread.Info, error)
 
-	// GetThread with credentials.
+	// GetThread returns thread info by id.
 	GetThread(ctx context.Context, id thread.ID, opts ...ThreadOption) (thread.Info, error)
 
-	// PullThread for new records.
-	// Logs owned by this host are traversed locally.
-	// Remotely addressed logs are pulled from the network.
-	// Is thread-safe.
+	// PullThread requests new records from each known thread host.
+	// This method is called internally on an interval as part of the orchestration protocol.
+	// Calling it manually can be useful when new records are known to be available.
 	PullThread(ctx context.Context, id thread.ID, opts ...ThreadOption) error
 
-	// DeleteThread with credentials.
+	// DeleteThread removes a thread by id and opts.
 	DeleteThread(ctx context.Context, id thread.ID, opts ...ThreadOption) error
 
-	// AddReplicator with credentials.
-	// The thread service key and all records will be pushed to paddr.
+	// AddReplicator replicates a thread by id on a different host.
+	// All logs and records are pushed to the new host.
 	AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiaddr, opts ...ThreadOption) (peer.ID, error)
 
-	// CreateRecord with credentials and body.
-	// The resulting record will have an author signature by the thread host.
-	// Use AddRecord to add a record from a different author.
+	// CreateRecord creates and adds a new record with body to a thread by id.
 	CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...ThreadOption) (ThreadRecord, error)
 
-	// AddRecord to the given log.
+	// AddRecord add an existing record to a thread by id and lid.
 	AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec Record, opts ...ThreadOption) error
 
-	// GetRecord returns the record at cid.
+	// GetRecord returns a record by thread id and cid.
 	GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...ThreadOption) (Record, error)
 
-	// Subscribe returns a read-only channel of records.
+	// Subscribe returns a read-only channel that receives newly created / added thread records.
 	Subscribe(ctx context.Context, opts ...SubOption) (<-chan ThreadRecord, error)
 }
 

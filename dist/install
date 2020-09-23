@@ -3,27 +3,22 @@ set -Eeuo pipefail
 
 # From https://github.com/ipfs/go-ipfs/blob/ccef991a194beaedf009b1d0702b1150db3da0a6/cmd/ipfs/dist/install.sh
 #
-# Installation script for threads. It tries to move $bin in one of the
+# Installation script for textile. It tries to move $bin in one of the
 # directories stored in $binpaths.
 
 INSTALL_DIR="$(dirname "$0")"
 
-threadsbin="$INSTALL_DIR/threads"
-threadsdbin="$INSTALL_DIR/threadsd"
+threadsd="$INSTALL_DIR/threadsd"
 binpaths="/usr/local/bin /usr/bin"
-
-threads_fail=1
-threadsd_fail=1
 
 # This variable contains a nonzero length string in case the script fails
 # because of missing write permissions.
 is_write_perm_missing=""
 
 for binpath in $binpaths; do
-	if mv "$threadsbin" "$binpath/$threadsbin" 2>/dev/null; then
-		echo "Moved $threadsbin to $binpath"
-		threads_fail=""
-		break
+	if mv "$threadsd" "$binpath/$threadsd" 2>/dev/null; then
+		echo "Moved $threadsd to $binpath"
+		exit 0
 	else
 		if test -d "$binpath" && ! test -w "$binpath"; then
 			is_write_perm_missing=1
@@ -31,26 +26,7 @@ for binpath in $binpaths; do
 	fi
 done
 
-for binpath in $binpaths; do
-	if mv "$threadsdbin" "$binpath/$threadsdbin" 2>/dev/null; then
-		echo "Moved $threadsdbin to $binpath"
-		threadsd_fail=""
-		break
-	else
-		if test -d "$binpath" && ! test -w "$binpath"; then
-			is_write_perm_missing=1
-		fi
-	fi
-done
-
-if test -n "$threads_fail"; then
-		echo "We cannot install $threadsbin one of the directories $binpaths"
-fi
-if test -n "$threadsd_fail"; then
-		echo "We cannot install $threadsdbin one of the directories $binpaths"
-fi
-
-echo
+echo "We cannot install $threadsd in one of the directories $binpaths"
 
 if test -n "$is_write_perm_missing"; then
 	echo "It seems that we do not have the necessary write permissions."

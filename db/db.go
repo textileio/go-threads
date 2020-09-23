@@ -305,11 +305,29 @@ func (d *DB) GetDBInfo(opts ...Option) (info Info, err error) {
 
 // CollectionConfig describes a new Collection.
 type CollectionConfig struct {
-	Name           string
-	Schema         *jsonschema.Schema
-	Indexes        []Index
+	// Name is the name of the collection.
+	// Must only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen.
+	Name string
+	// Schema is JSON Schema used for instance validation.
+	Schema *jsonschema.Schema
+	// Indexes is a list of index configurations, which define how instances are indexed.
+	Indexes []Index
+	// An optional JavaScript (ECMAScript 5.1) function that is used to validate instances on write.
+	// The function receives three arguments:
+	//   - writer: The multibase-encoded public key identity of the writer.
+	//   - event: An object describing the update event (see core.Event).
+	//   - instance: The current instance as a JavaScript object before the update event is applied.
+	// A "falsy" return value indicates a failed validation (see https://developer.mozilla.org/en-US/docs/Glossary/Falsy).
+	// Note: Only the function body should be defined here.
 	WriteValidator string
-	ReadFilter     string
+	// An optional JavaScript (ECMAScript 5.1) function that is used to filter instances on read.
+	// The function receives two arguments:
+	//   - reader: The multibase-encoded public key identity of the reader.
+	//   - instance: The current instance as a JavaScript object.
+	// The function must return a JavaScript object.
+	// Most implementation will modify and return the current instance.
+	// Note: Only the function body should be defined here.
+	ReadFilter string
 }
 
 // NewCollection creates a new db collection with config.
