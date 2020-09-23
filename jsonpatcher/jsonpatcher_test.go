@@ -71,7 +71,7 @@ func TestJsonPatcher_Migration(t *testing.T) {
 
 	b.Reset()
 	e = gob.NewEncoder(&b)
-	if err := e.Encode(tsout); err != nil {
+	if err := e.Encode(out); err != nil {
 		t.Errorf("failed to gob encode event with int64 timestamp: %v", err)
 	}
 
