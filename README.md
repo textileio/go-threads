@@ -203,8 +203,8 @@ Collections are groups of documents or _instances_ and are analogous to tables i
 -   ***`Name`***: The name of the collection, e.g, "Animals" (must be unique per DB).
 -   ***`Schema`***: A [JSON Schema](https://json-schema.org/)), which is used for instance validation.
 -   ***`Indexes`***: An optional list of index configurations, which define how instances are indexed.
--   ***`WriteValidator`***: An optional JavaScript function that is used to validate instances on write.
--   ***`ReadFilter`***: An optional JavaScript function that is used to filter instances on read.
+-   ***`WriteValidator`***: An optional JavaScript (ECMAScript 5.1) function that is used to validate instances on write.
+-   ***`ReadFilter`***: An optional JavaScript (ECMAScript 5.1) function that is used to filter instances on read.
 
 ##### Write Validation
 
