@@ -220,7 +220,7 @@ func TestClient_AddRecord(t *testing.T) {
 
 	// Create a thread, keeping read key and log private key on the client
 	id := thread.NewIDV1(thread.Raw, 32)
-	tk := thread.NewRandomServiceKey()
+	tk := thread.NewRandomKey()
 	logSk, logPk, err := crypto.GenerateEd25519Key(crand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -230,7 +230,13 @@ func TestClient_AddRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.CreateThread(context.Background(), id, core.WithThreadKey(tk), core.WithLogKey(logPk), core.WithNewThreadToken(tok))
+
+	_, err = client.CreateThread(
+		context.Background(),
+		id,
+		core.WithThreadKey(thread.NewServiceKey(tk.Service())),
+		core.WithLogKey(logPk),
+		core.WithNewThreadToken(tok))
 	if err != nil {
 		t.Fatal(err)
 	}
