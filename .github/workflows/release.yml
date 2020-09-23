@@ -1,8 +1,5 @@
 name: Release
 on:
-  pull_request:
-    branches:
-      - master
   release:
     types: [created]
 jobs:
@@ -61,6 +58,7 @@ jobs:
               fi
           done
           rm -rf threadsd
+          echo $(ls ./release)
       - name: Upload assets to release
         uses: AButler/upload-release-assets@v2.0
         with:
