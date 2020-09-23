@@ -1,6 +1,8 @@
 package jsonpatcher
 
 import (
+	"bytes"
+	"encoding/gob"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ type patchEventOld struct {
 func init() {
 	cbornode.RegisterCborType(patchEventOld{})
 	cbornode.RegisterCborType(time.Time{})
+	gob.Register(map[string]interface {}{})
 }
 
 func TestJsonPatcher_Migration(t *testing.T) {
@@ -27,6 +30,12 @@ func TestJsonPatcher_Migration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	b := bytes.Buffer{}
+	e := gob.NewEncoder(&b)
+	if err := e.Encode(in1); err != nil {
+		t.Errorf("failed to gob encode event with time.Time timestamp: %v", err)
+	}
+
 	out := new(patchEvent)
 	err = cbornode.DecodeInto(node1.RawData(), &out)
 	if err != nil {
@@ -35,6 +44,11 @@ func TestJsonPatcher_Migration(t *testing.T) {
 	if !out.time().Equal(time.Time{}) {
 		t.Error("non-encodable time should have zero-value")
 	}
+	b.Reset()
+	e = gob.NewEncoder(&b)
+	if err := e.Encode(out); err != nil {
+		t.Errorf("failed to gob encode event with empty time.Time timestamp: %v", err)
+	}
 
 	ts := time.Now()
 	in2 := patchEvent{Timestamp: ts.UnixNano(), ID: "123", CollectionName: "abc"}
@@ -42,11 +56,25 @@ func TestJsonPatcher_Migration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	b.Reset()
+	e = gob.NewEncoder(&b)
+	if err := e.Encode(in2); err != nil {
+		t.Errorf("failed to gob encode event with int64 timestamp: %v", err)
+	}
+
 	err = cbornode.DecodeInto(node2.RawData(), &out)
 	if err != nil {
 		t.Errorf("failed to decode event with int64 timestamp: %v", err)
 	}
 	tsout := out.time()
+
+	b.Reset()
+	e = gob.NewEncoder(&b)
+	if err := e.Encode(out); err != nil {
+		t.Errorf("failed to gob encode event with int64 timestamp: %v", err)
+	}
+
 	if !tsout.Equal(ts) {
 		t.Error("encodable time should be equal to input")
 	}
