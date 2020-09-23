@@ -61,5 +61,5 @@ jobs:
       - name: Upload assets to release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: 'release/cli/threadsd_*'
+          files: 'release/threadsd_*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
