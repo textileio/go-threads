@@ -1,4 +1,4 @@
-# ThreadsDB
+# ThreadDB
 
 [![Made by Textile](https://img.shields.io/badge/made%20by-Textile-informational.svg?style=popout-square)](https://textile.io)
 [![Chat on Slack](https://img.shields.io/badge/slack-slack.textile.io-informational.svg?style=popout-square)](https://slack.textile.io)
@@ -20,7 +20,7 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
   * [Daemon](#daemon)
   * [Client](#client)
 * [Getting Started](#getting-started)
-  * [Running ThreadsDB](#running-threadsdb)
+  * [Running ThreadDB](#running-threaddb)
     * [Configuration values](#configuration-values)
   * [The DB API](#the-db-api)
     * [Starting the client](#starting-the-client)
@@ -55,19 +55,19 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 
 ## Security
 
-ThreadsDB is still under heavy development and no part of it should be used before a thorough review of the underlying code and an understanding APIs and protocols may change rapidly. There may be coding mistakes, and the underlying protocols may contain design flaws. Please [let us know](mailto:contact@textile.io) immediately if you have discovered a security vulnerability.
+ThreadDB is still under heavy development and no part of it should be used before a thorough review of the underlying code and an understanding APIs and protocols may change rapidly. There may be coding mistakes, and the underlying protocols may contain design flaws. Please [let us know](mailto:contact@textile.io) immediately if you have discovered a security vulnerability.
 
 Please also read the [security note](https://github.com/ipfs/go-ipfs#security-issues) for [go-ipfs](https://github.com/ipfs/go-ipfs).
 
 ## Background
 
-ThreadsDB is an implementation of the database described in the paper entitled [_A protocol & event-sourced database for decentralized user-siloed data_](https://docsend.com/view/gu3ywqi). 
+ThreadDB is an implementation of the database described in the paper entitled [_A protocol & event-sourced database for decentralized user-siloed data_](https://docsend.com/view/gu3ywqi). 
 
-Go to [the docs](https://docs.textile.io/) for more about the motivations behind ThreadsDB and Textile.
+Go to [the docs](https://docs.textile.io/) for more about the motivations behind ThreadDB and Textile.
 
 ## Install
 
-ThreadsDB has two distinct layers:
+ThreadDB has two distinct layers:
 
 -   ***`db`***:  The database layer is a document store, which internally leverages the `net` API. Most applications will only interface with this layer.
 -   ***`net`***: The network layer maintains and orchestrates append-only event logs between network participants. Some applications, like event logging, may choose to rely on this layer directly.
@@ -96,7 +96,7 @@ import "github.com/textileio/go-threads/api/client"
 
 You can think of the [DB client](github.com/textileio/go-threads/api/client) as a gRPC client wrapper around the internal `db` package API, and the [Network client](github.com/textileio/go-threads/net/api/client) as a gRPC client wrapper around the internal `net` package API. This section will only focus on getting started with the gRPC clients, but Golang apps may choose to interact directly with `db` and/or `net`.
 
-### Running ThreadsDB
+### Running ThreadDB
 
 The `threadsd` daemon can be run as a server or alongside desktop apps or command-line tools. The easiest way to run `threadsd` is by using the provided Docker Compose files. If you're new to Docker and/or Docker Compose, get started [here](https://docs.docker.com/compose/gettingstarted/). Once you are setup, you should have `docker-compose` in your `PATH`.
 
@@ -130,7 +130,7 @@ threads_1  | Welcome to Threads!
 threads_1  | Your peer ID is 12D3KooWFCXqmQTwvpfYFWK3DjXChEc4NoPt8pp5jjC8REZ3g6NZ
 ```
 
-Congrats! Now you have ThreadsDB running locally.
+Congrats! Now you have ThreadDB running locally.
 
 #### Configuration values
 
@@ -374,7 +374,7 @@ exists, err := db.Has(context.Background(), threadID, "Persons", []string{aliceI
 
 #### Transactions
 
-ThreadsDB transactions come in two flavors: `WriteTransaction` and `ReadTransaction`.
+ThreadDB transactions come in two flavors: `WriteTransaction` and `ReadTransaction`.
 
 ##### Write transactions
 

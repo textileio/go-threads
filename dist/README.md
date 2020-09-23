@@ -1,6 +1,6 @@
 # `threadsd`
 
-This is the [ThreadsDB](https://github.com/textileio/go-threads/tree/master/threadsd) daemon.
+This is the [ThreadDB](https://github.com/textileio/go-threads/tree/master/threadsd) daemon.
 
 ## Install
 
