@@ -122,49 +122,6 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 	return err
 }
 
-// records maintains an ordered list of records from multiple sources.
-type records struct {
-	sync.RWMutex
-	m map[peer.ID]map[cid.Cid]core.Record
-	s map[peer.ID][]core.Record
-}
-
-// newRecords creates an instance of records.
-func newRecords() *records {
-	return &records{
-		m: make(map[peer.ID]map[cid.Cid]core.Record),
-		s: make(map[peer.ID][]core.Record),
-	}
-}
-
-// List all records.
-func (r *records) List() map[peer.ID][]core.Record {
-	r.RLock()
-	defer r.RUnlock()
-	return r.s
-}
-
-// Store a record.
-func (r *records) Store(p peer.ID, key cid.Cid, value core.Record) {
-	r.Lock()
-	defer r.Unlock()
-	if _, ok := r.m[p]; !ok {
-		r.m[p] = make(map[cid.Cid]core.Record)
-		r.s[p] = make([]core.Record, 0)
-	}
-	if _, ok := r.m[p][key]; ok {
-		return
-	}
-	r.m[p][key] = value
-
-	// Sanity check
-	if len(r.s[p]) > 0 && r.s[p][len(r.s[p])-1].Cid() != value.PrevID() {
-		panic("there is a gap in records list")
-	}
-
-	r.s[p] = append(r.s[p], value)
-}
-
 // getRecords from log addresses.
 func (s *server) getRecords(
 	ctx context.Context,
@@ -220,8 +177,8 @@ func (s *server) getRecords(
 	}
 
 	var (
-		recs = newRecords()
-		wg   sync.WaitGroup
+		rc = newRecordCollector()
+		wg sync.WaitGroup
 	)
 
 	// Pull from each address
@@ -287,7 +244,8 @@ func (s *server) getRecords(
 					if err = rec.Verify(pk); err != nil {
 						return err
 					}
-					recs.Store(logID, rec.Cid(), rec)
+
+					rc.Store(logID, rec)
 				}
 			}
 			return nil
@@ -295,7 +253,7 @@ func (s *server) getRecords(
 	}
 	wg.Wait()
 
-	return recs.List(), nil
+	return rc.List()
 }
 
 // pushRecord to log addresses and thread topic.
