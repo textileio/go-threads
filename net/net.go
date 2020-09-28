@@ -562,22 +562,18 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 		wg.Add(1)
 		go func(addr ma.Multiaddr) {
 			defer wg.Done()
-			p, err := addr.ValueForProtocol(ma.P_P2P)
+			pid, ok, err := n.callablePeer(addr)
 			if err != nil {
 				log.Error(err)
 				return
-			}
-			pid, err := peer.Decode(p)
-			if err != nil {
-				log.Error(err)
+			} else if !ok {
+				// skip calling itself
 				return
 			}
-			if pid.String() == n.host.ID().String() {
-				return
-			}
+
 			for _, lg := range managedLogs {
 				if err = n.server.pushLog(ctx, info.ID, lg, pid, nil, nil); err != nil {
-					log.Errorf("error pushing log %s to %s", lg.ID, p)
+					log.Errorf("error pushing log %s to %s: %v", lg.ID, pid, err)
 				}
 			}
 		}(addr)
@@ -585,6 +581,25 @@ func (n *net) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multiadd
 
 	wg.Wait()
 	return pid, nil
+}
+
+// callablePeer attempts to obtain external peer ID from the multiaddress.
+func (n *net) callablePeer(addr ma.Multiaddr) (peer.ID, bool, error) {
+	p, err := addr.ValueForProtocol(ma.P_P2P)
+	if err != nil {
+		return "", false, err
+	}
+
+	pid, err := peer.Decode(p)
+	if err != nil {
+		return "", false, err
+	}
+
+	if pid.String() == n.host.ID().String() {
+		return pid, false, nil
+	}
+
+	return pid, true, nil
 }
 
 func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {

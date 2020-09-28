@@ -187,7 +187,7 @@ func (s *server) getRecords(
 
 		go withErrLog(addr, func(addr ma.Multiaddr) error {
 			defer wg.Done()
-			pid, ok, err := s.callablePeer(addr)
+			pid, ok, err := s.net.callablePeer(addr)
 			if err != nil {
 				return err
 			} else if !ok {
@@ -292,7 +292,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	// Push to each address
 	for _, addr := range addrs {
 		go withErrLog(addr, func(addr ma.Multiaddr) error {
-			pid, ok, err := s.callablePeer(addr)
+			pid, ok, err := s.net.callablePeer(addr)
 			if err != nil {
 				return err
 			} else if !ok {
@@ -349,25 +349,6 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	return nil
-}
-
-// callablePeer attempts to obtain external peer ID from the multiaddress.
-func (s *server) callablePeer(addr ma.Multiaddr) (peer.ID, bool, error) {
-	p, err := addr.ValueForProtocol(ma.P_P2P)
-	if err != nil {
-		return "", false, err
-	}
-
-	pid, err := peer.Decode(p)
-	if err != nil {
-		return "", false, err
-	}
-
-	if pid.String() == s.net.host.ID().String() {
-		return pid, false, nil
-	}
-
-	return pid, true, nil
 }
 
 // dial attempts to open a gRPC connection over libp2p to a peer.
