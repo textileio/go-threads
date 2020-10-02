@@ -98,7 +98,7 @@ with logical clocks.
 #### Dispatcher
 This is an internal component not available in the public API.
 Main responsibility: Source of truth regarding known `db.Event`s for the 
-`DB`. Will notify registered parties to let them know about new ones..
+`DB`. Will notify registered parties to let them know about new ones.
 
 Every `Event` generated in the `DB` is sent to a `Dispatcher` when write 
 transactions are committed. The dispatcher is responsible for broadcasting 

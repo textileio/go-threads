@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	logging "github.com/ipfs/go-log"
 	core "github.com/textileio/go-threads/core/db"
@@ -20,12 +21,14 @@ const (
 
 type Person struct {
 	ID   core.InstanceID `json:"_id"`
+	Mod  int64           `json:"_mod"`
 	Name string
 	Age  int
 }
 
 type Person2 struct {
 	ID       core.InstanceID `json:"_id"`
+	Mod      int64           `json:"_mod"`
 	Name     string
 	Age      int
 	Toys     Toys
@@ -796,6 +799,13 @@ func TestGetInstance(t *testing.T) {
 		foundInstance := &Person{}
 		util.InstanceFromJSON(found, foundInstance)
 
+		// Should have a "readonly" _mod/Mod field
+		if foundInstance.Mod == 0 {
+			t.Fatalf(errInvalidInstanceState)
+		}
+		// Update Mod because we know it won't match otherwise
+		newPersonInstance.Mod = foundInstance.Mod
+
 		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
 		}
@@ -810,6 +820,13 @@ func TestGetInstance(t *testing.T) {
 
 		foundInstance := &Person{}
 		util.InstanceFromJSON(found, foundInstance)
+
+		// Should have a "readonly" _mod/Mod field
+		if foundInstance.Mod == 0 {
+			t.Fatalf(errInvalidInstanceState)
+		}
+		// Update Mod because we know it won't match otherwise
+		newPersonInstance.Mod = foundInstance.Mod
 
 		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
@@ -828,6 +845,96 @@ func TestGetInstance(t *testing.T) {
 
 		if !reflect.DeepEqual(newPersonInstance, foundInstance) {
 			t.Fatalf(errInvalidInstanceState)
+		}
+	})
+}
+
+func TestModifiedSince(t *testing.T) {
+	t.Parallel()
+	t.Run("WithiSingleCreate", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}, false),
+		})
+		checkErr(t, err)
+
+		before := time.Now().UnixNano()
+
+		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
+		var res []core.InstanceID
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			res, err = txn.Create(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		instance, err := c.FindByID(res[0])
+		checkErr(t, err)
+
+		p := &Person{}
+		util.InstanceFromJSON(instance, p)
+
+		mods, err := c.ModifiedSince(before)
+		if len(mods) != 1 {
+			t.Fatalf("should have had %d modified instance", 1)
+		}
+		if mods[0] != p.ID {
+			t.Fatalf("should have modfied id %s", p.ID)
+		}
+	})
+	t.Run("WithCreateSaveAndDelete", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}, false),
+		})
+		checkErr(t, err)
+
+		before := time.Now().UnixNano()
+
+		// Create
+		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
+		var res []core.InstanceID
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			res, err = txn.Create(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		// Save
+		newPerson = util.JSONFromInstance(Person{ID: res[0], Name: "Alice", Age: 51})
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			err = txn.Save(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		// Extra
+		newPerson = util.JSONFromInstance(Person{Name: "Bill", Age: 33})
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			_, err = txn.Create(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		// Delete
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			err = txn.Delete(res[0])
+			return
+		})
+		checkErr(t, err)
+
+		mods, err := c.ModifiedSince(before)
+		if len(mods) != 2 {
+			t.Fatalf("should have had %d modified instance", 2)
+		}
+		if mods[0] != res[0] {
+			t.Fatalf("should have modfied id %s", res[0])
 		}
 	})
 }
@@ -947,6 +1054,10 @@ func TestSaveInstance(t *testing.T) {
 		if person.ID != res[0] || person.Age != 42 || person.Name != "Bob" {
 			t.Fatalf(errInvalidInstanceState)
 		}
+		// Should have a "readonly" _mod/Mod field
+		if person.Mod == 0 {
+			t.Fatalf(errInvalidInstanceState)
+		}
 	})
 	t.Run("SaveNonExistant", func(t *testing.T) {
 		t.Parallel()
@@ -959,8 +1070,83 @@ func TestSaveInstance(t *testing.T) {
 		checkErr(t, err)
 
 		p := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
-		if err := m.Save(p); !errors.Is(err, errCantSaveNonExistentInstance) {
-			t.Fatal("shouldn't save non-existent instasnce")
+		if err := m.Save(p); err != nil {
+			t.Fatal("should have saved non-existent instasnce")
+		}
+	})
+}
+
+func TestModTagIncrement(t *testing.T) {
+	t.Parallel()
+	t.Run("Simple", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		c, err := db.NewCollection(CollectionConfig{
+			Name:   "Person",
+			Schema: util.SchemaFromInstance(&Person{}, false),
+		})
+		checkErr(t, err)
+
+		// Specify a zero value mod tag
+		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42, Mod: 0})
+		var res []core.InstanceID
+		err = c.WriteTxn(func(txn *Txn) (err error) {
+			res, err = txn.Create(newPerson)
+			return
+		})
+		checkErr(t, err)
+
+		err = c.WriteTxn(func(txn *Txn) error {
+			instance, err := txn.FindByID(res[0])
+			checkErr(t, err)
+
+			p := &Person{}
+			util.InstanceFromJSON(instance, p)
+
+			// Should have a "readonly" _mod/Mod field that is not zero
+			if p.Mod == 0 {
+				t.Fatalf(errInvalidInstanceState)
+			}
+
+			p.Mod = 0 // Try to make it zero again
+			return txn.Save(util.JSONFromInstance(p))
+		})
+		checkErr(t, err)
+
+		instance, err := c.FindByID(res[0])
+		checkErr(t, err)
+		person := &Person{}
+		util.InstanceFromJSON(instance, person)
+		if person.ID != res[0] || person.Age != 42 || person.Name != "Alice" || person.Mod == 0 {
+			t.Fatalf(errInvalidInstanceState)
+		}
+	})
+	t.Run("WithoutModField", func(t *testing.T) {
+		t.Parallel()
+		db, clean := createTestDB(t)
+		defer clean()
+		m, err := db.NewCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+		})
+		checkErr(t, err)
+
+		p := util.JSONFromInstance(Dog{Name: "Lucas", Comments: []Comment{}})
+		id, err := m.Create(p)
+		checkErr(t, err)
+
+		type WithMod struct {
+			Mod int64 `json:"_mod"`
+		}
+
+		instance, err := m.FindByID(id)
+		checkErr(t, err)
+		dog := &WithMod{}
+		util.InstanceFromJSON(instance, dog)
+		// Should have a "readonly" _mod/Mod field
+		if dog.Mod == 0 {
+			t.Fatalf(errInvalidInstanceState)
 		}
 	})
 }
@@ -1039,6 +1225,8 @@ func assertPersonInCollection(t *testing.T, c *Collection, personBytes []byte) {
 	checkErr(t, err)
 	p := &Person{}
 	util.InstanceFromJSON(res, p)
+	// Hack to ensure _mod is always updated and equal
+	person.Mod = p.Mod
 	if !reflect.DeepEqual(person, p) {
 		t.Fatalf(errInvalidInstanceState)
 	}

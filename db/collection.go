@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	ds "github.com/textileio/go-datastore"
+	"github.com/textileio/go-datastore/query"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
@@ -36,9 +39,9 @@ var (
 	ErrInvalidSchemaInstance = errors.New("instance doesn't correspond to schema")
 
 	errMissingInstanceID           = errors.New("invalid instance: missing _id attribute")
+	errMissingModTag               = errors.New("invalid instance: missing _mod attribute")
 	errAlreadyDiscardedCommitedTxn = errors.New("can't commit discarded/committed txn")
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
-	errCantSaveNonExistentInstance = errors.New("can't save unkown instance")
 
 	baseKey = dsPrefix.ChildString("collection")
 )
@@ -263,6 +266,68 @@ func (c *Collection) Find(q *Query, opts ...TxnOption) (instances [][]byte, err 
 	return
 }
 
+type filter struct {
+	Collection string
+	Time       int
+}
+
+func (f filter) Filter(e query.Entry) bool {
+	// Easy out, are we in the right collection?
+	key := ds.NewKey(e.Key)
+	base := key.Parent().BaseNamespace()
+	number, _ := strconv.Atoi(base)
+	kind := key.Type()
+	return kind == f.Collection && number > f.Time
+
+}
+
+// ModifiedSince returns a list of all instances that have been modified (and/or touched) since `time`.
+func (c *Collection) ModifiedSince(time int64, opts ...TxnOption) (modified []core.InstanceID, err error) {
+	// Need to identify instances that have been touched (created, saved, or deleted) since `time`.
+	// The _mod field tracks modified instances, but not those that have been deleted, so we need
+	// to query the dispatcher for all (unique) instances in this collection that have been modified
+	// at all since `time`.
+	c.db.dispatcher.Lock().Lock()
+	defer c.db.dispatcher.Lock().Unlock()
+
+	txn, err := c.db.dispatcher.Store().NewTransaction(false)
+	if err != nil {
+		return nil, err
+	}
+	defer txn.Discard()
+
+	query := query.Query{
+		Prefix:     dsDispatcherPrefix.String(),
+		SeekPrefix: dsDispatcherPrefix.ChildString(strconv.FormatInt(time, 10)).String(),
+		Filters: []query.Filter{
+			filter{
+				Collection: c.name,
+			},
+		},
+		KeysOnly: true,
+	}
+	results, err := txn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	type void struct{}
+	var member void
+	set := make(map[core.InstanceID]void)
+
+	for r := range results.Next() {
+		if r.Error != nil {
+			return nil, r.Error
+		}
+		id := ds.NewKey(r.Key)
+		set[core.InstanceID(id.Name())] = member
+	}
+	for k := range set {
+		modified = append(modified, k)
+	}
+	return modified, nil
+}
+
 // validInstance validates the json object against the collection schema.
 func (c *Collection) validInstance(v []byte) error {
 	r, err := gojsonschema.Validate(c.schemaLoader, gojsonschema.NewBytesLoader(v))
@@ -322,9 +387,8 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 	case bool:
 		if out.(bool) {
 			return nil
-		} else {
-			return app.ErrInvalidNetRecordBody
 		}
+		return app.ErrInvalidNetRecordBody
 	case nil:
 		return app.ErrInvalidNetRecordBody
 	default:
@@ -407,6 +471,9 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 			return nil, errCantCreateExistingInstance
 		}
 
+		// Update readonly/protected mod tag
+		_, updated = setModifiedTag(updated)
+
 		a := core.Action{
 			Type:           core.Create,
 			InstanceID:     id,
@@ -473,6 +540,11 @@ func (t *Txn) createSaveActions(identity thread.PubKey, updated ...[]byte) ([]co
 			return nil, err
 		}
 
+		// Update readonly/protected mod tag
+		_, next = setModifiedTag(next)
+
+		// Because this is a save event, even though we might still create the new instance
+		// it has to have a valid _id ahead of time.
 		id, err := getInstanceID(next)
 		if err != nil {
 			return nil, err
@@ -480,7 +552,16 @@ func (t *Txn) createSaveActions(identity thread.PubKey, updated ...[]byte) ([]co
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		previous, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
-			return nil, errCantSaveNonExistentInstance
+			a := core.Action{
+				Type:           core.Create,
+				InstanceID:     id,
+				CollectionName: t.collection.name,
+				Previous:       nil,
+				Current:        next,
+			}
+			t.actions = append(t.actions, a)
+			// Early out and make this a create event. Assumes valid _id as specified above
+			continue
 		}
 		if err != nil {
 			return nil, err
@@ -656,11 +737,11 @@ func getSchemaTypeProperties(jt *jsonschema.Type, defs jsonschema.Definitions) (
 	if jt.Ref != "" {
 		parts := strings.Split(jt.Ref, "/")
 		if len(parts) < 1 {
-			return nil, ErrInvalidCollectionSchema
+			return make(map[string]*jsonschema.Type), nil
 		}
 		def := defs[parts[len(parts)-1]]
 		if def == nil {
-			return nil, ErrInvalidCollectionSchema
+			return make(map[string]*jsonschema.Type), nil
 		}
 		properties = def.Properties
 	}
@@ -687,6 +768,28 @@ func setNewInstanceID(t []byte) (core.InstanceID, []byte) {
 		log.Fatalf("while automatically patching autogenerated _id: %v", err)
 	}
 	return newID, patchedValue
+}
+
+func getModifiedTag(t []byte) (int64, error) {
+	partial := &struct {
+		Mod *int64 `json:"_mod"`
+	}{}
+	if err := json.Unmarshal(t, partial); err != nil {
+		return 0, fmt.Errorf("unmarshaling json instance: %v", err)
+	}
+	if partial.Mod == nil {
+		return 0, errMissingInstanceID
+	}
+	return *partial.Mod, nil
+}
+
+func setModifiedTag(t []byte) (newTime int64, patchedValue []byte) {
+	newTime = time.Now().UnixNano()
+	patchedValue, err := jsonpatch.MergePatch(t, []byte(fmt.Sprintf(`{"%s": %d}`, modFieldName, newTime)))
+	if err != nil {
+		log.Fatalf("while automatically patching autogenerated _mod: %v", err)
+	}
+	return
 }
 
 func (t *Txn) createEvents(actions []core.Action) (events []core.Event, node format.Node, err error) {

@@ -43,8 +43,12 @@ func newDispatcher(store datastore.TxnDatastore) *dispatcher {
 }
 
 // Store returns the internal event store.
-func (d *dispatcher) Store() datastore.Datastore {
+func (d *dispatcher) Store() datastore.TxnDatastore {
 	return d.store
+}
+
+func (d *dispatcher) Lock() *sync.RWMutex {
+	return &d.lock
 }
 
 // Register takes a reducer to be invoked with each dispatched event.
@@ -122,7 +126,8 @@ func getKey(event core.Event) (key datastore.Key, err error) {
 	}
 	time := strconv.FormatInt(unix, 10)
 	key = dsDispatcherPrefix.ChildString(time).
-		ChildString(event.InstanceID().String()).
-		ChildString(event.Collection())
+		ChildString(event.Collection()).
+		Instance(event.InstanceID().String())
+
 	return key, nil
 }
