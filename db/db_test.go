@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multiaddr"
 	ds "github.com/textileio/go-datastore"
 	"github.com/textileio/go-threads/common"
@@ -47,7 +47,8 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	dummyJSON = util.SetJSONID(res, dummyJSON)
 	dummyJSON = util.SetJSONProperty("Counter", 42, dummyJSON)
-	checkErr(t, c1.Save(dummyJSON))
+	_, err = c1.Save(dummyJSON)
+	checkErr(t, err)
 
 	// Make sure the thread can't be deleted directly
 	err = n1.DeleteThread(context.Background(), id1)
@@ -366,7 +367,8 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 
 	// Collection1 Save i1
 	i1 = util.SetJSONProperty("Name", "Textile0", i1)
-	checkErr(t, c1.Save(i1))
+	_, err = c1.Save(i1)
+	checkErr(t, err)
 
 	// Collection1 Create i2
 	i2 := util.JSONFromInstance(dummy{ID: "id-i2", Name: "Textile2"})
@@ -383,14 +385,16 @@ func runListenersComplexUseCase(t *testing.T, los ...ListenOption) []Action {
 	err = c1.WriteTxn(func(txn *Txn) error {
 		i1 = util.SetJSONProperty("Counter", 30, i1)
 		i2 = util.SetJSONProperty("Counter", 11, i2)
-		return txn.Save(i1, i2)
+		_, err = txn.Save(i1, i2)
+		return err
 	})
 	checkErr(t, err)
 
 	// Collection2 Save j1
 	j1 = util.SetJSONProperty("Counter", -1, j1)
 	j1 = util.SetJSONProperty("Name", "Textile33", j1)
-	checkErr(t, c2.Save(j1))
+	_, err = c2.Save(j1)
+	checkErr(t, err)
 
 	checkErr(t, c1.Delete(i1Ids))
 

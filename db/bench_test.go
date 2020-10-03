@@ -135,7 +135,7 @@ func BenchmarkNoIndexSave(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Error modifying instance: %s", err)
 		}
-		err = collection.Save(updated)
+		_, err = collection.Save(updated)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}
@@ -170,7 +170,7 @@ func BenchmarkIndexSave(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Error modifying instance: %s", err)
 		}
-		err = collection.Save(updated)
+		_, err = collection.Save(updated)
 		if err != nil {
 			b.Fatalf("Error creating instance: %s", err)
 		}

@@ -132,12 +132,12 @@ func TestNewCollection(t *testing.T) {
 		checkErr(t, err)
 		dog.ID = id
 		dog.Name = "Bob"
-		err = c.Save(util.JSONFromInstance(dog))
+		_, err = c.Save(util.JSONFromInstance(dog))
 		if err == nil {
 			t.Fatal("save should have been invalid")
 		}
 		dog.Name = "Clyde"
-		err = c.Save(util.JSONFromInstance(dog))
+		_, err = c.Save(util.JSONFromInstance(dog))
 		checkErr(t, err)
 		err = c.Delete(dog.ID)
 		if err == nil {
@@ -696,7 +696,8 @@ func TestReadTxnValidation(t *testing.T) {
 		checkErr(t, err)
 		p = util.SetJSONID(res, p)
 		err = m.ReadTxn(func(txn *Txn) error {
-			return txn.Save(p)
+			_, err := txn.Save(p)
+			return err
 		})
 		if !errors.Is(err, ErrReadonlyTx) {
 			t.Fatal("shouldn't write on read-only transaction")
@@ -753,7 +754,8 @@ func TestVariadic(t *testing.T) {
 	pp2 := &Person{}
 	util.InstanceFromJSON(p2, pp2)
 	pp0.Age, pp1.Age, pp2.Age = 51, 52, 53
-	checkErr(t, m.SaveMany([][]byte{util.JSONFromInstance(pp0), util.JSONFromInstance(pp1), util.JSONFromInstance(pp2)}))
+	_, err = m.SaveMany([][]byte{util.JSONFromInstance(pp0), util.JSONFromInstance(pp1), util.JSONFromInstance(pp2)})
+	checkErr(t, err)
 	assertPersonInCollection(t, m, util.JSONFromInstance(pp0))
 	assertPersonInCollection(t, m, util.JSONFromInstance(pp1))
 	assertPersonInCollection(t, m, util.JSONFromInstance(pp2))
@@ -909,7 +911,7 @@ func TestModifiedSince(t *testing.T) {
 		// Save
 		newPerson = util.JSONFromInstance(Person{ID: res[0], Name: "Alice", Age: 51})
 		err = c.WriteTxn(func(txn *Txn) (err error) {
-			err = txn.Save(newPerson)
+			_, err = txn.Save(newPerson)
 			return
 		})
 		checkErr(t, err)
@@ -1043,7 +1045,8 @@ func TestSaveInstance(t *testing.T) {
 			util.InstanceFromJSON(instance, p)
 
 			p.Name = "Bob"
-			return txn.Save(util.JSONFromInstance(p))
+			_, err = txn.Save(util.JSONFromInstance(p))
+			return err
 		})
 		checkErr(t, err)
 
@@ -1070,7 +1073,7 @@ func TestSaveInstance(t *testing.T) {
 		checkErr(t, err)
 
 		p := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
-		if err := m.Save(p); err != nil {
+		if _, err := m.Save(p); err != nil {
 			t.Fatal("should have saved non-existent instasnce")
 		}
 	})
@@ -1110,7 +1113,8 @@ func TestModTagIncrement(t *testing.T) {
 			}
 
 			p.Mod = 0 // Try to make it zero again
-			return txn.Save(util.JSONFromInstance(p))
+			_, err = txn.Save(util.JSONFromInstance(p))
+			return err
 		})
 		checkErr(t, err)
 
@@ -1211,7 +1215,7 @@ func TestInvalidActions(t *testing.T) {
 		_, err := c.Create(r)
 		checkErr(t, err)
 		f := util.JSONFromInstance(PersonFake{Name: "fake"})
-		if err := c.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
+		if _, err := c.Save(f); !errors.Is(err, ErrInvalidSchemaInstance) {
 			t.Fatalf("instance should be invalid compared to schema, got: %v", err)
 		}
 	})
