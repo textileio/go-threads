@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"sort"
 	"strconv"
 	"testing"
@@ -18,6 +19,7 @@ var headBookSuite = map[string]func(hb core.HeadBook) func(*testing.T){
 	"AddGetHeads": testHeadBookAddHeads,
 	"SetGetHeads": testHeadBookSetHeads,
 	"ClearHeads":  testHeadBookClearHeads,
+	"ExportHeads": testHeadBookExport,
 }
 
 type HeadBookFactory func() (core.HeadBook, func())
@@ -147,46 +149,49 @@ func testHeadBookClearHeads(hb core.HeadBook) func(t *testing.T) {
 	}
 }
 
-func testHeadBookClearHeads(hb core.HeadBook) func(t *testing.T) {
+func testHeadBookExport(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		var (
+			numLogs   = 2
+			numHeads  = 3
+			tid, logs = genHeads(numLogs, numHeads)
+			buffer    bytes.Buffer
+		)
 
-		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		p, _ := peer.IDFromPublicKey(pub)
+		for lid, heads := range logs {
+			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {
+				t.Error("expected heads to be empty on init without errors")
+			}
 
-		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
-			t.Error("expected heads to be empty on init without errors")
-		}
-
-		for i := 0; i < 2; i++ {
-			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
-			head := cid.NewCidV1(cid.DagCBOR, hash)
-
-			if err := hb.AddHead(tid, p, head); err != nil {
+			if err := hb.AddHeads(tid, lid, heads); err != nil {
 				t.Fatalf("error when adding heads: %v", err)
 			}
 		}
 
-		heads, err := hb.Heads(tid, p)
-		if err != nil {
-			t.Fatalf("error when getting heads: %v", err)
-		}
-		len1 := len(heads)
-		if len1 != 2 {
-			t.Errorf("incorrect heads length %d", len1)
+		if err := hb.Dump(&buffer); err != nil {
+			t.Fatalf("error dumping headbook: %v", err)
 		}
 
-		if err = hb.ClearHeads(tid, p); err != nil {
-			t.Fatalf("error when clearing heads: %v", err)
+		// clear storage explicitly to ensure it will be empty
+		for lid := range logs {
+			if err := hb.ClearHeads(tid, lid); err != nil {
+				t.Fatalf("error when clearing heads: %v", err)
+			}
 		}
 
-		heads, err = hb.Heads(tid, p)
-		if err != nil {
-			t.Fatalf("error when getting heads: %v", err)
+		if err := hb.Restore(&buffer); err != nil {
+			t.Fatalf("error restoring headbook: %v", err)
 		}
-		len2 := len(heads)
-		if len2 != 0 {
-			t.Errorf("incorrect heads length %d", len2)
+
+		for lid, expected := range logs {
+			heads, err := hb.Heads(tid, lid)
+			if err != nil {
+				t.Fatalf("error while getting heads: %v", err)
+			}
+
+			if !equalHeads(expected, heads) {
+				t.Fatalf("heads not equal, expected: %v, actual: %v", expected, heads)
+			}
 		}
 	}
 }
