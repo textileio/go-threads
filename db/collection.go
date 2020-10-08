@@ -610,7 +610,8 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 			return err
 		}
 		if !exists {
-			return ErrInstanceNotFound
+			// Nothing to be done here
+			return nil
 		}
 		a := core.Action{
 			Type:           core.Delete,
