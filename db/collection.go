@@ -210,28 +210,17 @@ func (c *Collection) DeleteMany(ids []core.InstanceID, opts ...TxnOption) error 
 }
 
 // Save saves changes of an instance in the collection.
-func (c *Collection) Save(v []byte, opts ...TxnOption) (id core.InstanceID, err error) {
-	err = c.WriteTxn(func(txn *Txn) error {
-		var ids []core.InstanceID
-		ids, err = txn.Save(v)
-		if err != nil {
-			return err
-		}
-		if len(ids) > 0 {
-			id = ids[0]
-		}
-		return nil
+func (c *Collection) Save(v []byte, opts ...TxnOption) error {
+	return c.WriteTxn(func(txn *Txn) error {
+		return txn.Save(v)
 	}, opts...)
-	return
 }
 
 // SaveMany saves changes of multiple instances in the collection.
-func (c *Collection) SaveMany(vs [][]byte, opts ...TxnOption) (ids []core.InstanceID, err error) {
-	err = c.WriteTxn(func(txn *Txn) error {
-		ids, err = txn.Save(vs...)
-		return err
+func (c *Collection) SaveMany(vs [][]byte, opts ...TxnOption) error {
+	return c.WriteTxn(func(txn *Txn) error {
+		return txn.Save(vs...)
 	}, opts...)
-	return
 }
 
 // Verify verifies changes of an instance in the collection.
@@ -524,22 +513,18 @@ func (t *Txn) Verify(updated ...[]byte) error {
 }
 
 // Save saves an instance changes to be committed when the current transaction commits.
-func (t *Txn) Save(updated ...[]byte) ([]core.InstanceID, error) {
+func (t *Txn) Save(updated ...[]byte) error {
 	identity, err := t.token.PubKey()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	results := make([]core.InstanceID, len(updated))
 	actions, err := t.createSaveActions(identity, updated...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	t.actions = append(t.actions, actions...)
-	for i, a := range actions {
-		results[i] = a.InstanceID
-	}
-	return results, nil
+	return nil
 }
 
 func (t *Txn) createSaveActions(identity thread.PubKey, updated ...[]byte) ([]core.Action, error) {
