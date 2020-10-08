@@ -1181,8 +1181,8 @@ func TestDeleteInstance(t *testing.T) {
 	}
 
 	// Try to delete again
-	if err = c.Delete(res[0]); err != ErrInstanceNotFound {
-		t.Fatalf("cant't delete non-existent instance")
+	if err = c.Delete(res[0]); err != nil {
+		t.Fatalf("should be able to ignore deleting non-existent instances")
 	}
 }
 
