@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bytes"
 	"sort"
 	"strconv"
 	"testing"
@@ -155,7 +154,7 @@ func testHeadBookExport(hb core.HeadBook) func(t *testing.T) {
 			numLogs   = 2
 			numHeads  = 3
 			tid, logs = genHeads(numLogs, numHeads)
-			buffer    bytes.Buffer
+			//buffer    bytes.Buffer
 		)
 
 		for lid, heads := range logs {
@@ -168,7 +167,8 @@ func testHeadBookExport(hb core.HeadBook) func(t *testing.T) {
 			}
 		}
 
-		if err := hb.Dump(&buffer); err != nil {
+		dump, err := hb.DumpHeads()
+		if err != nil {
 			t.Fatalf("error dumping headbook: %v", err)
 		}
 
@@ -179,7 +179,7 @@ func testHeadBookExport(hb core.HeadBook) func(t *testing.T) {
 			}
 		}
 
-		if err := hb.Restore(&buffer); err != nil {
+		if err := hb.RestoreHeads(dump); err != nil {
 			t.Fatalf("error restoring headbook: %v", err)
 		}
 

@@ -1,16 +1,12 @@
 package lstoremem
 
 import (
-	"encoding/gob"
-	"fmt"
-	"io"
 	"sync"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/logstore"
 )
 
 type memoryHeadBook struct {
@@ -119,8 +115,8 @@ func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	return nil
 }
 
-func (mhb *memoryHeadBook) Dump(w io.Writer) error {
-	var dump = logstore.DumpHeadBook{
+func (mhb *memoryHeadBook) DumpHeads() (core.DumpHeadBook, error) {
+	var dump = core.DumpHeadBook{
 		Data: make(map[thread.ID]map[peer.ID][]cid.Cid, len(mhb.heads)),
 	}
 
@@ -136,15 +132,10 @@ func (mhb *memoryHeadBook) Dump(w io.Writer) error {
 		dump.Data[tid] = lm
 	}
 
-	return gob.NewEncoder(w).Encode(dump)
+	return dump, nil
 }
 
-func (mhb *memoryHeadBook) Restore(r io.Reader) error {
-	var dump logstore.DumpHeadBook
-	if err := gob.NewDecoder(r).Decode(&dump); err != nil {
-		return fmt.Errorf("decoding dump: %w", err)
-	}
-
+func (mhb *memoryHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
 	var restored = make(map[thread.ID]map[peer.ID]map[cid.Cid]struct{}, len(dump.Data))
 	for tid, logs := range dump.Data {
 		lm := make(map[peer.ID]map[cid.Cid]struct{}, len(logs))

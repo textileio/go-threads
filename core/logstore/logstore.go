@@ -180,4 +180,17 @@ type HeadBook interface {
 
 	// ClearHeads deletes the head entry for a log.
 	ClearHeads(thread.ID, peer.ID) error
+
+	// DumpHeads packs entire headbook into the tree.
+	DumpHeads() (DumpHeadBook, error)
+
+	// RestoreHeads restores headbook from the dump.
+	RestoreHeads(DumpHeadBook) error
 }
+
+type (
+	DumpHeadBook struct {
+		Data map[thread.ID]map[peer.ID][]cid.Cid
+	}
+)
+

@@ -1,9 +1,7 @@
 package lstoreds
 
 import (
-	"encoding/gob"
 	"fmt"
-	"io"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
@@ -12,7 +10,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/logstore"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/whyrusleeping/base32"
 )
@@ -137,27 +134,16 @@ func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	return nil
 }
 
-// Dump entire headbook encoded into logstore.DumpHeadBook structure.
+// Dump entire headbook into the tree-structure.
 // Not a thread-safe, should not be interleaved with other methods!
-func (hb *dsHeadBook) Dump(w io.Writer) error {
+func (hb *dsHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 	data, err := hb.traverse(true)
-	if err != nil {
-		return fmt.Errorf("traversing datastore: %w", err)
-	}
-
-	var dump = logstore.DumpHeadBook{Data: data}
-	return gob.NewEncoder(w).Encode(dump)
+	return core.DumpHeadBook{Data: data}, err
 }
 
-// Restore headbook from the stream encoded into logstore.DumpHeadBook
-// structure and replace all the local data with it.
+// Restore headbook from the provided dump replacing all the local data.
 // Not a thread-safe, should not be interleaved with other methods!
-func (hb *dsHeadBook) Restore(r io.Reader) error {
-	var dump logstore.DumpHeadBook
-	if err := gob.NewDecoder(r).Decode(&dump); err != nil {
-		return fmt.Errorf("decoding dump: %w", err)
-	}
-
+func (hb *dsHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
 	stored, err := hb.traverse(false)
 	if err != nil {
 		return fmt.Errorf("traversing datastore: %w", err)
