@@ -20,7 +20,8 @@ var addressBookSuite = map[string]func(book core.AddrBook) func(*testing.T){
 	"AddressesExpire":      testAddressesExpire,
 	"ClearWithIter":        testClearWithIterator,
 	"LogsWithAddresses":    testLogsWithAddrs,
-	"ThreadsWithAddresses": testThreadsFromddrs,
+	"ThreadsWithAddresses": testThreadsFromAddrs,
+	"ExportAddressBook":    testExportAddressBook,
 }
 
 type AddrBookFactory func() (core.AddrBook, func())
@@ -355,7 +356,7 @@ func testLogsWithAddrs(ab core.AddrBook) func(t *testing.T) {
 	}
 }
 
-func testThreadsFromddrs(ab core.AddrBook) func(t *testing.T) {
+func testThreadsFromAddrs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		// cannot run in parallel as the store is modified.
 		// go runs sequentially in the specified order
@@ -363,7 +364,7 @@ func testThreadsFromddrs(ab core.AddrBook) func(t *testing.T) {
 
 		t.Run("empty addrbook", func(t *testing.T) {
 			if logs, err := ab.ThreadsFromAddrs(); err != nil || len(logs) != 0 {
-				t.Fatal("expected to find no threads witout errors")
+				t.Fatal("expected to find no threads without errors")
 			}
 		})
 
@@ -383,6 +384,46 @@ func testThreadsFromddrs(ab core.AddrBook) func(t *testing.T) {
 			if threads, err := ab.ThreadsFromAddrs(); err != nil || len(threads) != len(tids) {
 				t.Fatalf("expected to find %d threads without errors, got %d with err: %v", len(tids), len(threads), err)
 			}
+		})
+	}
+}
+
+func testExportAddressBook(ab core.AddrBook) func(*testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		t.Run("restore from empty dump", func(t *testing.T) {
+			ids := GeneratePeerIDs(2)
+			addrs := GenerateAddrs(2)
+
+			check(t, ab.AddAddr(tid, ids[0], addrs[0], time.Hour))
+			check(t, ab.AddAddr(tid, ids[1], addrs[1], time.Hour))
+
+			if err := ab.RestoreAddrs(core.DumpAddrBook{Data: nil}); err == nil {
+				t.Fatal("expected error restoring from the empty dump")
+			}
+
+			AssertAddressesEqual(t, addrs[:1], checkedAddrs(t, ab, tid, ids[0]))
+			AssertAddressesEqual(t, addrs[1:], checkedAddrs(t, ab, tid, ids[1]))
+		})
+
+		t.Run("dump and restore", func(t *testing.T) {
+			ids := GeneratePeerIDs(2)
+			addrs := GenerateAddrs(2)
+
+			check(t, ab.AddAddr(tid, ids[0], addrs[0], time.Hour))
+			check(t, ab.AddAddr(tid, ids[1], addrs[1], time.Hour))
+
+			dump, err := ab.DumpAddrs()
+			check(t, err)
+
+			check(t, ab.ClearAddrs(tid, ids[0]))
+			check(t, ab.ClearAddrs(tid, ids[1]))
+
+			check(t, ab.RestoreAddrs(dump))
+
+			AssertAddressesEqual(t, addrs[:1], checkedAddrs(t, ab, tid, ids[0]))
+			AssertAddressesEqual(t, addrs[1:], checkedAddrs(t, ab, tid, ids[1]))
 		})
 	}
 }
