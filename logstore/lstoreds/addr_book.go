@@ -453,3 +453,122 @@ func (ab *DsAddrBook) Close() error {
 	ab.childrenDone.Wait()
 	return nil
 }
+
+func (ab *DsAddrBook) DumpAddrs() (logstore.DumpAddrBook, error) {
+	// avoid interference with garbage collection
+	ab.gc.running <- struct{}{}
+	unlock := func() { <-ab.gc.running }
+
+	var dump logstore.DumpAddrBook
+	data, err := ab.traverse(true)
+	unlock()
+	if err != nil {
+		return dump, fmt.Errorf("traversing datastore: %w", err)
+	}
+
+	dump.Data = make(map[thread.ID]map[peer.ID][]logstore.ExpiredAddress, len(data))
+
+	for tid, logs := range data {
+		lm := make(map[peer.ID][]logstore.ExpiredAddress, len(logs))
+		for lid, rec := range logs {
+			if len(rec.Addrs) > 0 {
+				var addrs = make([]logstore.ExpiredAddress, len(rec.Addrs))
+				for i := 0; i < len(rec.Addrs); i++ {
+					var r = rec.Addrs[i]
+					addrs[i] = logstore.ExpiredAddress{
+						Addr:    r.Addr,
+						Expires: time.Unix(0, r.Expiry),
+					}
+				}
+				lm[lid] = addrs
+			}
+		}
+		dump.Data[tid] = lm
+	}
+
+	return dump, nil
+}
+
+func (ab *DsAddrBook) RestoreAddrs(dump logstore.DumpAddrBook) error {
+	// avoid interference with garbage collection
+	ab.gc.running <- struct{}{}
+	defer func() { <-ab.gc.running }()
+
+	stored, err := ab.traverse(false)
+	if err != nil {
+		return fmt.Errorf("traversing datastore: %w", err)
+	}
+
+	for tid, logs := range stored {
+		for lid := range logs {
+			if err := ab.ClearAddrs(tid, lid); err != nil {
+				return fmt.Errorf("clearing addrs for %s/%s: %w", tid, lid, err)
+			}
+		}
+	}
+
+	var current = time.Now()
+	for tid, logs := range dump.Data {
+		for lid, addrs := range logs {
+			for _, addr := range addrs {
+				if ttl := addr.Expires.Sub(current); ttl > 0 {
+					if err := ab.setAddrs(tid, lid, []ma.Multiaddr{addr.Addr}, ttl, ttlOverride); err != nil {
+						return fmt.Errorf("setting address %s for %s/%s: %w", addr.Addr, tid, lid, err)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ab *DsAddrBook) traverse(withAddrs bool) (map[thread.ID]map[peer.ID]*pb.AddrBookRecord, error) {
+	var data = make(map[thread.ID]map[peer.ID]*pb.AddrBookRecord)
+	result, err := ab.ds.Query(query.Query{Prefix: logBookBase.String(), KeysOnly: !withAddrs})
+	if err != nil {
+		return nil, err
+	}
+
+	for entry := range result.Next() {
+		kns := ds.RawKey(entry.Key).Namespaces()
+		if len(kns) < 3 {
+			return nil, fmt.Errorf("bad addressbook key detected: %s", entry.Key)
+		}
+
+		// get thread and log IDs from the key components
+		ts, ls := kns[len(kns)-2], kns[len(kns)-1]
+
+		// parse thread ID
+		pid, _ := base32.RawStdEncoding.DecodeString(ts)
+		tid, err := thread.Cast(pid)
+		if err != nil {
+			return nil, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+		}
+
+		// parse log ID
+		pid, _ = base32.RawStdEncoding.DecodeString(ls)
+		lid, err := peer.IDFromBytes(pid)
+		if err != nil {
+			return nil, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
+		}
+
+		var record *pb.AddrBookRecord
+		if withAddrs {
+			var pr = &addrsRecord{AddrBookRecord: &pb.AddrBookRecord{}}
+			if err := pr.Unmarshal(entry.Value); err != nil {
+				return nil, fmt.Errorf("cannot decode addressbook record: %w", err)
+			}
+			record = pr.AddrBookRecord
+		}
+
+		la, exist := data[tid]
+		if !exist {
+			la = make(map[peer.ID]*pb.AddrBookRecord)
+			data[tid] = la
+		}
+		la[lid] = record
+	}
+
+	return data, nil
+}

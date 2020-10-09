@@ -159,6 +159,12 @@ type AddrBook interface {
 
 	// ThreadsFromAddrs returns a list of threads referenced in the book.
 	ThreadsFromAddrs() (thread.IDSlice, error)
+
+	// DumpHeads packs all stored addresses.
+	DumpAddrs() (DumpAddrBook, error)
+
+	// RestoreHeads restores addresses from the dump.
+	RestoreAddrs(book DumpAddrBook) error
 }
 
 // HeadBook stores log heads.
@@ -192,5 +198,13 @@ type (
 	DumpHeadBook struct {
 		Data map[thread.ID]map[peer.ID][]cid.Cid
 	}
-)
 
+	ExpiredAddress struct {
+		Addr    ma.Multiaddr
+		Expires time.Time
+	}
+
+	DumpAddrBook struct {
+		Data map[thread.ID]map[peer.ID][]ExpiredAddress
+	}
+)
