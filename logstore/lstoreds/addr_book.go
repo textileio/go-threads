@@ -2,6 +2,7 @@ package lstoreds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -477,7 +478,7 @@ func (ab *DsAddrBook) DumpAddrs() (logstore.DumpAddrBook, error) {
 					var r = rec.Addrs[i]
 					addrs[i] = logstore.ExpiredAddress{
 						Addr:    r.Addr,
-						Expires: time.Unix(0, r.Expiry),
+						Expires: time.Unix(r.Expiry, 0),
 					}
 				}
 				lm[lid] = addrs
@@ -490,6 +491,10 @@ func (ab *DsAddrBook) DumpAddrs() (logstore.DumpAddrBook, error) {
 }
 
 func (ab *DsAddrBook) RestoreAddrs(dump logstore.DumpAddrBook) error {
+	if len(dump.Data) == 0 {
+		return errors.New("empty dump")
+	}
+
 	// avoid interference with garbage collection
 	ab.gc.running <- struct{}{}
 	defer func() { <-ab.gc.running }()

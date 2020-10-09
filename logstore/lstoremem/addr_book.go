@@ -2,6 +2,7 @@ package lstoremem
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -366,6 +367,10 @@ func (mab *memoryAddrBook) DumpAddrs() (core.DumpAddrBook, error) {
 }
 
 func (mab *memoryAddrBook) RestoreAddrs(dump core.DumpAddrBook) error {
+	if len(dump.Data) == 0 {
+		return errors.New("empty dump")
+	}
+
 	mab.gcLock.Lock()
 	defer mab.gcLock.Unlock()
 

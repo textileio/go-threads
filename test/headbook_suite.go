@@ -154,7 +154,6 @@ func testHeadBookExport(hb core.HeadBook) func(t *testing.T) {
 			numLogs   = 2
 			numHeads  = 3
 			tid, logs = genHeads(numLogs, numHeads)
-			//buffer    bytes.Buffer
 		)
 
 		for lid, heads := range logs {

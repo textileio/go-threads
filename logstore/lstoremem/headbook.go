@@ -1,6 +1,7 @@
 package lstoremem
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/ipfs/go-cid"
@@ -136,6 +137,10 @@ func (mhb *memoryHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 }
 
 func (mhb *memoryHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
+	if len(dump.Data) == 0 {
+		return errors.New("empty dump")
+	}
+
 	var restored = make(map[thread.ID]map[peer.ID]map[cid.Cid]struct{}, len(dump.Data))
 	for tid, logs := range dump.Data {
 		lm := make(map[peer.ID]map[cid.Cid]struct{}, len(logs))

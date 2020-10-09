@@ -1,6 +1,7 @@
 package lstoreds
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -144,6 +145,10 @@ func (hb *dsHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 // Restore headbook from the provided dump replacing all the local data.
 // Not a thread-safe, should not be interleaved with other methods!
 func (hb *dsHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
+	if len(dump.Data) == 0 {
+		return errors.New("empty dump")
+	}
+
 	stored, err := hb.traverse(false)
 	if err != nil {
 		return fmt.Errorf("traversing datastore: %w", err)
