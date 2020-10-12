@@ -191,16 +191,11 @@ func (mab *memoryAddrBook) AddAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr
 			log.Warnf("was passed nil multiaddr for %s", p)
 			continue
 		}
-		// It's cheaper than using String(), but unfortunately it will
-		// copy bytes on conversion anyway just to ensure that string
-		// contents are immutable and independent from the original
-		// buffer. Zero-copy conversion could be done with unsafe but
-		// in this case it's not worth bothering with.
-		asStr := string(a.Bytes())
-		x, found := amap[asStr]
+		asBytes := a.Bytes()
+		x, found := amap[string(asBytes)] // won't allocate.
 		if !found {
 			// not found, save and announce it.
-			amap[asStr] = &expiringAddr{Addr: a, Expires: exp, TTL: ttl}
+			amap[string(asBytes)] = &expiringAddr{Addr: a, Expires: exp, TTL: ttl}
 			mab.subManager.BroadcastAddr(p, a)
 		} else {
 			// Update expiration/TTL independently.

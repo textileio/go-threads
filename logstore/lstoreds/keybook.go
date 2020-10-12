@@ -244,16 +244,16 @@ func (kb *dsKeyBook) DumpKeys() (core.DumpKeyBook, error) {
 		}
 
 		// discriminate by key suffix
-		switch kns[len(kns)-1] {
+		switch suffix := "/" + kns[len(kns)-1]; suffix {
 		case pubSuffix.String():
 			ts, ls := kns[2], kns[3]
 			tid, err := parseThreadID(ts)
 			if err != nil {
-				return dump, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+				return dump, fmt.Errorf("cannot parse thread ID %s: %w", ts, err)
 			}
 			lid, err := parseLogID(ls)
 			if err != nil {
-				return dump, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
+				return dump, fmt.Errorf("cannot parse log ID %s: %w", ls, err)
 			}
 			pk, err := crypto.UnmarshalPublicKey(entry.Value)
 			if err != nil {
@@ -270,11 +270,11 @@ func (kb *dsKeyBook) DumpKeys() (core.DumpKeyBook, error) {
 			ts, ls := kns[2], kns[3]
 			tid, err := parseThreadID(ts)
 			if err != nil {
-				return dump, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+				return dump, fmt.Errorf("cannot parse thread ID %s: %w", ts, err)
 			}
 			lid, err := parseLogID(ls)
 			if err != nil {
-				return dump, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
+				return dump, fmt.Errorf("cannot parse log ID %s: %w", ls, err)
 			}
 			pk, err := crypto.UnmarshalPrivateKey(entry.Value)
 			if err != nil {
@@ -304,7 +304,7 @@ func (kb *dsKeyBook) DumpKeys() (core.DumpKeyBook, error) {
 			sks[tid] = entry.Value
 
 		default:
-			return dump, fmt.Errorf("bad suffix in a key: %s", entry.Key)
+			return dump, fmt.Errorf("bad suffix %s in a key: %s", suffix, entry.Key)
 		}
 	}
 
