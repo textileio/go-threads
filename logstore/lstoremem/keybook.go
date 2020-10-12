@@ -194,3 +194,65 @@ func (mkb *memoryKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
 	}
 	return tids, nil
 }
+
+func (mkb *memoryKeyBook) DumpKeys() (core.DumpKeyBook, error) {
+	mkb.RLock()
+	defer mkb.RUnlock()
+
+	var (
+		dump    core.DumpKeyBook
+		public  = make(map[thread.ID]map[peer.ID]crypto.PubKey, len(mkb.pks))
+		private = make(map[thread.ID]map[peer.ID]crypto.PrivKey, len(mkb.sks))
+		read    = make(map[thread.ID][]byte, len(mkb.rks))
+		service = make(map[thread.ID][]byte, len(mkb.fks))
+	)
+
+	for tid, logs := range mkb.pks {
+		lm := make(map[peer.ID]crypto.PubKey, len(logs))
+		for lid, key := range logs {
+			lm[lid] = key
+		}
+		public[tid] = lm
+	}
+
+	for tid, logs := range mkb.sks {
+		lm := make(map[peer.ID]crypto.PrivKey, len(logs))
+		for lid, key := range logs {
+			lm[lid] = key
+		}
+		private[tid] = lm
+	}
+
+	for tid, key := range mkb.rks {
+		read[tid] = key
+	}
+
+	for tid, key := range mkb.fks {
+		service[tid] = key
+	}
+
+	dump.Data.Public = public
+	dump.Data.Private = private
+	dump.Data.Read = read
+	dump.Data.Service = service
+
+	return dump, nil
+}
+
+func (mkb *memoryKeyBook) RestoreKeys(dump core.DumpKeyBook) error {
+	if len(dump.Data.Public) == 0 &&
+		len(dump.Data.Private) == 0 &&
+		len(dump.Data.Read) == 0 &&
+		len(dump.Data.Service) == 0 {
+		return core.ErrEmptyDump
+	}
+
+	mkb.Lock()
+	defer mkb.Unlock()
+
+	mkb.pks = dump.Data.Public
+	mkb.sks = dump.Data.Private
+	mkb.rks = dump.Data.Read
+	mkb.fks = dump.Data.Service
+	return nil
+}

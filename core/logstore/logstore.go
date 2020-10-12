@@ -130,6 +130,12 @@ type KeyBook interface {
 
 	// ThreadsFromKeys returns a list of threads referenced in the book.
 	ThreadsFromKeys() (thread.IDSlice, error)
+
+	// DumpKeys packs all stored keys.
+	DumpKeys() (DumpKeyBook, error)
+
+	// RestoreKeys restores keys from the dump.
+	RestoreKeys(book DumpKeyBook) error
 }
 
 // AddrBook stores log addresses.
@@ -210,5 +216,14 @@ type (
 
 	DumpAddrBook struct {
 		Data map[thread.ID]map[peer.ID][]ExpiredAddress
+	}
+
+	DumpKeyBook struct {
+		Data struct {
+			Public  map[thread.ID]map[peer.ID]crypto.PubKey
+			Private map[thread.ID]map[peer.ID]crypto.PrivKey
+			Read    map[thread.ID][]byte
+			Service map[thread.ID][]byte
+		}
 	}
 )
