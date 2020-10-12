@@ -87,8 +87,7 @@ func uniqueThreadIds(ds ds.Datastore, prefix ds.Key, extractor func(result query
 
 	ids := make(thread.IDSlice, 0, len(idset))
 	for id := range idset {
-		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, err := thread.Cast(pid)
+		id, err := parseThreadID(id)
 		if err == nil {
 			ids = append(ids, id)
 		}
@@ -123,8 +122,7 @@ func uniqueLogIds(ds ds.Datastore, prefix ds.Key, extractor func(result query.Re
 
 	ids := make(peer.IDSlice, 0, len(idset))
 	for id := range idset {
-		pid, _ := base32.RawStdEncoding.DecodeString(id)
-		id, err := peer.IDFromBytes(pid)
+		id, err := parseLogID(id)
 		if err == nil {
 			ids = append(ids, id)
 		}
@@ -141,4 +139,22 @@ func dsLogKey(t thread.ID, p peer.ID, baseKey ds.Key) ds.Key {
 	key := baseKey.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes()))
 	key = key.ChildString(base32.RawStdEncoding.EncodeToString([]byte(p)))
 	return key
+}
+
+func parseThreadID(id string) (thread.ID, error) {
+	pid, err := base32.RawStdEncoding.DecodeString(id)
+	if err != nil {
+		return thread.Undef, err
+	}
+
+	return thread.Cast(pid)
+}
+
+func parseLogID(id string) (peer.ID, error) {
+	pid, err := base32.RawStdEncoding.DecodeString(id)
+	if err != nil {
+		return "", err
+	}
+
+	return peer.IDFromBytes(pid)
 }

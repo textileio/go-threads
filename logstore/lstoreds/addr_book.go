@@ -545,15 +545,13 @@ func (ab *DsAddrBook) traverse(withAddrs bool) (map[thread.ID]map[peer.ID]*pb.Ad
 		ts, ls := kns[len(kns)-2], kns[len(kns)-1]
 
 		// parse thread ID
-		pid, _ := base32.RawStdEncoding.DecodeString(ts)
-		tid, err := thread.Cast(pid)
+		tid, err := parseThreadID(ts)
 		if err != nil {
 			return nil, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
 		}
 
 		// parse log ID
-		pid, _ = base32.RawStdEncoding.DecodeString(ls)
-		lid, err := peer.IDFromBytes(pid)
+		lid, err := parseLogID(ls)
 		if err != nil {
 			return nil, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
 		}

@@ -12,7 +12,6 @@ import (
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/pb"
-	"github.com/whyrusleeping/base32"
 )
 
 type dsHeadBook struct {
@@ -192,15 +191,13 @@ func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]cid.
 		ts, ls := kns[len(kns)-2], kns[len(kns)-1]
 
 		// parse thread ID
-		pid, _ := base32.RawStdEncoding.DecodeString(ts)
-		tid, err := thread.Cast(pid)
+		tid, err := parseThreadID(ts)
 		if err != nil {
 			return nil, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
 		}
 
 		// parse log ID
-		pid, _ = base32.RawStdEncoding.DecodeString(ls)
-		lid, err := peer.IDFromBytes(pid)
+		lid, err := parseLogID(ls)
 		if err != nil {
 			return nil, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
 		}
