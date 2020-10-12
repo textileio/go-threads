@@ -2,7 +2,6 @@ package lstoreds
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -492,7 +491,7 @@ func (ab *DsAddrBook) DumpAddrs() (logstore.DumpAddrBook, error) {
 
 func (ab *DsAddrBook) RestoreAddrs(dump logstore.DumpAddrBook) error {
 	if len(dump.Data) == 0 {
-		return errors.New("empty dump")
+		return logstore.ErrEmptyDump
 	}
 
 	// avoid interference with garbage collection

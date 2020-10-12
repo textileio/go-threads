@@ -1,7 +1,6 @@
 package lstoreds
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -145,7 +144,7 @@ func (hb *dsHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 // Not a thread-safe, should not be interleaved with other methods!
 func (hb *dsHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
 	if len(dump.Data) == 0 {
-		return errors.New("empty dump")
+		return core.ErrEmptyDump
 	}
 
 	stored, err := hb.traverse(false)

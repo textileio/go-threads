@@ -2,6 +2,7 @@ package logstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -24,6 +25,9 @@ var ErrLogNotFound = fmt.Errorf("log not found")
 
 // ErrLogExists indicates a requested log already exists.
 var ErrLogExists = fmt.Errorf("log already exists")
+
+// ErrEmptyDump indicates an attempt to restore from empty dump.
+var ErrEmptyDump = errors.New("empty dump")
 
 // Logstore stores log keys, addresses, heads and thread meta data.
 type Logstore interface {
