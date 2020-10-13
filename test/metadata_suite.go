@@ -18,11 +18,12 @@ const (
 )
 
 var metadataBookSuite = map[string]func(mb core.ThreadMetadata) func(*testing.T){
-	"Int64":         testMetadataBookInt64,
-	"String":        testMetadataBookString,
-	"Byte":          testMetadataBookBytes,
-	"NotFound":      testMetadataBookNotFound,
-	"ClearMetadata": testClearMetadata,
+	"Int64":          testMetadataBookInt64,
+	"String":         testMetadataBookString,
+	"Byte":           testMetadataBookBytes,
+	"NotFound":       testMetadataBookNotFound,
+	"ClearMetadata":  testClearMetadata,
+	"ExportMetadata": testMetadataBookExport,
 }
 
 type MetadataBookFactory func() (core.ThreadMetadata, func())
@@ -178,6 +179,100 @@ func testClearMetadata(mb core.ThreadMetadata) func(*testing.T) {
 		}
 		if v != nil {
 			t.Fatalf(errStrValueShouldNotExist)
+		}
+	}
+}
+
+func testMetadataBookExport(mb core.ThreadMetadata) func(*testing.T) {
+	return func(t *testing.T) {
+		var (
+			tid = thread.NewIDV1(thread.Raw, 24)
+
+			k1, v1 = "k1", int64(123)
+			k2, v2 = "k2", int64(-612)
+			k3, v3 = "k3", true
+			k4, v4 = "k4", false
+			k5, v5 = "k5", "v5"
+			k6, v6 = "k6", "value6"
+			k7, v7 = "k7", []byte("bytestring value 7")
+			k8, v8 = "k8", []byte("v8")
+
+			check = func(err error, key string, tmpl string) {
+				if err != nil {
+					t.Fatalf(tmpl, key, err)
+				}
+			}
+
+			compare = func(expected, actual interface{}) {
+				e, ok1 := expected.([]byte)
+				a, ok2 := actual.([]byte)
+				if (ok1 && ok2 && !bytes.Equal(e, a)) || (!ok1 && !ok2 && expected != actual) {
+					t.Fatalf(errStrValueMatch, e, a)
+				}
+			}
+		)
+
+		check(mb.PutInt64(tid, k1, v1), k1, errStrPut)
+		check(mb.PutInt64(tid, k2, v2), k2, errStrPut)
+		check(mb.PutBool(tid, k3, v3), k3, errStrPut)
+		check(mb.PutBool(tid, k4, v4), k4, errStrPut)
+		check(mb.PutString(tid, k5, v5), k5, errStrPut)
+		check(mb.PutString(tid, k6, v6), k6, errStrPut)
+		check(mb.PutBytes(tid, k7, v7), k7, errStrPut)
+		check(mb.PutBytes(tid, k8, v8), k8, errStrPut)
+
+		dump, err := mb.DumpMeta()
+		if err != nil {
+			t.Fatalf("dumping metadata: %v", err)
+		}
+
+		if err := mb.ClearMetadata(tid); err != nil {
+			t.Fatalf("clearing metadata: %v", err)
+		}
+
+		if err := mb.RestoreMeta(dump); err != nil {
+			t.Fatalf("restoring metadata from the dump: %v", err)
+		}
+
+		{
+			v, err := mb.GetInt64(tid, k1)
+			check(err, k1, errStrGet)
+			compare(v1, *v)
+		}
+		{
+			v, err := mb.GetInt64(tid, k2)
+			check(err, k2, errStrGet)
+			compare(v2, *v)
+		}
+		{
+			v, err := mb.GetBool(tid, k3)
+			check(err, k3, errStrGet)
+			compare(v3, *v)
+		}
+		{
+			v, err := mb.GetBool(tid, k4)
+			check(err, k4, errStrGet)
+			compare(v4, *v)
+		}
+		{
+			v, err := mb.GetString(tid, k5)
+			check(err, k5, errStrGet)
+			compare(v5, *v)
+		}
+		{
+			v, err := mb.GetString(tid, k6)
+			check(err, k6, errStrGet)
+			compare(v6, *v)
+		}
+		{
+			v, err := mb.GetBytes(tid, k7)
+			check(err, k7, errStrGet)
+			compare(v7, *v)
+		}
+		{
+			v, err := mb.GetBytes(tid, k8)
+			check(err, k8, errStrGet)
+			compare(v8, *v)
 		}
 	}
 }
