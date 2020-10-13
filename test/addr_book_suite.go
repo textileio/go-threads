@@ -392,21 +392,6 @@ func testExportAddressBook(ab core.AddrBook) func(*testing.T) {
 	return func(t *testing.T) {
 		tid := thread.NewIDV1(thread.Raw, 24)
 
-		t.Run("restore from empty dump", func(t *testing.T) {
-			ids := GeneratePeerIDs(2)
-			addrs := GenerateAddrs(2)
-
-			check(t, ab.AddAddr(tid, ids[0], addrs[0], time.Hour))
-			check(t, ab.AddAddr(tid, ids[1], addrs[1], time.Hour))
-
-			if err := ab.RestoreAddrs(core.DumpAddrBook{Data: nil}); err == nil {
-				t.Fatal("expected error restoring from the empty dump")
-			}
-
-			AssertAddressesEqual(t, addrs[:1], checkedAddrs(t, ab, tid, ids[0]))
-			AssertAddressesEqual(t, addrs[1:], checkedAddrs(t, ab, tid, ids[1]))
-		})
-
 		t.Run("dump and restore", func(t *testing.T) {
 			ids := GeneratePeerIDs(2)
 			addrs := GenerateAddrs(2)
