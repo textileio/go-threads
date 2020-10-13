@@ -91,6 +91,12 @@ type ThreadMetadata interface {
 
 	// ClearMetadata clears all metadata under a thread.
 	ClearMetadata(t thread.ID) error
+
+	// DumpMeta packs all the stored metadata.
+	DumpMeta() (DumpMetadata, error)
+
+	// RestoreMeta restores metadata from the dump.
+	RestoreMeta(book DumpMetadata) error
 }
 
 // KeyBook stores log keys.
@@ -224,6 +230,20 @@ type (
 			Private map[thread.ID]map[peer.ID]crypto.PrivKey
 			Read    map[thread.ID][]byte
 			Service map[thread.ID][]byte
+		}
+	}
+
+	MetadataKey struct {
+		T thread.ID
+		K string
+	}
+
+	DumpMetadata struct {
+		Data struct {
+			Int64  map[MetadataKey]int64
+			Bool   map[MetadataKey]bool
+			String map[MetadataKey]string
+			Bytes  map[MetadataKey][]byte
 		}
 	}
 )
