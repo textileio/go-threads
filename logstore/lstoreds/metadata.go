@@ -134,8 +134,8 @@ func (m *dsThreadMetadata) ClearMetadata(t thread.ID) error {
 
 func (m *dsThreadMetadata) DumpMeta() (core.DumpMetadata, error) {
 	var (
-		vInt64  = make(map[core.MetadataKey]int64)
 		vBool   = make(map[core.MetadataKey]bool)
+		vInt64  = make(map[core.MetadataKey]int64)
 		vString = make(map[core.MetadataKey]string)
 		vBytes  = make(map[core.MetadataKey][]byte)
 
@@ -162,29 +162,47 @@ func (m *dsThreadMetadata) DumpMeta() (core.DumpMetadata, error) {
 			return dump, fmt.Errorf("cannot parse thread ID %s: %w", ts, err)
 		}
 
-		var (
-			mk    = core.MetadataKey{T: tid, K: key}
-			value interface{}
-		)
+		var mk = core.MetadataKey{T: tid, K: key}
 
-		buff.Write(entry.Value)
-		if err := dec.Decode(&value); err != nil {
-			return dump, fmt.Errorf("decoding value: %w", err)
+		// we (kinda) don't know about type on the wire, so try to decode into every known type
+		{
+			var value int64
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vInt64[mk] = value
+				continue
+			}
+		}
+		{
+			var value bool
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vBool[mk] = value
+				continue
+			}
+		}
+		{
+			var value string
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vString[mk] = value
+				continue
+			}
+		}
+		{
+			var value []byte
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vBytes[mk] = value
+				continue
+			}
 		}
 
-		switch v := value.(type) {
-		case bool:
-			vBool[mk] = v
-		case int64:
-			vInt64[mk] = v
-		case string:
-			vString[mk] = v
-		case []byte:
-			vBytes[mk] = v
-		default:
-			return dump, fmt.Errorf("unsupported value type %T, key: %v, value: %v", value, mk, value)
-		}
-		buff.Reset()
+		return dump, fmt.Errorf("cannot decode value at key: %v, value: %v", mk, entry.Value)
 	}
 
 	dump.Data.Bool = vBool

@@ -145,7 +145,7 @@ func (m *memoryThreadMetadata) RestoreMeta(dump core.DumpMetadata) error {
 	}
 
 	m.dslock.Lock()
-	defer m.dslock.RUnlock()
+	defer m.dslock.Unlock()
 
 	// clear local data
 	m.ds = make(map[core.MetadataKey]interface{}, dataLen)
