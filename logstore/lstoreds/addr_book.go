@@ -533,6 +533,7 @@ func (ab *DsAddrBook) traverse(withAddrs bool) (map[thread.ID]map[peer.ID]*pb.Ad
 	if err != nil {
 		return nil, err
 	}
+	defer result.Close()
 
 	for entry := range result.Next() {
 		kns := ds.RawKey(entry.Key).Namespaces()

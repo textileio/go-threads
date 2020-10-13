@@ -179,6 +179,7 @@ func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]cid.
 	if err != nil {
 		return nil, err
 	}
+	defer result.Close()
 
 	for entry := range result.Next() {
 		kns := ds.RawKey(entry.Key).Namespaces()

@@ -236,6 +236,7 @@ func (kb *dsKeyBook) DumpKeys() (core.DumpKeyBook, error) {
 	if err != nil {
 		return dump, err
 	}
+	defer result.Close()
 
 	for entry := range result.Next() {
 		kns := ds.RawKey(entry.Key).Namespaces()
