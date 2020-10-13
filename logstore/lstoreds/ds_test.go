@@ -13,11 +13,20 @@ import (
 	pt "github.com/textileio/go-threads/test"
 )
 
-type datastoreFactory func(tb testing.TB) (ds.Datastore, func())
+type datastoreFactory func(tb testing.TB) (ds.Batching, func())
 
 var dstores = map[string]datastoreFactory{
 	"Badger": badgerStore,
 	// "Leveldb": leveldbStore,
+}
+
+func TestDatastoreLogstore(t *testing.T) {
+	for name, dsFactory := range dstores {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			pt.LogstoreTest(t, logstoreFactory(t, dsFactory, DefaultOpts()))
+		})
+	}
 }
 
 func TestDatastoreAddrBook(t *testing.T) {
@@ -69,10 +78,25 @@ func TestDatastoreMetadataBook(t *testing.T) {
 	}
 }
 
+func logstoreFactory(tb testing.TB, storeFactory datastoreFactory, opts Options) pt.LogstoreFactory {
+	return func() (core.Logstore, func()) {
+		store, closeFunc := storeFactory(tb)
+		ls, err := NewLogstore(context.Background(), store, opts)
+		if err != nil {
+			tb.Fatal(err)
+		}
+		closer := func() {
+			_ = ls.Close()
+			closeFunc()
+		}
+		return ls, closer
+	}
+}
+
 func addressBookFactory(tb testing.TB, storeFactory datastoreFactory, opts Options) pt.AddrBookFactory {
 	return func() (core.AddrBook, func()) {
 		store, closeFunc := storeFactory(tb)
-		ab, err := NewAddrBook(context.Background(), store.(ds.Batching), opts)
+		ab, err := NewAddrBook(context.Background(), store, opts)
 		if err != nil {
 			tb.Fatal(err)
 		}
@@ -120,7 +144,7 @@ func metadataBookFactory(tb testing.TB, storeFactory datastoreFactory) pt.Metada
 	}
 }
 
-func badgerStore(tb testing.TB) (ds.Datastore, func()) {
+func badgerStore(tb testing.TB) (ds.Batching, func()) {
 	dataPath, err := ioutil.TempDir(os.TempDir(), "badger")
 	if err != nil {
 		tb.Fatal(err)
