@@ -136,7 +136,7 @@ func (mhb *memoryHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 }
 
 func (mhb *memoryHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
-	if len(dump.Data) == 0 {
+	if !AllowEmptyRestore && len(dump.Data) == 0 {
 		return core.ErrEmptyDump
 	}
 

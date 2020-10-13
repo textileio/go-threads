@@ -217,7 +217,7 @@ func (m *dsThreadMetadata) RestoreMeta(dump core.DumpMetadata) error {
 		len(dump.Data.Int64) +
 		len(dump.Data.String) +
 		len(dump.Data.Bytes)
-	if dataLen == 0 {
+	if !AllowEmptyRestore && dataLen == 0 {
 		return core.ErrEmptyDump
 	}
 

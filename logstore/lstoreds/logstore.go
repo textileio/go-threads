@@ -13,6 +13,9 @@ import (
 	"github.com/whyrusleeping/base32"
 )
 
+// Define if storage will accept empty dumps.
+var AllowEmptyRestore = false
+
 // Configuration object for datastores
 type Options struct {
 	// The size of the in-memory cache. A value of 0 or lower disables the cache.

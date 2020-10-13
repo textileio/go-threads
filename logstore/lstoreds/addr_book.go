@@ -490,7 +490,7 @@ func (ab *DsAddrBook) DumpAddrs() (logstore.DumpAddrBook, error) {
 }
 
 func (ab *DsAddrBook) RestoreAddrs(dump logstore.DumpAddrBook) error {
-	if len(dump.Data) == 0 {
+	if !AllowEmptyRestore && len(dump.Data) == 0 {
 		return logstore.ErrEmptyDump
 	}
 

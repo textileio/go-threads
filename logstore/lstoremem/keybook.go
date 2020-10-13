@@ -240,7 +240,8 @@ func (mkb *memoryKeyBook) DumpKeys() (core.DumpKeyBook, error) {
 }
 
 func (mkb *memoryKeyBook) RestoreKeys(dump core.DumpKeyBook) error {
-	if len(dump.Data.Public) == 0 &&
+	if !AllowEmptyRestore &&
+		len(dump.Data.Public) == 0 &&
 		len(dump.Data.Private) == 0 &&
 		len(dump.Data.Read) == 0 &&
 		len(dump.Data.Service) == 0 {
