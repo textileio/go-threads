@@ -364,7 +364,7 @@ func TestClient_Subscribe(t *testing.T) {
 		if _, err = client1.CreateRecord(context.Background(), info.ID, body2); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 10)
 
 		lock.Lock()
 		if rcount != 2 {

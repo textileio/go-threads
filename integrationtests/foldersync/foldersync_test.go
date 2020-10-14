@@ -149,7 +149,7 @@ func TestNUsersBootstrap(t *testing.T) {
 		randFileSize     int
 		checkSyncedFiles bool
 	}{
-		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 10},
+		{totalClients: 2, totalCorePeers: 1, syncTimeout: time.Second * 15},
 		{totalClients: 3, totalCorePeers: 1, syncTimeout: time.Second * 30},
 
 		{totalClients: 3, totalCorePeers: 2, syncTimeout: time.Second * 30},
