@@ -14,7 +14,7 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	ds "github.com/textileio/go-datastore"
@@ -31,6 +31,7 @@ import (
 
 const (
 	idFieldName                 = "_id"
+	modFieldName                = "_mod"
 	getBlockRetries             = 3
 	getBlockInitialTimeout      = time.Millisecond * 500
 	pullThreadBackgroundTimeout = time.Hour
@@ -43,7 +44,7 @@ var (
 	// ErrInvalidName indicates the provided name isn't valid for a Collection.
 	ErrInvalidName = errors.New("name may only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen")
 	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
-	ErrInvalidCollectionSchema = errors.New("the collection schema should specify an _id string property")
+	ErrInvalidCollectionSchema = errors.New("the collection schema _id property must be a string")
 	// ErrCannotIndexIDField indicates a custom index was specified on the ID field.
 	ErrCannotIndexIDField = errors.New("cannot create custom index on " + idFieldName)
 
@@ -60,7 +61,7 @@ var (
 func init() {
 	nameRx = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-][A-Za-z0-9]+)*$`)
 	// register empty map in order to gob-encode old-format events with non-encodable time.Time which cbor decodes as map[string]interface{}
-	gob.Register(map[string]interface {}{})
+	gob.Register(map[string]interface{}{})
 }
 
 // DB is the aggregate-root of events and state. External/remote events
