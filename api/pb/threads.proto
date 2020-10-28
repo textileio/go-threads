@@ -24,6 +24,9 @@ message NewDBRequest {
     bytes dbID = 1;
     repeated CollectionConfig collections = 2;
     string name = 3;
+    bool block = 5;
+    bytes threadKey = 6;
+    bytes logKey = 7;
 }
 
 message NewDBFromAddrRequest {
@@ -32,6 +35,8 @@ message NewDBFromAddrRequest {
     repeated CollectionConfig collections = 3;
     string name = 4;
     bool block = 5;
+    bytes threadKey = 6;
+    bytes logKey = 7;
 }
 
 message CollectionConfig {

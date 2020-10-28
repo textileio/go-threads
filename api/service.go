@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	logging "github.com/ipfs/go-log"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/app"
@@ -176,11 +177,25 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 	if err != nil {
 		return nil, err
 	}
+	var threadKey thread.Key
+	if req.ThreadKey != nil {
+		threadKey, err = thread.KeyFromBytes(req.ThreadKey)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+	logKey, err := logKeyFromBytes(req.LogKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	if _, err = s.manager.NewDB(
 		ctx,
 		id,
 		db.WithNewManagedName(req.Name),
 		db.WithNewManagedToken(token),
+		db.WithNewManagedBackfillBlock(req.Block),
+		db.WithNewManagedThreadKey(threadKey),
+		db.WithNewManagedLogKey(logKey),
 		db.WithNewManagedCollections(collections...)); err != nil {
 		return nil, err
 	}
@@ -210,6 +225,17 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
+	var threadKey thread.Key
+	if req.ThreadKey != nil {
+		threadKey, err = thread.KeyFromBytes(req.ThreadKey)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+	logKey, err := logKeyFromBytes(req.LogKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	if _, err = s.manager.NewDBFromAddr(
 		ctx,
 		addr,
@@ -217,10 +243,26 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 		db.WithNewManagedName(req.Name),
 		db.WithNewManagedToken(token),
 		db.WithNewManagedCollections(collections...),
+		db.WithNewManagedThreadKey(threadKey),
+		db.WithNewManagedLogKey(logKey),
 		db.WithNewManagedBackfillBlock(req.Block)); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
+}
+
+func logKeyFromBytes(logKey []byte) (lk crypto.Key, err error) {
+	if logKey == nil {
+		return nil, nil
+	}
+	lk, err = crypto.UnmarshalPrivateKey(logKey)
+	if err != nil {
+		lk, err = crypto.UnmarshalPublicKey(logKey)
+		if err != nil {
+			return nil, errors.New("invalid log-key")
+		}
+	}
+	return lk, nil
 }
 
 func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, error) {
