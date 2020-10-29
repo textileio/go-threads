@@ -11,7 +11,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
 	ds "github.com/textileio/go-datastore"
@@ -149,9 +149,8 @@ func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, ba
 		case save:
 			value, err := txn.Get(key)
 			if errors.Is(err, ds.ErrNotFound) {
-				return nil, errSavingNonExistentInstance
-			}
-			if err != nil {
+				value = []byte("{}")
+			} else if err != nil {
 				return nil, err
 			}
 			patchedValue, err := jsonpatch.MergePatch(value, je.Patch.JSONPatch)
