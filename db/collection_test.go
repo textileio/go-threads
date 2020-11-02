@@ -1071,7 +1071,34 @@ func TestSaveInstance(t *testing.T) {
 
 		p := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
 		if err := m.Save(p); err != nil {
-			t.Fatal("should have saved non-existent instasnce")
+			t.Fatal("should have saved non-existent instance")
+		}
+
+		// Create valid, predefined ID
+		ID := core.NewInstanceID()
+		// Update an instance **twice** in the same transaction, **without** a create op
+		err = m.WriteTxn(func(txn *Txn) error {
+			// Save non-existent instance
+			p := Person{Name: "Bob", Age: 37, ID: ID}
+			if err := txn.Save(util.JSONFromInstance(p)); err != nil {
+				return err
+			}
+			// Now update it in the **same** transaction
+			p.Age = 44
+			if err := txn.Save(util.JSONFromInstance(p)); err != nil {
+				return err
+			}
+			return nil
+		})
+		checkErr(t, err)
+
+		// Make sure bob is in there
+		instance, err := m.FindByID(ID)
+		checkErr(t, err)
+		person := &Person{}
+		util.InstanceFromJSON(instance, person)
+		if person.ID != ID || person.Age != 44 || person.Name != "Bob" {
+			t.Fatalf(errInvalidInstanceState)
 		}
 	})
 }

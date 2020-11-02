@@ -553,23 +553,16 @@ func (t *Txn) createSaveActions(identity thread.PubKey, updated ...[]byte) ([]co
 		key := baseKey.ChildString(t.collection.name).ChildString(id.String())
 		previous, err := t.collection.db.datastore.Get(key)
 		if err == ds.ErrNotFound {
-			a := core.Action{
-				Type:           core.Create,
-				InstanceID:     id,
-				CollectionName: t.collection.name,
-				Previous:       nil,
-				Current:        next,
+			// Default to an empty doc, downstream reducer will take care of patching, etc
+			previous = []byte("{}")
+		} else if err != nil {
+			return nil, err
+		} else {
+			// No errors, carry on
+			previous, err = t.collection.filterRead(identity, previous)
+			if err != nil {
+				return nil, err
 			}
-			t.actions = append(t.actions, a)
-			// Early out and make this a create event. Assumes valid _id as specified above
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		previous, err = t.collection.filterRead(identity, previous)
-		if err != nil {
-			return nil, err
 		}
 
 		actions = append(actions, core.Action{
