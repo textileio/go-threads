@@ -92,7 +92,7 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 		return nil, fin.Cleanup(err)
 	}
 
-	tstore, err := buildLogstore(ctx, config.LogstoreKind, repoPath, fin)
+	tstore, err := buildLogstore(ctx, config.LSType, repoPath, fin)
 	if err != nil {
 		return nil, fin.Cleanup(err)
 	}
@@ -114,8 +114,8 @@ func DefaultNetwork(repoPath string, opts ...NetOption) (NetBoostrapper, error) 
 	}, nil
 }
 
-func buildLogstore(ctx context.Context, kind LogstoreKind, repoPath string, fin *util.Finalizer) (core.Logstore, error) {
-	switch kind {
+func buildLogstore(ctx context.Context, lstype LogstoreType, repoPath string, fin *util.Finalizer) (core.Logstore, error) {
+	switch lstype {
 	case LogstoreInMemory:
 		return lstoremem.NewLogstore(), nil
 
@@ -131,7 +131,7 @@ func buildLogstore(ctx context.Context, kind LogstoreKind, repoPath string, fin 
 		return persistentLogstore(ctx, repoPath, fin)
 
 	default:
-		return nil, fmt.Errorf("unsupported kind of logstore: %s", kind)
+		return nil, fmt.Errorf("unsupported logstore type: %s", lstype)
 	}
 }
 
@@ -163,19 +163,19 @@ func setDefaults(config *NetConfig) error {
 		config.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
 	}
 
-	if len(config.LogstoreKind) == 0 {
-		config.LogstoreKind = LogstorePersistent
+	if len(config.LSType) == 0 {
+		config.LSType = LogstorePersistent
 	}
 
 	return nil
 }
 
-type LogstoreKind string
+type LogstoreType string
 
 const (
-	LogstoreInMemory   LogstoreKind = "in-memory"
-	LogstorePersistent LogstoreKind = "persistent"
-	LogstoreHybrid     LogstoreKind = "hybrid"
+	LogstoreInMemory   LogstoreType = "in-memory"
+	LogstorePersistent LogstoreType = "persistent"
+	LogstoreHybrid     LogstoreType = "hybrid"
 )
 
 type NetConfig struct {
@@ -183,7 +183,7 @@ type NetConfig struct {
 	ConnManager       cconnmgr.ConnManager
 	GRPCServerOptions []grpc.ServerOption
 	GRPCDialOptions   []grpc.DialOption
-	LogstoreKind      LogstoreKind
+	LSType            LogstoreType
 	PubSub            bool
 	Debug             bool
 }
@@ -232,9 +232,9 @@ func WithNetPubSub(enabled bool) NetOption {
 	}
 }
 
-func WithNetLogstore(lk LogstoreKind) NetOption {
+func WithNetLogstore(lt LogstoreType) NetOption {
 	return func(c *NetConfig) error {
-		c.LogstoreKind = lk
+		c.LSType = lt
 		return nil
 	}
 }
