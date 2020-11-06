@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/ipfs/go-cid"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 )
@@ -112,5 +112,47 @@ func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 			delete(mhb.heads, t)
 		}
 	}
+	return nil
+}
+
+func (mhb *memoryHeadBook) DumpHeads() (core.DumpHeadBook, error) {
+	var dump = core.DumpHeadBook{
+		Data: make(map[thread.ID]map[peer.ID][]cid.Cid, len(mhb.heads)),
+	}
+
+	for tid, logs := range mhb.heads {
+		lm := make(map[peer.ID][]cid.Cid, len(logs))
+		for lid, hs := range logs {
+			heads := make([]cid.Cid, 0, len(hs))
+			for head := range hs {
+				heads = append(heads, head)
+			}
+			lm[lid] = heads
+		}
+		dump.Data[tid] = lm
+	}
+
+	return dump, nil
+}
+
+func (mhb *memoryHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
+	if !AllowEmptyRestore && len(dump.Data) == 0 {
+		return core.ErrEmptyDump
+	}
+
+	var restored = make(map[thread.ID]map[peer.ID]map[cid.Cid]struct{}, len(dump.Data))
+	for tid, logs := range dump.Data {
+		lm := make(map[peer.ID]map[cid.Cid]struct{}, len(logs))
+		for lid, hs := range logs {
+			hm := make(map[cid.Cid]struct{}, len(hs))
+			for _, head := range hs {
+				hm[head] = struct{}{}
+			}
+			lm[lid] = hm
+		}
+		restored[tid] = lm
+	}
+
+	mhb.heads = restored
 	return nil
 }

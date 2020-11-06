@@ -129,11 +129,128 @@ func (m *dsThreadMetadata) setValue(t thread.ID, key string, val interface{}) er
 }
 
 func (m *dsThreadMetadata) ClearMetadata(t thread.ID) error {
-	q := query.Query{
-		Prefix:   tmetaBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())).String(),
-		KeysOnly: true,
+	return m.clearKeys(tmetaBase.ChildString(base32.RawStdEncoding.EncodeToString(t.Bytes())).String())
+}
+
+func (m *dsThreadMetadata) DumpMeta() (core.DumpMetadata, error) {
+	var (
+		vBool   = make(map[core.MetadataKey]bool)
+		vInt64  = make(map[core.MetadataKey]int64)
+		vString = make(map[core.MetadataKey]string)
+		vBytes  = make(map[core.MetadataKey][]byte)
+
+		buff bytes.Buffer
+		dump core.DumpMetadata
+		dec  = gob.NewDecoder(&buff)
+	)
+
+	results, err := m.ds.Query(query.Query{Prefix: tmetaBase.String()})
+	if err != nil {
+		return dump, err
 	}
-	results, err := m.ds.Query(q)
+	defer results.Close()
+
+	for entry := range results.Next() {
+		kns := ds.RawKey(entry.Key).Namespaces()
+		if len(kns) < 4 {
+			return dump, fmt.Errorf("bad metabook key detected: %s", entry.Key)
+		}
+
+		ts, key := kns[2], kns[3]
+		tid, err := parseThreadID(ts)
+		if err != nil {
+			return dump, fmt.Errorf("cannot parse thread ID %s: %w", ts, err)
+		}
+
+		var mk = core.MetadataKey{T: tid, K: key}
+
+		// we (kinda) don't know about type on the wire, so try to decode into every known type
+		{
+			var value int64
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vInt64[mk] = value
+				continue
+			}
+		}
+		{
+			var value bool
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vBool[mk] = value
+				continue
+			}
+		}
+		{
+			var value string
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vString[mk] = value
+				continue
+			}
+		}
+		{
+			var value []byte
+			buff.Reset()
+			buff.Write(entry.Value)
+			if dec.Decode(&value) == nil {
+				vBytes[mk] = value
+				continue
+			}
+		}
+
+		return dump, fmt.Errorf("cannot decode value at key: %v, value: %v", mk, entry.Value)
+	}
+
+	dump.Data.Bool = vBool
+	dump.Data.Int64 = vInt64
+	dump.Data.String = vString
+	dump.Data.Bytes = vBytes
+	return dump, nil
+}
+
+func (m *dsThreadMetadata) RestoreMeta(dump core.DumpMetadata) error {
+	var dataLen = len(dump.Data.Bool) +
+		len(dump.Data.Int64) +
+		len(dump.Data.String) +
+		len(dump.Data.Bytes)
+	if !AllowEmptyRestore && dataLen == 0 {
+		return core.ErrEmptyDump
+	}
+
+	if err := m.clearKeys(tmetaBase.String()); err != nil {
+		return err
+	}
+
+	for mk, val := range dump.Data.Bool {
+		if err := m.setValue(mk.T, mk.K, val); err != nil {
+			return err
+		}
+	}
+	for mk, val := range dump.Data.Int64 {
+		if err := m.setValue(mk.T, mk.K, val); err != nil {
+			return err
+		}
+	}
+	for mk, val := range dump.Data.String {
+		if err := m.setValue(mk.T, mk.K, val); err != nil {
+			return err
+		}
+	}
+	for mk, val := range dump.Data.Bytes {
+		if err := m.setValue(mk.T, mk.K, val); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *dsThreadMetadata) clearKeys(prefix string) error {
+	results, err := m.ds.Query(query.Query{Prefix: prefix, KeysOnly: true})
 	if err != nil {
 		return err
 	}

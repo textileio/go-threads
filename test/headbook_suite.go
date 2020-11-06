@@ -18,6 +18,7 @@ var headBookSuite = map[string]func(hb core.HeadBook) func(*testing.T){
 	"AddGetHeads": testHeadBookAddHeads,
 	"SetGetHeads": testHeadBookSetHeads,
 	"ClearHeads":  testHeadBookClearHeads,
+	"ExportHeads": testHeadBookExport,
 }
 
 type HeadBookFactory func() (core.HeadBook, func())
@@ -39,40 +40,30 @@ func HeadBookTest(t *testing.T, factory HeadBookFactory) {
 
 func testHeadBookAddHeads(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		var (
+			numLogs   = 2
+			numHeads  = 3
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
-		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		p, _ := peer.IDFromPublicKey(pub)
+		for lid, heads := range logs {
+			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {
+				t.Error("expected heads to be empty on init without errors")
+			}
 
-		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
-			t.Error("expected heads to be empty on init without errors")
-		}
-
-		heads := make([]cid.Cid, 0)
-		for i := 0; i < 2; i++ {
-			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
-			head := cid.NewCidV1(cid.DagCBOR, hash)
-
-			if err := hb.AddHeads(tid, p, []cid.Cid{head}); err != nil {
+			if err := hb.AddHeads(tid, lid, heads); err != nil {
 				t.Fatalf("error when adding heads: %v", err)
 			}
-			heads = append(heads, head)
 		}
 
-		hbHeads, err := hb.Heads(tid, p)
-		if err != nil {
-			t.Fatalf("error while getting heads: %v", err)
-		}
-		for _, h := range heads {
-			var found bool
-			for _, b := range hbHeads {
-				if b == h {
-					found = true
-					break
-				}
+		for lid, expected := range logs {
+			heads, err := hb.Heads(tid, lid)
+			if err != nil {
+				t.Fatalf("error while getting heads: %v", err)
 			}
-			if !found {
-				t.Errorf("head %s not found in book", h.String())
+
+			if !equalHeads(expected, heads) {
+				t.Fatalf("heads not equal, expected: %v, actual: %v", expected, heads)
 			}
 		}
 	}
@@ -80,39 +71,30 @@ func testHeadBookAddHeads(hb core.HeadBook) func(t *testing.T) {
 
 func testHeadBookSetHeads(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		var (
+			numLogs   = 2
+			numHeads  = 3
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
-		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		p, _ := peer.IDFromPublicKey(pub)
-
-		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
-			t.Error("expected heads to be empty on init without errors")
-		}
-
-		heads := make([]cid.Cid, 0)
-		for i := 0; i < 2; i++ {
-			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
-			head := cid.NewCidV1(cid.DagCBOR, hash)
-			heads = append(heads, head)
-		}
-		if err := hb.SetHeads(tid, p, heads); err != nil {
-			t.Fatalf("error when setting heads: %v", err)
-		}
-
-		hbHeads, err := hb.Heads(tid, p)
-		if err != nil {
-			t.Fatalf("error when getting heads: %v", err)
-		}
-		for _, h := range heads {
-			var found bool
-			for _, b := range hbHeads {
-				if b == h {
-					found = true
-					break
-				}
+		for lid, heads := range logs {
+			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {
+				t.Error("expected heads to be empty on init without errors")
 			}
-			if !found {
-				t.Errorf("head %s not found in book", h.String())
+
+			if err := hb.SetHeads(tid, lid, heads); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
+		}
+
+		for lid, expected := range logs {
+			heads, err := hb.Heads(tid, lid)
+			if err != nil {
+				t.Fatalf("error while getting heads: %v", err)
+			}
+
+			if !equalHeads(expected, heads) {
+				t.Fatalf("heads not equal, expected: %v, actual: %v", expected, heads)
 			}
 		}
 	}
@@ -120,44 +102,95 @@ func testHeadBookSetHeads(hb core.HeadBook) func(t *testing.T) {
 
 func testHeadBookClearHeads(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		var (
+			numLogs   = 2
+			numHeads  = 2
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
-		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		p, _ := peer.IDFromPublicKey(pub)
+		for lid, heads := range logs {
+			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {
+				t.Error("expected heads to be empty on init without errors")
+			}
 
-		if heads, err := hb.Heads(tid, p); err != nil || len(heads) > 0 {
-			t.Error("expected heads to be empty on init without errors")
-		}
-
-		for i := 0; i < 2; i++ {
-			hash, _ := mh.Encode([]byte("foo"+strconv.Itoa(i)), mh.SHA2_256)
-			head := cid.NewCidV1(cid.DagCBOR, hash)
-
-			if err := hb.AddHead(tid, p, head); err != nil {
+			if err := hb.AddHeads(tid, lid, heads); err != nil {
 				t.Fatalf("error when adding heads: %v", err)
 			}
 		}
 
-		heads, err := hb.Heads(tid, p)
-		if err != nil {
-			t.Fatalf("error when getting heads: %v", err)
-		}
-		len1 := len(heads)
-		if len1 != 2 {
-			t.Errorf("incorrect heads length %d", len1)
+		for lid, expected := range logs {
+			heads, err := hb.Heads(tid, lid)
+			if err != nil {
+				t.Fatalf("error while getting heads: %v", err)
+			}
+
+			if !equalHeads(expected, heads) {
+				t.Fatalf("heads not equal, expected: %v, actual: %v", expected, heads)
+			}
 		}
 
-		if err = hb.ClearHeads(tid, p); err != nil {
-			t.Fatalf("error when clearing heads: %v", err)
+		for lid := range logs {
+			if err := hb.ClearHeads(tid, lid); err != nil {
+				t.Fatalf("error when clearing heads: %v", err)
+			}
 		}
 
-		heads, err = hb.Heads(tid, p)
-		if err != nil {
-			t.Fatalf("error when getting heads: %v", err)
+		for lid := range logs {
+			heads, err := hb.Heads(tid, lid)
+			if err != nil {
+				t.Fatalf("error while getting heads: %v", err)
+			}
+
+			if len(heads) > 0 {
+				t.Fatalf("heads not empty after clear")
+			}
 		}
-		len2 := len(heads)
-		if len2 != 0 {
-			t.Errorf("incorrect heads length %d", len2)
+	}
+}
+
+func testHeadBookExport(hb core.HeadBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		var (
+			numLogs   = 2
+			numHeads  = 3
+			tid, logs = genHeads(numLogs, numHeads)
+		)
+
+		for lid, heads := range logs {
+			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {
+				t.Error("expected heads to be empty on init without errors")
+			}
+
+			if err := hb.AddHeads(tid, lid, heads); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
+		}
+
+		dump, err := hb.DumpHeads()
+		if err != nil {
+			t.Fatalf("error dumping headbook: %v", err)
+		}
+
+		// clear storage explicitly to ensure it will be empty
+		for lid := range logs {
+			if err := hb.ClearHeads(tid, lid); err != nil {
+				t.Fatalf("error when clearing heads: %v", err)
+			}
+		}
+
+		if err := hb.RestoreHeads(dump); err != nil {
+			t.Fatalf("error restoring headbook: %v", err)
+		}
+
+		for lid, expected := range logs {
+			heads, err := hb.Heads(tid, lid)
+			if err != nil {
+				t.Fatalf("error while getting heads: %v", err)
+			}
+
+			if !equalHeads(expected, heads) {
+				t.Fatalf("heads not equal, expected: %v, actual: %v", expected, heads)
+			}
 		}
 	}
 }
@@ -189,99 +222,115 @@ func BenchmarkHeadBook(b *testing.B, factory HeadBookFactory) {
 
 func benchmarkHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		var (
+			numLogs   = 1
+			numHeads  = 1
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
-		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		if err != nil {
-			b.Error(err)
+		for lid, heads := range logs {
+			_ = hb.AddHeads(tid, lid, heads)
 		}
-
-		id, err := peer.IDFromPublicKey(pub)
-		if err != nil {
-			b.Error(err)
-		}
-
-		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
-		head := cid.NewCidV1(cid.DagCBOR, hash)
-
-		_ = hb.AddHead(tid, id, head)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = hb.Heads(tid, id)
+			for lid := range logs {
+				_, _ = hb.Heads(tid, lid)
+			}
 		}
 	}
 }
 
 func benchmarkAddHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
-
-		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		if err != nil {
-			b.Error(err)
-		}
-
-		id, err := peer.IDFromPublicKey(pub)
-		if err != nil {
-			b.Error(err)
-		}
-
-		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
-		head := cid.NewCidV1(cid.DagCBOR, hash)
+		var (
+			numLogs   = 1
+			numHeads  = 1
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = hb.AddHeads(tid, id, []cid.Cid{head})
+			for lid, heads := range logs {
+				_ = hb.AddHeads(tid, lid, heads)
+			}
 		}
 	}
 }
 
 func benchmarkSetHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
-
-		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		if err != nil {
-			b.Error(err)
-		}
-
-		id, err := peer.IDFromPublicKey(pub)
-		if err != nil {
-			b.Error(err)
-		}
-
-		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
-		head := cid.NewCidV1(cid.DagCBOR, hash)
+		var (
+			numLogs   = 1
+			numHeads  = 1
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = hb.SetHeads(tid, id, []cid.Cid{head})
+			for lid, heads := range logs {
+				_ = hb.SetHeads(tid, lid, heads)
+			}
 		}
 	}
 }
 
 func benchmarkClearHeads(hb core.HeadBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		var (
+			numLogs   = 1
+			numHeads  = 1
+			tid, logs = genHeads(numLogs, numHeads)
+		)
 
-		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
-		if err != nil {
-			b.Error(err)
+		for lid, heads := range logs {
+			_ = hb.SetHeads(tid, lid, heads)
 		}
-
-		id, err := peer.IDFromPublicKey(pub)
-		if err != nil {
-			b.Error(err)
-		}
-
-		hash, _ := mh.Encode([]byte("foo"), mh.SHA2_256)
-		head := cid.NewCidV1(cid.DagCBOR, hash)
-		_ = hb.SetHeads(tid, id, []cid.Cid{head})
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = hb.ClearHeads(tid, id)
+			for lid := range logs {
+				_ = hb.ClearHeads(tid, lid)
+			}
 		}
 	}
+}
+
+func genHeads(numLogs, numHeads int) (thread.ID, map[peer.ID][]cid.Cid) {
+	var (
+		logs = make(map[peer.ID][]cid.Cid)
+		tid  = thread.NewIDV1(thread.Raw, 32)
+	)
+
+	for i := 0; i < numLogs; i++ {
+		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+		lid, _ := peer.IDFromPublicKey(pub)
+
+		heads := make([]cid.Cid, numHeads)
+		for j := 0; j < numHeads; j++ {
+			hash, _ := mh.Encode([]byte("h:"+strconv.Itoa(i)+":"+strconv.Itoa(j)), mh.SHA2_256)
+			heads[j] = cid.NewCidV1(cid.DagCBOR, hash)
+		}
+
+		logs[lid] = heads
+	}
+
+	return tid, logs
+}
+
+func equalHeads(h1, h2 []cid.Cid) bool {
+	if len(h1) != len(h2) {
+		return false
+	}
+
+	sort.Slice(h1, func(i, j int) bool { return h1[i].String() < h1[j].String() })
+	sort.Slice(h2, func(i, j int) bool { return h2[i].String() < h2[j].String() })
+
+	for i := 0; i < len(h1); i++ {
+		if !h1[i].Equals(h2[i]) {
+			return false
+		}
+	}
+
+	return true
 }

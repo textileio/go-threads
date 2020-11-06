@@ -2,6 +2,7 @@ package logstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -24,6 +25,9 @@ var ErrLogNotFound = fmt.Errorf("log not found")
 
 // ErrLogExists indicates a requested log already exists.
 var ErrLogExists = fmt.Errorf("log already exists")
+
+// ErrEmptyDump indicates an attempt to restore from empty dump.
+var ErrEmptyDump = errors.New("empty dump")
 
 // Logstore stores log keys, addresses, heads and thread meta data.
 type Logstore interface {
@@ -87,6 +91,12 @@ type ThreadMetadata interface {
 
 	// ClearMetadata clears all metadata under a thread.
 	ClearMetadata(t thread.ID) error
+
+	// DumpMeta packs all the stored metadata.
+	DumpMeta() (DumpMetadata, error)
+
+	// RestoreMeta restores metadata from the dump.
+	RestoreMeta(book DumpMetadata) error
 }
 
 // KeyBook stores log keys.
@@ -126,6 +136,12 @@ type KeyBook interface {
 
 	// ThreadsFromKeys returns a list of threads referenced in the book.
 	ThreadsFromKeys() (thread.IDSlice, error)
+
+	// DumpKeys packs all stored keys.
+	DumpKeys() (DumpKeyBook, error)
+
+	// RestoreKeys restores keys from the dump.
+	RestoreKeys(book DumpKeyBook) error
 }
 
 // AddrBook stores log addresses.
@@ -159,6 +175,12 @@ type AddrBook interface {
 
 	// ThreadsFromAddrs returns a list of threads referenced in the book.
 	ThreadsFromAddrs() (thread.IDSlice, error)
+
+	// DumpHeads packs all stored addresses.
+	DumpAddrs() (DumpAddrBook, error)
+
+	// RestoreHeads restores addresses from the dump.
+	RestoreAddrs(book DumpAddrBook) error
 }
 
 // HeadBook stores log heads.
@@ -180,4 +202,48 @@ type HeadBook interface {
 
 	// ClearHeads deletes the head entry for a log.
 	ClearHeads(thread.ID, peer.ID) error
+
+	// DumpHeads packs entire headbook into the tree.
+	DumpHeads() (DumpHeadBook, error)
+
+	// RestoreHeads restores headbook from the dump.
+	RestoreHeads(DumpHeadBook) error
 }
+
+type (
+	DumpHeadBook struct {
+		Data map[thread.ID]map[peer.ID][]cid.Cid
+	}
+
+	ExpiredAddress struct {
+		Addr    ma.Multiaddr
+		Expires time.Time
+	}
+
+	DumpAddrBook struct {
+		Data map[thread.ID]map[peer.ID][]ExpiredAddress
+	}
+
+	DumpKeyBook struct {
+		Data struct {
+			Public  map[thread.ID]map[peer.ID]crypto.PubKey
+			Private map[thread.ID]map[peer.ID]crypto.PrivKey
+			Read    map[thread.ID][]byte
+			Service map[thread.ID][]byte
+		}
+	}
+
+	MetadataKey struct {
+		T thread.ID
+		K string
+	}
+
+	DumpMetadata struct {
+		Data struct {
+			Int64  map[MetadataKey]int64
+			Bool   map[MetadataKey]bool
+			String map[MetadataKey]string
+			Bytes  map[MetadataKey][]byte
+		}
+	}
+)

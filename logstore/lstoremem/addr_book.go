@@ -56,6 +56,7 @@ type memoryAddrBook struct {
 
 	ctx    context.Context
 	cancel func()
+	gcLock sync.Mutex
 
 	subManager *AddrSubManager
 }
@@ -104,7 +105,10 @@ func (mab *memoryAddrBook) Close() error {
 
 // gc garbage collects the in-memory address book.
 func (mab *memoryAddrBook) gc() {
-	now := time.Now()
+	mab.gcLock.Lock()
+	defer mab.gcLock.Unlock()
+
+	var now = time.Now()
 	for _, s := range mab.segments {
 		s.Lock()
 		for t, pmap := range s.addrs {
@@ -322,6 +326,80 @@ func (mab *memoryAddrBook) AddrStream(ctx context.Context, t thread.ID, p peer.I
 	}
 
 	return mab.subManager.AddrStream(ctx, p, initial)
+}
+
+func (mab *memoryAddrBook) DumpAddrs() (core.DumpAddrBook, error) {
+	var dump = core.DumpAddrBook{
+		Data: make(map[thread.ID]map[peer.ID][]core.ExpiredAddress, 256),
+	}
+
+	mab.gcLock.Lock()
+	var now = time.Now()
+
+	for _, segment := range mab.segments {
+		for tid, logs := range segment.addrs {
+			lm, exist := dump.Data[tid]
+			if !exist {
+				lm = make(map[peer.ID][]core.ExpiredAddress, len(logs))
+				dump.Data[tid] = lm
+			}
+
+			for lid, addrMap := range logs {
+				for _, ap := range addrMap {
+					if ap != nil && !ap.ExpiredBy(now) {
+						lm[lid] = append(lm[lid], core.ExpiredAddress{
+							Addr:    ap.Addr,
+							Expires: ap.Expires,
+						})
+					}
+				}
+			}
+		}
+	}
+	mab.gcLock.Unlock()
+	return dump, nil
+}
+
+func (mab *memoryAddrBook) RestoreAddrs(dump core.DumpAddrBook) error {
+	if !AllowEmptyRestore && len(dump.Data) == 0 {
+		return core.ErrEmptyDump
+	}
+
+	mab.gcLock.Lock()
+	defer mab.gcLock.Unlock()
+
+	// reset segments
+	for i := range mab.segments {
+		mab.segments[i] = &addrSegment{
+			addrs: make(map[thread.ID]map[peer.ID]map[string]*expiringAddr, len(mab.segments[i].addrs)),
+		}
+	}
+
+	var now = time.Now()
+	for tid, logs := range dump.Data {
+		for lid, addrs := range logs {
+			s := mab.segments.get(lid)
+			am, _ := s.getAddrs(tid, lid)
+			if am == nil {
+				if s.addrs[tid] == nil {
+					s.addrs[tid] = make(map[peer.ID]map[string]*expiringAddr, 1)
+				}
+				am = make(map[string]*expiringAddr, len(addrs))
+				s.addrs[tid][lid] = am
+			}
+
+			for _, rec := range addrs {
+				if rec.Expires.After(now) {
+					am[string(rec.Addr.Bytes())] = &expiringAddr{
+						Addr:    rec.Addr,
+						TTL:     rec.Expires.Sub(now),
+						Expires: rec.Expires,
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 type addrSub struct {

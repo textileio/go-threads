@@ -1,33 +1,23 @@
 package lstoremem
 
 import (
+	"fmt"
 	"sync"
 
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 )
 
-var internKeys = map[string]bool{
-	"Name": true,
-}
-
-type metakey struct {
-	id  thread.ID
-	key string
-}
-
 type memoryThreadMetadata struct {
-	ds       map[metakey]interface{}
-	dslock   sync.RWMutex
-	interned map[string]interface{}
+	ds     map[core.MetadataKey]interface{}
+	dslock sync.RWMutex
 }
 
 var _ core.ThreadMetadata = (*memoryThreadMetadata)(nil)
 
 func NewThreadMetadata() core.ThreadMetadata {
 	return &memoryThreadMetadata{
-		ds:       make(map[metakey]interface{}),
-		interned: make(map[string]interface{}),
+		ds: make(map[core.MetadataKey]interface{}),
 	}
 }
 
@@ -88,20 +78,13 @@ func (m *memoryThreadMetadata) GetBytes(t thread.ID, key string) (*[]byte, error
 func (m *memoryThreadMetadata) putValue(t thread.ID, key string, val interface{}) {
 	m.dslock.Lock()
 	defer m.dslock.Unlock()
-	if vals, ok := val.(string); ok && internKeys[key] {
-		if interned, ok := m.interned[vals]; ok {
-			val = interned
-		} else {
-			m.interned[vals] = val
-		}
-	}
-	m.ds[metakey{t, key}] = val
+	m.ds[core.MetadataKey{T: t, K: key}] = val
 }
 
 func (m *memoryThreadMetadata) getValue(t thread.ID, key string) interface{} {
 	m.dslock.RLock()
 	defer m.dslock.RUnlock()
-	if v, ok := m.ds[metakey{t, key}]; ok {
+	if v, ok := m.ds[core.MetadataKey{T: t, K: key}]; ok {
 		return v
 	}
 	return nil
@@ -111,9 +94,75 @@ func (m *memoryThreadMetadata) ClearMetadata(t thread.ID) error {
 	m.dslock.Lock()
 	defer m.dslock.Unlock()
 	for k := range m.ds {
-		if k.id.Equals(t) {
+		if k.T.Equals(t) {
 			delete(m.ds, k)
 		}
 	}
+	return nil
+}
+
+func (m *memoryThreadMetadata) DumpMeta() (core.DumpMetadata, error) {
+	m.dslock.RLock()
+	defer m.dslock.RUnlock()
+
+	var (
+		dump    core.DumpMetadata
+		vInt64  = make(map[core.MetadataKey]int64)
+		vBool   = make(map[core.MetadataKey]bool)
+		vString = make(map[core.MetadataKey]string)
+		vBytes  = make(map[core.MetadataKey][]byte)
+	)
+
+	for mk, value := range m.ds {
+		switch v := value.(type) {
+		case bool:
+			vBool[mk] = v
+		case int64:
+			vInt64[mk] = v
+		case string:
+			vString[mk] = v
+		case []byte:
+			vBytes[mk] = v
+		default:
+			return dump, fmt.Errorf("unsupported value type %T, key: %v, value: %v", value, mk, value)
+		}
+	}
+
+	dump.Data.Bool = vBool
+	dump.Data.Int64 = vInt64
+	dump.Data.String = vString
+	dump.Data.Bytes = vBytes
+	return dump, nil
+}
+
+func (m *memoryThreadMetadata) RestoreMeta(dump core.DumpMetadata) error {
+	var dataLen = len(dump.Data.Bool) +
+		len(dump.Data.Int64) +
+		len(dump.Data.String) +
+		len(dump.Data.Bytes)
+	if !AllowEmptyRestore && dataLen == 0 {
+		return core.ErrEmptyDump
+	}
+
+	m.dslock.Lock()
+	defer m.dslock.Unlock()
+
+	// clear local data
+	m.ds = make(map[core.MetadataKey]interface{}, dataLen)
+
+	// replace with dump
+	for mk, val := range dump.Data.Bool {
+		m.ds[mk] = val
+	}
+	for mk, val := range dump.Data.Int64 {
+		m.ds[mk] = val
+	}
+	for mk, val := range dump.Data.String {
+		m.ds[mk] = val
+	}
+	for mk, val := range dump.Data.Bytes {
+		m.ds[mk] = val
+	}
+
 	return nil
 }

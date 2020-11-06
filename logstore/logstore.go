@@ -12,6 +12,8 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 )
 
+var _ core.Logstore = (*logstore)(nil)
+
 var managedSuffix = "/managed"
 
 // logstore is a collection of books for storing thread logs.

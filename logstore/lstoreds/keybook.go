@@ -222,3 +222,150 @@ func (kb *dsKeyBook) ThreadsFromKeys() (thread.IDSlice, error) {
 	}
 	return ids, nil
 }
+
+func (kb *dsKeyBook) DumpKeys() (core.DumpKeyBook, error) {
+	var (
+		dump core.DumpKeyBook
+		pub  = make(map[thread.ID]map[peer.ID]crypto.PubKey)
+		priv = make(map[thread.ID]map[peer.ID]crypto.PrivKey)
+		rks  = make(map[thread.ID][]byte)
+		sks  = make(map[thread.ID][]byte)
+	)
+
+	result, err := kb.ds.Query(query.Query{Prefix: kbBase.String(), KeysOnly: false})
+	if err != nil {
+		return dump, err
+	}
+	defer result.Close()
+
+	for entry := range result.Next() {
+		kns := ds.RawKey(entry.Key).Namespaces()
+		if len(kns) < 4 {
+			return dump, fmt.Errorf("bad keybook key detected: %s", entry.Key)
+		}
+
+		// discriminate by key suffix
+		switch suffix := "/" + kns[len(kns)-1]; suffix {
+		case pubSuffix.String():
+			ts, ls := kns[2], kns[3]
+			tid, err := parseThreadID(ts)
+			if err != nil {
+				return dump, fmt.Errorf("cannot parse thread ID %s: %w", ts, err)
+			}
+			lid, err := parseLogID(ls)
+			if err != nil {
+				return dump, fmt.Errorf("cannot parse log ID %s: %w", ls, err)
+			}
+			pk, err := crypto.UnmarshalPublicKey(entry.Value)
+			if err != nil {
+				return dump, fmt.Errorf("cannot unmarshal public key: %w", err)
+			}
+			pkm, ok := pub[tid]
+			if !ok {
+				pkm = make(map[peer.ID]crypto.PubKey, 1)
+				pub[tid] = pkm
+			}
+			pkm[lid] = pk
+
+		case privSuffix.String():
+			ts, ls := kns[2], kns[3]
+			tid, err := parseThreadID(ts)
+			if err != nil {
+				return dump, fmt.Errorf("cannot parse thread ID %s: %w", ts, err)
+			}
+			lid, err := parseLogID(ls)
+			if err != nil {
+				return dump, fmt.Errorf("cannot parse log ID %s: %w", ls, err)
+			}
+			pk, err := crypto.UnmarshalPrivateKey(entry.Value)
+			if err != nil {
+				return dump, fmt.Errorf("cannot unmarshal private key: %w", err)
+			}
+			pkm, ok := priv[tid]
+			if !ok {
+				pkm = make(map[peer.ID]crypto.PrivKey, 1)
+				priv[tid] = pkm
+			}
+			pkm[lid] = pk
+
+		case readSuffix.String():
+			ts := kns[2]
+			tid, err := parseThreadID(ts)
+			if err != nil {
+				return dump, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+			}
+			rks[tid] = entry.Value
+
+		case serviceSuffix.String():
+			ts := kns[2]
+			tid, err := parseThreadID(ts)
+			if err != nil {
+				return dump, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+			}
+			sks[tid] = entry.Value
+
+		default:
+			return dump, fmt.Errorf("bad suffix %s in a key: %s", suffix, entry.Key)
+		}
+	}
+
+	dump.Data.Public = pub
+	dump.Data.Private = priv
+	dump.Data.Read = rks
+	dump.Data.Service = sks
+
+	return dump, nil
+}
+
+func (kb *dsKeyBook) RestoreKeys(dump core.DumpKeyBook) error {
+	if !AllowEmptyRestore &&
+		len(dump.Data.Public) == 0 &&
+		len(dump.Data.Private) == 0 &&
+		len(dump.Data.Read) == 0 &&
+		len(dump.Data.Service) == 0 {
+		return core.ErrEmptyDump
+	}
+
+	// clear all local keys
+	if err := kb.clearKeys(kbBase); err != nil {
+		return err
+	}
+
+	for tid, logs := range dump.Data.Public {
+		for lid, pubKey := range logs {
+			if err := kb.AddPubKey(tid, lid, pubKey); err != nil {
+				return err
+			}
+		}
+	}
+
+	for tid, logs := range dump.Data.Private {
+		for lid, privKey := range logs {
+			if err := kb.AddPrivKey(tid, lid, privKey); err != nil {
+				return err
+			}
+		}
+	}
+
+	for tid, rk := range dump.Data.Read {
+		key, err := sym.FromBytes(rk)
+		if err != nil {
+			return fmt.Errorf("decoding read key for thread %s: %w", tid, err)
+		}
+		if err := kb.AddReadKey(tid, key); err != nil {
+			return err
+		}
+	}
+
+	for tid, sk := range dump.Data.Service {
+		key, err := sym.FromBytes(sk)
+		if err != nil {
+			return fmt.Errorf("decoding service key for thread %s: %w", tid, err)
+		}
+		if err := kb.AddServiceKey(tid, key); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

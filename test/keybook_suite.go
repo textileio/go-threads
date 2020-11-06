@@ -25,6 +25,7 @@ var keyBookSuite = map[string]func(kb core.KeyBook) func(*testing.T){
 	"testKeyBookClearLogKeys": testKeyBookClearLogKeys,
 	"ThreadsFromKeys":         testKeyBookThreads,
 	"PubKeyAddedOnRetrieve":   testInlinedPubKeyAddedOnRetrieve,
+	"ExportKeyBook":           testKeyBookExport,
 }
 
 type KeyBookFactory func() (core.KeyBook, func())
@@ -416,6 +417,128 @@ func testInlinedPubKeyAddedOnRetrieve(kb core.KeyBook) func(t *testing.T) {
 		}
 		if !pubKey.Equals(pub) {
 			t.Error("mismatch between original public key and keybook-calculated one")
+		}
+	}
+}
+
+func testKeyBookExport(kb core.KeyBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		var (
+			numThreads = 2
+			numLogs    = 3
+
+			public  = make(map[thread.ID]map[peer.ID]crypto.PubKey)
+			private = make(map[thread.ID]map[peer.ID]crypto.PrivKey)
+			read    = make(map[thread.ID][]byte)
+			service = make(map[thread.ID][]byte)
+		)
+
+		// generate key set
+		for i := 0; i < numThreads; i++ {
+			tid := thread.NewIDV1(thread.Raw, 24)
+
+			readKey, err := sym.NewRandom()
+			if err != nil {
+				t.Error(err)
+			}
+			read[tid] = readKey.Bytes()
+			if err := kb.AddReadKey(tid, readKey); err != nil {
+				t.Fatal(err)
+			}
+
+			serviceKey, err := sym.NewRandom()
+			if err != nil {
+				t.Error(err)
+			}
+			service[tid] = serviceKey.Bytes()
+			if err := kb.AddServiceKey(tid, serviceKey); err != nil {
+				t.Fatal(err)
+			}
+
+			public[tid] = make(map[peer.ID]crypto.PubKey)
+			private[tid] = make(map[peer.ID]crypto.PrivKey)
+
+			for j := 0; j < numLogs; j++ {
+				priv, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
+				lid, _ := peer.IDFromPublicKey(pub)
+
+				public[tid][lid] = pub
+				private[tid][lid] = priv
+
+				if err := kb.AddPubKey(tid, lid, pub); err != nil {
+					t.Fatal(err)
+				}
+
+				if err := kb.AddPrivKey(tid, lid, priv); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		// make a dump
+		dump, err := kb.DumpKeys()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// purge all keys
+		for tid := range read {
+			if err := kb.ClearKeys(tid); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// try to restore from the dump
+		if err := kb.RestoreKeys(dump); err != nil {
+			t.Fatal(err)
+		}
+
+		// compare public keys
+		for tid, logs := range public {
+			for lid, key := range logs {
+				pk, err := kb.PubKey(tid, lid)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !pk.Equals(key) {
+					t.Error("restored public key is different from the original one")
+				}
+			}
+		}
+
+		// compare private keys
+		for tid, logs := range private {
+			for lid, key := range logs {
+				pk, err := kb.PrivKey(tid, lid)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !pk.Equals(key) {
+					t.Error("restored private key is different from the original one")
+				}
+			}
+		}
+
+		// compare read keys
+		for tid, key := range read {
+			rk, err := kb.ReadKey(tid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(rk.Bytes(), key) {
+				t.Error("restored thread-read key is different from the original one")
+			}
+		}
+
+		// compare service keys
+		for tid, key := range service {
+			sk, err := kb.ServiceKey(tid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(sk.Bytes(), key) {
+				t.Error("restored thread-service key is different from the original one")
+			}
 		}
 	}
 }

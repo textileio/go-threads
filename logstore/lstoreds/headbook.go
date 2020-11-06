@@ -6,6 +6,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
@@ -92,8 +93,8 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 		}
 		entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.ProtoCid{Cid: heads[i]}}
 		hr.Heads = append(hr.Heads, entry)
-
 	}
+
 	data, err := proto.Marshal(&hr)
 	if err != nil {
 		return fmt.Errorf("error when marshaling headbookrecord proto for %v: %w", key, err)
@@ -130,4 +131,98 @@ func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 		return fmt.Errorf("error when deleting heads from %s", key)
 	}
 	return nil
+}
+
+// Dump entire headbook into the tree-structure.
+// Not a thread-safe, should not be interleaved with other methods!
+func (hb *dsHeadBook) DumpHeads() (core.DumpHeadBook, error) {
+	data, err := hb.traverse(true)
+	return core.DumpHeadBook{Data: data}, err
+}
+
+// Restore headbook from the provided dump replacing all the local data.
+// Not a thread-safe, should not be interleaved with other methods!
+func (hb *dsHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
+	if !AllowEmptyRestore && len(dump.Data) == 0 {
+		return core.ErrEmptyDump
+	}
+
+	stored, err := hb.traverse(false)
+	if err != nil {
+		return fmt.Errorf("traversing datastore: %w", err)
+	}
+
+	// wipe out existing headbook
+	for tid, logs := range stored {
+		for lid := range logs {
+			if err := hb.ClearHeads(tid, lid); err != nil {
+				return fmt.Errorf("clearing heads for %s/%s: %w", tid, lid, err)
+			}
+		}
+	}
+
+	// ... and replace it with the dump
+	for tid, logs := range dump.Data {
+		for lid, heads := range logs {
+			if err := hb.SetHeads(tid, lid, heads); err != nil {
+				return fmt.Errorf("setting heads for %s/%s: %w", tid, lid, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]cid.Cid, error) {
+	var data = make(map[thread.ID]map[peer.ID][]cid.Cid)
+	result, err := hb.ds.Query(query.Query{Prefix: hbBase.String(), KeysOnly: !withHeads})
+	if err != nil {
+		return nil, err
+	}
+	defer result.Close()
+
+	for entry := range result.Next() {
+		kns := ds.RawKey(entry.Key).Namespaces()
+		if len(kns) < 3 {
+			return nil, fmt.Errorf("bad headbook key detected: %s", entry.Key)
+		}
+
+		// get thread and log IDs from the key components
+		ts, ls := kns[len(kns)-2], kns[len(kns)-1]
+
+		// parse thread ID
+		tid, err := parseThreadID(ts)
+		if err != nil {
+			return nil, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+		}
+
+		// parse log ID
+		lid, err := parseLogID(ls)
+		if err != nil {
+			return nil, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
+		}
+
+		var heads []cid.Cid
+		if withHeads {
+			var hr pb.HeadBookRecord
+			if err := proto.Unmarshal(entry.Value, &hr); err != nil {
+				return nil, fmt.Errorf("cannot decode headbook record: %w", err)
+			}
+
+			heads = make([]cid.Cid, len(hr.Heads))
+			for i := range hr.Heads {
+				heads[i] = hr.Heads[i].Cid.Cid
+			}
+		}
+
+		lh, exist := data[tid]
+		if !exist {
+			lh = make(map[peer.ID][]cid.Cid)
+			data[tid] = lh
+		}
+
+		lh[lid] = heads
+	}
+
+	return data, nil
 }
