@@ -127,7 +127,16 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 		return nil, ErrInvalidName
 	}
 
-	if _, err := m.network.CreateThread(ctx, id, net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
+	if args.Key.Defined() && !args.Key.CanRead() {
+		return nil, ErrThreadReadKeyRequired
+	}
+	if _, err := m.network.CreateThread(
+		ctx,
+		id,
+		net.WithThreadKey(args.Key),
+		net.WithLogKey(args.LogKey),
+		net.WithNewThreadToken(args.Token),
+	); err != nil {
 		return nil, err
 	}
 
@@ -146,7 +155,12 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 // NewDBFromAddr creates a new db from address and prefixes its datastore with base key.
 // Unlike NewDB, this method takes a list of collections added to the original db that
 // should also be added to this host.
-func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thread.Key, opts ...NewManagedOption) (*DB, error) {
+func (m *Manager) NewDBFromAddr(
+	ctx context.Context,
+	addr ma.Multiaddr,
+	key thread.Key,
+	opts ...NewManagedOption,
+) (*DB, error) {
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
@@ -162,7 +176,16 @@ func (m *Manager) NewDBFromAddr(ctx context.Context, addr ma.Multiaddr, key thre
 		return nil, ErrInvalidName
 	}
 
-	if _, err := m.network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
+	if key.Defined() && !key.CanRead() {
+		return nil, ErrThreadReadKeyRequired
+	}
+	if _, err := m.network.AddThread(
+		ctx,
+		addr,
+		net.WithThreadKey(key),
+		net.WithLogKey(args.LogKey),
+		net.WithNewThreadToken(args.Token),
+	); err != nil {
 		return nil, err
 	}
 
@@ -242,7 +265,12 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if err := db.Close(); err != nil {
 		return err
 	}
-	if err := m.network.DeleteThread(ctx, id, net.WithThreadToken(args.Token), net.WithAPIToken(db.connector.Token())); err != nil {
+	if err := m.network.DeleteThread(
+		ctx,
+		id,
+		net.WithThreadToken(args.Token),
+		net.WithAPIToken(db.connector.Token()),
+	); err != nil {
 		return err
 	}
 

@@ -159,7 +159,7 @@ func TestWithNewName(t *testing.T) {
 	checkErr(t, err)
 	defer n.Close()
 	defer d.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewThreadKey(info.Key))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewKey(info.Key))
 	checkErr(t, err)
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
@@ -203,7 +203,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewThreadKey(info.Key))
+	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewKey(info.Key))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }
@@ -293,7 +293,11 @@ func TestListeners(t *testing.T) {
 	})
 	t.Run("AnyCollection1OrDeleteCollection2Events", func(t *testing.T) {
 		t.Parallel()
-		actions := runListenersComplexUseCase(t, ListenOption{Collection: "Collection1"}, ListenOption{Collection: "Collection2", Type: ListenDelete})
+		actions := runListenersComplexUseCase(
+			t,
+			ListenOption{Collection: "Collection1"},
+			ListenOption{Collection: "Collection2", Type: ListenDelete},
+		)
 		expected := []Action{
 			{Collection: "Collection1", Type: ActionSave, ID: "id-i1"},
 			{Collection: "Collection1", Type: ActionCreate, ID: "id-i2"},
