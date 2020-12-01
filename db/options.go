@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/dgraph-io/badger/options"
+	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	ds "github.com/textileio/go-datastore"
 	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
@@ -36,7 +36,6 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 // NewOptions defines options for creating a new db.
 type NewOptions struct {
 	Name        string
-	RepoPath    string
 	Key         thread.Key
 	LogKey      crypto.Key
 	Datastore   ds.TxnDatastore
@@ -44,33 +43,11 @@ type NewOptions struct {
 	Block       bool
 	EventCodec  core.EventCodec
 	Token       thread.Token
-	LowMem      bool
 	Debug       bool
 }
 
 // NewOption specifies a new db option.
 type NewOption func(*NewOptions)
-
-// WithNewName sets the db name.
-func WithNewName(name string) NewOption {
-	return func(o *NewOptions) {
-		o.Name = name
-	}
-}
-
-// WithNewRepoPath sets the repo path.
-func WithNewRepoPath(path string) NewOption {
-	return func(o *NewOptions) {
-		o.RepoPath = path
-	}
-}
-
-// WithNewToken provides authorization for interacting with a db.
-func WithNewToken(t thread.Token) NewOption {
-	return func(o *NewOptions) {
-		o.Token = t
-	}
-}
 
 // WithNewKey provides control over thread keys to use with a db.
 func WithNewKey(key thread.Key) NewOption {
@@ -86,6 +63,13 @@ func WithNewKey(key thread.Key) NewOption {
 func WithNewLogKey(key crypto.Key) NewOption {
 	return func(o *NewOptions) {
 		o.LogKey = key
+	}
+}
+
+// WithNewName sets the db name.
+func WithNewName(name string) NewOption {
+	return func(o *NewOptions) {
+		o.Name = name
 	}
 }
 
@@ -115,10 +99,10 @@ func WithNewEventCodec(ec core.EventCodec) NewOption {
 	}
 }
 
-// WithNewLowMem specifies whether or not to use low memory settings.
-func WithNewLowMem(low bool) NewOption {
+// WithNewToken provides authorization for interacting with a db.
+func WithNewToken(t thread.Token) NewOption {
 	return func(o *NewOptions) {
-		o.LowMem = low
+		o.Token = t
 	}
 }
 

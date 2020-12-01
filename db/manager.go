@@ -6,11 +6,11 @@ import (
 	"io"
 	"strings"
 
+	ds "github.com/ipfs/go-datastore"
+	kt "github.com/ipfs/go-datastore/keytransform"
+	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	ds "github.com/textileio/go-datastore"
-	kt "github.com/textileio/go-datastore/keytransform"
-	"github.com/textileio/go-datastore/query"
 	"github.com/textileio/go-threads/core/app"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -36,19 +36,12 @@ type Manager struct {
 }
 
 // NewManager hydrates and starts dbs from prefixes.
-func NewManager(network app.Net, opts ...NewOption) (*Manager, error) {
+func NewManager(ctx context.Context, network app.Net, opts ...NewOption) (*Manager, error) {
 	options := &NewOptions{}
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	if options.Datastore == nil {
-		datastore, err := newDefaultDatastore(options.RepoPath, options.LowMem)
-		if err != nil {
-			return nil, err
-		}
-		options.Datastore = datastore
-	}
 	if options.Debug {
 		if err := util.SetLogLevels(map[string]logging.LogLevel{
 			"db": logging.LevelDebug,

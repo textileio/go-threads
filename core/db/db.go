@@ -4,9 +4,9 @@ import (
 	"crypto/rand"
 	"strings"
 
+	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-ipld-format"
 	ulid "github.com/oklog/ulid/v2"
-	ds "github.com/textileio/go-datastore"
 )
 
 const (

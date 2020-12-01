@@ -14,12 +14,12 @@ import (
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
+	ds "github.com/ipfs/go-datastore"
+	kt "github.com/ipfs/go-datastore/keytransform"
+	"github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
-	ds "github.com/textileio/go-datastore"
-	kt "github.com/textileio/go-datastore/keytransform"
-	"github.com/textileio/go-datastore/query"
 	threadcbor "github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
@@ -93,7 +93,7 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption) (*DB, error) {
+func NewDB(ctx context.Context, ds ds.TxnDatastore, network app.Net, id thread.ID, opts ...NewOption) (*DB, error) {
 	args := &NewOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -165,13 +165,13 @@ func NewDBFromAddr(
 
 // newDB is used directly by a db manager to create new dbs with the same config.
 func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
-	if opts.Datastore == nil {
-		datastore, err := newDefaultDatastore(opts.RepoPath, opts.LowMem)
-		if err != nil {
-			return nil, err
-		}
-		opts.Datastore = datastore
-	}
+	//if opts.Datastore == nil {
+	//	datastore, err := newDefaultDatastore(opts.RepoPath, opts.LowMem)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	opts.Datastore = datastore
+	//}
 	if opts.EventCodec == nil {
 		opts.EventCodec = newDefaultEventCodec()
 	}

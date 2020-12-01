@@ -12,8 +12,8 @@ import (
 	"sort"
 
 	"github.com/alecthomas/jsonschema"
-	ds "github.com/textileio/go-datastore"
-	"github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )

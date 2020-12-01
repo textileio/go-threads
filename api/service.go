@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ipfs/go-datastore"
 	"io"
 
 	"github.com/alecthomas/jsonschema"
@@ -33,13 +34,13 @@ type Service struct {
 
 // Config specifies server settings.
 type Config struct {
-	RepoPath string
+	Datastore datastore.Txn
 	Debug    bool
 }
 
 // NewService starts and returns a new service with the given network.
 // The network is *not* managed by the server.
-func NewService(network app.Net, conf Config) (*Service, error) {
+func NewService(ctx context.Context, network app.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -50,7 +51,7 @@ func NewService(network app.Net, conf Config) (*Service, error) {
 		}
 	}
 
-	manager, err := db.NewManager(network, db.WithNewRepoPath(conf.RepoPath), db.WithNewDebug(conf.Debug))
+	manager, err := db.NewManager(ctx, network, , db.WithNewDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}
