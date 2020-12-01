@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,6 +53,16 @@ func TestClient_NewDB(t *testing.T) {
 	client, done := setup(t)
 	defer done()
 
+	t.Run("test new db with missing read key", func(t *testing.T) {
+		if err := client.NewDB(
+			context.Background(),
+			thread.NewIDV1(thread.Raw, 32),
+			db.WithNewManagedKey(thread.NewRandomServiceKey()),
+		); err == nil || !strings.Contains(err.Error(), db.ErrThreadReadKeyRequired.Error()) {
+			t.Fatal("new db without read key should fail")
+		}
+	})
+
 	t.Run("test new db", func(t *testing.T) {
 		if err := client.NewDB(context.Background(), thread.NewIDV1(thread.Raw, 32)); err != nil {
 			t.Fatalf("failed to create new db: %v", err)
@@ -71,6 +82,16 @@ func TestClient_NewDBFromAddr(t *testing.T) {
 	checkErr(t, err)
 	info, err := client1.GetDBInfo(context.Background(), id)
 	checkErr(t, err)
+
+	t.Run("test new db with missing read key", func(t *testing.T) {
+		if err = client2.NewDBFromAddr(
+			context.Background(),
+			info.Addrs[0],
+			thread.NewServiceKey(info.Key.Service()),
+		); err == nil || !strings.Contains(err.Error(), db.ErrThreadReadKeyRequired.Error()) {
+			t.Fatal("new db from addr without read key should fail")
+		}
+	})
 
 	t.Run("test new db from address", func(t *testing.T) {
 		if err = client2.NewDBFromAddr(context.Background(), info.Addrs[0], info.Key); err != nil {

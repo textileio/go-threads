@@ -37,15 +37,15 @@ func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) 
 type NewOptions struct {
 	Name        string
 	RepoPath    string
-	Token       thread.Token
+	Key         thread.Key
+	LogKey      crypto.Key
 	Datastore   ds.TxnDatastore
 	Collections []CollectionConfig
 	Block       bool
 	EventCodec  core.EventCodec
+	Token       thread.Token
 	LowMem      bool
 	Debug       bool
-	ThreadKey   thread.Key
-	LogKey      crypto.Key
 }
 
 // NewOption specifies a new db option.
@@ -72,10 +72,10 @@ func WithNewToken(t thread.Token) NewOption {
 	}
 }
 
-// WithNewThreadKey provides control over thread keys to use with a db.
-func WithNewThreadKey(key thread.Key) NewOption {
+// WithNewKey provides control over thread keys to use with a db.
+func WithNewKey(key thread.Key) NewOption {
 	return func(o *NewOptions) {
-		o.ThreadKey = key
+		o.Key = key
 	}
 }
 
@@ -162,11 +162,11 @@ func WithTxnToken(t thread.Token) TxnOption {
 // NewManagedOptions defines options for creating a new managed db.
 type NewManagedOptions struct {
 	Name        string
+	Key         thread.Key
+	LogKey      crypto.Key
 	Token       thread.Token
 	Collections []CollectionConfig
 	Block       bool
-	ThreadKey   thread.Key
-	LogKey      crypto.Key
 }
 
 // NewManagedOption specifies a new managed db option.
@@ -186,10 +186,10 @@ func WithNewManagedToken(t thread.Token) NewManagedOption {
 	}
 }
 
-// WithNewManagedThreadKey provides control over thread keys to use with a managed db.
-func WithNewManagedThreadKey(key thread.Key) NewManagedOption {
+// WithNewManagedKey provides control over thread keys to use with a managed db.
+func WithNewManagedKey(key thread.Key) NewManagedOption {
 	return func(o *NewManagedOptions) {
-		o.ThreadKey = key
+		o.Key = key
 	}
 }
 

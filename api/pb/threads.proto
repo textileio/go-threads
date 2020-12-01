@@ -20,23 +20,27 @@ message GetTokenReply {
     }
 }
 
+// @todo: Clean up tag numbers with next major release
 message NewDBRequest {
     bytes dbID = 1;
-    repeated CollectionConfig collections = 2;
-    string name = 3;
-    bool block = 5;
-    bytes threadKey = 6;
+    bytes key = 6;
     bytes logKey = 7;
+    string name = 3;
+    repeated CollectionConfig collections = 2;
+
+    bool block = 5 [deprecated = true];
 }
 
+// @todo: Clean up tag numbers with next major release
 message NewDBFromAddrRequest {
     bytes addr = 1;
     bytes key = 2;
-    repeated CollectionConfig collections = 3;
-    string name = 4;
-    bool block = 5;
-    bytes threadKey = 6;
     bytes logKey = 7;
+    string name = 4;
+    repeated CollectionConfig collections = 3;
+    bool block = 5;
+
+    bytes threadKey = 6 [deprecated = true];
 }
 
 message CollectionConfig {

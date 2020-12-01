@@ -178,11 +178,10 @@ func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManage
 	ctx = thread.NewTokenContext(ctx, args.Token)
 	_, err := c.c.NewDB(ctx, &pb.NewDBRequest{
 		DbID:        dbID.Bytes(),
-		Collections: pbcollections,
-		Name:        args.Name,
-		Block:       args.Block,
-		ThreadKey:   args.ThreadKey.Bytes(),
+		Key:         args.Key.Bytes(),
 		LogKey:      logKey,
+		Name:        args.Name,
+		Collections: pbcollections,
 	})
 	return err
 }
@@ -213,11 +212,10 @@ func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey t
 	_, err := c.c.NewDBFromAddr(ctx, &pb.NewDBFromAddrRequest{
 		Addr:        dbAddr.Bytes(),
 		Key:         dbKey.Bytes(),
-		Collections: pbcollections,
-		Name:        args.Name,
-		Block:       args.Block,
-		ThreadKey:   args.ThreadKey.Bytes(),
 		LogKey:      logKey,
+		Name:        args.Name,
+		Collections: pbcollections,
+		Block:       args.Block,
 	})
 	return err
 }

@@ -41,8 +41,11 @@ const (
 var (
 	log = logging.Logger("db")
 
+	// ErrThreadReadKeyRequired indicates the provided thread key does not contain a read key.
+	ErrThreadReadKeyRequired = errors.New("thread read key is required")
 	// ErrInvalidName indicates the provided name isn't valid for a Collection.
-	ErrInvalidName = errors.New("name may only contain alphanumeric characters or non-consecutive hyphens, and cannot begin or end with a hyphen")
+	ErrInvalidName = errors.New("name may only contain alphanumeric characters or non-consecutive hyphens, " +
+		"and cannot begin or end with a hyphen")
 	// ErrInvalidCollectionSchema indicates the provided schema isn't valid for a Collection.
 	ErrInvalidCollectionSchema = errors.New("the collection schema _id property must be a string")
 	// ErrCannotIndexIDField indicates a custom index was specified on the ID field.
@@ -60,7 +63,8 @@ var (
 
 func init() {
 	nameRx = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-][A-Za-z0-9]+)*$`)
-	// register empty map in order to gob-encode old-format events with non-encodable time.Time which cbor decodes as map[string]interface{}
+	// register empty map in order to gob-encode old-format events with non-encodable time.Time,
+	// which cbor decodes as map[string]interface{}
 	gob.Register(map[string]interface{}{})
 }
 
@@ -95,10 +99,17 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption
 		opt(args)
 	}
 
-	if _, err := network.CreateThread(ctx, id, net.WithThreadKey(args.ThreadKey), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token)); err != nil {
-		if !errors.Is(err, lstore.ErrThreadExists) && !errors.Is(err, lstore.ErrLogExists) {
-			return nil, err
-		}
+	if args.Key.Defined() && !args.Key.CanRead() {
+		return nil, ErrThreadReadKeyRequired
+	}
+	if _, err := network.CreateThread(
+		ctx,
+		id,
+		net.WithThreadKey(args.Key),
+		net.WithLogKey(args.LogKey),
+		net.WithNewThreadToken(args.Token),
+	); err != nil && !errors.Is(err, lstore.ErrThreadExists) && !errors.Is(err, lstore.ErrLogExists) {
+		return nil, err
 	}
 	return newDB(network, id, args)
 }
@@ -106,13 +117,28 @@ func NewDB(ctx context.Context, network app.Net, id thread.ID, opts ...NewOption
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
 // which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDBFromAddr(ctx context.Context, network app.Net, addr ma.Multiaddr, key thread.Key, opts ...NewOption) (*DB, error) {
+func NewDBFromAddr(
+	ctx context.Context,
+	network app.Net,
+	addr ma.Multiaddr,
+	key thread.Key,
+	opts ...NewOption,
+) (*DB, error) {
 	args := &NewOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 
-	ti, err := network.AddThread(ctx, addr, net.WithThreadKey(key), net.WithLogKey(args.LogKey), net.WithNewThreadToken(args.Token))
+	if key.Defined() && !key.CanRead() {
+		return nil, ErrThreadReadKeyRequired
+	}
+	ti, err := network.AddThread(
+		ctx,
+		addr,
+		net.WithThreadKey(key),
+		net.WithLogKey(args.LogKey),
+		net.WithNewThreadToken(args.Token),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +319,11 @@ func (d *DB) GetDBInfo(opts ...Option) (info Info, err error) {
 	for _, opt := range opts {
 		opt(options)
 	}
-	thrd, err := d.connector.Net.GetThread(context.Background(), d.connector.ThreadID(), net.WithThreadToken(options.Token))
+	thrd, err := d.connector.Net.GetThread(
+		context.Background(),
+		d.connector.ThreadID(),
+		net.WithThreadToken(options.Token),
+	)
 	if err != nil {
 		return info, err
 	}
@@ -318,7 +348,7 @@ type CollectionConfig struct {
 	//   - writer: The multibase-encoded public key identity of the writer.
 	//   - event: An object describing the update event (see core.Event).
 	//   - instance: The current instance as a JavaScript object before the update event is applied.
-	// A "falsy" return value indicates a failed validation (see https://developer.mozilla.org/en-US/docs/Glossary/Falsy).
+	// A "falsy" return value indicates a failed validation (https://developer.mozilla.org/en-US/docs/Glossary/Falsy).
 	// Note: Only the function body should be defined here.
 	WriteValidator string
 	// An optional JavaScript (ECMAScript 5.1) function that is used to filter instances on read.

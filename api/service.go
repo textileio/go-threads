@@ -177,9 +177,9 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 	if err != nil {
 		return nil, err
 	}
-	var threadKey thread.Key
-	if req.ThreadKey != nil {
-		threadKey, err = thread.KeyFromBytes(req.ThreadKey)
+	var key thread.Key
+	if req.Key != nil {
+		key, err = thread.KeyFromBytes(req.Key)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -191,12 +191,12 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 	if _, err = s.manager.NewDB(
 		ctx,
 		id,
-		db.WithNewManagedName(req.Name),
-		db.WithNewManagedToken(token),
-		db.WithNewManagedBackfillBlock(req.Block),
-		db.WithNewManagedThreadKey(threadKey),
+		db.WithNewManagedKey(key),
 		db.WithNewManagedLogKey(logKey),
-		db.WithNewManagedCollections(collections...)); err != nil {
+		db.WithNewManagedName(req.Name),
+		db.WithNewManagedCollections(collections...),
+		db.WithNewManagedToken(token),
+	); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
@@ -225,13 +225,6 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 	if err != nil {
 		return nil, err
 	}
-	var threadKey thread.Key
-	if req.ThreadKey != nil {
-		threadKey, err = thread.KeyFromBytes(req.ThreadKey)
-		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-	}
 	logKey, err := logKeyFromBytes(req.LogKey)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -240,12 +233,12 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 		ctx,
 		addr,
 		key,
-		db.WithNewManagedName(req.Name),
-		db.WithNewManagedToken(token),
-		db.WithNewManagedCollections(collections...),
-		db.WithNewManagedThreadKey(threadKey),
 		db.WithNewManagedLogKey(logKey),
-		db.WithNewManagedBackfillBlock(req.Block)); err != nil {
+		db.WithNewManagedName(req.Name),
+		db.WithNewManagedCollections(collections...),
+		db.WithNewManagedBackfillBlock(req.Block),
+		db.WithNewManagedToken(token),
+	); err != nil {
 		return nil, err
 	}
 	return &pb.NewDBReply{}, nil
