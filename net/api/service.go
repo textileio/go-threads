@@ -30,7 +30,7 @@ type Service struct {
 	net net.Net
 }
 
-// Config specifies server settings.
+// Config specifies service settings.
 type Config struct {
 	Debug bool
 }

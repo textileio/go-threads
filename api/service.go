@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ipfs/go-datastore"
 	"io"
 
 	"github.com/alecthomas/jsonschema"
@@ -18,6 +17,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,15 +32,14 @@ type Service struct {
 	manager *db.Manager
 }
 
-// Config specifies server settings.
+// Config specifies service settings.
 type Config struct {
-	Datastore datastore.Txn
-	Debug    bool
+	Debug bool
 }
 
 // NewService starts and returns a new service with the given network.
 // The network is *not* managed by the server.
-func NewService(ctx context.Context, network app.Net, conf Config) (*Service, error) {
+func NewService(store kt.TxnDatastoreExtended, network app.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -51,7 +50,7 @@ func NewService(ctx context.Context, network app.Net, conf Config) (*Service, er
 		}
 	}
 
-	manager, err := db.NewManager(ctx, network, , db.WithNewDebug(conf.Debug))
+	manager, err := db.NewManager(store, network, db.WithNewDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}

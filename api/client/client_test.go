@@ -944,9 +944,12 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	n.Bootstrap(util.DefaultBoostrapPeers())
-	service, err := api.NewService(n, api.Config{
-		RepoPath: dir,
-		Debug:    true,
+	store, err := util.NewBadgerDatastore(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := api.NewService(store, n, api.Config{
+		Debug: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -976,6 +979,9 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 		time.Sleep(time.Second) // Give threads a chance to finish work
 		server.GracefulStop()
 		if err := n.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Close(); err != nil {
 			t.Fatal(err)
 		}
 		_ = os.RemoveAll(dir)

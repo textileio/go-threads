@@ -15,7 +15,6 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/dop251/goja"
 	ds "github.com/ipfs/go-datastore"
-	kt "github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
 	logging "github.com/ipfs/go-log"
@@ -26,6 +25,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -78,7 +78,7 @@ type DB struct {
 	name      string
 	connector *app.Connector
 
-	datastore  ds.TxnDatastore
+	datastore  kt.TxnDatastoreExtended
 	dispatcher *dispatcher
 	eventcodec core.EventCodec
 
@@ -93,10 +93,23 @@ type DB struct {
 
 // NewDB creates a new DB, which will *own* ds and dispatcher for internal use.
 // Saying it differently, ds and dispatcher shouldn't be used externally.
-func NewDB(ctx context.Context, ds ds.TxnDatastore, network app.Net, id thread.ID, opts ...NewOption) (*DB, error) {
+func NewDB(
+	ctx context.Context,
+	store kt.TxnDatastoreExtended,
+	network app.Net,
+	id thread.ID,
+	opts ...NewOption,
+) (*DB, error) {
 	args := &NewOptions{}
 	for _, opt := range opts {
 		opt(args)
+	}
+	if args.Debug {
+		if err := util.SetLogLevels(map[string]logging.LogLevel{
+			"db": logging.LevelDebug,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	if args.Key.Defined() && !args.Key.CanRead() {
@@ -111,7 +124,7 @@ func NewDB(ctx context.Context, ds ds.TxnDatastore, network app.Net, id thread.I
 	); err != nil && !errors.Is(err, lstore.ErrThreadExists) && !errors.Is(err, lstore.ErrLogExists) {
 		return nil, err
 	}
-	return newDB(network, id, args)
+	return newDB(store, network, id, args)
 }
 
 // NewDBFromAddr creates a new DB from a thread hosted by another peer at address,
@@ -119,6 +132,7 @@ func NewDB(ctx context.Context, ds ds.TxnDatastore, network app.Net, id thread.I
 // Saying it differently, ds and dispatcher shouldn't be used externally.
 func NewDBFromAddr(
 	ctx context.Context,
+	store kt.TxnDatastoreExtended,
 	network app.Net,
 	addr ma.Multiaddr,
 	key thread.Key,
@@ -128,11 +142,18 @@ func NewDBFromAddr(
 	for _, opt := range opts {
 		opt(args)
 	}
+	if args.Debug {
+		if err := util.SetLogLevels(map[string]logging.LogLevel{
+			"db": logging.LevelDebug,
+		}); err != nil {
+			return nil, err
+		}
+	}
 
 	if key.Defined() && !key.CanRead() {
 		return nil, ErrThreadReadKeyRequired
 	}
-	ti, err := network.AddThread(
+	info, err := network.AddThread(
 		ctx,
 		addr,
 		net.WithThreadKey(key),
@@ -142,21 +163,21 @@ func NewDBFromAddr(
 	if err != nil {
 		return nil, err
 	}
-	d, err := newDB(network, ti.ID, args)
+	d, err := newDB(store, network, info.ID, args)
 	if err != nil {
 		return nil, err
 	}
 
 	if args.Block {
-		if err = network.PullThread(ctx, ti.ID, net.WithThreadToken(args.Token)); err != nil {
+		if err = network.PullThread(ctx, info.ID, net.WithThreadToken(args.Token)); err != nil {
 			return nil, err
 		}
 	} else {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), pullThreadBackgroundTimeout)
 			defer cancel()
-			if err := network.PullThread(ctx, ti.ID, net.WithThreadToken(args.Token)); err != nil {
-				log.Errorf("error pulling thread %s", ti.ID)
+			if err := network.PullThread(ctx, info.ID, net.WithThreadToken(args.Token)); err != nil {
+				log.Errorf("error pulling thread %s", info.ID)
 			}
 		}()
 	}
@@ -164,30 +185,14 @@ func NewDBFromAddr(
 }
 
 // newDB is used directly by a db manager to create new dbs with the same config.
-func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
-	//if opts.Datastore == nil {
-	//	datastore, err := newDefaultDatastore(opts.RepoPath, opts.LowMem)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	opts.Datastore = datastore
-	//}
+func newDB(s kt.TxnDatastoreExtended, n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 	if opts.EventCodec == nil {
 		opts.EventCodec = newDefaultEventCodec()
 	}
-	if !managedDatastore(opts.Datastore) {
-		if opts.Debug {
-			if err := util.SetLogLevels(map[string]logging.LogLevel{
-				"db": logging.LevelDebug,
-			}); err != nil {
-				return nil, err
-			}
-		}
-	}
 
 	d := &DB{
-		datastore:           opts.Datastore,
-		dispatcher:          newDispatcher(opts.Datastore),
+		datastore:           s,
+		dispatcher:          newDispatcher(s),
 		eventcodec:          opts.EventCodec,
 		collections:         make(map[string]*Collection),
 		localEventsBus:      app.NewLocalEventsBus(),
@@ -222,13 +227,6 @@ func newDB(n app.Net, id thread.ID, opts *NewOptions) (*DB, error) {
 		}
 	}
 	return d, nil
-}
-
-// managedDatastore returns whether or not the datastore is
-// being wrapped by an external datastore.
-func managedDatastore(ds ds.Datastore) bool {
-	_, ok := ds.(kt.KeyTransform)
-	return ok
 }
 
 // saveName saves the db name.
@@ -540,13 +538,7 @@ func (d *DB) Close() error {
 		return nil
 	}
 	d.closed = true
-
 	d.localEventsBus.Discard()
-	if !managedDatastore(d.datastore) {
-		if err := d.datastore.Close(); err != nil {
-			return err
-		}
-	}
 	d.stateChangedNotifee.close()
 	return nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -29,12 +30,20 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir1)
 
-	n1, err := common.DefaultNetwork(tmpDir1, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n1, err := common.DefaultNetwork(
+		tmpDir1,
+		common.WithNetDebug(true),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+	)
 	checkErr(t, err)
 	defer n1.Close()
 
+	store, err := util.NewBadgerDatastore(tmpDir1, false)
+	checkErr(t, err)
+	defer store.Close()
+
 	id1 := thread.NewIDV1(thread.Raw, 32)
-	d1, err := NewDB(context.Background(), n1, id1, WithNewRepoPath(tmpDir1))
+	d1, err := NewDB(context.Background(), store, n1, id1)
 	checkErr(t, err)
 	defer d1.Close()
 	c1, err := d1.NewCollection(CollectionConfig{
@@ -69,7 +78,11 @@ func TestE2EWithThreads(t *testing.T) {
 	tmpDir2, err := ioutil.TempDir("", "")
 	checkErr(t, err)
 	defer os.RemoveAll(tmpDir2)
-	n2, err := common.DefaultNetwork(tmpDir2, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n2, err := common.DefaultNetwork(
+		tmpDir2,
+		common.WithNetDebug(true),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+	)
 	checkErr(t, err)
 	defer n2.Close()
 
@@ -79,7 +92,19 @@ func TestE2EWithThreads(t *testing.T) {
 		Name:   "dummy",
 		Schema: util.SchemaFromInstance(&dummy{}, false),
 	}
-	d2, err := NewDBFromAddr(context.Background(), n2, addr, ti.Key, WithNewRepoPath(tmpDir2), WithNewCollections(cc))
+
+	store2, err := util.NewBadgerDatastore(tmpDir2, false)
+	checkErr(t, err)
+	defer store2.Close()
+
+	d2, err := NewDBFromAddr(
+		context.Background(),
+		store2,
+		n2,
+		addr,
+		ti.Key,
+		WithNewCollections(cc),
+	)
 	checkErr(t, err)
 	defer d2.Close()
 	c2 := d1.GetCollection("dummy")
@@ -111,8 +136,12 @@ func TestMissingCollection(t *testing.T) {
 	checkErr(t, err)
 	defer n.Close()
 
+	store, err := util.NewBadgerDatastore(tmpDir, false)
+	checkErr(t, err)
+	defer store.Close()
+
 	id := thread.NewIDV1(thread.Raw, 32)
-	db, err := NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir))
+	db, err := NewDB(context.Background(), store, n, id)
 	checkErr(t, err)
 	defer db.Close()
 	c, err := db.NewCollection(CollectionConfig{
@@ -139,9 +168,13 @@ func TestWithNewName(t *testing.T) {
 	n, err := common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 
+	store, err := util.NewBadgerDatastore(tmpDir, false)
+	checkErr(t, err)
+	defer store.Close()
+
 	name := "my-db"
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewName(name))
+	d, err := NewDB(context.Background(), store, n, id, WithNewName(name))
 	checkErr(t, err)
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
@@ -159,7 +192,7 @@ func TestWithNewName(t *testing.T) {
 	checkErr(t, err)
 	defer n.Close()
 	defer d.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewKey(info.Key))
+	d, err = NewDB(context.Background(), store, n, id, WithNewKey(info.Key))
 	checkErr(t, err)
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
@@ -175,9 +208,13 @@ func TestWithNewEventCodec(t *testing.T) {
 	n, err := common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 
+	store, err := util.NewBadgerDatastore(tmpDir, false)
+	checkErr(t, err)
+	defer store.Close()
+
 	ec := &mockEventCodec{}
 	id := thread.NewIDV1(thread.Raw, 32)
-	d, err := NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec))
+	d, err := NewDB(context.Background(), store, n, id, WithNewEventCodec(ec))
 	checkErr(t, err)
 
 	m, err := d.NewCollection(CollectionConfig{
@@ -203,7 +240,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	n, err = common.DefaultNetwork(tmpDir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
 	checkErr(t, err)
 	defer n.Close()
-	d, err = NewDB(context.Background(), n, id, WithNewRepoPath(tmpDir), WithNewEventCodec(ec), WithNewKey(info.Key))
+	d, err = NewDB(context.Background(), store, n, id, WithNewEventCodec(ec), WithNewKey(info.Key))
 	checkErr(t, err)
 	checkErr(t, d.Close())
 }
@@ -436,7 +473,12 @@ type mockEventCodec struct {
 
 var _ core.EventCodec = (*mockEventCodec)(nil)
 
-func (dec *mockEventCodec) Reduce([]core.Event, ds.TxnDatastore, ds.Key, core.IndexFunc) ([]core.ReduceAction, error) {
+func (dec *mockEventCodec) Reduce(
+	[]core.Event,
+	kt.TxnDatastoreExtended,
+	ds.Key,
+	core.IndexFunc,
+) ([]core.ReduceAction, error) {
 	dec.called = true
 	return nil, nil
 }

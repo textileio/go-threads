@@ -1,36 +1,14 @@
 package db
 
 import (
-	"os"
-	"path/filepath"
-
-	"github.com/dgraph-io/badger/options"
-	ds "github.com/ipfs/go-datastore"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/jsonpatcher"
 )
 
-const (
-	defaultDatastorePath = "eventstore"
-)
-
 func newDefaultEventCodec() core.EventCodec {
 	return jsonpatcher.New()
-}
-
-func newDefaultDatastore(repoPath string, lowMem bool) (ds.TxnDatastore, error) {
-	path := filepath.Join(repoPath, defaultDatastorePath)
-	if err := os.MkdirAll(path, os.ModePerm); err != nil {
-		return nil, err
-	}
-	opts := badger.DefaultOptions
-	if lowMem {
-		opts.TableLoadingMode = options.FileIO
-	}
-	return badger.NewDatastore(path, &opts)
 }
 
 // NewOptions defines options for creating a new db.
@@ -38,7 +16,6 @@ type NewOptions struct {
 	Name        string
 	Key         thread.Key
 	LogKey      crypto.Key
-	Datastore   ds.TxnDatastore
 	Collections []CollectionConfig
 	Block       bool
 	EventCodec  core.EventCodec

@@ -16,6 +16,7 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
 	core "github.com/textileio/go-threads/core/db"
+	kt "github.com/textileio/go-threads/db/keytransform"
 )
 
 type operationType int
@@ -40,7 +41,6 @@ func (ot operationType) String() (s string) {
 
 var (
 	log                           = logging.Logger("jsonpatcher")
-	errSavingNonExistentInstance  = errors.New("can't save nonexistent instance")
 	errCantCreateExistingInstance = errors.New("cant't create already existent instance")
 	errUnknownOperation           = errors.New("unknown operation type")
 )
@@ -104,8 +104,13 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 	return events, n, nil
 }
 
-func (jp *jsonPatcher) Reduce(events []core.Event, datastore ds.TxnDatastore, baseKey ds.Key, indexFunc core.IndexFunc) ([]core.ReduceAction, error) {
-	txn, err := datastore.NewTransaction(false)
+func (jp *jsonPatcher) Reduce(
+	events []core.Event,
+	store kt.TxnDatastoreExtended,
+	baseKey ds.Key,
+	indexFunc core.IndexFunc,
+) ([]core.ReduceAction, error) {
+	txn, err := store.NewTransaction(false)
 	if err != nil {
 		return nil, err
 	}

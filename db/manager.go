@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	ds "github.com/ipfs/go-datastore"
-	kt "github.com/ipfs/go-datastore/keytransform"
+	"github.com/ipfs/go-datastore/keytransform"
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/app"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -31,18 +32,19 @@ type Manager struct {
 
 	opts *NewOptions
 
+	store   kt.TxnDatastoreExtended
 	network app.Net
 	dbs     map[thread.ID]*DB
 }
 
 // NewManager hydrates and starts dbs from prefixes.
-func NewManager(ctx context.Context, network app.Net, opts ...NewOption) (*Manager, error) {
-	options := &NewOptions{}
+func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOption) (*Manager, error) {
+	args := &NewOptions{}
 	for _, opt := range opts {
-		opt(options)
+		opt(args)
 	}
 
-	if options.Debug {
+	if args.Debug {
 		if err := util.SetLogLevels(map[string]logging.LogLevel{
 			"db": logging.LevelDebug,
 		}); err != nil {
@@ -51,12 +53,13 @@ func NewManager(ctx context.Context, network app.Net, opts ...NewOption) (*Manag
 	}
 
 	m := &Manager{
-		opts:    options,
+		store:   store,
 		network: network,
+		opts:    args,
 		dbs:     make(map[thread.ID]*DB),
 	}
 
-	results, err := m.opts.Datastore.Query(query.Query{
+	results, err := store.Query(query.Query{
 		Prefix:   dsManagerBaseKey.String(),
 		KeysOnly: true,
 	})
@@ -80,17 +83,17 @@ func NewManager(ctx context.Context, network app.Net, opts ...NewOption) (*Manag
 		if _, ok := invalids[id]; ok {
 			continue
 		}
-		opts, err := getDBOptions(id, m.opts, "")
+		s, opts, err := wrapDB(store, id, m.opts, "")
 		if err != nil {
 			return nil, err
 		}
-		s, err := newDB(m.network, id, opts)
+		d, err := newDB(s, m.network, id, opts)
 		if err != nil {
 			log.Errorf("unable to reload db %s: %s (marked for deletion)", id, err)
 			invalids[id] = struct{}{}
 			continue
 		}
-		m.dbs[id] = s
+		m.dbs[id] = d
 	}
 
 	// Cleanup invalids
@@ -133,11 +136,11 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 		return nil, err
 	}
 
-	dbOpts, err := getDBOptions(id, m.opts, args.Name, args.Collections...)
+	store, dbOpts, err := wrapDB(m.store, id, m.opts, args.Name, args.Collections...)
 	if err != nil {
 		return nil, err
 	}
-	db, err := newDB(m.network, id, dbOpts)
+	db, err := newDB(store, m.network, id, dbOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -182,11 +185,11 @@ func (m *Manager) NewDBFromAddr(
 		return nil, err
 	}
 
-	dbOpts, err := getDBOptions(id, m.opts, args.Name, args.Collections...)
+	store, dbOpts, err := wrapDB(m.store, id, m.opts, args.Name, args.Collections...)
 	if err != nil {
 		return nil, err
 	}
-	db, err := newDB(m.network, id, dbOpts)
+	db, err := newDB(store, m.network, id, dbOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -282,13 +285,13 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 func (m *Manager) deleteThreadNamespace(id thread.ID) error {
 	pre := dsManagerBaseKey.ChildString(id.String())
 	q := query.Query{Prefix: pre.String(), KeysOnly: true}
-	results, err := m.opts.Datastore.Query(q)
+	results, err := m.store.Query(q)
 	if err != nil {
 		return err
 	}
 	defer results.Close()
 	for result := range results.Next() {
-		if err := m.opts.Datastore.Delete(ds.NewKey(result.Key)); err != nil {
+		if err := m.store.Delete(ds.NewKey(result.Key)); err != nil {
 			return err
 		}
 	}
@@ -307,25 +310,30 @@ func (m *Manager) Close() error {
 			log.Error("error when closing manager datastore: %v", err)
 		}
 	}
-	return m.opts.Datastore.Close()
+	return nil
 }
 
-// getDBOptions copies the manager's base config,
+// wrapDB copies the manager's base config,
 // wraps the datastore with an id prefix,
 // and merges specified collection configs with those from base
-func getDBOptions(id thread.ID, base *NewOptions, name string, collections ...CollectionConfig) (*NewOptions, error) {
+func wrapDB(
+	store kt.TxnDatastoreExtended,
+	id thread.ID,
+	base *NewOptions,
+	name string,
+	collections ...CollectionConfig,
+) (kt.TxnDatastoreExtended, *NewOptions, error) {
 	if err := id.Validate(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &NewOptions{
-		Name:     name,
-		RepoPath: base.RepoPath,
-		Datastore: wrapTxnDatastore(base.Datastore, kt.PrefixTransform{
-			Prefix: dsManagerBaseKey.ChildString(id.String()),
-		}),
+	store = kt.WrapTxnDatastore(store, keytransform.PrefixTransform{
+		Prefix: dsManagerBaseKey.ChildString(id.String()),
+	})
+	opts := &NewOptions{
+		Name:        name,
 		Collections: append(base.Collections, collections...),
 		EventCodec:  base.EventCodec,
-		LowMem:      base.LowMem,
 		Debug:       base.Debug,
-	}, nil
+	}
+	return store, opts, nil
 }
