@@ -297,7 +297,7 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 	if err := q.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid query: %s", err)
 	}
-	txn, err := t.collection.db.datastore.NewTransaction(true)
+	txn, err := t.collection.db.datastore.NewTransactionExtended(true)
 	if err != nil {
 		return nil, fmt.Errorf("error building internal query: %v", err)
 	}

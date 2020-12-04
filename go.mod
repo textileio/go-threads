@@ -2,12 +2,6 @@ module github.com/textileio/go-threads
 
 go 1.15
 
-replace github.com/textileio/go-ds-mongo => ../go-ds-mongo
-
-replace github.com/textileio/go-datastore-extensions => ../go-datastore-extensions
-
-replace github.com/textileio/go-ds-badger => ../go-ds-badger
-
 require (
 	// agl/ed25519 only used in tests for backward compatibility, *do not* use in production code.
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
@@ -59,9 +53,9 @@ require (
 	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190710185942-9d28bd7c0945 // indirect
-	github.com/textileio/go-datastore-extensions v1.0.0
-	github.com/textileio/go-ds-badger v0.2.5-0.20200827144514-682c333ef748
-	github.com/textileio/go-ds-mongo v0.1.2
+	github.com/textileio/go-datastore-extensions v1.0.1
+	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
+	github.com/textileio/go-ds-mongo v0.1.3
 	github.com/tidwall/gjson v1.3.5
 	github.com/tidwall/sjson v1.0.4
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc

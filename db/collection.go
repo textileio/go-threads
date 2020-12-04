@@ -290,13 +290,13 @@ func (c *Collection) ModifiedSince(time int64, opts ...TxnOption) (modified []co
 	c.db.dispatcher.Lock().Lock()
 	defer c.db.dispatcher.Lock().Unlock()
 
-	txn, err := c.db.dispatcher.Store().NewTransaction(false)
+	txn, err := c.db.dispatcher.Store().NewTransactionExtended(false)
 	if err != nil {
 		return nil, err
 	}
 	defer txn.Discard()
 
-	results, err := txn.(dse.QueryExtensions).QueryExtended(dse.QueryExt{
+	results, err := txn.QueryExtended(dse.QueryExt{
 		Query: query.Query{
 			Prefix: dsDispatcherPrefix.String(),
 			Filters: []query.Filter{

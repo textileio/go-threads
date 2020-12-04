@@ -40,9 +40,8 @@ func main() {
 	connGracePeriod := fs.Duration("connGracePeriod", time.Second*20, "Duration a new opened connection is not subject to pruning")
 	keepAliveInterval := fs.Duration("keepAliveInterval", time.Second*5, "Websocket keepalive interval (must be >= 1s)")
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
-	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore is used)")
+	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
 	mongoDatabase := fs.String("mongoDatabase", "threaddb", "MongoDB database name")
-	mongoCollection := fs.String("mongoCollection", "threads", "MongoDB collection name")
 	badgerLowMem := fs.Bool("badgerLowMem", false, "Use Badger's low memory settings")
 	debug := fs.Bool("debug", false, "Enables debug logging")
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -83,18 +82,18 @@ func main() {
 	if *mongoUri != "" {
 		log.Debugf("mongoUri: %v", *mongoUri)
 		log.Debugf("mongoDatabase: %v", *mongoDatabase)
-		log.Debugf("mongoCollection: %v", *mongoCollection)
 	} else {
 		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	}
 	log.Debugf("debug: %v", *debug)
 
 	n, err := common.DefaultNetwork(
-		*repo,
+		common.WithNetBadgerPersistence(*repo),
 		common.WithNetHostAddr(hostAddr),
 		common.WithConnectionManager(connmgr.NewConnManager(*connLowWater, *connHighWater, *connGracePeriod)),
 		common.WithNetPubSub(*enableNetPubsub),
-		common.WithNetDebug(*debug))
+		common.WithNetDebug(*debug),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +104,7 @@ func main() {
 	defer cancel()
 	var store kt.TxnDatastoreExtended
 	if *mongoUri != "" {
-		store, err = mongods.New(ctx, *mongoUri, *mongoDatabase, mongods.WithCollName(*mongoCollection))
+		store, err = mongods.New(ctx, *mongoUri, *mongoDatabase, mongods.WithCollName("eventstore"))
 	} else {
 		store, err = util.NewBadgerDatastore(*repo, *badgerLowMem)
 	}

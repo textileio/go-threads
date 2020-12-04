@@ -10,7 +10,7 @@ import (
 // TxnDatastoreExtended adds QueryExtensions to TxnDatastore.
 type TxnDatastoreExtended interface {
 	ds.TxnDatastore
-	dse.QueryExtensions
+	dse.DatastoreExtensions
 }
 
 // WrapTxnDatastore wraps a datastore with a key transform.
@@ -29,17 +29,25 @@ type Datastore struct {
 	kt.KeyTransform
 }
 
-var _ dse.QueryExtensions = (*Datastore)(nil)
+var _ dse.DatastoreExtensions = (*Datastore)(nil)
 
 type txn struct {
-	ds.Txn
-	ds *Datastore
+	Txn dse.TxnExt
+	ds  *Datastore
 }
 
-var _ dse.QueryExtensions = (*txn)(nil)
+var _ dse.TxnExt = (*txn)(nil)
 
 func (d *Datastore) NewTransaction(readOnly bool) (ds.Txn, error) {
-	t, err := d.child.NewTransaction(readOnly)
+	return d.newTransaction(readOnly)
+}
+
+func (d *Datastore) NewTransactionExtended(readOnly bool) (dse.TxnExt, error) {
+	return d.newTransaction(readOnly)
+}
+
+func (d *Datastore) newTransaction(readOnly bool) (dse.TxnExt, error) {
+	t, err := d.child.NewTransactionExtended(readOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +109,7 @@ func (t *txn) Query(q dsq.Query) (dsq.Results, error) {
 func (t *txn) QueryExtended(q dse.QueryExt) (dsq.Results, error) {
 	nq, cq := t.prepareQuery(q)
 
-	qr, err := t.Txn.(dse.QueryExtensions).QueryExtended(cq)
+	qr, err := t.Txn.QueryExtended(cq)
 	if err != nil {
 		return nil, err
 	}

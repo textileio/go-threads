@@ -22,7 +22,11 @@ func checkErr(t *testing.T, err error) {
 func createTestDB(t *testing.T, opts ...NewOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
 	checkErr(t, err)
 	store, err := util.NewBadgerDatastore(dir, false)
 	checkErr(t, err)

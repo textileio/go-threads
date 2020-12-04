@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -12,9 +11,9 @@ import (
 	"github.com/dgraph-io/badger/options"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	mbase "github.com/multiformats/go-multibase"
 	"github.com/phayes/freeport"
 	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
@@ -85,36 +84,6 @@ func SetLogLevels(systems map[string]logging.LogLevel) error {
 		}
 	}
 	return nil
-}
-
-func LoadKey(pth string) crypto.PrivKey {
-	var priv crypto.PrivKey
-	_, err := os.Stat(pth)
-	if os.IsNotExist(err) {
-		priv, _, err = crypto.GenerateKeyPair(crypto.Ed25519, 0)
-		if err != nil {
-			panic(err)
-		}
-		key, err := crypto.MarshalPrivateKey(priv)
-		if err != nil {
-			panic(err)
-		}
-		if err = ioutil.WriteFile(pth, key, 0400); err != nil {
-			panic(err)
-		}
-	} else if err != nil {
-		panic(err)
-	} else {
-		key, err := ioutil.ReadFile(pth)
-		if err != nil {
-			panic(err)
-		}
-		priv, err = crypto.UnmarshalPrivateKey(key)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return priv
 }
 
 func DefaultBoostrapPeers() []peer.AddrInfo {
@@ -217,4 +186,13 @@ func GenerateRandomBytes(n int) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func MakeToken(n int) string {
+	bytes := GenerateRandomBytes(n)
+	encoded, err := mbase.Encode(mbase.Base32, bytes)
+	if err != nil {
+		panic(err)
+	}
+	return encoded
 }

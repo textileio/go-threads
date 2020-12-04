@@ -1,6 +1,6 @@
 version: "3"
 services:
-  threads:
+  threaddb:
     build:
       context: .
     environment:
@@ -12,8 +12,27 @@ services:
       - THRDS_CONNGRACEPERIOD
       - THRDS_KEEPALIVEINTERVAL
       - THRDS_ENABLENETPUBSUB
+      - THRDS_MONGOURI
+      - THRDS_MONGODATABASE
       - THRDS_DEBUG
     ports:
       - "4006:4006"
       - "127.0.0.1:6006:6006"
       - "127.0.0.1:6007:6007"
+  mongo:
+    hostname: mongodb
+    container_name: mongodb
+    image: mongo:latest
+    environment:
+      MONGO_REPLICA_SET_NAME: rs0
+    expose:
+      - "27017"
+    ports:
+      - "127.0.0.1:27017:27017"
+    command:
+      - /bin/bash
+      - -c
+      - |
+        /usr/bin/mongod --fork --logpath /var/log/mongod.log --bind_ip_all --replSet rs0
+        mongo --eval 'rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host: "127.0.0.1:27017" }]})'
+        tail -f /var/log/mongod.log

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	format "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -15,8 +14,6 @@ import (
 )
 
 var (
-	log = logging.Logger("app")
-
 	// ErrThreadInUse indicates an operation could not be completed because the
 	// thread is bound to an app.
 	ErrThreadInUse = errors.New("thread is in use")

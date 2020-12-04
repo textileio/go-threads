@@ -20,6 +20,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
+	mongods "github.com/textileio/go-ds-mongo"
+	"github.com/textileio/go-ds-mongo/test"
 	"github.com/textileio/go-threads/api"
 	. "github.com/textileio/go-threads/api/client"
 	pb "github.com/textileio/go-threads/api/pb"
@@ -29,6 +31,13 @@ import (
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
+
+func TestMain(m *testing.M) {
+	cleanup := test.StartMongoDB()
+	exitVal := m.Run()
+	cleanup()
+	os.Exit(exitVal)
+}
 
 func TestClient_GetToken(t *testing.T) {
 	t.Parallel()
@@ -936,15 +945,22 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	n, err := common.DefaultNetwork(
-		dir,
+		common.WithNetBadgerPersistence(dir),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
 		common.WithNetPubSub(true),
-		common.WithNetDebug(true))
+		common.WithNetDebug(true),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	n.Bootstrap(util.DefaultBoostrapPeers())
-	store, err := util.NewBadgerDatastore(dir, false)
+	ctx, cancel := context.WithCancel(context.Background())
+	store, err := mongods.New(
+		ctx,
+		test.MongoUri,
+		util.MakeToken(12),
+		mongods.WithCollName("eventstore"),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -984,6 +1000,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 		if err := store.Close(); err != nil {
 			t.Fatal(err)
 		}
+		cancel()
 		_ = os.RemoveAll(dir)
 	}
 }

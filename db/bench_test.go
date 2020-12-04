@@ -60,7 +60,11 @@ func checkBenchErr(b *testing.B, err error) {
 func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
 	checkBenchErr(b, err)
 	store, err := util.NewBadgerDatastore(dir, false)
 	checkBenchErr(b, err)
