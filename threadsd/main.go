@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"time"
@@ -31,7 +32,7 @@ var log = logging.Logger("threadsd")
 func main() {
 	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], "THRDS", 0)
 
-	repo := fs.String("repo", ".threadsd", "Repo location")
+	repo := fs.String("repo", ".threads", "Repo location")
 	hostAddrStr := fs.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Libp2p host bind address")
 	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "gRPC API bind address")
 	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "gRPC API web proxy bind address")
@@ -41,7 +42,7 @@ func main() {
 	keepAliveInterval := fs.Duration("keepAliveInterval", time.Second*5, "Websocket keepalive interval (must be >= 1s)")
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
 	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
-	mongoDatabase := fs.String("mongoDatabase", "threaddb", "MongoDB database name")
+	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
 	badgerLowMem := fs.Bool("badgerLowMem", false, "Use Badger's low memory settings")
 	debug := fs.Bool("debug", false, "Enables debug logging")
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -59,6 +60,19 @@ func main() {
 	apiProxyAddr, err := ma.NewMultiaddr(*apiProxyAddrStr)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	var parsedMongoUri *url.URL
+	if len(*mongoUri) != 0 {
+		parsedMongoUri, err = url.Parse(*mongoUri)
+		if err != nil {
+			log.Fatalf("parsing mongoUri: %v", err)
+		}
+		if len(*mongoDatabase) == 0 {
+			log.Fatal("mongoDatabase is required with mongoUri")
+		}
+	} else {
+		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	}
 
 	if err := util.SetupDefaultLoggingConfig(*repo); err != nil {
@@ -79,9 +93,8 @@ func main() {
 	log.Debugf("connGracePeriod: %v", *connGracePeriod)
 	log.Debugf("keepAliveInterval: %v", *keepAliveInterval)
 	log.Debugf("enableNetPubsub: %v", *enableNetPubsub)
-	if *mongoUri != "" {
-		log.Debugf("mongoUri: %v", *mongoUri)
-		log.Debugf("mongoDatabase: %v", *mongoDatabase)
+	if parsedMongoUri != nil {
+		log.Debugf("mongoUri: %v", parsedMongoUri.Redacted())
 	} else {
 		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	}
