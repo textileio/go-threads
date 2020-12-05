@@ -5,34 +5,41 @@ import (
 	"sync"
 	"time"
 
-	dse "github.com/textileio/go-datastore-extensions"
-
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	dse "github.com/textileio/go-datastore-extensions"
 	core "github.com/textileio/go-threads/core/db"
 )
 
-type TxMapDatastore struct {
+type TxnMapDatastore struct {
 	*ds.MapDatastore
 	lock sync.RWMutex
 }
 
-func NewTxMapDatastore() *TxMapDatastore {
-	return &TxMapDatastore{
+var _ dse.DatastoreExtensions = (*TxnMapDatastore)(nil)
+
+func NewTxMapDatastore() *TxnMapDatastore {
+	return &TxnMapDatastore{
 		MapDatastore: ds.NewMapDatastore(),
 	}
 }
 
-func (d *TxMapDatastore) NewTransaction(_ bool) (ds.Txn, error) {
+func (d *TxnMapDatastore) NewTransaction(_ bool) (ds.Txn, error) {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 	return NewSimpleTx(d), nil
 }
 
-func (d *TxMapDatastore) QueryExtended(q dse.QueryExt) (query.Results, error) {
+func (d *TxnMapDatastore) NewTransactionExtended(_ bool) (dse.TxnExt, error) {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
-	return d.Query(q.Query) // Just use native Query
+	return NewSimpleTx(d), nil
+}
+
+func (d *TxnMapDatastore) QueryExtended(q dse.QueryExt) (query.Results, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	return d.Query(q.Query)
 }
 
 type op struct {
@@ -48,7 +55,7 @@ type SimpleTx struct {
 	target ds.Datastore
 }
 
-func NewSimpleTx(store ds.Datastore) ds.Txn {
+func NewSimpleTx(store ds.Datastore) dse.TxnExt {
 	return &SimpleTx{
 		ops:    make(map[ds.Key]op),
 		target: store,
@@ -59,6 +66,12 @@ func (bt *SimpleTx) Query(q query.Query) (query.Results, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	return bt.target.Query(q)
+}
+
+func (bt *SimpleTx) QueryExtended(q dse.QueryExt) (query.Results, error) {
+	bt.lock.RLock()
+	defer bt.lock.RUnlock()
+	return bt.target.Query(q.Query)
 }
 
 func (bt *SimpleTx) Get(k ds.Key) ([]byte, error) {

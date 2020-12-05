@@ -16,7 +16,6 @@ import (
 	logging "github.com/ipfs/go-log"
 	"github.com/multiformats/go-multihash"
 	core "github.com/textileio/go-threads/core/db"
-	kt "github.com/textileio/go-threads/db/keytransform"
 )
 
 type operationType int
@@ -106,7 +105,7 @@ func (jp *jsonPatcher) Create(actions []core.Action) ([]core.Event, format.Node,
 
 func (jp *jsonPatcher) Reduce(
 	events []core.Event,
-	store kt.TxnDatastoreExtended,
+	store ds.TxnDatastore,
 	baseKey ds.Key,
 	indexFunc core.IndexFunc,
 ) ([]core.ReduceAction, error) {

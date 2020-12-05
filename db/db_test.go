@@ -18,7 +18,6 @@ import (
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
-	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -495,7 +494,7 @@ var _ core.EventCodec = (*mockEventCodec)(nil)
 
 func (dec *mockEventCodec) Reduce(
 	[]core.Event,
-	kt.TxnDatastoreExtended,
+	ds.TxnDatastore,
 	ds.Key,
 	core.IndexFunc,
 ) ([]core.ReduceAction, error) {

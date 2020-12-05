@@ -31,7 +31,7 @@ var log = logging.Logger("threadsd")
 func main() {
 	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], "THRDS", 0)
 
-	repo := fs.String("repo", ".threads", "Repo location")
+	repo := fs.String("repo", ".threadsd", "Repo location")
 	hostAddrStr := fs.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Libp2p host bind address")
 	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "gRPC API bind address")
 	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "gRPC API web proxy bind address")

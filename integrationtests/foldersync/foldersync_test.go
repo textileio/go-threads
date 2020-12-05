@@ -43,7 +43,10 @@ func TestSimple(t *testing.T) {
 	network0, err := newNetwork(repoPath0)
 	checkErr(t, err)
 
-	db0, err := db.NewDB(context.Background(), network0, id, db.WithNewRepoPath(repoPath0), db.WithNewCollections(cc))
+	store0, err := util.NewBadgerDatastore(repoPath0, false)
+	checkErr(t, err)
+	defer store0.Close()
+	db0, err := db.NewDB(context.Background(), store0, network0, id, db.WithNewCollections(cc))
 	checkErr(t, err)
 	defer db0.Close()
 
@@ -60,7 +63,17 @@ func TestSimple(t *testing.T) {
 	network1, err := newNetwork(repoPath1)
 	checkErr(t, err)
 
-	db1, err := db.NewDBFromAddr(context.Background(), network1, info0.Addrs[0], info0.Key, db.WithNewRepoPath(repoPath1), db.WithNewCollections(cc))
+	store1, err := util.NewBadgerDatastore(repoPath1, false)
+	checkErr(t, err)
+	defer store1.Close()
+	db1, err := db.NewDBFromAddr(
+		context.Background(),
+		store1,
+		network1,
+		info0.Addrs[0],
+		info0.Key,
+		db.WithNewCollections(cc),
+	)
 	checkErr(t, err)
 	defer db1.Close()
 
@@ -74,7 +87,17 @@ func TestSimple(t *testing.T) {
 	network2, err := newNetwork(repoPath2)
 	checkErr(t, err)
 
-	db2, err := db.NewDBFromAddr(context.Background(), network2, info0.Addrs[0], info0.Key, db.WithNewRepoPath(repoPath2), db.WithNewCollections(cc))
+	store2, err := util.NewBadgerDatastore(repoPath2, false)
+	checkErr(t, err)
+	defer store2.Close()
+	db2, err := db.NewDBFromAddr(
+		context.Background(),
+		store2,
+		network2,
+		info0.Addrs[0],
+		info0.Key,
+		db.WithNewCollections(cc),
+	)
 	checkErr(t, err)
 	defer db2.Close()
 
@@ -88,7 +111,17 @@ func TestSimple(t *testing.T) {
 	network3, err := newNetwork(repoPath3)
 	checkErr(t, err)
 
-	db3, err := db.NewDBFromAddr(context.Background(), network3, info0.Addrs[0], info0.Key, db.WithNewRepoPath(repoPath3), db.WithNewCollections(cc))
+	store3, err := util.NewBadgerDatastore(repoPath3, false)
+	checkErr(t, err)
+	defer store3.Close()
+	db3, err := db.NewDBFromAddr(
+		context.Background(),
+		store3,
+		network3,
+		info0.Addrs[0],
+		info0.Key,
+		db.WithNewCollections(cc),
+	)
 	checkErr(t, err)
 	defer db3.Close()
 

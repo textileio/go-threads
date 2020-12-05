@@ -12,19 +12,17 @@ services:
       - THRDS_CONNGRACEPERIOD
       - THRDS_KEEPALIVEINTERVAL
       - THRDS_ENABLENETPUBSUB
-      - THRDS_MONGOURI
+      - THRDS_MONGOURI=mongodb://mongo:27017
       - THRDS_MONGODATABASE
-      - THRDS_DEBUG
+      - THRDS_DEBUG=true
     ports:
       - "4006:4006"
       - "127.0.0.1:6006:6006"
       - "127.0.0.1:6007:6007"
+    depends_on:
+      - mongo
   mongo:
-    hostname: mongodb
-    container_name: mongodb
     image: mongo:latest
-    environment:
-      MONGO_REPLICA_SET_NAME: rs0
     expose:
       - "27017"
     ports:
@@ -34,5 +32,5 @@ services:
       - -c
       - |
         /usr/bin/mongod --fork --logpath /var/log/mongod.log --bind_ip_all --replSet rs0
-        mongo --eval 'rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host: "127.0.0.1:27017" }]})'
+        mongo --eval 'rs.initiate({_id: "rs0", version: 1, members: [{ _id: 0, host: "mongo:27017" }]})'
         tail -f /var/log/mongod.log
