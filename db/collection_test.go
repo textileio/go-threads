@@ -852,7 +852,7 @@ func TestGetInstance(t *testing.T) {
 
 func TestModifiedSince(t *testing.T) {
 	t.Parallel()
-	t.Run("WithiSingleCreate", func(t *testing.T) {
+	t.Run("WithSingleCreate", func(t *testing.T) {
 		t.Parallel()
 		db, clean := createTestDB(t)
 		defer clean()

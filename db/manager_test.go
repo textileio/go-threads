@@ -113,11 +113,18 @@ func TestManager_GetDB(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
 	checkErr(t, err)
-	man, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
+	store, err := util.NewBadgerDatastore(dir, false)
+	checkErr(t, err)
+	man, err := NewManager(store, n, WithNewDebug(true))
 	checkErr(t, err)
 	defer func() {
+		store.Close()
 		_ = os.RemoveAll(dir)
 	}()
 
@@ -151,9 +158,13 @@ func TestManager_GetDB(t *testing.T) {
 	checkErr(t, err)
 
 	t.Run("test get db after restart", func(t *testing.T) {
-		n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+		n, err := common.DefaultNetwork(
+			common.WithNetBadgerPersistence(dir),
+			common.WithNetHostAddr(util.FreeLocalAddr()),
+			common.WithNetDebug(true),
+		)
 		checkErr(t, err)
-		man, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
+		man, err := NewManager(store, n, WithNewDebug(true))
 		checkErr(t, err)
 
 		db, err := man.GetDB(ctx, id)
@@ -184,9 +195,13 @@ func TestManager_GetDB(t *testing.T) {
 		checkErr(t, err)
 
 		t.Run("test get deleted db after restart", func(t *testing.T) {
-			n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+			n, err := common.DefaultNetwork(
+				common.WithNetBadgerPersistence(dir),
+				common.WithNetHostAddr(util.FreeLocalAddr()),
+				common.WithNetDebug(true),
+			)
 			checkErr(t, err)
-			man, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
+			man, err := NewManager(store, n, WithNewDebug(true))
 			checkErr(t, err)
 
 			_, err = man.GetDB(ctx, id)
@@ -235,15 +250,24 @@ func TestManager_DeleteDB(t *testing.T) {
 func createTestManager(t *testing.T) (*Manager, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkErr(t, err)
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
 	checkErr(t, err)
-	m, err := NewManager(n, WithNewRepoPath(dir), WithNewDebug(true))
+	store, err := util.NewBadgerDatastore(dir, false)
+	checkErr(t, err)
+	m, err := NewManager(store, n, WithNewDebug(true))
 	checkErr(t, err)
 	return m, func() {
 		if err := n.Close(); err != nil {
 			panic(err)
 		}
 		if err := m.Close(); err != nil {
+			panic(err)
+		}
+		if err := store.Close(); err != nil {
 			panic(err)
 		}
 		_ = os.RemoveAll(dir)

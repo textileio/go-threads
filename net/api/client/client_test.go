@@ -419,14 +419,14 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 	}
 	hostAddr := util.FreeLocalAddr()
 	n, err := common.DefaultNetwork(
-		dir,
+		common.WithNetBadgerPersistence(dir),
 		common.WithNetHostAddr(hostAddr),
 		common.WithNetPubSub(true),
-		common.WithNetDebug(true))
+		common.WithNetDebug(true),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	n.Bootstrap(util.DefaultBoostrapPeers())
 	service, err := api.NewService(n, api.Config{
 		Debug: true,
 	})

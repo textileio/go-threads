@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	datastore "github.com/textileio/go-datastore"
-	"github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	core "github.com/textileio/go-threads/core/db"
 )
 
@@ -96,7 +96,7 @@ func TestValidStore(t *testing.T) {
 	if store == nil {
 		t.Error("store should not be nil")
 	} else {
-		if ok, _ := store.Has(datastore.NewKey("blah")); ok {
+		if ok, _ := store.Has(ds.NewKey("blah")); ok {
 			t.Error("store should be empty")
 		}
 	}

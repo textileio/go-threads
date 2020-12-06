@@ -5,26 +5,41 @@ import (
 	"sync"
 	"time"
 
-	datastore "github.com/textileio/go-datastore"
-	"github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
+	dse "github.com/textileio/go-datastore-extensions"
 	core "github.com/textileio/go-threads/core/db"
 )
 
-type TxMapDatastore struct {
-	*datastore.MapDatastore
+type TxnMapDatastore struct {
+	*ds.MapDatastore
 	lock sync.RWMutex
 }
 
-func NewTxMapDatastore() *TxMapDatastore {
-	return &TxMapDatastore{
-		MapDatastore: datastore.NewMapDatastore(),
+var _ dse.DatastoreExtensions = (*TxnMapDatastore)(nil)
+
+func NewTxMapDatastore() *TxnMapDatastore {
+	return &TxnMapDatastore{
+		MapDatastore: ds.NewMapDatastore(),
 	}
 }
 
-func (d *TxMapDatastore) NewTransaction(_ bool) (datastore.Txn, error) {
+func (d *TxnMapDatastore) NewTransaction(_ bool) (ds.Txn, error) {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
 	return NewSimpleTx(d), nil
+}
+
+func (d *TxnMapDatastore) NewTransactionExtended(_ bool) (dse.TxnExt, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	return NewSimpleTx(d), nil
+}
+
+func (d *TxnMapDatastore) QueryExtended(q dse.QueryExt) (query.Results, error) {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	return d.Query(q.Query)
 }
 
 type op struct {
@@ -35,15 +50,15 @@ type op struct {
 // SimpleTx implements the transaction interface for datastores who do
 // not have any sort of underlying transactional support.
 type SimpleTx struct {
-	ops    map[datastore.Key]op
+	ops    map[ds.Key]op
 	lock   sync.RWMutex
-	target datastore.Datastore
+	target ds.Datastore
 }
 
-func NewSimpleTx(ds datastore.Datastore) datastore.Txn {
+func NewSimpleTx(store ds.Datastore) dse.TxnExt {
 	return &SimpleTx{
-		ops:    make(map[datastore.Key]op),
-		target: ds,
+		ops:    make(map[ds.Key]op),
+		target: store,
 	}
 }
 
@@ -53,32 +68,38 @@ func (bt *SimpleTx) Query(q query.Query) (query.Results, error) {
 	return bt.target.Query(q)
 }
 
-func (bt *SimpleTx) Get(k datastore.Key) ([]byte, error) {
+func (bt *SimpleTx) QueryExtended(q dse.QueryExt) (query.Results, error) {
+	bt.lock.RLock()
+	defer bt.lock.RUnlock()
+	return bt.target.Query(q.Query)
+}
+
+func (bt *SimpleTx) Get(k ds.Key) ([]byte, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	return bt.target.Get(k)
 }
 
-func (bt *SimpleTx) Has(k datastore.Key) (bool, error) {
+func (bt *SimpleTx) Has(k ds.Key) (bool, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	return bt.target.Has(k)
 }
 
-func (bt *SimpleTx) GetSize(k datastore.Key) (int, error) {
+func (bt *SimpleTx) GetSize(k ds.Key) (int, error) {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	return bt.target.GetSize(k)
 }
 
-func (bt *SimpleTx) Put(key datastore.Key, val []byte) error {
+func (bt *SimpleTx) Put(key ds.Key, val []byte) error {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	bt.ops[key] = op{value: val}
 	return nil
 }
 
-func (bt *SimpleTx) Delete(key datastore.Key) error {
+func (bt *SimpleTx) Delete(key ds.Key) error {
 	bt.lock.RLock()
 	defer bt.lock.RUnlock()
 	bt.ops[key] = op{delete: true}

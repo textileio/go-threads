@@ -4,37 +4,51 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/alecthomas/jsonschema"
+	"github.com/dgraph-io/badger/options"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	logging "github.com/ipfs/go-log/v2"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	swarm "github.com/libp2p/go-libp2p-swarm"
 	ma "github.com/multiformats/go-multiaddr"
+	mbase "github.com/multiformats/go-multibase"
 	"github.com/phayes/freeport"
+	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap/zapcore"
 )
 
 var (
 	bootstrapPeers = []string{
-		"/ip4/104.210.43.77/tcp/4001/p2p/QmR69wtWUMm1TWnmuD4JqC1TWLZcc8iR2KrTenfZZbiztd",       // us-west-1 hub ipfs host
-		"/ip4/104.210.43.77/tcp/4006/p2p/12D3KooWQEtCBXMKjVas6Ph1pUHG2T4Lc9j1KvnAipojP2xcKU7n", // us-west-1 hub threads host
+		// hub-production ipfs-hub-0 host
+		"/ip4/40.76.153.74/tcp/4001/p2p/QmR69wtWUMm1TWnmuD4JqC1TWLZcc8iR2KrTenfZZbiztd",
+		// hub-production hub-0 threads host
+		"/ip4/52.186.99.239/tcp/4006/p2p/12D3KooWQEtCBXMKjVas6Ph1pUHG2T4Lc9j1KvnAipojP2xcKU7n",
+		// go-ipfs 0.7.0 default bootstrap peers
+		"/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
+		"/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
+		"/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
+		"/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt",
+		"/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
+		"/ip4/104.131.131.82/udp/4001/quic/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
 	}
 )
 
-// CanDial returns whether or not the address is dialable.
-func CanDial(addr ma.Multiaddr, s *swarm.Swarm) bool {
-	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
-	addr, _ = ma.NewMultiaddr(parts[0])
-	tr := s.TransportForDialing(addr)
-	return tr != nil && tr.CanDial(addr)
+// NewBadgerDatastore returns a badger based datastore.
+func NewBadgerDatastore(repoPath string, lowMem bool) (kt.TxnDatastoreExtended, error) {
+	path := filepath.Join(repoPath, "eventstore")
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		return nil, err
+	}
+	opts := badger.DefaultOptions
+	if lowMem {
+		opts.TableLoadingMode = options.FileIO
+	}
+	return badger.NewDatastore(path, &opts)
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
@@ -70,36 +84,6 @@ func SetLogLevels(systems map[string]logging.LogLevel) error {
 		}
 	}
 	return nil
-}
-
-func LoadKey(pth string) crypto.PrivKey {
-	var priv crypto.PrivKey
-	_, err := os.Stat(pth)
-	if os.IsNotExist(err) {
-		priv, _, err = crypto.GenerateKeyPair(crypto.Ed25519, 0)
-		if err != nil {
-			panic(err)
-		}
-		key, err := crypto.MarshalPrivateKey(priv)
-		if err != nil {
-			panic(err)
-		}
-		if err = ioutil.WriteFile(pth, key, 0400); err != nil {
-			panic(err)
-		}
-	} else if err != nil {
-		panic(err)
-	} else {
-		key, err := ioutil.ReadFile(pth)
-		if err != nil {
-			panic(err)
-		}
-		priv, err = crypto.UnmarshalPrivateKey(key)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return priv
 }
 
 func DefaultBoostrapPeers() []peer.AddrInfo {
@@ -202,4 +186,13 @@ func GenerateRandomBytes(n int) []byte {
 		panic(err)
 	}
 	return b
+}
+
+func MakeToken(n int) string {
+	bytes := GenerateRandomBytes(n)
+	encoded, err := mbase.Encode(mbase.Base32, bytes)
+	if err != nil {
+		panic(err)
+	}
+	return encoded
 }

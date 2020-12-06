@@ -17,6 +17,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,15 +32,14 @@ type Service struct {
 	manager *db.Manager
 }
 
-// Config specifies server settings.
+// Config specifies service settings.
 type Config struct {
-	RepoPath string
-	Debug    bool
+	Debug bool
 }
 
 // NewService starts and returns a new service with the given network.
 // The network is *not* managed by the server.
-func NewService(network app.Net, conf Config) (*Service, error) {
+func NewService(store kt.TxnDatastoreExtended, network app.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
@@ -50,7 +50,7 @@ func NewService(network app.Net, conf Config) (*Service, error) {
 		}
 	}
 
-	manager, err := db.NewManager(network, db.WithNewRepoPath(conf.RepoPath), db.WithNewDebug(conf.Debug))
+	manager, err := db.NewManager(store, network, db.WithNewDebug(conf.Debug))
 	if err != nil {
 		return nil, err
 	}

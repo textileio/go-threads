@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"sort"
 
+	dse "github.com/textileio/go-datastore-extensions"
+
 	"github.com/alecthomas/jsonschema"
-	ds "github.com/textileio/go-datastore"
-	"github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -274,7 +276,7 @@ type iterator struct {
 	iter     query.Results
 }
 
-func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
+func newIterator(txn dse.TxnExt, baseKey ds.Key, q *Query) *iterator {
 	i := &iterator{
 		txn:   txn,
 		query: q,
@@ -286,10 +288,12 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 		prefix = indexPrefix.Child(baseKey).ChildString(q.Index)
 	}
 
-	dsq := query.Query{
-		Prefix: prefix.String(),
-		Limit:  q.Limit,
-		Offset: q.Skip,
+	dsq := dse.QueryExt{
+		Query: query.Query{
+			Prefix: prefix.String(),
+			Limit:  q.Limit,
+			Offset: q.Skip,
+		},
 	}
 	if q.Sort.FieldPath == idFieldName {
 		if q.Sort.Desc {
@@ -301,7 +305,7 @@ func newIterator(txn ds.Txn, baseKey ds.Key, q *Query) *iterator {
 	if q.Seek != "" {
 		dsq.SeekPrefix = prefix.Child(ds.NewKey(string(q.Seek))).String()
 	}
-	i.iter, i.err = txn.Query(dsq)
+	i.iter, i.err = txn.QueryExtended(dsq)
 
 	// Key field or index not specified, pass thru to base 'iterator'
 	if q.Index == "" {

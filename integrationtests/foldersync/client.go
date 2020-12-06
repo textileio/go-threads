@@ -22,6 +22,7 @@ import (
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/integrationtests/foldersync/watcher"
 	"github.com/textileio/go-threads/util"
 )
@@ -62,6 +63,7 @@ type client struct {
 	name           string
 	folderPath     string
 	folderInstance *folder
+	store          kt.TxnDatastoreExtended
 	db             *db.DB
 	collection     *db.Collection
 	net            net.Net
@@ -77,7 +79,11 @@ func newRootClient(name, folderPath, repoPath string) (*client, error) {
 		return nil, err
 	}
 
-	d, err := db.NewDB(context.Background(), network, id, db.WithNewRepoPath(repoPath), db.WithNewCollections(cc))
+	s, err := util.NewBadgerDatastore(repoPath, false)
+	if err != nil {
+		return nil, err
+	}
+	d, err := db.NewDB(context.Background(), s, network, id, db.WithNewCollections(cc))
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +92,7 @@ func newRootClient(name, folderPath, repoPath string) (*client, error) {
 		name:       name,
 		folderPath: folderPath,
 		db:         d,
+		store:      s,
 		collection: d.GetCollection(collectionName),
 		net:        network,
 		peer:       network.GetIpfsLite(),
@@ -99,7 +106,11 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 		return nil, err
 	}
 
-	d, err := db.NewDBFromAddr(context.Background(), network, addr, key, db.WithNewRepoPath(repoPath), db.WithNewCollections(cc))
+	s, err := util.NewBadgerDatastore(repoPath, false)
+	if err != nil {
+		return nil, err
+	}
+	d, err := db.NewDBFromAddr(context.Background(), s, network, addr, key, db.WithNewCollections(cc))
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +119,7 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 		name:       name,
 		folderPath: folderPath,
 		db:         d,
+		store:      s,
 		collection: d.GetCollection(collectionName),
 		net:        network,
 		peer:       network.GetIpfsLite(),
@@ -116,7 +128,11 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 }
 
 func newNetwork(repoPath string) (common.NetBoostrapper, error) {
-	network, err := common.DefaultNetwork(repoPath, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	network, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(repoPath),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -330,6 +346,9 @@ func (c *client) close() error {
 	c.wg.Wait()
 
 	if err := c.db.Close(); err != nil {
+		return err
+	}
+	if err := c.store.Close(); err != nil {
 		return err
 	}
 	if err := c.net.Close(); err != nil {

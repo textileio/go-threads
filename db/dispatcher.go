@@ -8,9 +8,10 @@ import (
 	"strconv"
 	"sync"
 
-	datastore "github.com/textileio/go-datastore"
-	"github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
 	core "github.com/textileio/go-threads/core/db"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -29,21 +30,21 @@ type Reducer interface {
 // Every event is dispatched to every registered reducer. When a given reducer is registered, it returns a `token`,
 // which can be used to deregister the reducer later.
 type dispatcher struct {
-	store    datastore.TxnDatastore
+	store    kt.TxnDatastoreExtended
 	reducers []Reducer
 	lock     sync.RWMutex
 	lastID   int
 }
 
 // NewDispatcher creates a new EventDispatcher.
-func newDispatcher(store datastore.TxnDatastore) *dispatcher {
+func newDispatcher(store kt.TxnDatastoreExtended) *dispatcher {
 	return &dispatcher{
 		store: store,
 	}
 }
 
 // Store returns the internal event store.
-func (d *dispatcher) Store() datastore.TxnDatastore {
+func (d *dispatcher) Store() kt.TxnDatastoreExtended {
 	return d.store
 }
 
@@ -107,7 +108,7 @@ func (d *dispatcher) Dispatch(events []core.Event) error {
 }
 
 // Query searches the internal event store and returns a query result.
-// This is a syncronouse version of github.com/textileio/go-datastore's Query method.
+// This is a synchronous version of github.com/ipfs/go-datastore's Query method.
 func (d *dispatcher) Query(query query.Query) ([]query.Entry, error) {
 	result, err := d.store.Query(query)
 	if err != nil {
@@ -118,7 +119,7 @@ func (d *dispatcher) Query(query query.Query) ([]query.Entry, error) {
 
 // Key format: <timestamp>/<instance-id>/<type>
 // @todo: This is up for debate, its a 'fake' Event struct right now anyway
-func getKey(event core.Event) (key datastore.Key, err error) {
+func getKey(event core.Event) (key ds.Key, err error) {
 	buf := bytes.NewBuffer(event.Time())
 	var unix int64
 	if err = binary.Read(buf, binary.BigEndian, &unix); err != nil {

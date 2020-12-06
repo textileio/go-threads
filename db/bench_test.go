@@ -60,13 +60,21 @@ func checkBenchErr(b *testing.B, err error) {
 func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 	dir, err := ioutil.TempDir("", "")
 	checkBenchErr(b, err)
-	n, err := common.DefaultNetwork(dir, common.WithNetDebug(true), common.WithNetHostAddr(util.FreeLocalAddr()))
+	n, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
 	checkBenchErr(b, err)
-	opts = append(opts, WithNewRepoPath(dir))
-	d, err := NewDB(context.Background(), n, thread.NewIDV1(thread.Raw, 32), opts...)
+	store, err := util.NewBadgerDatastore(dir, false)
+	checkBenchErr(b, err)
+	d, err := NewDB(context.Background(), store, n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkBenchErr(b, err)
 	return d, func() {
 		if err := n.Close(); err != nil {
+			panic(err)
+		}
+		if err := store.Close(); err != nil {
 			panic(err)
 		}
 		_ = os.RemoveAll(dir)

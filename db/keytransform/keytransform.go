@@ -1,39 +1,62 @@
-package db
+package keytransform
 
 import (
-	ds "github.com/textileio/go-datastore"
-	kt "github.com/textileio/go-datastore/keytransform"
-	dsq "github.com/textileio/go-datastore/query"
+	ds "github.com/ipfs/go-datastore"
+	kt "github.com/ipfs/go-datastore/keytransform"
+	dsq "github.com/ipfs/go-datastore/query"
+	dse "github.com/textileio/go-datastore-extensions"
 )
 
-func wrapTxnDatastore(child ds.TxnDatastore, t kt.KeyTransform) *Datastore {
-	nds := &Datastore{
+// TxnDatastoreExtended adds QueryExtensions to TxnDatastore.
+type TxnDatastoreExtended interface {
+	ds.TxnDatastore
+	dse.DatastoreExtensions
+}
+
+// WrapTxnDatastore wraps a datastore with a key transform.
+func WrapTxnDatastore(child TxnDatastoreExtended, t kt.KeyTransform) *Datastore {
+	return &Datastore{
 		child:        child,
 		Datastore:    kt.Wrap(child, t),
 		KeyTransform: t,
 	}
-	return nds
 }
 
 // Datastore keeps a KeyTransform function
 type Datastore struct {
-	child ds.TxnDatastore
-	kt.KeyTransform
+	child TxnDatastoreExtended
 	ds.Datastore
+	kt.KeyTransform
 }
+
+var _ dse.DatastoreExtensions = (*Datastore)(nil)
 
 type txn struct {
-	ds.Txn
-	ds *Datastore
+	Txn dse.TxnExt
+	ds  *Datastore
 }
 
+var _ dse.TxnExt = (*txn)(nil)
+
 func (d *Datastore) NewTransaction(readOnly bool) (ds.Txn, error) {
-	t, err := d.child.NewTransaction(readOnly)
+	return d.newTransaction(readOnly)
+}
+
+func (d *Datastore) NewTransactionExtended(readOnly bool) (dse.TxnExt, error) {
+	return d.newTransaction(readOnly)
+}
+
+func (d *Datastore) newTransaction(readOnly bool) (dse.TxnExt, error) {
+	t, err := d.child.NewTransactionExtended(readOnly)
 	if err != nil {
 		return nil, err
 	}
 
 	return &txn{Txn: t, ds: d}, nil
+}
+
+func (d *Datastore) QueryExtended(q dse.QueryExt) (dsq.Results, error) {
+	return d.child.QueryExtended(q)
 }
 
 func (t *txn) Commit() error {
@@ -73,34 +96,29 @@ func (t *txn) GetSize(key ds.Key) (size int, err error) {
 
 // Query implements Query, inverting keys on the way back out.
 func (t *txn) Query(q dsq.Query) (dsq.Results, error) {
-	nq, cq := t.prepareQuery(q)
+	nq, cq := t.prepareQuery(dse.QueryExt{Query: q})
 
-	cqr, err := t.Txn.Query(cq)
+	qr, err := t.Txn.Query(cq.Query)
 	if err != nil {
 		return nil, err
 	}
+	return dsq.NaiveQueryApply(nq.Query, dsq.ResultsFromIterator(q, t.getIterator(qr))), nil
+}
 
-	qr := dsq.ResultsFromIterator(q, dsq.Iterator{
-		Next: func() (dsq.Result, bool) {
-			r, ok := cqr.NextSync()
-			if !ok {
-				return r, false
-			}
-			if r.Error == nil {
-				r.Entry.Key = t.ds.InvertKey(ds.RawKey(r.Entry.Key)).String()
-			}
-			return r, true
-		},
-		Close: func() error {
-			return cqr.Close()
-		},
-	})
-	return dsq.NaiveQueryApply(nq, qr), nil
+// QueryExtended implements QueryExtended, inverting keys on the way back out.
+func (t *txn) QueryExtended(q dse.QueryExt) (dsq.Results, error) {
+	nq, cq := t.prepareQuery(q)
+
+	qr, err := t.Txn.QueryExtended(cq)
+	if err != nil {
+		return nil, err
+	}
+	return dsq.NaiveQueryApply(nq.Query, dsq.ResultsFromIterator(q.Query, t.getIterator(qr))), nil
 }
 
 // Split the query into a child query and a naive query. That way, we can make
 // the child datastore do as much work as possible.
-func (t *txn) prepareQuery(q dsq.Query) (naive, child dsq.Query) {
+func (t *txn) prepareQuery(q dse.QueryExt) (naive, child dse.QueryExt) {
 
 	// First, put everything in the child query. Then, start taking things
 	// out.
@@ -199,4 +217,20 @@ orders:
 	return
 }
 
-var _ ds.TxnDatastore = (*Datastore)(nil)
+func (t *txn) getIterator(qr dsq.Results) dsq.Iterator {
+	return dsq.Iterator{
+		Next: func() (dsq.Result, bool) {
+			r, ok := qr.NextSync()
+			if !ok {
+				return r, false
+			}
+			if r.Error == nil {
+				r.Entry.Key = t.ds.InvertKey(ds.RawKey(r.Entry.Key)).String()
+			}
+			return r, true
+		},
+		Close: func() error {
+			return qr.Close()
+		},
+	}
+}

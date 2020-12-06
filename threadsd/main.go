@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -14,9 +16,11 @@ import (
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/namsral/flag"
+	mongods "github.com/textileio/go-ds-mongo"
 	"github.com/textileio/go-threads/api"
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/common"
+	kt "github.com/textileio/go-threads/db/keytransform"
 	netapi "github.com/textileio/go-threads/net/api"
 	netpb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
@@ -37,6 +41,9 @@ func main() {
 	connGracePeriod := fs.Duration("connGracePeriod", time.Second*20, "Duration a new opened connection is not subject to pruning")
 	keepAliveInterval := fs.Duration("keepAliveInterval", time.Second*5, "Websocket keepalive interval (must be >= 1s)")
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
+	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
+	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
+	badgerLowMem := fs.Bool("badgerLowMem", false, "Use Badger's low memory settings")
 	debug := fs.Bool("debug", false, "Enables debug logging")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -53,6 +60,19 @@ func main() {
 	apiProxyAddr, err := ma.NewMultiaddr(*apiProxyAddrStr)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	var parsedMongoUri *url.URL
+	if len(*mongoUri) != 0 {
+		parsedMongoUri, err = url.Parse(*mongoUri)
+		if err != nil {
+			log.Fatalf("parsing mongoUri: %v", err)
+		}
+		if len(*mongoDatabase) == 0 {
+			log.Fatal("mongoDatabase is required with mongoUri")
+		}
+	} else {
+		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	}
 
 	if err := util.SetupDefaultLoggingConfig(*repo); err != nil {
@@ -73,23 +93,45 @@ func main() {
 	log.Debugf("connGracePeriod: %v", *connGracePeriod)
 	log.Debugf("keepAliveInterval: %v", *keepAliveInterval)
 	log.Debugf("enableNetPubsub: %v", *enableNetPubsub)
+	if parsedMongoUri != nil {
+		log.Debugf("mongoUri: %v", parsedMongoUri.Redacted())
+		log.Debugf("mongoDatabase: %v", *mongoDatabase)
+	} else {
+		log.Debugf("badgerLowMem: %v", *badgerLowMem)
+	}
 	log.Debugf("debug: %v", *debug)
 
-	n, err := common.DefaultNetwork(
-		*repo,
+	opts := []common.NetOption{
 		common.WithNetHostAddr(hostAddr),
 		common.WithConnectionManager(connmgr.NewConnManager(*connLowWater, *connHighWater, *connGracePeriod)),
 		common.WithNetPubSub(*enableNetPubsub),
-		common.WithNetDebug(*debug))
+		common.WithNetDebug(*debug),
+	}
+	if parsedMongoUri != nil {
+		opts = append(opts, common.WithNetMongoPersistence(*mongoUri, *mongoDatabase))
+	} else {
+		opts = append(opts, common.WithNetBadgerPersistence(*repo))
+	}
+	n, err := common.DefaultNetwork(opts...)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer n.Close()
 	n.Bootstrap(util.DefaultBoostrapPeers())
 
-	service, err := api.NewService(n, api.Config{
-		RepoPath: *repo,
-		Debug:    *debug,
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var store kt.TxnDatastoreExtended
+	if *mongoUri != "" {
+		store, err = mongods.New(ctx, *mongoUri, *mongoDatabase, mongods.WithCollName("eventstore"))
+	} else {
+		store, err = util.NewBadgerDatastore(*repo, *badgerLowMem)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	service, err := api.NewService(store, n, api.Config{
+		Debug: *debug,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -148,7 +190,10 @@ func main() {
 		}
 	}()
 
-	defer func() {
+	fmt.Println("Welcome to Threads!")
+	fmt.Println("Your peer ID is " + n.Host().ID().String())
+
+	handleInterrupt(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		if err := proxy.Shutdown(ctx); err != nil {
@@ -158,12 +203,14 @@ func main() {
 		if err := n.Close(); err != nil {
 			log.Fatal(err)
 		}
-	}()
+	})
+}
 
-	fmt.Println("Welcome to Threads!")
-	fmt.Println("Your peer ID is " + n.Host().ID().String())
-
-	log.Debug("threadsd started")
-
-	select {}
+func handleInterrupt(stop func()) {
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
+	stop()
+	os.Exit(1)
 }

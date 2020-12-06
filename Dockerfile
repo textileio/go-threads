@@ -1,4 +1,4 @@
-FROM golang:1.14.2-buster
+FROM golang:1.15.5-buster
 MAINTAINER Textile <contact@textile.io>
 
 # This is (in large part) copied (with love) from
