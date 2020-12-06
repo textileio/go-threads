@@ -95,18 +95,24 @@ func main() {
 	log.Debugf("enableNetPubsub: %v", *enableNetPubsub)
 	if parsedMongoUri != nil {
 		log.Debugf("mongoUri: %v", parsedMongoUri.Redacted())
+		log.Debugf("mongoDatabase: %v", *mongoDatabase)
 	} else {
 		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	}
 	log.Debugf("debug: %v", *debug)
 
-	n, err := common.DefaultNetwork(
-		common.WithNetBadgerPersistence(*repo),
+	opts := []common.NetOption{
 		common.WithNetHostAddr(hostAddr),
 		common.WithConnectionManager(connmgr.NewConnManager(*connLowWater, *connHighWater, *connGracePeriod)),
 		common.WithNetPubSub(*enableNetPubsub),
 		common.WithNetDebug(*debug),
-	)
+	}
+	if parsedMongoUri != nil {
+		opts = append(opts, common.WithNetMongoPersistence(*mongoUri, *mongoDatabase))
+	} else {
+		opts = append(opts, common.WithNetBadgerPersistence(*repo))
+	}
+	n, err := common.DefaultNetwork(opts...)
 	if err != nil {
 		log.Fatal(err)
 	}

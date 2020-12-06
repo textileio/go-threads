@@ -4,16 +4,17 @@ services:
     build:
       context: .
     environment:
+      - THRDS_REPO
       - THRDS_HOSTADDR
-      - THRDS_APIADDR
-      - THRDS_APIPROXYADDR
+      - THRDS_APIADDR=/ip4/0.0.0.0/tcp/6006
+      - THRDS_APIPROXYADDR=/ip4/0.0.0.0/tcp/6007
       - THRDS_CONNLOWWATER
       - THRDS_CONNHIGHWATER
       - THRDS_CONNGRACEPERIOD
       - THRDS_KEEPALIVEINTERVAL
       - THRDS_ENABLENETPUBSUB
       - THRDS_MONGOURI=mongodb://mongo:27017
-      - THRDS_MONGODATABASE
+      - THRDS_MONGODATABASE=threaddb
       - THRDS_DEBUG=true
     ports:
       - "4006:4006"

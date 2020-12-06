@@ -4,28 +4,31 @@ services:
     image: textile/go-threads:latest
     restart: always
     volumes:
-      - "${REPO_PATH}/threaddb:/data/threaddb"
+      - "${THRDS_REPO}/threaddb:/data/threaddb"
     environment:
+      - THRDS_REPO
       - THRDS_HOSTADDR
-      - THRDS_APIADDR
-      - THRDS_APIPROXYADDR
+      - THRDS_APIADDR=/ip4/0.0.0.0/tcp/6006
+      - THRDS_APIPROXYADDR=/ip4/0.0.0.0/tcp/6007
       - THRDS_CONNLOWWATER
       - THRDS_CONNHIGHWATER
       - THRDS_CONNGRACEPERIOD
       - THRDS_KEEPALIVEINTERVAL
       - THRDS_ENABLENETPUBSUB
       - THRDS_MONGOURI=mongodb://mongo:27017
-      - THRDS_MONGODATABASE
+      - THRDS_MONGODATABASE=threaddb
       - THRDS_DEBUG
     ports:
       - "4006:4006"
       - "127.0.0.1:6006:6006"
       - "127.0.0.1:6007:6007"
+    depends_on:
+      - mongo
   mongo:
     image: mongo:latest
     restart: always
     volumes:
-      - "${REPO_PATH}/mongodb:/data/mongodb"
+      - "${THRDS_REPO}/mongodb:/data/mongodb"
     expose:
       - "27017"
     ports:
