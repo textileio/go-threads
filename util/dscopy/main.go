@@ -31,6 +31,8 @@ func main() {
 	toMongoDatabase := fs.String("toMongoDatabase", "", "Destination MongoDB database")
 	toMongoCollection := fs.String("toMongoCollection", "", "Destination MongoDB collection")
 
+	parallel := fs.Int("parallel", 1000, "Number of parallel copy operations")
+
 	verbose := fs.Bool("verbose", false, "More verbose output")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -122,13 +124,12 @@ func main() {
 	var errors []string
 	var count int
 	start := time.Now()
-	lim := make(chan struct{}, 1000)
+	lim := make(chan struct{}, *parallel)
 	for r := range res.Next() {
 		if r.Error != nil {
 			log.Fatalf("getting next source result: %v", r.Error)
 		}
 		lim <- struct{}{}
-		count++
 
 		r := r
 		go func() {
@@ -142,6 +143,12 @@ func main() {
 			}
 			if *verbose {
 				log.Infof("copied %s", r.Key)
+			}
+			lock.Lock()
+			count++
+			lock.Unlock()
+			if count%*parallel == 0 {
+				log.Infof("copied %d keys", count)
 			}
 		}()
 	}
