@@ -11,11 +11,10 @@ import (
 	"fmt"
 	"sort"
 
-	dse "github.com/textileio/go-datastore-extensions"
-
 	"github.com/alecthomas/jsonschema"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	dse "github.com/textileio/go-datastore-extensions"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )

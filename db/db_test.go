@@ -37,7 +37,7 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer n1.Close()
 
-	store, err := util.NewBadgerDatastore(tmpDir1, false)
+	store, err := util.NewBadgerDatastore(tmpDir1, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -92,7 +92,7 @@ func TestE2EWithThreads(t *testing.T) {
 		Schema: util.SchemaFromInstance(&dummy{}, false),
 	}
 
-	store2, err := util.NewBadgerDatastore(tmpDir2, false)
+	store2, err := util.NewBadgerDatastore(tmpDir2, "eventstore", false)
 	checkErr(t, err)
 	defer store2.Close()
 
@@ -139,7 +139,7 @@ func TestMissingCollection(t *testing.T) {
 	checkErr(t, err)
 	defer n.Close()
 
-	store, err := util.NewBadgerDatastore(tmpDir, false)
+	store, err := util.NewBadgerDatastore(tmpDir, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -175,7 +175,7 @@ func TestWithNewName(t *testing.T) {
 	)
 	checkErr(t, err)
 
-	store, err := util.NewBadgerDatastore(tmpDir, false)
+	store, err := util.NewBadgerDatastore(tmpDir, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -223,7 +223,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	)
 	checkErr(t, err)
 
-	store, err := util.NewBadgerDatastore(tmpDir, false)
+	store, err := util.NewBadgerDatastore(tmpDir, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 

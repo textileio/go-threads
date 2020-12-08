@@ -43,7 +43,7 @@ func TestSimple(t *testing.T) {
 	network0, err := newNetwork(repoPath0)
 	checkErr(t, err)
 
-	store0, err := util.NewBadgerDatastore(repoPath0, false)
+	store0, err := util.NewBadgerDatastore(repoPath0, "eventstore", false)
 	checkErr(t, err)
 	defer store0.Close()
 	db0, err := db.NewDB(context.Background(), store0, network0, id, db.WithNewCollections(cc))
@@ -63,7 +63,7 @@ func TestSimple(t *testing.T) {
 	network1, err := newNetwork(repoPath1)
 	checkErr(t, err)
 
-	store1, err := util.NewBadgerDatastore(repoPath1, false)
+	store1, err := util.NewBadgerDatastore(repoPath1, "eventstore", false)
 	checkErr(t, err)
 	defer store1.Close()
 	db1, err := db.NewDBFromAddr(
@@ -87,7 +87,7 @@ func TestSimple(t *testing.T) {
 	network2, err := newNetwork(repoPath2)
 	checkErr(t, err)
 
-	store2, err := util.NewBadgerDatastore(repoPath2, false)
+	store2, err := util.NewBadgerDatastore(repoPath2, "eventstore", false)
 	checkErr(t, err)
 	defer store2.Close()
 	db2, err := db.NewDBFromAddr(
@@ -111,7 +111,7 @@ func TestSimple(t *testing.T) {
 	network3, err := newNetwork(repoPath3)
 	checkErr(t, err)
 
-	store3, err := util.NewBadgerDatastore(repoPath3, false)
+	store3, err := util.NewBadgerDatastore(repoPath3, "eventstore", false)
 	checkErr(t, err)
 	defer store3.Close()
 	db3, err := db.NewDBFromAddr(

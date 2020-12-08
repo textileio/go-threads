@@ -28,7 +28,7 @@ func createTestDB(t *testing.T, opts ...NewOption) (*DB, func()) {
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
-	store, err := util.NewBadgerDatastore(dir, false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
 	checkErr(t, err)
 	d, err := NewDB(context.Background(), store, n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkErr(t, err)
