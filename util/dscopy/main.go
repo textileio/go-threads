@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"os"
+	"sync"
+	"time"
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
@@ -13,7 +16,7 @@ import (
 	mongods "github.com/textileio/go-ds-mongo"
 )
 
-var log = logging.Logger("ds-copy")
+var log = logging.Logger("dscopy")
 
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], 0)
@@ -38,7 +41,7 @@ func main() {
 		Stderr: true,
 		Level:  logging.LevelError,
 	})
-	if err := logging.SetLogLevel("ds-copy", "info"); err != nil {
+	if err := logging.SetLogLevel("dscopy", "info"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -109,19 +112,49 @@ func main() {
 		log.Infof("connected to mongo destination: %s", uri.Redacted())
 	}
 
-	results, err := from.Query(query.Query{})
+	res, err := from.Query(query.Query{})
 	if err != nil {
 		log.Fatalf("querying source: %v", err)
 	}
-	defer results.Close()
-	for r := range results.Next() {
-		if err := to.Put(ds.NewKey(r.Key), r.Value); err != nil {
-			log.Fatalf("copying %s: %v", r.Key, err)
+	defer res.Close()
+
+	var lock sync.Mutex
+	var errors []string
+	var count int
+	start := time.Now()
+	lim := make(chan struct{}, 1000)
+	for r := range res.Next() {
+		if r.Error != nil {
+			log.Fatalf("getting next source result: %v", r.Error)
 		}
-		if *verbose {
-			log.Infof("copied %s", r.Key)
-		}
+		lim <- struct{}{}
+		count++
+
+		r := r
+		go func() {
+			defer func() { <-lim }()
+
+			if err := to.Put(ds.NewKey(r.Key), r.Value); err != nil {
+				lock.Lock()
+				errors = append(errors, fmt.Sprintf("copying %s: %v", r.Key, err))
+				lock.Unlock()
+				return
+			}
+			if *verbose {
+				log.Infof("copied %s", r.Key)
+			}
+		}()
+	}
+	for i := 0; i < cap(lim); i++ {
+		lim <- struct{}{}
 	}
 
-	log.Info("done")
+	if len(errors) > 0 {
+		for _, m := range errors {
+			log.Error(m)
+		}
+		log.Fatalf("had %d errors", len(errors))
+	}
+
+	log.Infof("copied %d keys in %s", count, time.Since(start))
 }
