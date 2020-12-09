@@ -41,8 +41,8 @@ var stores = []store{
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], 0)
 
-	fromBadgerRepos := fs.String("fromBadgerRepos", "", "Source badger repo path")
-	toBadgerRepos := fs.String("toBadgerRepos", "", "Destination badger repo path")
+	fromBadgerRepos := fs.String("fromBadgerRepos", "", "Source badger repos path")
+	toBadgerRepos := fs.String("toBadgerRepos", "", "Destination badger repos path")
 
 	fromMongoUri := fs.String("fromMongoUri", "", "Source MongoDB URI")
 	fromMongoDatabase := fs.String("fromMongoDatabase", "", "Source MongoDB database")
@@ -192,10 +192,10 @@ func copyDatastore(
 			}
 			lock.Lock()
 			count++
-			lock.Unlock()
 			if count%parallel == 0 {
 				log.Infof("copied %d keys", count)
 			}
+			lock.Unlock()
 		}()
 	}
 	for i := 0; i < cap(lim); i++ {
