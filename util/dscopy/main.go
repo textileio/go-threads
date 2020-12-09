@@ -41,8 +41,8 @@ var stores = []store{
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], 0)
 
-	fromBadgerRepo := fs.String("fromBadgerRepo", "", "Source badger repo path")
-	toBadgerRepo := fs.String("toBadgerRepo", "", "Destination badger repo path")
+	fromBadgerRepos := fs.String("fromBadgerRepos", "", "Source badger repo path")
+	toBadgerRepos := fs.String("toBadgerRepos", "", "Destination badger repo path")
 
 	fromMongoUri := fs.String("fromMongoUri", "", "Source MongoDB URI")
 	fromMongoDatabase := fs.String("fromMongoDatabase", "", "Source MongoDB database")
@@ -70,8 +70,8 @@ func main() {
 	for _, s := range stores {
 		if err := copyDatastore(
 			s,
-			*fromBadgerRepo,
-			*toBadgerRepo,
+			*fromBadgerRepos,
+			*toBadgerRepos,
 			*fromMongoUri,
 			*toMongoUri,
 			*fromMongoDatabase,
@@ -88,37 +88,37 @@ func main() {
 
 func copyDatastore(
 	s store,
-	fromBadgerRepo, toBadgerRepo string,
+	fromBadgerRepos, toBadgerRepos string,
 	fromMongoUri, toMongoUri string,
 	fromMongoDatabase, toMongoDatabase string,
 	parallel int,
 	verbose bool,
 ) error {
-	if len(fromBadgerRepo) != 0 && len(fromMongoUri) != 0 {
+	if len(fromBadgerRepos) != 0 && len(fromMongoUri) != 0 {
 		return fmt.Errorf("multiple sources specified")
 	}
-	if len(fromBadgerRepo) == 0 && len(fromMongoUri) == 0 {
+	if len(fromBadgerRepos) == 0 && len(fromMongoUri) == 0 {
 		return fmt.Errorf("source not specified")
 	}
-	if len(toBadgerRepo) != 0 && len(toMongoUri) != 0 {
+	if len(toBadgerRepos) != 0 && len(toMongoUri) != 0 {
 		return fmt.Errorf("multiple destinations specified")
 	}
-	if len(toBadgerRepo) == 0 && len(toMongoUri) == 0 {
+	if len(toBadgerRepos) == 0 && len(toMongoUri) == 0 {
 		return fmt.Errorf("destination not specified")
 	}
 
 	var from, to ds.Datastore
 	var err error
-	if len(fromBadgerRepo) != 0 {
-		path := filepath.Join(fromBadgerRepo, s.name)
+	if len(fromBadgerRepos) != 0 {
+		path := filepath.Join(fromBadgerRepos, s.name)
 		from, err = badger.NewDatastore(path, &badger.DefaultOptions)
 		if err != nil {
 			return fmt.Errorf("connecting to badger source: %v", err)
 		}
 		log.Infof("connected to badger source: %s", path)
 	}
-	if len(toBadgerRepo) != 0 {
-		path := filepath.Join(toBadgerRepo, s.name)
+	if len(toBadgerRepos) != 0 {
+		path := filepath.Join(toBadgerRepos, s.name)
 		if err := os.MkdirAll(path, os.ModePerm); err != nil {
 			return fmt.Errorf("making destination path: %v", err)
 		}
@@ -213,8 +213,8 @@ func copyDatastore(
 
 	for _, f := range s.files {
 		var file []byte
-		if len(fromBadgerRepo) != 0 {
-			dir := filepath.Join(fromBadgerRepo, s.name)
+		if len(fromBadgerRepos) != 0 {
+			dir := filepath.Join(fromBadgerRepos, s.name)
 			pth := filepath.Join(dir, f)
 			_, err := os.Stat(pth)
 			if os.IsNotExist(err) {
@@ -232,8 +232,8 @@ func copyDatastore(
 			}
 		}
 
-		if len(toBadgerRepo) != 0 {
-			dir := filepath.Join(toBadgerRepo, s.name)
+		if len(toBadgerRepos) != 0 {
+			dir := filepath.Join(toBadgerRepos, s.name)
 			if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 				return fmt.Errorf("making dir %s: %v", dir, err)
 			}
