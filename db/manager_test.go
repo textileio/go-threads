@@ -119,7 +119,7 @@ func TestManager_GetDB(t *testing.T) {
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
-	store, err := util.NewBadgerDatastore(dir, false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
 	checkErr(t, err)
 	man, err := NewManager(store, n, WithNewDebug(true))
 	checkErr(t, err)
@@ -256,7 +256,7 @@ func createTestManager(t *testing.T) (*Manager, func()) {
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
-	store, err := util.NewBadgerDatastore(dir, false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
 	checkErr(t, err)
 	m, err := NewManager(store, n, WithNewDebug(true))
 	checkErr(t, err)

@@ -79,7 +79,7 @@ func newRootClient(name, folderPath, repoPath string) (*client, error) {
 		return nil, err
 	}
 
-	s, err := util.NewBadgerDatastore(repoPath, false)
+	s, err := util.NewBadgerDatastore(repoPath, "eventstore", false)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 		return nil, err
 	}
 
-	s, err := util.NewBadgerDatastore(repoPath, false)
+	s, err := util.NewBadgerDatastore(repoPath, "eventstore", false)
 	if err != nil {
 		return nil, err
 	}

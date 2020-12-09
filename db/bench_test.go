@@ -66,7 +66,7 @@ func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 		common.WithNetDebug(true),
 	)
 	checkBenchErr(b, err)
-	store, err := util.NewBadgerDatastore(dir, false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
 	checkBenchErr(b, err)
 	d, err := NewDB(context.Background(), store, n, thread.NewIDV1(thread.Raw, 32), opts...)
 	checkBenchErr(b, err)

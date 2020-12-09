@@ -67,7 +67,7 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	}
 	fin.Add(pstore)
 
-	hostKey, err := getHostKey(config, litestore)
+	hostKey, err := getIPFSHostKey(config, litestore)
 	if err != nil {
 		return nil, fin.Cleanup(err)
 	}
@@ -174,12 +174,12 @@ func mongoStore(ctx context.Context, uri, db, collection string, fin *util.Final
 	return dstore, nil
 }
 
-func getHostKey(config NetConfig, store ds.Batching) (crypto.PrivKey, error) {
+func getIPFSHostKey(config NetConfig, store ds.Datastore) (crypto.PrivKey, error) {
 	if len(config.MongoUri) != 0 {
 		k := ds.NewKey("key")
 		bytes, err := store.Get(k)
 		if errors.Is(err, ds.ErrNotFound) {
-			key, bytes, err := newHostKey()
+			key, bytes, err := newIPFSHostKey()
 			if err != nil {
 				return nil, err
 			}
@@ -194,14 +194,14 @@ func getHostKey(config NetConfig, store ds.Batching) (crypto.PrivKey, error) {
 	} else {
 		// If a local datastore is used, the key is written to a file
 		dir := filepath.Join(config.BadgerRepoPath, "ipfslite")
-		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return nil, err
-		}
 		pth := filepath.Join(dir, "key")
 		_, err := os.Stat(pth)
 		if os.IsNotExist(err) {
-			key, bytes, err := newHostKey()
+			key, bytes, err := newIPFSHostKey()
 			if err != nil {
+				return nil, err
+			}
+			if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 				return nil, err
 			}
 			if err = ioutil.WriteFile(pth, bytes, 0400); err != nil {
@@ -220,7 +220,7 @@ func getHostKey(config NetConfig, store ds.Batching) (crypto.PrivKey, error) {
 	}
 }
 
-func newHostKey() (crypto.PrivKey, []byte, error) {
+func newIPFSHostKey() (crypto.PrivKey, []byte, error) {
 	priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519, 0)
 	if err != nil {
 		return nil, nil, err

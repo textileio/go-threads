@@ -125,7 +125,7 @@ func main() {
 	if *mongoUri != "" {
 		store, err = mongods.New(ctx, *mongoUri, *mongoDatabase, mongods.WithCollName("eventstore"))
 	} else {
-		store, err = util.NewBadgerDatastore(*repo, *badgerLowMem)
+		store, err = util.NewBadgerDatastore(*repo, "eventstore", *badgerLowMem)
 	}
 	if err != nil {
 		log.Fatal(err)

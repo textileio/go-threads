@@ -39,8 +39,8 @@ var (
 )
 
 // NewBadgerDatastore returns a badger based datastore.
-func NewBadgerDatastore(repoPath string, lowMem bool) (kt.TxnDatastoreExtended, error) {
-	path := filepath.Join(repoPath, "eventstore")
+func NewBadgerDatastore(dirPath, name string, lowMem bool) (kt.TxnDatastoreExtended, error) {
+	path := filepath.Join(dirPath, name)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		return nil, err
 	}
