@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -18,6 +20,24 @@ import (
 
 var log = logging.Logger("dscopy")
 
+type store struct {
+	name  string
+	files []string
+}
+
+var stores = []store{
+	{
+		name: "eventstore",
+	},
+	{
+		name: "logstore",
+	},
+	{
+		name:  "ipfslite",
+		files: []string{"key"},
+	},
+}
+
 func main() {
 	fs := flag.NewFlagSet(os.Args[0], 0)
 
@@ -26,10 +46,8 @@ func main() {
 
 	fromMongoUri := fs.String("fromMongoUri", "", "Source MongoDB URI")
 	fromMongoDatabase := fs.String("fromMongoDatabase", "", "Source MongoDB database")
-	fromMongoCollection := fs.String("fromMongoCollection", "", "Source MongoDB collection")
 	toMongoUri := fs.String("toMongoUri", "", "Destination MongoDB URI")
 	toMongoDatabase := fs.String("toMongoDatabase", "", "Destination MongoDB database")
-	toMongoCollection := fs.String("toMongoCollection", "", "Destination MongoDB collection")
 
 	parallel := fs.Int("parallel", 1000, "Number of parallel copy operations")
 
@@ -47,76 +65,104 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if len(*fromBadgerRepo) != 0 && len(*fromMongoUri) != 0 {
-		log.Fatal("multiple sources specified")
+	start := time.Now()
+
+	for _, s := range stores {
+		if err := copyDatastore(
+			s,
+			*fromBadgerRepo,
+			*toBadgerRepo,
+			*fromMongoUri,
+			*toMongoUri,
+			*fromMongoDatabase,
+			*toMongoDatabase,
+			*parallel,
+			*verbose,
+		); err != nil {
+			log.Fatal(err)
+		}
 	}
-	if len(*fromBadgerRepo) == 0 && len(*fromMongoUri) == 0 {
-		log.Fatal("source not specified")
+
+	log.Infof("done in %s", time.Since(start))
+}
+
+func copyDatastore(
+	s store,
+	fromBadgerRepo, toBadgerRepo string,
+	fromMongoUri, toMongoUri string,
+	fromMongoDatabase, toMongoDatabase string,
+	parallel int,
+	verbose bool,
+) error {
+	if len(fromBadgerRepo) != 0 && len(fromMongoUri) != 0 {
+		return fmt.Errorf("multiple sources specified")
 	}
-	if len(*toBadgerRepo) != 0 && len(*toMongoUri) != 0 {
-		log.Fatal("multiple destinations specified")
+	if len(fromBadgerRepo) == 0 && len(fromMongoUri) == 0 {
+		return fmt.Errorf("source not specified")
 	}
-	if len(*toBadgerRepo) == 0 && len(*toMongoUri) == 0 {
-		log.Fatal("destination not specified")
+	if len(toBadgerRepo) != 0 && len(toMongoUri) != 0 {
+		return fmt.Errorf("multiple destinations specified")
+	}
+	if len(toBadgerRepo) == 0 && len(toMongoUri) == 0 {
+		return fmt.Errorf("destination not specified")
 	}
 
 	var from, to ds.Datastore
 	var err error
-	if len(*fromBadgerRepo) != 0 {
-		from, err = badger.NewDatastore(*fromBadgerRepo, &badger.DefaultOptions)
+	if len(fromBadgerRepo) != 0 {
+		path := filepath.Join(fromBadgerRepo, s.name)
+		from, err = badger.NewDatastore(path, &badger.DefaultOptions)
 		if err != nil {
-			log.Fatalf("connecting to badger source: %v", err)
+			return fmt.Errorf("connecting to badger source: %v", err)
 		}
-		log.Infof("connected to badger source: %s", *fromBadgerRepo)
+		log.Infof("connected to badger source: %s", path)
 	}
-	if len(*toBadgerRepo) != 0 {
-		to, err = badger.NewDatastore(*toBadgerRepo, &badger.DefaultOptions)
-		if err != nil {
-			log.Fatalf("connecting to badger destination: %v", err)
+	if len(toBadgerRepo) != 0 {
+		path := filepath.Join(toBadgerRepo, s.name)
+		if err := os.MkdirAll(path, os.ModePerm); err != nil {
+			return fmt.Errorf("making destination path: %v", err)
 		}
-		log.Infof("connected to badger destination: %s", *toBadgerRepo)
+		to, err = badger.NewDatastore(path, &badger.DefaultOptions)
+		if err != nil {
+			return fmt.Errorf("connecting to badger destination: %v", err)
+		}
+		log.Infof("connected to badger destination: %s", path)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if len(*fromMongoUri) != 0 {
-		uri, err := url.Parse(*fromMongoUri)
+	if len(fromMongoUri) != 0 {
+		uri, err := url.Parse(fromMongoUri)
 		if err != nil {
-			log.Fatalf("parsing source mongo URI: %v", err)
+			return fmt.Errorf("parsing source mongo URI: %v", err)
 		}
-		if len(*fromMongoDatabase) == 0 {
-			log.Fatal("source mongo database not specified")
+		if len(fromMongoDatabase) == 0 {
+			return fmt.Errorf("source mongo database not specified")
 		}
-		if len(*fromMongoCollection) == 0 {
-			log.Fatal("source mongo collection not specified")
-		}
-		from, err = mongods.New(ctx, *fromMongoUri, *fromMongoDatabase, mongods.WithCollName(*fromMongoCollection))
+		from, err = mongods.New(ctx, fromMongoUri, fromMongoDatabase, mongods.WithCollName(s.name))
 		if err != nil {
-			log.Fatalf("connecting to mongo source: %v", err)
+			return fmt.Errorf("connecting to mongo source: %v", err)
 		}
 		log.Infof("connected to mongo source: %s", uri.Redacted())
 	}
-	if len(*toMongoUri) != 0 {
-		uri, err := url.Parse(*toMongoUri)
+	if len(toMongoUri) != 0 {
+		uri, err := url.Parse(toMongoUri)
 		if err != nil {
-			log.Fatalf("parsing destination mongo URI: %v", err)
+			return fmt.Errorf("parsing destination mongo URI: %v", err)
 		}
-		if len(*toMongoDatabase) == 0 {
-			log.Fatal("destination mongo database not specified")
+		if len(toMongoDatabase) == 0 {
+			return fmt.Errorf("destination mongo database not specified")
 		}
-		if len(*toMongoCollection) == 0 {
-			log.Fatal("destination mongo collection not specified")
-		}
-		to, err = mongods.New(ctx, *toMongoUri, *toMongoDatabase, mongods.WithCollName(*toMongoCollection))
+		to, err = mongods.New(ctx, toMongoUri, toMongoDatabase, mongods.WithCollName(s.name))
 		if err != nil {
-			log.Fatalf("connecting to mongo destination: %v", err)
+			return fmt.Errorf("connecting to mongo destination: %v", err)
 		}
 		log.Infof("connected to mongo destination: %s", uri.Redacted())
 	}
 
 	res, err := from.Query(query.Query{})
 	if err != nil {
-		log.Fatalf("querying source: %v", err)
+		return fmt.Errorf("querying source: %v", err)
 	}
 	defer res.Close()
 
@@ -124,10 +170,10 @@ func main() {
 	var errors []string
 	var count int
 	start := time.Now()
-	lim := make(chan struct{}, *parallel)
+	lim := make(chan struct{}, parallel)
 	for r := range res.Next() {
 		if r.Error != nil {
-			log.Fatalf("getting next source result: %v", r.Error)
+			return fmt.Errorf("getting next source result: %v", r.Error)
 		}
 		lim <- struct{}{}
 
@@ -141,13 +187,13 @@ func main() {
 				lock.Unlock()
 				return
 			}
-			if *verbose {
+			if verbose {
 				log.Infof("copied %s", r.Key)
 			}
 			lock.Lock()
 			count++
 			lock.Unlock()
-			if count%*parallel == 0 {
+			if count%parallel == 0 {
 				log.Infof("copied %d keys", count)
 			}
 		}()
@@ -160,8 +206,48 @@ func main() {
 		for _, m := range errors {
 			log.Error(m)
 		}
-		log.Fatalf("had %d errors", len(errors))
+		return fmt.Errorf("had %d errors", len(errors))
 	}
 
 	log.Infof("copied %d keys in %s", count, time.Since(start))
+
+	for _, f := range s.files {
+		var file []byte
+		if len(fromBadgerRepo) != 0 {
+			dir := filepath.Join(fromBadgerRepo, s.name)
+			pth := filepath.Join(dir, f)
+			_, err := os.Stat(pth)
+			if os.IsNotExist(err) {
+				return fmt.Errorf("loading file %s: %v", pth, err)
+			} else {
+				file, err = ioutil.ReadFile(pth)
+				if err != nil {
+					return fmt.Errorf("reading file %s: %v", pth, err)
+				}
+			}
+		} else {
+			file, err = from.Get(ds.NewKey(f))
+			if err != nil {
+				return fmt.Errorf("getting file %s: %v", f, err)
+			}
+		}
+
+		if len(toBadgerRepo) != 0 {
+			dir := filepath.Join(toBadgerRepo, s.name)
+			if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+				return fmt.Errorf("making dir %s: %v", dir, err)
+			}
+			pth := filepath.Join(dir, f)
+			if err = ioutil.WriteFile(pth, file, 0400); err != nil {
+				return fmt.Errorf("writing file %s: %v", pth, err)
+			}
+		} else {
+			if err := to.Put(ds.NewKey(f), file); err != nil {
+				return fmt.Errorf("putting file %s: %v", f, err)
+			}
+		}
+
+		log.Infof("copied file %s", f)
+	}
+	return nil
 }
