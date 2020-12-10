@@ -1106,6 +1106,15 @@ func (n *net) getLocalRecords(
 	offset cid.Cid,
 	limit int,
 ) ([]core.Record, error) {
+	if offset != cid.Undef {
+		// ensure that we know about requested offset
+		if knownRecord, err := n.isKnown(offset); err != nil {
+			return nil, err
+		} else if !knownRecord {
+			return nil, nil
+		}
+	}
+
 	lg, err := n.store.GetLog(id, lid)
 	if err != nil {
 		return nil, err
