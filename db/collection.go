@@ -16,7 +16,6 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
-	dse "github.com/textileio/go-datastore-extensions"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
@@ -282,51 +281,12 @@ func (f filter) Filter(e query.Entry) bool {
 }
 
 // ModifiedSince returns a list of all instances that have been modified (and/or touched) since `time`.
-func (c *Collection) ModifiedSince(time int64, opts ...TxnOption) (modified []core.InstanceID, err error) {
-	// Need to identify instances that have been touched (created, saved, or deleted) since `time`.
-	// The _mod field tracks modified instances, but not those that have been deleted, so we need
-	// to query the dispatcher for all (unique) instances in this collection that have been modified
-	// at all since `time`.
-	c.db.dispatcher.Lock().Lock()
-	defer c.db.dispatcher.Lock().Unlock()
-
-	txn, err := c.db.dispatcher.Store().NewTransactionExtended(false)
-	if err != nil {
-		return nil, err
-	}
-	defer txn.Discard()
-
-	results, err := txn.QueryExtended(dse.QueryExt{
-		Query: query.Query{
-			Prefix: dsDispatcherPrefix.String(),
-			Filters: []query.Filter{
-				filter{
-					Collection: c.name,
-				},
-			},
-			KeysOnly: true,
-		},
-		SeekPrefix: dsDispatcherPrefix.ChildString(strconv.FormatInt(time, 10)).String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	type void struct{}
-	var member void
-	set := make(map[core.InstanceID]void)
-
-	for r := range results.Next() {
-		if r.Error != nil {
-			return nil, r.Error
-		}
-		id := ds.NewKey(r.Key)
-		set[core.InstanceID(id.Name())] = member
-	}
-	for k := range set {
-		modified = append(modified, k)
-	}
-	return modified, nil
+func (c *Collection) ModifiedSince(time int64, opts ...TxnOption) (ids []core.InstanceID, err error) {
+	_ = c.ReadTxn(func(txn *Txn) error {
+		ids, err = txn.ModifiedSince(time)
+		return err
+	}, opts...)
+	return
 }
 
 // validInstance validates the json object against the collection schema.

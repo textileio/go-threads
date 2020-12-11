@@ -48,10 +48,6 @@ func (d *dispatcher) Store() kt.TxnDatastoreExtended {
 	return d.store
 }
 
-func (d *dispatcher) Lock() *sync.RWMutex {
-	return &d.lock
-}
-
 // Register takes a reducer to be invoked with each dispatched event.
 func (d *dispatcher) Register(reducer Reducer) {
 	d.lock.Lock()

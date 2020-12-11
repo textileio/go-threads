@@ -862,7 +862,7 @@ func TestModifiedSince(t *testing.T) {
 		})
 		checkErr(t, err)
 
-		before := time.Now().UnixNano()
+		before := time.Now().Add(-time.Second).UnixNano()
 
 		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
 		var res []core.InstanceID
@@ -872,13 +872,21 @@ func TestModifiedSince(t *testing.T) {
 		})
 		checkErr(t, err)
 
-		instance, err := c.FindByID(res[0])
+		var instance []byte
+		err = c.ReadTxn(func(txn *Txn) (err error) {
+			instance, err = txn.FindByID(res[0])
+			return
+		})
 		checkErr(t, err)
-
 		p := &Person{}
 		util.InstanceFromJSON(instance, p)
 
-		mods, err := c.ModifiedSince(before)
+		var mods []core.InstanceID
+		err = c.ReadTxn(func(txn *Txn) (err error) {
+			mods, err = txn.ModifiedSince(before)
+			return
+		})
+		checkErr(t, err)
 		if len(mods) != 1 {
 			t.Fatalf("should have had %d modified instance", 1)
 		}
@@ -896,7 +904,7 @@ func TestModifiedSince(t *testing.T) {
 		})
 		checkErr(t, err)
 
-		before := time.Now().UnixNano()
+		before := time.Now().Add(-time.Second).UnixNano()
 
 		// Create
 		newPerson := util.JSONFromInstance(Person{Name: "Alice", Age: 42})
@@ -929,9 +937,14 @@ func TestModifiedSince(t *testing.T) {
 		})
 		checkErr(t, err)
 
-		mods, err := c.ModifiedSince(before)
+		var mods []core.InstanceID
+		err = c.ReadTxn(func(txn *Txn) (err error) {
+			mods, err = txn.ModifiedSince(before)
+			return
+		})
+		checkErr(t, err)
 		if len(mods) != 2 {
-			t.Fatalf("should have had %d modified instance", 2)
+			t.Fatalf("should have had %d modified instances", 2)
 		}
 		if mods[0] != res[0] {
 			t.Fatalf("should have modfied id %s", res[0])

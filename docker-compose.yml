@@ -29,8 +29,6 @@ services:
     restart: always
     volumes:
       - "${THRDS_REPO}/mongodb:/data/mongodb"
-    expose:
-      - "27017"
     ports:
       - "127.0.0.1:27017:27017"
     command:

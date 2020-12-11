@@ -125,7 +125,7 @@ func testAddAddress(ab core.AddrBook) func(*testing.T) {
 			// 1 second left
 			check(t, ab.AddAddrs(tid, id, addrs, 3*time.Second))
 			// 3 seconds left
-			time.Sleep(2)
+			time.Sleep(2 * time.Second)
 			// 1 seconds left.
 
 			// We still have the address.

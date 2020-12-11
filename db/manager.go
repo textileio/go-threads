@@ -69,6 +69,9 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 	defer results.Close()
 	invalids := make(map[thread.ID]struct{})
 	for res := range results.Next() {
+		if res.Error != nil {
+			return nil, err
+		}
 		parts := strings.Split(ds.RawKey(res.Key).String(), "/")
 		if len(parts) < 3 {
 			continue
