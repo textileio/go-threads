@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
+	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore/query"
+	dse "github.com/textileio/go-datastore-extensions"
 	core "github.com/textileio/go-threads/core/db"
 )
 
@@ -218,32 +222,32 @@ func (q *Query) SkipNum(num int) *Query {
 
 // Criterion helpers
 
-// Eq is an equality operator against a field
+// Eq is an equality operator against a field.
 func (c *Criterion) Eq(value interface{}) *Query {
 	return c.createcriterion(Eq, value)
 }
 
-// Ne is a not equal operator against a field
+// Ne is a not equal operator against a field.
 func (c *Criterion) Ne(value interface{}) *Query {
 	return c.createcriterion(Ne, value)
 }
 
-// Gt is a greater operator against a field
+// Gt is a greater operator against a field.
 func (c *Criterion) Gt(value interface{}) *Query {
 	return c.createcriterion(Gt, value)
 }
 
-// Lt is a less operation against a field
+// Lt is a less operation against a field.
 func (c *Criterion) Lt(value interface{}) *Query {
 	return c.createcriterion(Lt, value)
 }
 
-// Ge is a greater or equal operator against a field
+// Ge is a greater or equal operator against a field.
 func (c *Criterion) Ge(value interface{}) *Query {
 	return c.createcriterion(Ge, value)
 }
 
-// Le is a less or equal operator against a field
+// Le is a less or equal operator against a field.
 func (c *Criterion) Le(value interface{}) *Query {
 	return c.createcriterion(Le, value)
 }
@@ -286,7 +290,7 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 	return c.query
 }
 
-// Find queries for instances by Query
+// Find queries for instances by Query.
 func (t *Txn) Find(q *Query) ([][]byte, error) {
 	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
 		return nil, err
@@ -477,4 +481,50 @@ func traverseFieldPathMap(value map[string]interface{}, fieldPath string) (refle
 		curr = v
 	}
 	return reflect.ValueOf(curr), nil
+}
+
+// ModifiedSince returns a list of all instances that have been modified (and/or touched) since `time`.
+// The _mod field tracks modified instances, but not those that have been deleted, so we need
+// to query the dispatcher for all (unique) instances in this collection that have been modified
+// at all since `time`.
+func (t *Txn) ModifiedSince(time int64) (ids []core.InstanceID, err error) {
+	txn, err := t.collection.db.datastore.NewTransactionExtended(true)
+	if err != nil {
+		return nil, err
+	}
+	defer txn.Discard()
+
+	timestr := strconv.FormatInt(time, 10)
+	res, err := txn.QueryExtended(dse.QueryExt{
+		Query: query.Query{
+			Prefix: dsDispatcherPrefix.String(),
+			Filters: []query.Filter{
+				filter{
+					Collection: t.collection.name,
+				},
+			},
+			KeysOnly: true,
+		},
+		SeekPrefix: dsDispatcherPrefix.ChildString(timestr).String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer res.Close()
+
+	set := make(map[core.InstanceID]struct{})
+	for r := range res.Next() {
+		if r.Error != nil {
+			return nil, r.Error
+		}
+		id := ds.NewKey(r.Key)
+		set[core.InstanceID(id.Name())] = struct{}{}
+	}
+	ids = make([]core.InstanceID, len(set))
+	i := 0
+	for k := range set {
+		ids[i] = k
+		i++
+	}
+	return ids, nil
 }
