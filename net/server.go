@@ -233,11 +233,9 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	knownRecord, err := s.net.bstore.Has(rec.Cid())
-	if err != nil {
+	if knownRecord, err := s.net.isKnown(rec.Cid()); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if knownRecord {
+	} else if knownRecord {
 		return &pb.PushRecordReply{}, nil
 	}
 

@@ -691,11 +691,9 @@ func (n *net) AddRecord(
 		return lstore.ErrLogNotFound
 	}
 
-	knownRecord, err := n.bstore.Has(rec.Cid())
-	if err != nil {
+	if knownRecord, err := n.isKnown(rec.Cid()); err != nil {
 		return err
-	}
-	if knownRecord {
+	} else if knownRecord {
 		return nil
 	}
 
@@ -931,7 +929,7 @@ func (n *net) loadUnknownRecords(
 	last core.Record,
 ) ([]core.ThreadRecord, cid.Cid, error) {
 	// check if last record was already loaded and processed
-	if exist, err := n.bstore.Has(last.Cid()); err != nil {
+	if exist, err := n.isKnown(last.Cid()); err != nil {
 		return nil, cid.Undef, err
 	} else if exist || !last.Cid().Defined() {
 		return nil, cid.Undef, nil
@@ -1034,6 +1032,10 @@ func (n *net) loadUnknownRecords(
 	return tRecords, head, nil
 }
 
+func (n *net) isKnown(rec cid.Cid) (bool, error) {
+	return n.bstore.Has(rec)
+}
+
 func (n *net) currentHead(tid thread.ID, lid peer.ID) (cid.Cid, error) {
 	var head cid.Cid
 	heads, err := n.store.Heads(tid, lid)
@@ -1104,6 +1106,15 @@ func (n *net) getLocalRecords(
 	offset cid.Cid,
 	limit int,
 ) ([]core.Record, error) {
+	if offset != cid.Undef {
+		// ensure that we know about requested offset
+		if knownRecord, err := n.isKnown(offset); err != nil {
+			return nil, err
+		} else if !knownRecord {
+			return nil, nil
+		}
+	}
+
 	lg, err := n.store.GetLog(id, lid)
 	if err != nil {
 		return nil, err
@@ -1416,7 +1427,7 @@ func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]cid.Cid, error) {
 	for _, lg := range info.Logs {
 		var has bool
 		if lg.Head.Defined() {
-			has, err = n.bstore.Has(lg.Head)
+			has, err = n.isKnown(lg.Head)
 			if err != nil {
 				return nil, err
 			}
