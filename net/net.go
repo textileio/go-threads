@@ -410,6 +410,7 @@ func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
 		log.Debugf("skip pulling thread %s: concurrent pull in progress", tid)
 		return nil
 	}
+	log.Debugf("pulling thread %s", tid)
 
 	offsets, err := n.threadOffsets(tid)
 	if err != nil {
@@ -432,6 +433,7 @@ func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
 		}
 	}
 
+	log.Debugf("pulled %d records in thread %s", len(recs), tid)
 	return nil
 }
 

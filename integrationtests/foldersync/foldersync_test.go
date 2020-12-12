@@ -22,9 +22,9 @@ import (
 
 func TestMain(m *testing.M) {
 	_ = logging.SetLogLevel("foldersync", "info")
-	// _ = logging.SetLogLevel("db", "debug")
-	// _ = logging.SetLogLevel("threads", "debug")
-	// _ = logging.SetLogLevel("threadstore", "debug")
+	//_ = logging.SetLogLevel("db", "debug")
+	//_ = logging.SetLogLevel("net", "debug")
+	//_ = logging.SetLogLevel("logstore", "debug")
 	os.Exit(m.Run())
 }
 
