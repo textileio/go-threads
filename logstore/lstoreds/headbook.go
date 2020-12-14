@@ -1,6 +1,7 @@
 package lstoreds
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -11,16 +12,21 @@ import (
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/pb"
+	"github.com/textileio/go-threads/util"
 )
 
 type dsHeadBook struct {
 	ds ds.TxnDatastore
 }
 
-// Heads are stored in db key pattern:
-// /thread/heads/<base32 thread id no padding>/<base32 peer id no padding>
 var (
-	hbBase               = ds.NewKey("/thread/heads")
+	// Heads are stored in db key pattern:
+	// /thread/heads/<base32 thread id no padding>/<base32 peer id no padding>
+	hbBase = ds.NewKey("/thread/heads")
+
+	// Thread edges are stored in db key pattern:
+	// /thread/heads/edge/<base32 thread id no padding>>
+	hbEdge               = hbBase.ChildString("/edge")
 	_      core.HeadBook = (*dsHeadBook)(nil)
 )
 
@@ -69,12 +75,12 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 			hr.Heads = append(hr.Heads, entry)
 		}
 	}
-	data, err := proto.Marshal(&hr)
-	if err != nil {
+	if data, err := proto.Marshal(&hr); err != nil {
 		return fmt.Errorf("error when marshaling headbookrecord proto for %v: %w", key, err)
-	}
-	if err = txn.Put(key, data); err != nil {
+	} else if err = txn.Put(key, data); err != nil {
 		return fmt.Errorf("error when saving new head record in datastore for %v: %v", key, err)
+	} else if err := hb.invalidateEdge(txn, t); err != nil {
+		return fmt.Errorf("edge invalidation failed for thread %v: %w", t, err)
 	}
 	return txn.Commit()
 }
@@ -84,8 +90,17 @@ func (hb *dsHeadBook) SetHead(t thread.ID, p peer.ID, c cid.Cid) error {
 }
 
 func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
-	key := dsLogKey(t, p, hbBase)
-	hr := pb.HeadBookRecord{}
+	txn, err := hb.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("error when creating txn in datastore: %w", err)
+	}
+	defer txn.Discard()
+
+	var (
+		hr  pb.HeadBookRecord
+		key = dsLogKey(t, p, hbBase)
+	)
+
 	for i := range heads {
 		if !heads[i].Defined() {
 			log.Warnf("ignoring head %s is undefined for %s", heads[i], key)
@@ -95,14 +110,14 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 		hr.Heads = append(hr.Heads, entry)
 	}
 
-	data, err := proto.Marshal(&hr)
-	if err != nil {
+	if data, err := proto.Marshal(&hr); err != nil {
 		return fmt.Errorf("error when marshaling headbookrecord proto for %v: %w", key, err)
-	}
-	if err = hb.ds.Put(key, data); err != nil {
+	} else if err = txn.Put(key, data); err != nil {
 		return fmt.Errorf("error when saving new head record in datastore for %v: %w", key, err)
+	} else if err := hb.invalidateEdge(txn, t); err != nil {
+		return fmt.Errorf("edge invalidation failed for thread %v: %w", t, err)
 	}
-	return nil
+	return txn.Commit()
 }
 
 func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
@@ -126,11 +141,70 @@ func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 }
 
 func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
-	key := dsLogKey(t, p, hbBase)
-	if err := hb.ds.Delete(key); err != nil {
-		return fmt.Errorf("error when deleting heads from %s", key)
+	txn, err := hb.ds.NewTransaction(false)
+	if err != nil {
+		return fmt.Errorf("error when creating txn in datastore: %w", err)
 	}
-	return nil
+	defer txn.Discard()
+	var key = dsLogKey(t, p, hbBase)
+	if err := txn.Delete(key); err != nil {
+		return fmt.Errorf("error when deleting heads from %s", key)
+	} else if err := hb.invalidateEdge(txn, t); err != nil {
+		return fmt.Errorf("edge invalidation failed for thread %v: %w", t, err)
+	}
+	return txn.Commit()
+}
+
+func (hb *dsHeadBook) ThreadEdge(tid thread.ID) (uint64, error) {
+	txn, err := hb.ds.NewTransaction(false)
+	if err != nil {
+		return 0, fmt.Errorf("error when creating txn in datastore: %w", err)
+	}
+	defer txn.Discard()
+	edge, err := hb.getEdge(txn, tid)
+	if err != nil {
+		return 0, err
+	}
+	return edge, txn.Commit()
+}
+
+func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
+	var key = dsThreadKey(tid, hbBase.Child(hbEdge))
+	if v, err := txn.Get(key); err == nil {
+		return binary.BigEndian.Uint64(v), nil
+	} else if err != ds.ErrNotFound {
+		return 0, err
+	}
+
+	// edge not evaluated/invalidated, let's compute it
+	result, err := txn.Query(query.Query{Prefix: dsThreadKey(tid, hbBase).String(), KeysOnly: false})
+	if err != nil {
+		return 0, err
+	}
+	defer result.Close()
+
+	var hs []util.LogHead
+	for entry := range result.Next() {
+		_, lid, heads, err := hb.decodeHeadEntry(entry, true)
+		if err != nil {
+			return 0, err
+		}
+		for i := 0; i < len(heads); i++ {
+			hs = append(hs, util.LogHead{Head: heads[i], LogID: lid})
+		}
+	}
+
+	var (
+		buff [8]byte
+		edge = util.ComputeThreadEdge(hs)
+	)
+	binary.BigEndian.PutUint64(buff[:], edge)
+	return edge, txn.Put(key, buff[:])
+}
+
+func (hb *dsHeadBook) invalidateEdge(txn ds.Txn, tid thread.ID) error {
+	var key = dsThreadKey(tid, hbBase.Child(hbEdge))
+	return txn.Delete(key)
 }
 
 // Dump entire headbook into the tree-structure.
@@ -182,37 +256,9 @@ func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]cid.
 	defer result.Close()
 
 	for entry := range result.Next() {
-		kns := ds.RawKey(entry.Key).Namespaces()
-		if len(kns) < 3 {
-			return nil, fmt.Errorf("bad headbook key detected: %s", entry.Key)
-		}
-
-		// get thread and log IDs from the key components
-		ts, ls := kns[len(kns)-2], kns[len(kns)-1]
-
-		// parse thread ID
-		tid, err := parseThreadID(ts)
+		tid, lid, heads, err := hb.decodeHeadEntry(entry, withHeads)
 		if err != nil {
-			return nil, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
-		}
-
-		// parse log ID
-		lid, err := parseLogID(ls)
-		if err != nil {
-			return nil, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
-		}
-
-		var heads []cid.Cid
-		if withHeads {
-			var hr pb.HeadBookRecord
-			if err := proto.Unmarshal(entry.Value, &hr); err != nil {
-				return nil, fmt.Errorf("cannot decode headbook record: %w", err)
-			}
-
-			heads = make([]cid.Cid, len(hr.Heads))
-			for i := range hr.Heads {
-				heads[i] = hr.Heads[i].Cid.Cid
-			}
+			return nil, err
 		}
 
 		lh, exist := data[tid]
@@ -225,4 +271,37 @@ func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]cid.
 	}
 
 	return data, nil
+}
+
+func (hb *dsHeadBook) decodeHeadEntry(
+	entry query.Result,
+	withHeads bool,
+) (tid thread.ID, lid peer.ID, heads []cid.Cid, err error) {
+	kns := ds.RawKey(entry.Key).Namespaces()
+	if len(kns) < 4 {
+		err = fmt.Errorf("bad headbook key detected: %s", entry.Key)
+		return
+	}
+	// get thread and log IDs from the key components
+	var ts, ls = kns[len(kns)-2], kns[len(kns)-1]
+	if tid, err = parseThreadID(ts); err != nil {
+		err = fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+		return
+	}
+	if lid, err = parseLogID(ls); err != nil {
+		err = fmt.Errorf("cannot restore log ID %s: %w", ls, err)
+		return
+	}
+	if withHeads {
+		var hr pb.HeadBookRecord
+		if err := proto.Unmarshal(entry.Value, &hr); err != nil {
+			err = fmt.Errorf("cannot decode headbook record: %w", err)
+			return
+		}
+		heads = make([]cid.Cid, len(hr.Heads))
+		for i := range hr.Heads {
+			heads[i] = hr.Heads[i].Cid.Cid
+		}
+	}
+	return
 }
