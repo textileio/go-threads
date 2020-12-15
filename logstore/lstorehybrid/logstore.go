@@ -278,6 +278,10 @@ func (l *lstore) ClearHeads(tid thread.ID, lid peer.ID) error {
 	return l.inMem.ClearHeads(tid, lid)
 }
 
+func (l *lstore) ThreadEdge(tid thread.ID) (uint64, error) {
+	return l.inMem.ThreadEdge(tid)
+}
+
 func (l *lstore) Threads() (thread.IDSlice, error) {
 	return l.inMem.Threads()
 }
