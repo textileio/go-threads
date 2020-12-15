@@ -297,7 +297,7 @@ func (hb *dsHeadBook) decodeHeadEntry(
 	}
 	if withHeads {
 		var hr pb.HeadBookRecord
-		if err := proto.Unmarshal(entry.Value, &hr); err != nil {
+		if err = proto.Unmarshal(entry.Value, &hr); err != nil {
 			err = fmt.Errorf("cannot decode headbook record: %w", err)
 			return
 		}
