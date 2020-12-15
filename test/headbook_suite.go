@@ -12,6 +12,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 )
 
 var headBookSuite = map[string]func(hb core.HeadBook) func(*testing.T){
@@ -19,6 +20,7 @@ var headBookSuite = map[string]func(hb core.HeadBook) func(*testing.T){
 	"SetGetHeads": testHeadBookSetHeads,
 	"ClearHeads":  testHeadBookClearHeads,
 	"ExportHeads": testHeadBookExport,
+	"ThreadEdge":  testHeadBookThreadEdge,
 }
 
 type HeadBookFactory func() (core.HeadBook, func())
@@ -144,6 +146,90 @@ func testHeadBookClearHeads(hb core.HeadBook) func(t *testing.T) {
 			if len(heads) > 0 {
 				t.Fatalf("heads not empty after clear")
 			}
+		}
+	}
+}
+
+func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		var (
+			numLogs  = 3
+			numHeads = 2
+
+			genHeadSets = func(cases int) (thread.ID, []map[peer.ID][]cid.Cid) {
+				tid, logs := genHeads(numLogs, cases*numHeads)
+				splitted := make([]map[peer.ID][]cid.Cid, cases)
+				for i := 0; i < cases; i++ {
+					hs := make(map[peer.ID][]cid.Cid)
+					for lid, cids := range logs {
+						hs[lid] = append(hs[lid], cids[i*numHeads:(i+1)*numHeads]...)
+					}
+					splitted[i] = hs
+				}
+				return tid, splitted
+			}
+
+			equalEdges = func(edge uint64, logs map[peer.ID][]cid.Cid) bool {
+				var heads []util.LogHead
+				for lid, cids := range logs {
+					for _, c := range cids {
+						heads = append(heads, util.LogHead{LogID: lid, Head: c})
+					}
+				}
+				return util.ComputeThreadEdge(heads) == edge
+			}
+
+			// generate 3 sets of heads
+			tid, heads          = genHeadSets(3)
+			hSet1, hSet2, hSet3 = heads[0], heads[1], heads[2]
+		)
+
+		if _, err := hb.ThreadEdge(tid); err != core.ErrThreadNotFound {
+			t.Error("expected to get error on retrieving non-existing thread's edge")
+		}
+		for lid, hs := range hSet1 {
+			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {
+				t.Error("expected heads to be empty on init without errors")
+			}
+			if err := hb.SetHeads(tid, lid, hs); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
+		}
+
+		edge1, err := hb.ThreadEdge(tid)
+		if err != nil {
+			t.Errorf("error while getting thread's edge: %v", err)
+		}
+
+		// set new heads
+		for lid, hs := range hSet2 {
+			if err := hb.SetHeads(tid, lid, hs); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
+		}
+		edge2, err := hb.ThreadEdge(tid)
+		if err != nil {
+			t.Errorf("error while getting thread's edge: %v", err)
+		}
+		if edge1 == edge2 {
+			t.Error("edges should not be equal after setting new heads")
+		}
+		if !equalEdges(edge2, hSet2) {
+			t.Error("stored and manually computed edges doesn't match")
+		}
+
+		// add some more heads
+		for lid, hs := range hSet3 {
+			if err := hb.AddHeads(tid, lid, hs); err != nil {
+				t.Fatalf("error when adding heads: %v", err)
+			}
+		}
+		edge3, err := hb.ThreadEdge(tid)
+		if err != nil {
+			t.Errorf("error while getting thread's edge: %v", err)
+		}
+		if edge3 == edge1 || edge3 == edge2 {
+			t.Error("edges should not be equal after setting/adding new heads")
 		}
 	}
 }
