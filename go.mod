@@ -60,7 +60,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190710185942-9d28bd7c0945 // indirect
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
-	github.com/textileio/go-ds-mongo v0.1.4
+	github.com/textileio/go-ds-mongo v0.1.5-0.20201215033046-f6b4d15886ea
 	github.com/tidwall/gjson v1.3.5
 	github.com/tidwall/sjson v1.0.4
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
