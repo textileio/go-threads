@@ -16,6 +16,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/pb"
+	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
@@ -157,9 +158,16 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	}
 	log.Debugf("received get records request from %s", pid)
 
-	pbrecs := &pb.GetRecordsReply{}
+	var pbrecs = &pb.GetRecordsReply{}
 	if err := s.checkServiceKey(req.Body.ThreadID.ID, req.Body.ServiceKey); err != nil {
 		return pbrecs, err
+	}
+
+	// fast check if requested offsets are equal with thread heads
+	if changed, err := s.threadChanged(req); err != nil {
+		return nil, err
+	} else if !changed {
+		return pbrecs, nil
 	}
 
 	reqd := make(map[peer.ID]*pb.GetRecordsRequest_Body_LogEntry)
@@ -264,6 +272,19 @@ func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 		return status.Error(codes.Unauthenticated, "invalid service-key")
 	}
 	return nil
+}
+
+// threadChanged determines if thread heads are different from the requested offsets.
+func (s *server) threadChanged(req *pb.GetRecordsRequest) (bool, error) {
+	var reqHeads = make([]util.LogHead, len(req.Body.Logs))
+	for i, l := range req.Body.GetLogs() {
+		reqHeads[i] = util.LogHead{Head: l.Offset.Cid, LogID: l.LogID.ID}
+	}
+	var currEdge, err = s.net.store.ThreadEdge(req.Body.ThreadID.ID)
+	if err != nil {
+		return false, err
+	}
+	return util.ComputeThreadEdge(reqHeads) != currEdge, nil
 }
 
 // verifyRequest verifies that the signature associated with a request is valid.
