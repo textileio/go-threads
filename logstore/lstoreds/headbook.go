@@ -193,6 +193,9 @@ func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
 			hs = append(hs, util.LogHead{Head: heads[i], LogID: lid})
 		}
 	}
+	if len(hs) == 0 {
+		return 0, core.ErrThreadNotFound
+	}
 
 	var (
 		buff [8]byte
