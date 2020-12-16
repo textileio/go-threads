@@ -40,13 +40,13 @@ var (
 	MaxPullLimit = 10000
 
 	// PullStartAfter is the pause before thread pulling process starts.
-	PullStartAfter = time.Second
+	PullStartAfter = time.Minute * 5
 
 	// InitialPullInterval is the interval for the first iteration of log pulls.
-	InitialPullInterval = time.Second
+	InitialPullInterval = time.Minute * 5
 
 	// PullInterval is the interval between automatic log pulls.
-	PullInterval = time.Second * 10
+	PullInterval = time.Minute * 5
 
 	// EventBusCapacity is the buffer size of local event bus listeners.
 	EventBusCapacity = 1
@@ -158,8 +158,12 @@ func NewNetwork(
 		}
 	}()
 
-	go t.startPulling()
 	return t, nil
+}
+
+func (n *net) StartPulling() {
+	go n.startPulling()
+	log.Debugf("started pulling threads every %s", PullStartAfter)
 }
 
 func (n *net) Close() (err error) {

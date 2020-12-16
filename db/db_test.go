@@ -202,9 +202,9 @@ func TestWithNewName(t *testing.T) {
 	)
 	checkErr(t, err)
 	defer n.Close()
-	defer d.Close()
 	d, err = NewDB(context.Background(), store, n, id, WithNewKey(info.Key))
 	checkErr(t, err)
+	defer d.Close()
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
 	}

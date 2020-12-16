@@ -99,12 +99,8 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 		m.dbs[id] = d
 	}
 
-	// Cleanup invalids
-	for id := range invalids {
-		if err := m.deleteThreadNamespace(id); err != nil {
-			return nil, err
-		}
-	}
+	log.Infof("loaded %d dbs", len(m.dbs))
+
 	return m, nil
 }
 

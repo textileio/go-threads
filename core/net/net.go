@@ -22,6 +22,9 @@ type Net interface {
 
 	// Host provides a network identity.
 	Host() host.Host
+
+	// StartPulling starts polling thread peers for new records.
+	StartPulling()
 }
 
 // API is the network interface for thread orchestration.

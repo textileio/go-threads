@@ -190,6 +190,8 @@ func main() {
 		}
 	}()
 
+	n.StartPulling()
+
 	fmt.Println("Welcome to Threads!")
 	fmt.Println("Your peer ID is " + n.Host().ID().String())
 
