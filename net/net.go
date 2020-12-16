@@ -162,8 +162,8 @@ func NewNetwork(
 }
 
 func (n *net) StartPulling() {
-	go n.startPulling()
-	log.Debugf("started pulling threads every %s", PullStartAfter)
+	//go n.startPulling()
+	log.Debugf("not starting pulling threads every %s", PullStartAfter)
 }
 
 func (n *net) Close() (err error) {
