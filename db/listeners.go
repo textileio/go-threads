@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
@@ -107,8 +107,6 @@ func (scn *stateChangedNotifee) addListener(sl *listener) {
 }
 
 func (scn *stateChangedNotifee) remove(sl *listener) bool {
-	scn.lock.Lock()
-	defer scn.lock.Unlock()
 	for i := range scn.listeners {
 		if scn.listeners[i] == sl {
 			scn.listeners[i] = scn.listeners[len(scn.listeners)-1]
