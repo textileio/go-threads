@@ -89,6 +89,9 @@ var (
 
 		{name: "SortAllAscFloat", query: OrderBy("Meta.Rating"), resIdx: []int{0, 1, 2, 3, 4}, ordered: true},
 		{name: "SortAllDescFloat", query: OrderByDesc("Meta.Rating"), resIdx: []int{4, 3, 2, 1, 0}, ordered: true},
+
+		{name: "LimitTotalReadsOutside", query: Where("Meta.TotalReads").Gt(float64(100)).LimitTo(2), resIdx: []int{3, 4}},
+		{name: "LimitTotalReadsInside", query: Where("Meta.TotalReads").Lt(float64(100)).LimitTo(2), resIdx: []int{0, 1}},
 	}
 )
 
