@@ -290,8 +290,10 @@ func newIterator(txn dse.TxnExt, baseKey ds.Key, q *Query) *iterator {
 	dsq := dse.QueryExt{
 		Query: query.Query{
 			Prefix: prefix.String(),
-			Limit:  q.Limit,
-			Offset: q.Skip,
+			// Pull out Skip and Limit here because we won't know ahead of time
+			// (due to readFilters) how many to skip/limit
+			// Limit:  q.Limit,
+			// Offset: q.Skip,
 		},
 	}
 	if q.Sort.FieldPath == idFieldName {
