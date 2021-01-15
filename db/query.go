@@ -317,7 +317,6 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 	// Use count to track real count of returned values taking into account
 	// read filter and any indexes etc in the query
 	var count = 0
-	offset := q.Limit + q.Skip
 	for {
 		res, ok := iter.NextSync()
 		if !ok {
@@ -327,11 +326,14 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		count++
-		if res.Value != nil && count > q.Skip {
-			values = append(values, res)
+		if res.Value != nil {
+			// Only count valid values that aren't filtered by the read filter
+			count++
+			if count > q.Skip {
+				values = append(values, res)
+			}
 		}
-		if count == offset {
+		if len(values) == q.Limit {
 			break
 		}
 	}
