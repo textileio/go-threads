@@ -326,11 +326,14 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		count++
-		if res.Value != nil && count > q.Skip {
-			values = append(values, res)
+		if res.Value != nil {
+			// Only count valid values that aren't filtered by the read filter
+			count++
+			if count > q.Skip {
+				values = append(values, res)
+			}
 		}
-		if count == q.Limit {
+		if len(values) == q.Limit {
 			break
 		}
 	}
