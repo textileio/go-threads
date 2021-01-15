@@ -92,6 +92,8 @@ var (
 
 		{name: "LimitTotalReadsOutside", query: Where("Meta.TotalReads").Gt(float64(100)).LimitTo(2), resIdx: []int{3, 4}},
 		{name: "LimitTotalReadsInside", query: Where("Meta.TotalReads").Lt(float64(100)).LimitTo(2), resIdx: []int{0, 1}},
+
+		{name: "LimitWithSkip", query: Where("Meta.TotalReads").Gt(float64(0)).SkipNum(1).LimitTo(3), resIdx: []int{1, 2, 3}},
 	}
 )
 
