@@ -53,7 +53,7 @@ func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
 func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	mhb.Lock()
 	defer mhb.Unlock()
-	defer mhb.updateThreadEdge(t)
+	defer mhb.updateEdge(t)
 
 	hmap := mhb.getHeads(t, p, true)
 	for _, h := range heads {
@@ -73,7 +73,7 @@ func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head cid.Cid) error {
 func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	mhb.Lock()
 	defer mhb.Unlock()
-	defer mhb.updateThreadEdge(t)
+	defer mhb.updateEdge(t)
 
 	var hset = make(map[cid.Cid]struct{}, len(heads))
 	for _, h := range heads {
@@ -122,12 +122,12 @@ func (mhb *memoryHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	if len(lset) == 0 {
 		delete(mhb.threads, t)
 	} else {
-		mhb.updateThreadEdge(t)
+		mhb.updateEdge(t)
 	}
 	return nil
 }
 
-func (mhb *memoryHeadBook) ThreadEdge(t thread.ID) (uint64, error) {
+func (mhb *memoryHeadBook) HeadsEdge(t thread.ID) (uint64, error) {
 	mhb.RLock()
 	defer mhb.RUnlock()
 
@@ -139,7 +139,7 @@ func (mhb *memoryHeadBook) ThreadEdge(t thread.ID) (uint64, error) {
 	return lset.edge, nil
 }
 
-func (mhb *memoryHeadBook) updateThreadEdge(t thread.ID) {
+func (mhb *memoryHeadBook) updateEdge(t thread.ID) {
 	// invariant: requested thread exist
 	var (
 		lset  = mhb.threads[t]
@@ -153,7 +153,7 @@ func (mhb *memoryHeadBook) updateThreadEdge(t thread.ID) {
 			})
 		}
 	}
-	lset.edge = util.ComputeThreadEdge(heads)
+	lset.edge = util.ComputeHeadsEdge(heads)
 	mhb.threads[t] = lset
 }
 
@@ -201,7 +201,7 @@ func (mhb *memoryHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
 			heads map[peer.ID]map[cid.Cid]struct{}
 			edge  uint64
 		}{heads: lm}
-		mhb.updateThreadEdge(tid)
+		mhb.updateEdge(tid)
 	}
 
 	return nil

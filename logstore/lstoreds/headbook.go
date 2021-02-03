@@ -155,7 +155,7 @@ func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 	return txn.Commit()
 }
 
-func (hb *dsHeadBook) ThreadEdge(tid thread.ID) (uint64, error) {
+func (hb *dsHeadBook) HeadsEdge(tid thread.ID) (uint64, error) {
 	txn, err := hb.ds.NewTransaction(false)
 	if err != nil {
 		return 0, fmt.Errorf("error when creating txn in datastore: %w", err)
@@ -199,7 +199,7 @@ func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
 
 	var (
 		buff [8]byte
-		edge = util.ComputeThreadEdge(hs)
+		edge = util.ComputeHeadsEdge(hs)
 	)
 	binary.BigEndian.PutUint64(buff[:], edge)
 	return edge, txn.Put(key, buff[:])

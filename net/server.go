@@ -164,7 +164,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	}
 
 	// fast check if requested offsets are equal with thread heads
-	if changed, err := s.threadChanged(req); err != nil {
+	if changed, err := s.headsChanged(req); err != nil {
 		return nil, err
 	} else if !changed {
 		return pbrecs, nil
@@ -274,17 +274,17 @@ func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 	return nil
 }
 
-// threadChanged determines if thread heads are different from the requested offsets.
-func (s *server) threadChanged(req *pb.GetRecordsRequest) (bool, error) {
+// headsChanged determines if thread heads are different from the requested offsets.
+func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 	var reqHeads = make([]util.LogHead, len(req.Body.Logs))
 	for i, l := range req.Body.GetLogs() {
 		reqHeads[i] = util.LogHead{Head: l.Offset.Cid, LogID: l.LogID.ID}
 	}
-	var currEdge, err = s.net.store.ThreadEdge(req.Body.ThreadID.ID)
+	var currEdge, err = s.net.store.HeadsEdge(req.Body.ThreadID.ID)
 	if err != nil {
 		return false, err
 	}
-	return util.ComputeThreadEdge(reqHeads) != currEdge, nil
+	return util.ComputeHeadsEdge(reqHeads) != currEdge, nil
 }
 
 // verifyRequest verifies that the signature associated with a request is valid.

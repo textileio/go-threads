@@ -20,7 +20,7 @@ var headBookSuite = map[string]func(hb core.HeadBook) func(*testing.T){
 	"SetGetHeads": testHeadBookSetHeads,
 	"ClearHeads":  testHeadBookClearHeads,
 	"ExportHeads": testHeadBookExport,
-	"ThreadEdge":  testHeadBookThreadEdge,
+	"HeadsEdge":   testHeadBookEdge,
 }
 
 type HeadBookFactory func() (core.HeadBook, func())
@@ -150,7 +150,7 @@ func testHeadBookClearHeads(hb core.HeadBook) func(t *testing.T) {
 	}
 }
 
-func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
+func testHeadBookEdge(hb core.HeadBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		var (
 			numLogs  = 3
@@ -176,7 +176,7 @@ func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
 						heads = append(heads, util.LogHead{LogID: lid, Head: c})
 					}
 				}
-				return util.ComputeThreadEdge(heads) == edge
+				return util.ComputeHeadsEdge(heads) == edge
 			}
 
 			// generate 3 sets of heads
@@ -184,7 +184,7 @@ func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
 			hSet1, hSet2, hSet3 = heads[0], heads[1], heads[2]
 		)
 
-		if _, err := hb.ThreadEdge(tid); err != core.ErrThreadNotFound {
+		if _, err := hb.HeadsEdge(tid); err != core.ErrThreadNotFound {
 			t.Error("expected to get error on retrieving non-existing thread's edge")
 		}
 		for lid, hs := range hSet1 {
@@ -196,7 +196,7 @@ func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
 			}
 		}
 
-		edge1, err := hb.ThreadEdge(tid)
+		edge1, err := hb.HeadsEdge(tid)
 		if err != nil {
 			t.Errorf("error while getting thread's edge: %v", err)
 		}
@@ -207,7 +207,7 @@ func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
 				t.Fatalf("error when adding heads: %v", err)
 			}
 		}
-		edge2, err := hb.ThreadEdge(tid)
+		edge2, err := hb.HeadsEdge(tid)
 		if err != nil {
 			t.Errorf("error while getting thread's edge: %v", err)
 		}
@@ -224,7 +224,7 @@ func testHeadBookThreadEdge(hb core.HeadBook) func(t *testing.T) {
 				t.Fatalf("error when adding heads: %v", err)
 			}
 		}
-		edge3, err := hb.ThreadEdge(tid)
+		edge3, err := hb.HeadsEdge(tid)
 		if err != nil {
 			t.Errorf("error while getting thread's edge: %v", err)
 		}

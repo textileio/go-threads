@@ -205,7 +205,7 @@ type LogHead struct {
 	Head  cid.Cid
 }
 
-func ComputeThreadEdge(hs []LogHead) uint64 {
+func ComputeHeadsEdge(hs []LogHead) uint64 {
 	// sort heads for deterministic edge computation
 	sort.Slice(hs, func(i, j int) bool {
 		if hs[i].LogID == hs[j].LogID {
