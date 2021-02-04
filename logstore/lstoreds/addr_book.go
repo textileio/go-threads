@@ -2,6 +2,7 @@ package lstoreds
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"sort"
 	"sync"
@@ -15,8 +16,10 @@ import (
 	"github.com/libp2p/go-libp2p-peerstore/pstoremem"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/logstore"
+	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/pb"
+	"github.com/textileio/go-threads/util"
 	"github.com/whyrusleeping/base32"
 )
 
@@ -33,6 +36,10 @@ var (
 	// Thread addresses are stored db key pattern:
 	// /thread/addrs/<b32 thread id no padding>/<b32 log id no padding>
 	logBookBase = ds.NewKey("/thread/addrs")
+
+	// Address edges are stored in db key pattern:
+	// /thread/addrs:edge/<base32 thread id no padding>>
+	logBookEdge = ds.NewKey("/thread/addrs:edge")
 )
 
 type DsAddrBook struct {
@@ -190,6 +197,8 @@ func (ab *DsAddrBook) ClearAddrs(t thread.ID, p peer.ID) error {
 	key := genDSKey(t, p)
 	if err := ab.ds.Delete(key); err != nil {
 		return fmt.Errorf("failed to clear addresses for log %s: %w", p.Pretty(), err)
+	} else if err := ab.invalidateEdge(t); err != nil {
+		return fmt.Errorf("edge invalidation failed for thread %v: %w", t, err)
 	}
 	return nil
 }
@@ -212,6 +221,57 @@ func (ab *DsAddrBook) ThreadsFromAddrs() (thread.IDSlice, error) {
 		return nil, fmt.Errorf("error while retrieving thread from addresses: %w", err)
 	}
 	return ids, nil
+}
+
+func (ab *DsAddrBook) AddrsEdge(t thread.ID) (uint64, error) {
+	var key = dsThreadKey(t, logBookEdge)
+	if v, err := ab.ds.Get(key); err == nil {
+		return binary.BigEndian.Uint64(v), nil
+	} else if err != ds.ErrNotFound {
+		return 0, err
+	}
+
+	// edge not evaluated/invalidated, let's compute it
+	result, err := ab.ds.Query(query.Query{Prefix: dsThreadKey(t, logBookBase).String(), KeysOnly: false})
+	if err != nil {
+		return 0, err
+	}
+	defer result.Close()
+
+	var (
+		as  []util.PeerAddr
+		now = time.Now().Unix()
+	)
+	for entry := range result.Next() {
+		_, pid, addrRec, err := ab.decodeAddrEntry(entry, true)
+		if err != nil {
+			return 0, err
+		}
+		for i := 0; i < len(addrRec.Addrs); i++ {
+			if addrRec.Addrs[i].Expiry > now {
+				// invariant: no address duplicates for the peer
+				as = append(as, util.PeerAddr{
+					PeerID: pid,
+					Addr:   addrRec.Addrs[i].Addr,
+				})
+			}
+		}
+	}
+	if len(as) == 0 {
+		return 0, core.ErrThreadNotFound
+	}
+
+	var (
+		buff [8]byte
+		edge = util.ComputeAddrsEdge(as)
+	)
+	binary.BigEndian.PutUint64(buff[:], edge)
+	return edge, ab.ds.Put(key, buff[:])
+}
+
+func (ab *DsAddrBook) invalidateEdge(tid thread.ID) error {
+	var key = dsThreadKey(tid, logBookEdge)
+	return ab.ds.Delete(key)
 }
 
 // loadRecord is a read-through fetch. It fetches a record from cache, falling back to the
@@ -398,6 +458,12 @@ Outer:
 		ab.subsManager.BroadcastAddr(p, addr)
 	}
 
+	if len(added) > 0 {
+		if err := ab.invalidateEdge(t); err != nil {
+			return fmt.Errorf("edge invalidation failed for thread %v: %w", t, err)
+		}
+	}
+
 	pr.Addrs = append(pr.Addrs, added...)
 	pr.dirty = true
 	pr.clean()
@@ -431,6 +497,8 @@ func (ab *DsAddrBook) deleteAddrs(t thread.ID, p peer.ID, addrs []ma.Multiaddr) 
 		}
 	}
 	pr.Addrs = pr.Addrs[:survived]
+
+	// currently we don't invalidate edge on address expiration
 
 	pr.dirty = true
 	pr.clean()
@@ -536,42 +604,50 @@ func (ab *DsAddrBook) traverse(withAddrs bool) (map[thread.ID]map[peer.ID]*pb.Ad
 	defer result.Close()
 
 	for entry := range result.Next() {
-		kns := ds.RawKey(entry.Key).Namespaces()
-		if len(kns) < 3 {
-			return nil, fmt.Errorf("bad addressbook key detected: %s", entry.Key)
-		}
-
-		// get thread and log IDs from the key components
-		ts, ls := kns[len(kns)-2], kns[len(kns)-1]
-
-		// parse thread ID
-		tid, err := parseThreadID(ts)
+		tid, pid, record, err := ab.decodeAddrEntry(entry, withAddrs)
 		if err != nil {
-			return nil, fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+			return nil, err
 		}
 
-		// parse log ID
-		lid, err := parseLogID(ls)
-		if err != nil {
-			return nil, fmt.Errorf("cannot restore log ID %s: %w", ls, err)
-		}
-
-		var record *pb.AddrBookRecord
-		if withAddrs {
-			var pr = &addrsRecord{AddrBookRecord: &pb.AddrBookRecord{}}
-			if err := pr.Unmarshal(entry.Value); err != nil {
-				return nil, fmt.Errorf("cannot decode addressbook record: %w", err)
-			}
-			record = pr.AddrBookRecord
-		}
-
-		la, exist := data[tid]
+		pa, exist := data[tid]
 		if !exist {
-			la = make(map[peer.ID]*pb.AddrBookRecord)
-			data[tid] = la
+			pa = make(map[peer.ID]*pb.AddrBookRecord)
+			data[tid] = pa
 		}
-		la[lid] = record
+		pa[pid] = record
 	}
 
 	return data, nil
+}
+
+func (ab *DsAddrBook) decodeAddrEntry(
+	entry query.Result,
+	withAddrs bool,
+) (tid thread.ID, pid peer.ID, record *pb.AddrBookRecord, err error) {
+	kns := ds.RawKey(entry.Key).Namespaces()
+	if len(kns) < 3 {
+		err = fmt.Errorf("bad addressbook key detected: %s", entry.Key)
+		return
+	}
+	// get thread and log IDs from the key components
+	var ts, ls = kns[len(kns)-2], kns[len(kns)-1]
+	tid, err = parseThreadID(ts)
+	if err != nil {
+		err = fmt.Errorf("cannot restore thread ID %s: %w", ts, err)
+		return
+	}
+	pid, err = parseLogID(ls)
+	if err != nil {
+		err = fmt.Errorf("cannot restore log ID %s: %w", ls, err)
+		return
+	}
+	if withAddrs {
+		var pr = &addrsRecord{AddrBookRecord: &pb.AddrBookRecord{}}
+		if err := pr.Unmarshal(entry.Value); err != nil {
+			err = fmt.Errorf("cannot decode addressbook record: %w", err)
+			return
+		}
+		record = pr.AddrBookRecord
+	}
+	return
 }
