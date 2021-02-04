@@ -24,10 +24,11 @@ var (
 	// /thread/heads/<base32 thread id no padding>/<base32 peer id no padding>
 	hbBase = ds.NewKey("/thread/heads")
 
-	// Thread edges are stored in db key pattern:
-	// /thread/heads/edge/<base32 thread id no padding>>
-	hbEdge               = hbBase.ChildString("/edge")
-	_      core.HeadBook = (*dsHeadBook)(nil)
+	// Heads edges are stored in db key pattern:
+	// /thread/heads:edge/<base32 thread id no padding>>
+	hbEdge = ds.NewKey("/thread/heads:edge")
+
+	_ core.HeadBook = (*dsHeadBook)(nil)
 )
 
 // NewHeadBook returns a new HeadBook backed by a datastore.
@@ -169,7 +170,7 @@ func (hb *dsHeadBook) HeadsEdge(tid thread.ID) (uint64, error) {
 }
 
 func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
-	var key = dsThreadKey(tid, hbBase.Child(hbEdge))
+	var key = dsThreadKey(tid, hbEdge)
 	if v, err := txn.Get(key); err == nil {
 		return binary.BigEndian.Uint64(v), nil
 	} else if err != ds.ErrNotFound {
@@ -206,7 +207,7 @@ func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
 }
 
 func (hb *dsHeadBook) invalidateEdge(txn ds.Txn, tid thread.ID) error {
-	var key = dsThreadKey(tid, hbBase.Child(hbEdge))
+	var key = dsThreadKey(tid, hbEdge)
 	return txn.Delete(key)
 }
 
