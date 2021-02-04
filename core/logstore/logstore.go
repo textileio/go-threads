@@ -176,6 +176,9 @@ type AddrBook interface {
 	// ThreadsFromAddrs returns a list of threads referenced in the book.
 	ThreadsFromAddrs() (thread.IDSlice, error)
 
+	// AddrsEdge returns deterministic hash of all peer addresses of a given thread.
+	AddrsEdge(t thread.ID) (uint64, error)
+
 	// DumpHeads packs all stored addresses.
 	DumpAddrs() (DumpAddrBook, error)
 
