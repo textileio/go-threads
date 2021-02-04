@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -215,7 +216,29 @@ func ComputeHeadsEdge(hs []LogHead) uint64 {
 	})
 	hasher := fnv.New64a()
 	for i := 0; i < len(hs); i++ {
+		_, _ = hasher.Write([]byte(hs[i].LogID))
 		_, _ = hasher.Write(hs[i].Head.Bytes())
+	}
+	return hasher.Sum64()
+}
+
+type PeerAddr struct {
+	PeerID peer.ID
+	Addr   ma.Multiaddr
+}
+
+func ComputeAddrsEdge(as []PeerAddr) uint64 {
+	// sort peer addresses for deterministic edge computation
+	sort.Slice(as, func(i, j int) bool {
+		if as[i].PeerID == as[j].PeerID {
+			return bytes.Compare(as[i].Addr.Bytes(), as[i].Addr.Bytes()) < 0
+		}
+		return as[i].PeerID < as[j].PeerID
+	})
+	hasher := fnv.New64a()
+	for i := 0; i < len(as); i++ {
+		_, _ = hasher.Write([]byte(as[i].PeerID))
+		_, _ = hasher.Write(as[i].Addr.Bytes())
 	}
 	return hasher.Sum64()
 }
