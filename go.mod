@@ -9,6 +9,7 @@ require (
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/dgraph-io/badger v1.6.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/dgtony/collections v0.1.6
 	github.com/dlclark/regexp2 v1.2.0 // indirect
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/evanphx/json-patch v4.5.0+incompatible

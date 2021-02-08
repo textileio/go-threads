@@ -643,7 +643,7 @@ func (ab *DsAddrBook) decodeAddrEntry(
 	}
 	if withAddrs {
 		var pr = &addrsRecord{AddrBookRecord: &pb.AddrBookRecord{}}
-		if err := pr.Unmarshal(entry.Value); err != nil {
+		if err = pr.Unmarshal(entry.Value); err != nil {
 			err = fmt.Errorf("cannot decode addressbook record: %w", err)
 			return
 		}
