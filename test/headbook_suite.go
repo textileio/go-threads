@@ -185,7 +185,7 @@ func testHeadBookEdge(hb core.HeadBook) func(t *testing.T) {
 		)
 
 		if _, err := hb.HeadsEdge(tid); err != core.ErrThreadNotFound {
-			t.Error("expected to get error on retrieving non-existing thread's edge")
+			t.Error("expected to get error on retrieving non-existing head's edge")
 		}
 		for lid, hs := range hSet1 {
 			if stored, err := hb.Heads(tid, lid); err != nil || len(stored) > 0 {

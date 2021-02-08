@@ -9,6 +9,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/util"
 )
 
 var addressBookSuite = map[string]func(book core.AddrBook) func(*testing.T){
@@ -21,6 +22,7 @@ var addressBookSuite = map[string]func(book core.AddrBook) func(*testing.T){
 	"ClearWithIter":        testClearWithIterator,
 	"LogsWithAddresses":    testLogsWithAddrs,
 	"ThreadsWithAddresses": testThreadsFromAddrs,
+	"AddrEdge":             testAddrsEdge,
 	"ExportAddressBook":    testExportAddressBook,
 }
 
@@ -383,6 +385,61 @@ func testThreadsFromAddrs(ab core.AddrBook) func(t *testing.T) {
 
 			if threads, err := ab.ThreadsFromAddrs(); err != nil || len(threads) != len(tids) {
 				t.Fatalf("expected to find %d threads without errors, got %d with err: %v", len(tids), len(threads), err)
+			}
+		})
+	}
+}
+
+func testAddrsEdge(ab core.AddrBook) func(t *testing.T) {
+	return func(t *testing.T) {
+		tid := thread.NewIDV1(thread.Raw, 24)
+
+		t.Run("empty addrbook", func(t *testing.T) {
+			if _, err := ab.AddrsEdge(tid); err != core.ErrThreadNotFound {
+				t.Error("expected to get error on retrieving non-existing address edge")
+			}
+		})
+
+		t.Run("non-empty addrbook", func(t *testing.T) {
+			var (
+				pids  = GeneratePeerIDs(2)
+				addrs = GenerateAddrs(4)
+			)
+
+			check(t, ab.AddAddrs(tid, pids[0], addrs[0:2], pstore.PermanentAddrTTL))
+			time.Sleep(10 * time.Millisecond)
+			e1, err := ab.AddrsEdge(tid)
+			check(t, err)
+
+			check(t, ab.SetAddrs(tid, pids[0], addrs[2:3], pstore.PermanentAddrTTL))
+			time.Sleep(10 * time.Millisecond)
+			e2, err := ab.AddrsEdge(tid)
+			check(t, err)
+
+			check(t, ab.AddAddr(tid, pids[1], addrs[3], pstore.PermanentAddrTTL))
+			time.Sleep(10 * time.Millisecond)
+			e3, err := ab.AddrsEdge(tid)
+			check(t, err)
+
+			if e1 == e2 || e2 == e3 || e1 == e3 {
+				t.Error("edges should not be equal for different address subsets")
+			}
+
+			check(t, ab.ClearAddrs(tid, pids[1]))
+			time.Sleep(10 * time.Millisecond)
+			e4, err := ab.AddrsEdge(tid)
+			check(t, err)
+
+			if e4 != e2 {
+				t.Error("different address edges (ClearAddrs)")
+			}
+
+			if util.ComputeAddrsEdge([]util.PeerAddr{
+				{PeerID: pids[0], Addr: addrs[0]},
+				{PeerID: pids[0], Addr: addrs[1]},
+				{PeerID: pids[0], Addr: addrs[2]},
+			}) != e4 {
+				t.Error("different address edges (direct computation)")
 			}
 		})
 	}
