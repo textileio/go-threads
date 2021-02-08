@@ -193,8 +193,8 @@ func GenerateRandomBytes(n int) []byte {
 }
 
 func MakeToken(n int) string {
-	bytes := GenerateRandomBytes(n)
-	encoded, err := mbase.Encode(mbase.Base32, bytes)
+	bs := GenerateRandomBytes(n)
+	encoded, err := mbase.Encode(mbase.Base32, bs)
 	if err != nil {
 		panic(err)
 	}
@@ -231,7 +231,7 @@ func ComputeAddrsEdge(as []PeerAddr) uint64 {
 	// sort peer addresses for deterministic edge computation
 	sort.Slice(as, func(i, j int) bool {
 		if as[i].PeerID == as[j].PeerID {
-			return bytes.Compare(as[i].Addr.Bytes(), as[i].Addr.Bytes()) < 0
+			return bytes.Compare(as[i].Addr.Bytes(), as[j].Addr.Bytes()) < 0
 		}
 		return as[i].PeerID < as[j].PeerID
 	})
