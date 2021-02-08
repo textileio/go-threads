@@ -239,6 +239,10 @@ func (l *lstore) ThreadsFromAddrs() (thread.IDSlice, error) {
 	return l.inMem.ThreadsFromAddrs()
 }
 
+func (l *lstore) AddrsEdge(t thread.ID) (uint64, error) {
+	return l.inMem.AddrsEdge(t)
+}
+
 func (l *lstore) AddHead(tid thread.ID, lid peer.ID, cid cid.Cid) error {
 	if err := l.persist.AddHead(tid, lid, cid); err != nil {
 		return err
