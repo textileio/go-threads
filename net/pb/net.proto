@@ -144,6 +144,45 @@ message PushRecordRequest {
 // PushRecordReply is the response from a PushRecordRequest.
 message PushRecordReply {}
 
+// ExchangeEdgesRequest is used to exchange address/heads edges with a peer.
+message ExchangeEdgesRequest {
+    // header is the message header.
+    Header header = 1;
+    // body is the message body.
+    Body body = 2;
+
+    message Body {
+        // threads is a list of requested thread IDs with its local edges.
+        repeated ThreadEntry threads = 1;
+
+        message ThreadEntry {
+            // threadID is the target thread's ID.
+            bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+            // addressEdge is the current hash of peers addresses stored on a requester.
+            uint64 addressEdge = 2;
+            // headsEdge is the current hash of the log's heads stored on a requester.
+            uint64 headsEdge = 3;
+        }
+    }
+}
+
+// ExchangeEdgesReply contains edges requested with an ExchangeEdgesRequest.
+message ExchangeEdgesReply {
+    // edges contains edge information about requested threads.
+    repeated ThreadEdges edges = 1;
+
+    message ThreadEdges {
+        // threadID is the requested thread's ID.
+        bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+        // exists is the flag indicating whether the requested thread exists on a respondent.
+        bool exists = 2;
+        // addressEdge is the current hash of peers addresses stored on a respondent.
+        uint64 addressEdge = 3;
+        // headsEdge is the current hash of the log's heads stored on a respondent.
+        uint64 headsEdge = 4;
+    }
+}
+
 // Service is the peer-to-peer network API for thread orchestration.
 service Service {
     // GetLogs from a peer.
@@ -154,4 +193,6 @@ service Service {
     rpc GetRecords(GetRecordsRequest) returns (GetRecordsReply) {}
     // PushRecord to a peer.
     rpc PushRecord(PushRecordRequest) returns (PushRecordReply) {}
+    // ExchangeEdges with a peer.
+    rpc ExchangeEdges(ExchangeEdgesRequest) returns (ExchangeEdgesReply) {}
 }
