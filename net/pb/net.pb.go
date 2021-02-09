@@ -9,8 +9,11 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -22,7 +25,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // Header holds a key and signature for a request.
 type Header struct {
@@ -46,7 +49,7 @@ func (m *Header) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Header.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +101,7 @@ func (m *Log) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Log.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +146,7 @@ func (m *Log_Record) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Log_Record.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -212,7 +215,7 @@ func (m *GetLogsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_GetLogsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +269,7 @@ func (m *GetLogsRequest_Body) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_GetLogsRequest_Body.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -305,7 +308,7 @@ func (m *GetLogsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_GetLogsReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -353,7 +356,7 @@ func (m *PushLogRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_PushLogRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -411,7 +414,7 @@ func (m *PushLogRequest_Body) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_PushLogRequest_Body.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -455,7 +458,7 @@ func (m *PushLogReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_PushLogReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +499,7 @@ func (m *GetRecordsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return xxx_messageInfo_GetRecordsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -552,7 +555,7 @@ func (m *GetRecordsRequest_Body) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return xxx_messageInfo_GetRecordsRequest_Body.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -602,7 +605,7 @@ func (m *GetRecordsRequest_Body_LogEntry) XXX_Marshal(b []byte, deterministic bo
 		return xxx_messageInfo_GetRecordsRequest_Body_LogEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -648,7 +651,7 @@ func (m *GetRecordsReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return xxx_messageInfo_GetRecordsReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -698,7 +701,7 @@ func (m *GetRecordsReply_LogEntry) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_GetRecordsReply_LogEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -753,7 +756,7 @@ func (m *PushRecordRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return xxx_messageInfo_PushRecordRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -809,7 +812,7 @@ func (m *PushRecordRequest_Body) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return xxx_messageInfo_PushRecordRequest_Body.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -853,7 +856,7 @@ func (m *PushRecordReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return xxx_messageInfo_PushRecordReply.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -871,6 +874,273 @@ func (m *PushRecordReply) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_PushRecordReply proto.InternalMessageInfo
+
+// ExchangeEdgesRequest is used to exchange address/heads edges with a peer.
+type ExchangeEdgesRequest struct {
+	// header is the message header.
+	Header *Header `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
+	// body is the message body.
+	Body *ExchangeEdgesRequest_Body `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+}
+
+func (m *ExchangeEdgesRequest) Reset()         { *m = ExchangeEdgesRequest{} }
+func (m *ExchangeEdgesRequest) String() string { return proto.CompactTextString(m) }
+func (*ExchangeEdgesRequest) ProtoMessage()    {}
+func (*ExchangeEdgesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{10}
+}
+func (m *ExchangeEdgesRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ExchangeEdgesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ExchangeEdgesRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ExchangeEdgesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeEdgesRequest.Merge(m, src)
+}
+func (m *ExchangeEdgesRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ExchangeEdgesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeEdgesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeEdgesRequest proto.InternalMessageInfo
+
+func (m *ExchangeEdgesRequest) GetHeader() *Header {
+	if m != nil {
+		return m.Header
+	}
+	return nil
+}
+
+func (m *ExchangeEdgesRequest) GetBody() *ExchangeEdgesRequest_Body {
+	if m != nil {
+		return m.Body
+	}
+	return nil
+}
+
+type ExchangeEdgesRequest_Body struct {
+	// threads is a list of requested thread IDs with its local edges.
+	Threads []*ExchangeEdgesRequest_Body_ThreadEntry `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
+}
+
+func (m *ExchangeEdgesRequest_Body) Reset()         { *m = ExchangeEdgesRequest_Body{} }
+func (m *ExchangeEdgesRequest_Body) String() string { return proto.CompactTextString(m) }
+func (*ExchangeEdgesRequest_Body) ProtoMessage()    {}
+func (*ExchangeEdgesRequest_Body) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{10, 0}
+}
+func (m *ExchangeEdgesRequest_Body) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ExchangeEdgesRequest_Body) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ExchangeEdgesRequest_Body.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ExchangeEdgesRequest_Body) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeEdgesRequest_Body.Merge(m, src)
+}
+func (m *ExchangeEdgesRequest_Body) XXX_Size() int {
+	return m.Size()
+}
+func (m *ExchangeEdgesRequest_Body) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeEdgesRequest_Body.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeEdgesRequest_Body proto.InternalMessageInfo
+
+func (m *ExchangeEdgesRequest_Body) GetThreads() []*ExchangeEdgesRequest_Body_ThreadEntry {
+	if m != nil {
+		return m.Threads
+	}
+	return nil
+}
+
+type ExchangeEdgesRequest_Body_ThreadEntry struct {
+	// threadID is the target thread's ID.
+	ThreadID *ProtoThreadID `protobuf:"bytes,1,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
+	// addressEdge is the current hash of peers addresses stored on a requester.
+	AddressEdge uint64 `protobuf:"varint,2,opt,name=addressEdge,proto3" json:"addressEdge,omitempty"`
+	// headsEdge is the current hash of the log's heads stored on a requester.
+	HeadsEdge uint64 `protobuf:"varint,3,opt,name=headsEdge,proto3" json:"headsEdge,omitempty"`
+}
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) Reset()         { *m = ExchangeEdgesRequest_Body_ThreadEntry{} }
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) String() string { return proto.CompactTextString(m) }
+func (*ExchangeEdgesRequest_Body_ThreadEntry) ProtoMessage()    {}
+func (*ExchangeEdgesRequest_Body_ThreadEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{10, 0, 0}
+}
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ExchangeEdgesRequest_Body_ThreadEntry.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeEdgesRequest_Body_ThreadEntry.Merge(m, src)
+}
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) XXX_Size() int {
+	return m.Size()
+}
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeEdgesRequest_Body_ThreadEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeEdgesRequest_Body_ThreadEntry proto.InternalMessageInfo
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) GetAddressEdge() uint64 {
+	if m != nil {
+		return m.AddressEdge
+	}
+	return 0
+}
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) GetHeadsEdge() uint64 {
+	if m != nil {
+		return m.HeadsEdge
+	}
+	return 0
+}
+
+// ExchangeEdgesReply contains edges requested with an ExchangeEdgesRequest.
+type ExchangeEdgesReply struct {
+	// edges contains edge information about requested threads.
+	Edges []*ExchangeEdgesReply_ThreadEdges `protobuf:"bytes,1,rep,name=edges,proto3" json:"edges,omitempty"`
+}
+
+func (m *ExchangeEdgesReply) Reset()         { *m = ExchangeEdgesReply{} }
+func (m *ExchangeEdgesReply) String() string { return proto.CompactTextString(m) }
+func (*ExchangeEdgesReply) ProtoMessage()    {}
+func (*ExchangeEdgesReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{11}
+}
+func (m *ExchangeEdgesReply) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ExchangeEdgesReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ExchangeEdgesReply.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ExchangeEdgesReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeEdgesReply.Merge(m, src)
+}
+func (m *ExchangeEdgesReply) XXX_Size() int {
+	return m.Size()
+}
+func (m *ExchangeEdgesReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeEdgesReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeEdgesReply proto.InternalMessageInfo
+
+func (m *ExchangeEdgesReply) GetEdges() []*ExchangeEdgesReply_ThreadEdges {
+	if m != nil {
+		return m.Edges
+	}
+	return nil
+}
+
+type ExchangeEdgesReply_ThreadEdges struct {
+	// threadID is the requested thread's ID.
+	ThreadID *ProtoThreadID `protobuf:"bytes,1,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
+	// exists is the flag indicating whether the requested thread exists on a respondent.
+	Exists bool `protobuf:"varint,2,opt,name=exists,proto3" json:"exists,omitempty"`
+	// addressEdge is the current hash of peers addresses stored on a respondent.
+	AddressEdge uint64 `protobuf:"varint,3,opt,name=addressEdge,proto3" json:"addressEdge,omitempty"`
+	// headsEdge is the current hash of the log's heads stored on a respondent.
+	HeadsEdge uint64 `protobuf:"varint,4,opt,name=headsEdge,proto3" json:"headsEdge,omitempty"`
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) Reset()         { *m = ExchangeEdgesReply_ThreadEdges{} }
+func (m *ExchangeEdgesReply_ThreadEdges) String() string { return proto.CompactTextString(m) }
+func (*ExchangeEdgesReply_ThreadEdges) ProtoMessage()    {}
+func (*ExchangeEdgesReply_ThreadEdges) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a5b10ce944527a32, []int{11, 0}
+}
+func (m *ExchangeEdgesReply_ThreadEdges) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ExchangeEdgesReply_ThreadEdges) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ExchangeEdgesReply_ThreadEdges.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ExchangeEdgesReply_ThreadEdges) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExchangeEdgesReply_ThreadEdges.Merge(m, src)
+}
+func (m *ExchangeEdgesReply_ThreadEdges) XXX_Size() int {
+	return m.Size()
+}
+func (m *ExchangeEdgesReply_ThreadEdges) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExchangeEdgesReply_ThreadEdges.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExchangeEdgesReply_ThreadEdges proto.InternalMessageInfo
+
+func (m *ExchangeEdgesReply_ThreadEdges) GetExists() bool {
+	if m != nil {
+		return m.Exists
+	}
+	return false
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) GetAddressEdge() uint64 {
+	if m != nil {
+		return m.AddressEdge
+	}
+	return 0
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) GetHeadsEdge() uint64 {
+	if m != nil {
+		return m.HeadsEdge
+	}
+	return 0
+}
 
 func init() {
 	proto.RegisterType((*Header)(nil), "net.pb.Header")
@@ -890,60 +1160,75 @@ func init() {
 	proto.RegisterType((*PushRecordRequest)(nil), "net.pb.PushRecordRequest")
 	proto.RegisterType((*PushRecordRequest_Body)(nil), "net.pb.PushRecordRequest.Body")
 	proto.RegisterType((*PushRecordReply)(nil), "net.pb.PushRecordReply")
+	proto.RegisterType((*ExchangeEdgesRequest)(nil), "net.pb.ExchangeEdgesRequest")
+	proto.RegisterType((*ExchangeEdgesRequest_Body)(nil), "net.pb.ExchangeEdgesRequest.Body")
+	proto.RegisterType((*ExchangeEdgesRequest_Body_ThreadEntry)(nil), "net.pb.ExchangeEdgesRequest.Body.ThreadEntry")
+	proto.RegisterType((*ExchangeEdgesReply)(nil), "net.pb.ExchangeEdgesReply")
+	proto.RegisterType((*ExchangeEdgesReply_ThreadEdges)(nil), "net.pb.ExchangeEdgesReply.ThreadEdges")
 }
 
 func init() { proto.RegisterFile("net.proto", fileDescriptor_a5b10ce944527a32) }
 
 var fileDescriptor_a5b10ce944527a32 = []byte{
-	// 760 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0xcd, 0x6e, 0xd3, 0x4c,
-	0x14, 0x8d, 0xed, 0xc4, 0x4d, 0x6f, 0xd2, 0x54, 0x19, 0x55, 0xdf, 0x17, 0x0c, 0x38, 0x91, 0x81,
-	0xb6, 0x42, 0x6d, 0x22, 0x05, 0x36, 0x88, 0x15, 0xa1, 0xa8, 0x54, 0x54, 0x50, 0x0d, 0xbc, 0x40,
-	0x12, 0x4f, 0x9d, 0x48, 0x6e, 0x26, 0xd8, 0x4e, 0x25, 0x6f, 0x90, 0x60, 0x03, 0x3b, 0x58, 0xb1,
-	0xe1, 0x0d, 0x78, 0x0a, 0x76, 0xb0, 0x42, 0x5d, 0xa2, 0x2c, 0x22, 0x48, 0x5f, 0x02, 0xb1, 0x42,
-	0x33, 0xe3, 0xf8, 0xa7, 0xf9, 0x91, 0x8a, 0xaa, 0xee, 0x3c, 0xf7, 0xdc, 0x7b, 0xe7, 0xcc, 0xb9,
-	0x67, 0x46, 0x86, 0xe5, 0x1e, 0xf1, 0xaa, 0x7d, 0x87, 0x7a, 0x14, 0xa9, 0xfc, 0xb3, 0xa5, 0x6d,
-	0x5b, 0x5d, 0xaf, 0x33, 0x68, 0x55, 0xdb, 0xf4, 0xa8, 0x66, 0x51, 0x8b, 0xd6, 0x38, 0xdc, 0x1a,
-	0x1c, 0xf2, 0x15, 0x5f, 0xf0, 0x2f, 0x51, 0x66, 0x3c, 0x03, 0xf5, 0x31, 0x69, 0x9a, 0xc4, 0x41,
-	0x1b, 0xa0, 0xf6, 0x07, 0xad, 0x27, 0xc4, 0x2f, 0x49, 0x15, 0x69, 0x33, 0xdf, 0x58, 0x1d, 0x8e,
-	0xca, 0xb9, 0x03, 0x96, 0x74, 0xc0, 0xc3, 0x38, 0x80, 0xd1, 0x35, 0x58, 0x76, 0xbb, 0x56, 0xaf,
-	0xe9, 0x0d, 0x1c, 0x52, 0x92, 0x59, 0x2e, 0x8e, 0x02, 0xc6, 0x27, 0x19, 0x94, 0x7d, 0x6a, 0xa1,
-	0x32, 0xc8, 0x7b, 0x3b, 0xd3, 0xad, 0x08, 0x71, 0xf6, 0x76, 0xb0, 0xbc, 0xb7, 0x13, 0xdb, 0x4f,
-	0x5e, 0xbc, 0xdf, 0x0d, 0xc8, 0x34, 0x4d, 0xd3, 0x71, 0x4b, 0x4a, 0x45, 0xd9, 0xcc, 0x37, 0x56,
-	0x86, 0xa3, 0xf2, 0x32, 0xcf, 0x7b, 0x60, 0x9a, 0x0e, 0x16, 0x18, 0xaa, 0x40, 0xba, 0x43, 0x9a,
-	0x66, 0x29, 0xcd, 0x7b, 0xe5, 0x87, 0xa3, 0x72, 0x96, 0xe7, 0x3c, 0xec, 0x9a, 0x98, 0x23, 0xda,
-	0x1b, 0x09, 0x54, 0x4c, 0xda, 0xd4, 0x31, 0x91, 0x0e, 0xe0, 0xf0, 0xaf, 0xa7, 0xd4, 0x24, 0x82,
-	0x23, 0x8e, 0x45, 0xd8, 0x09, 0xc9, 0x31, 0xe9, 0x79, 0x1c, 0x0e, 0x4e, 0x18, 0x06, 0x58, 0x75,
-	0x87, 0x4b, 0xc6, 0x61, 0x45, 0x54, 0x47, 0x11, 0xa4, 0x41, 0xb6, 0x45, 0x4d, 0x9f, 0xa3, 0x9c,
-	0x0e, 0x0e, 0xd7, 0xc6, 0x77, 0x09, 0x0a, 0xbb, 0xc4, 0xdb, 0xa7, 0x96, 0x8b, 0xc9, 0xcb, 0x01,
-	0x71, 0x3d, 0xb4, 0x0e, 0xaa, 0x28, 0xe6, 0x44, 0x72, 0xf5, 0x42, 0x55, 0x4c, 0xb2, 0x2a, 0xe6,
-	0x82, 0x03, 0x14, 0xd5, 0x20, 0xcd, 0xda, 0x70, 0x3e, 0xb9, 0xfa, 0xd5, 0x49, 0x56, 0xb2, 0x5b,
-	0xb5, 0x41, 0x4d, 0x1f, 0xf3, 0x44, 0xad, 0x0d, 0x69, 0xb6, 0x42, 0xdb, 0x90, 0xf5, 0x3a, 0x0e,
-	0x69, 0x9a, 0xe1, 0x3c, 0x8a, 0xc3, 0x51, 0x79, 0x85, 0xcb, 0xf3, 0x22, 0x00, 0x70, 0x98, 0x82,
-	0xb6, 0x00, 0x5c, 0xe2, 0x1c, 0x77, 0xdb, 0x24, 0x9a, 0x4d, 0xa4, 0x27, 0x1b, 0x4c, 0x0c, 0x37,
-	0x6a, 0x90, 0x0f, 0x19, 0xf4, 0x6d, 0x1f, 0x95, 0x21, 0x6d, 0x53, 0xcb, 0x2d, 0x49, 0x15, 0x65,
-	0x33, 0x57, 0xcf, 0x4d, 0x58, 0xee, 0x53, 0x0b, 0x73, 0xc0, 0xf8, 0x28, 0x43, 0xe1, 0x60, 0xe0,
-	0x76, 0x58, 0xe4, 0x62, 0x14, 0x48, 0x76, 0x8b, 0x2b, 0xf0, 0x59, 0xba, 0x04, 0x09, 0xd0, 0x3a,
-	0x2c, 0xb1, 0x3a, 0x96, 0xaa, 0xcc, 0x48, 0x9d, 0x80, 0xe8, 0x3a, 0x28, 0x36, 0xb5, 0xb8, 0x25,
-	0xce, 0x28, 0xc3, 0xe2, 0x46, 0x01, 0xf2, 0xe1, 0x49, 0xfa, 0xb6, 0x6f, 0xbc, 0x56, 0xa0, 0xb8,
-	0x4b, 0x3c, 0x61, 0xd9, 0x73, 0xbb, 0xa5, 0x9e, 0xd0, 0x4a, 0x8f, 0xb9, 0x25, 0xd9, 0x30, 0x2e,
-	0xd7, 0x7b, 0xf9, 0x32, 0xe4, 0xba, 0x1f, 0x38, 0x44, 0xe1, 0x0e, 0xd9, 0x58, 0xcc, 0x8c, 0xc9,
-	0xf3, 0xa8, 0xe7, 0x39, 0xbe, 0x70, 0x8f, 0x76, 0x04, 0xd9, 0x49, 0x04, 0xdd, 0x82, 0x8c, 0x4d,
-	0xad, 0xf9, 0x8f, 0x8c, 0x40, 0xd1, 0x4d, 0x50, 0xe9, 0xe1, 0xa1, 0x4b, 0xbc, 0x29, 0x66, 0xec,
-	0x6d, 0x08, 0x30, 0xb4, 0x06, 0x19, 0xbb, 0x7b, 0xd4, 0xf5, 0xf8, 0x08, 0x33, 0x58, 0x2c, 0x8c,
-	0xaf, 0x12, 0xac, 0xc6, 0x89, 0x31, 0x87, 0xdf, 0x4d, 0x38, 0xbc, 0x32, 0x8b, 0x7f, 0xdf, 0x9e,
-	0x22, 0xfe, 0xea, 0xfc, 0xc4, 0xb7, 0x98, 0xaf, 0x78, 0xc7, 0x92, 0xcc, 0xf7, 0x42, 0x31, 0xcf,
-	0x54, 0xc5, 0x66, 0x78, 0x92, 0x32, 0x71, 0x97, 0x32, 0xc7, 0x5d, 0x7f, 0x24, 0x28, 0x32, 0x7b,
-	0x05, 0x65, 0x17, 0xe3, 0xa6, 0xa9, 0x86, 0x71, 0x37, 0xbd, 0xfb, 0xc7, 0xcb, 0x17, 0xaa, 0x23,
-	0x2f, 0x54, 0xe7, 0x36, 0xa8, 0xe2, 0xe8, 0xc1, 0x91, 0x67, 0x89, 0x13, 0x64, 0x18, 0x45, 0x58,
-	0x8d, 0x53, 0xed, 0xdb, 0x7e, 0xfd, 0xad, 0x0c, 0x4b, 0xcf, 0x85, 0x29, 0xd1, 0x3d, 0x58, 0x0a,
-	0xde, 0x30, 0xf4, 0xdf, 0xec, 0x67, 0x55, 0x5b, 0x9b, 0x8a, 0xb3, 0x2b, 0x9a, 0x62, 0xa5, 0xc1,
-	0xa5, 0x8d, 0x4a, 0x93, 0xef, 0x51, 0x54, 0x9a, 0xb8, 0xdd, 0x29, 0xd4, 0x00, 0x88, 0x3c, 0x83,
-	0xae, 0xcc, 0xbd, 0x07, 0xda, 0xff, 0x73, 0x2c, 0x26, 0x7a, 0x44, 0x07, 0x8b, 0x7a, 0x4c, 0xcd,
-	0x25, 0xea, 0x71, 0x46, 0x07, 0x23, 0xd5, 0xa8, 0xfc, 0xfe, 0xa5, 0x4b, 0x5f, 0xc6, 0xba, 0xf4,
-	0x6d, 0xac, 0x4b, 0x27, 0x63, 0x5d, 0xfa, 0x39, 0xd6, 0xa5, 0x0f, 0xa7, 0x7a, 0xea, 0xe4, 0x54,
-	0x4f, 0xfd, 0x38, 0xd5, 0x53, 0x2d, 0x95, 0xff, 0x2a, 0xdc, 0xf9, 0x1b, 0x00, 0x00, 0xff, 0xff,
-	0x7c, 0xcb, 0xbb, 0x8b, 0x6e, 0x08, 0x00, 0x00,
+	// 919 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x56, 0x4d, 0x6f, 0xe3, 0x44,
+	0x18, 0x8e, 0xed, 0xc4, 0x49, 0xdf, 0xa4, 0xa9, 0x32, 0xaa, 0x4a, 0x30, 0xc5, 0x09, 0x06, 0xda,
+	0x0a, 0xb5, 0x89, 0x14, 0xe0, 0x80, 0xe0, 0x42, 0x68, 0x55, 0xaa, 0x56, 0x50, 0x0d, 0xfc, 0x81,
+	0x24, 0x9e, 0x3a, 0x91, 0xd2, 0x4c, 0xb0, 0x9d, 0xaa, 0x91, 0x10, 0x12, 0x9c, 0xb8, 0xc1, 0x01,
+	0x71, 0xe1, 0x1f, 0xf0, 0x2b, 0xb8, 0x20, 0xb8, 0xec, 0xaa, 0x87, 0x3d, 0xac, 0x72, 0x88, 0x76,
+	0xd3, 0xd3, 0xfe, 0x83, 0xd5, 0x9e, 0x56, 0x33, 0xe3, 0xcf, 0x7c, 0x55, 0x59, 0x55, 0xbd, 0x79,
+	0xde, 0xaf, 0x79, 0x9f, 0x67, 0x9e, 0x77, 0xc6, 0xb0, 0xd6, 0x23, 0x6e, 0xa5, 0x6f, 0x53, 0x97,
+	0x22, 0x95, 0x7f, 0x36, 0xb5, 0x03, 0xab, 0xe3, 0xb6, 0x07, 0xcd, 0x4a, 0x8b, 0x5e, 0x56, 0x2d,
+	0x6a, 0xd1, 0x2a, 0x77, 0x37, 0x07, 0x17, 0x7c, 0xc5, 0x17, 0xfc, 0x4b, 0xa4, 0x19, 0xdf, 0x82,
+	0xfa, 0x35, 0x69, 0x98, 0xc4, 0x46, 0xbb, 0xa0, 0xf6, 0x07, 0xcd, 0x53, 0x32, 0x2c, 0x4a, 0x65,
+	0x69, 0x2f, 0x57, 0xdf, 0x18, 0x8d, 0x4b, 0xd9, 0x73, 0x16, 0x74, 0xce, 0xcd, 0xd8, 0x73, 0xa3,
+	0x6d, 0x58, 0x73, 0x3a, 0x56, 0xaf, 0xe1, 0x0e, 0x6c, 0x52, 0x94, 0x59, 0x2c, 0x0e, 0x0d, 0xc6,
+	0x5f, 0x32, 0x28, 0x67, 0xd4, 0x42, 0x25, 0x90, 0x4f, 0x0e, 0x67, 0x4b, 0x11, 0x62, 0x9f, 0x1c,
+	0x62, 0xf9, 0xe4, 0x30, 0xb2, 0x9f, 0xbc, 0x7c, 0xbf, 0xf7, 0x21, 0xd5, 0x30, 0x4d, 0xdb, 0x29,
+	0x2a, 0x65, 0x65, 0x2f, 0x57, 0x5f, 0x1f, 0x8d, 0x4b, 0x6b, 0x3c, 0xee, 0x4b, 0xd3, 0xb4, 0xb1,
+	0xf0, 0xa1, 0x32, 0x24, 0xdb, 0xa4, 0x61, 0x16, 0x93, 0xbc, 0x56, 0x6e, 0x34, 0x2e, 0x65, 0x78,
+	0xcc, 0x57, 0x1d, 0x13, 0x73, 0x8f, 0xf6, 0x8b, 0x04, 0x2a, 0x26, 0x2d, 0x6a, 0x9b, 0x48, 0x07,
+	0xb0, 0xf9, 0xd7, 0x37, 0xd4, 0x24, 0xa2, 0x47, 0x1c, 0xb1, 0x30, 0x84, 0xe4, 0x8a, 0xf4, 0x5c,
+	0xee, 0xf6, 0x10, 0x06, 0x06, 0x96, 0xdd, 0xe6, 0x94, 0x71, 0xb7, 0x22, 0xb2, 0x43, 0x0b, 0xd2,
+	0x20, 0xd3, 0xa4, 0xe6, 0x90, 0x7b, 0x79, 0x3b, 0x38, 0x58, 0x1b, 0x8f, 0x25, 0xc8, 0x1f, 0x13,
+	0xf7, 0x8c, 0x5a, 0x0e, 0x26, 0x3f, 0x0c, 0x88, 0xe3, 0xa2, 0x1d, 0x50, 0x45, 0x32, 0x6f, 0x24,
+	0x5b, 0xcb, 0x57, 0xc4, 0x49, 0x56, 0xc4, 0xb9, 0x60, 0xcf, 0x8b, 0xaa, 0x90, 0x64, 0x65, 0x78,
+	0x3f, 0xd9, 0xda, 0x3b, 0x7e, 0x54, 0xbc, 0x5a, 0xa5, 0x4e, 0xcd, 0x21, 0xe6, 0x81, 0x5a, 0x0b,
+	0x92, 0x6c, 0x85, 0x0e, 0x20, 0xe3, 0xb6, 0x6d, 0xd2, 0x30, 0x83, 0xf3, 0x28, 0x8c, 0xc6, 0xa5,
+	0x75, 0x4e, 0xcf, 0xf7, 0x9e, 0x03, 0x07, 0x21, 0x68, 0x1f, 0xc0, 0x21, 0xf6, 0x55, 0xa7, 0x45,
+	0xc2, 0xb3, 0x09, 0xf9, 0x64, 0x07, 0x13, 0xf1, 0x1b, 0x55, 0xc8, 0x05, 0x1d, 0xf4, 0xbb, 0x43,
+	0x54, 0x82, 0x64, 0x97, 0x5a, 0x4e, 0x51, 0x2a, 0x2b, 0x7b, 0xd9, 0x5a, 0xd6, 0xef, 0xf2, 0x8c,
+	0x5a, 0x98, 0x3b, 0x8c, 0x3f, 0x65, 0xc8, 0x9f, 0x0f, 0x9c, 0x36, 0xb3, 0xdc, 0x0f, 0x03, 0xf1,
+	0x6a, 0x51, 0x06, 0xfe, 0x96, 0x1e, 0x80, 0x02, 0xb4, 0x03, 0x69, 0x96, 0xc7, 0x42, 0x95, 0x39,
+	0xa1, 0xbe, 0x13, 0xbd, 0x0b, 0x4a, 0x97, 0x5a, 0x5c, 0x12, 0x53, 0xcc, 0x30, 0xbb, 0x91, 0x87,
+	0x5c, 0x80, 0xa4, 0xdf, 0x1d, 0x1a, 0x3f, 0x2b, 0x50, 0x38, 0x26, 0xae, 0x90, 0xec, 0xca, 0x6a,
+	0xa9, 0xc5, 0xb8, 0xd2, 0x23, 0x6a, 0x89, 0x17, 0x8c, 0xd2, 0xf5, 0x9b, 0xfc, 0x10, 0x74, 0x7d,
+	0xee, 0x29, 0x44, 0xe1, 0x0a, 0xd9, 0x5d, 0xde, 0x19, 0xa3, 0xe7, 0xa8, 0xe7, 0xda, 0x43, 0xa1,
+	0x1e, 0xed, 0x12, 0x32, 0xbe, 0x05, 0x7d, 0x08, 0xa9, 0x2e, 0xb5, 0x16, 0x5f, 0x32, 0xc2, 0x8b,
+	0x3e, 0x00, 0x95, 0x5e, 0x5c, 0x38, 0xc4, 0x9d, 0xe9, 0x8c, 0xdd, 0x0d, 0x9e, 0x0f, 0x6d, 0x42,
+	0xaa, 0xdb, 0xb9, 0xec, 0xb8, 0xfc, 0x08, 0x53, 0x58, 0x2c, 0x8c, 0xff, 0x24, 0xd8, 0x88, 0x36,
+	0xc6, 0x14, 0xfe, 0x49, 0x4c, 0xe1, 0xe5, 0x79, 0xfd, 0xf7, 0xbb, 0x33, 0x8d, 0xff, 0xb4, 0x7a,
+	0xe3, 0xfb, 0x4c, 0x57, 0xbc, 0x62, 0x51, 0xe6, 0x7b, 0xa1, 0x88, 0x66, 0x2a, 0x62, 0x33, 0xec,
+	0x87, 0xf8, 0xea, 0x52, 0x16, 0xa8, 0xeb, 0x95, 0x04, 0x05, 0x26, 0x2f, 0x2f, 0xed, 0x7e, 0xd4,
+	0x34, 0x53, 0x30, 0xaa, 0xa6, 0x5f, 0xdf, 0x70, 0xf8, 0x02, 0x76, 0xe4, 0xa5, 0xec, 0x7c, 0x04,
+	0xaa, 0x80, 0xee, 0x41, 0x9e, 0x47, 0x8e, 0x17, 0x61, 0x14, 0x60, 0x23, 0xda, 0x2a, 0x9b, 0xae,
+	0x7f, 0x65, 0xd8, 0x3c, 0xba, 0x6e, 0xb5, 0x1b, 0x3d, 0x8b, 0x1c, 0x99, 0x16, 0x59, 0x79, 0xc0,
+	0x3e, 0x8d, 0x51, 0xf2, 0x9e, 0x1f, 0x35, 0xaf, 0x66, 0x94, 0x95, 0x47, 0x3e, 0x2b, 0xc7, 0x90,
+	0x16, 0x90, 0x7d, 0x25, 0x1d, 0xdc, 0x59, 0xa2, 0x22, 0xd8, 0x12, 0xb2, 0xf2, 0xb3, 0xb5, 0x1f,
+	0x21, 0x1b, 0xb1, 0xaf, 0xca, 0x76, 0x19, 0xb2, 0xec, 0x01, 0x25, 0x8e, 0xc3, 0xb6, 0xe3, 0x68,
+	0x92, 0x38, 0x6a, 0x62, 0x8f, 0x21, 0x83, 0x2c, 0xfc, 0x0a, 0xf7, 0x87, 0x06, 0xe3, 0x85, 0x04,
+	0x68, 0xaa, 0x61, 0x36, 0x24, 0x5f, 0x40, 0x8a, 0xb0, 0x95, 0x87, 0x6d, 0x67, 0x01, 0x36, 0x36,
+	0x28, 0x5e, 0xf3, 0xdc, 0x20, 0x92, 0xb4, 0x3f, 0xa4, 0x00, 0x13, 0x5b, 0xaf, 0x8a, 0x69, 0x0b,
+	0x54, 0x72, 0xdd, 0x71, 0x5c, 0x87, 0xc3, 0xc9, 0x60, 0x6f, 0x35, 0x8d, 0x55, 0xb9, 0x03, 0x6b,
+	0x72, 0x0a, 0x6b, 0xed, 0x89, 0x0c, 0xe9, 0xef, 0xc4, 0x45, 0x86, 0x3e, 0x83, 0xb4, 0xf7, 0xee,
+	0xa1, 0xad, 0xf9, 0x4f, 0xb1, 0xb6, 0x39, 0x63, 0x67, 0xc2, 0x4b, 0xb0, 0x54, 0xef, 0xa2, 0x0f,
+	0x53, 0xe3, 0x6f, 0x58, 0x98, 0x1a, 0x7b, 0x11, 0x12, 0xa8, 0x0e, 0x10, 0xde, 0x33, 0xe8, 0xed,
+	0x85, 0x77, 0xa7, 0xf6, 0xd6, 0x82, 0x6b, 0x49, 0xd4, 0x08, 0x87, 0x21, 0xac, 0x31, 0x33, 0xcb,
+	0x61, 0x8d, 0xe9, 0xd9, 0x49, 0xa0, 0x53, 0x58, 0x8f, 0x9d, 0x24, 0xda, 0x5e, 0x26, 0x5e, 0x4d,
+	0x5b, 0x7c, 0xfc, 0x46, 0xa2, 0x5e, 0x7e, 0xf9, 0x5c, 0x97, 0xfe, 0x99, 0xe8, 0xd2, 0xff, 0x13,
+	0x5d, 0xba, 0x99, 0xe8, 0xd2, 0xb3, 0x89, 0x2e, 0xfd, 0x7e, 0xab, 0x27, 0x6e, 0x6e, 0xf5, 0xc4,
+	0xd3, 0x5b, 0x3d, 0xd1, 0x54, 0xf9, 0xbf, 0xea, 0xc7, 0xaf, 0x03, 0x00, 0x00, 0xff, 0xff, 0xa0,
+	0x5e, 0xcb, 0xcb, 0xef, 0x0a, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -966,6 +1251,8 @@ type ServiceClient interface {
 	GetRecords(ctx context.Context, in *GetRecordsRequest, opts ...grpc.CallOption) (*GetRecordsReply, error)
 	// PushRecord to a peer.
 	PushRecord(ctx context.Context, in *PushRecordRequest, opts ...grpc.CallOption) (*PushRecordReply, error)
+	// ExchangeEdges with a peer.
+	ExchangeEdges(ctx context.Context, in *ExchangeEdgesRequest, opts ...grpc.CallOption) (*ExchangeEdgesReply, error)
 }
 
 type serviceClient struct {
@@ -1012,6 +1299,15 @@ func (c *serviceClient) PushRecord(ctx context.Context, in *PushRecordRequest, o
 	return out, nil
 }
 
+func (c *serviceClient) ExchangeEdges(ctx context.Context, in *ExchangeEdgesRequest, opts ...grpc.CallOption) (*ExchangeEdgesReply, error) {
+	out := new(ExchangeEdgesReply)
+	err := c.cc.Invoke(ctx, "/net.pb.Service/ExchangeEdges", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 type ServiceServer interface {
 	// GetLogs from a peer.
@@ -1022,6 +1318,28 @@ type ServiceServer interface {
 	GetRecords(context.Context, *GetRecordsRequest) (*GetRecordsReply, error)
 	// PushRecord to a peer.
 	PushRecord(context.Context, *PushRecordRequest) (*PushRecordReply, error)
+	// ExchangeEdges with a peer.
+	ExchangeEdges(context.Context, *ExchangeEdgesRequest) (*ExchangeEdgesReply, error)
+}
+
+// UnimplementedServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedServiceServer struct {
+}
+
+func (*UnimplementedServiceServer) GetLogs(ctx context.Context, req *GetLogsRequest) (*GetLogsReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLogs not implemented")
+}
+func (*UnimplementedServiceServer) PushLog(ctx context.Context, req *PushLogRequest) (*PushLogReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushLog not implemented")
+}
+func (*UnimplementedServiceServer) GetRecords(ctx context.Context, req *GetRecordsRequest) (*GetRecordsReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRecords not implemented")
+}
+func (*UnimplementedServiceServer) PushRecord(ctx context.Context, req *PushRecordRequest) (*PushRecordReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushRecord not implemented")
+}
+func (*UnimplementedServiceServer) ExchangeEdges(ctx context.Context, req *ExchangeEdgesRequest) (*ExchangeEdgesReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExchangeEdges not implemented")
 }
 
 func RegisterServiceServer(s *grpc.Server, srv ServiceServer) {
@@ -1100,6 +1418,24 @@ func _Service_PushRecord_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_ExchangeEdges_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExchangeEdgesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ExchangeEdges(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/net.pb.Service/ExchangeEdges",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ExchangeEdges(ctx, req.(*ExchangeEdgesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Service_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "net.pb.Service",
 	HandlerType: (*ServiceServer)(nil),
@@ -1120,6 +1456,10 @@ var _Service_serviceDesc = grpc.ServiceDesc{
 			MethodName: "PushRecord",
 			Handler:    _Service_PushRecord_Handler,
 		},
+		{
+			MethodName: "ExchangeEdges",
+			Handler:    _Service_ExchangeEdges_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "net.proto",
@@ -1128,7 +1468,7 @@ var _Service_serviceDesc = grpc.ServiceDesc{
 func (m *Header) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1136,33 +1476,41 @@ func (m *Header) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Header) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Header) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.PubKey != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.PubKey.Size()))
-		n1, err := m.PubKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
-	}
 	if len(m.Signature) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Signature)
+		copy(dAtA[i:], m.Signature)
 		i = encodeVarintNet(dAtA, i, uint64(len(m.Signature)))
-		i += copy(dAtA[i:], m.Signature)
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.PubKey != nil {
+		{
+			size := m.PubKey.Size()
+			i -= size
+			if _, err := m.PubKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Log) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1170,59 +1518,72 @@ func (m *Log) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Log) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Log) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ID.Size()))
-		n2, err := m.ID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n2
-	}
-	if m.PubKey != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.PubKey.Size()))
-		n3, err := m.PubKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n3
-	}
-	if len(m.Addrs) > 0 {
-		for _, msg := range m.Addrs {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintNet(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
+	if m.Head != nil {
+		{
+			size := m.Head.Size()
+			i -= size
+			if _, err := m.Head.MarshalTo(dAtA[i:]); err != nil {
 				return 0, err
 			}
-			i += n
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-	}
-	if m.Head != nil {
+		i--
 		dAtA[i] = 0x22
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Head.Size()))
-		n4, err := m.Head.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
 	}
-	return i, nil
+	if len(m.Addrs) > 0 {
+		for iNdEx := len(m.Addrs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size := m.Addrs[iNdEx].Size()
+				i -= size
+				if _, err := m.Addrs[iNdEx].MarshalTo(dAtA[i:]); err != nil {
+					return 0, err
+				}
+				i = encodeVarintNet(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if m.PubKey != nil {
+		{
+			size := m.PubKey.Size()
+			i -= size
+			if _, err := m.PubKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.ID != nil {
+		{
+			size := m.ID.Size()
+			i -= size
+			if _, err := m.ID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Log_Record) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1230,41 +1591,50 @@ func (m *Log_Record) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Log_Record) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Log_Record) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.RecordNode) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(len(m.RecordNode)))
-		i += copy(dAtA[i:], m.RecordNode)
-	}
-	if len(m.EventNode) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(len(m.EventNode)))
-		i += copy(dAtA[i:], m.EventNode)
+	if len(m.BodyNode) > 0 {
+		i -= len(m.BodyNode)
+		copy(dAtA[i:], m.BodyNode)
+		i = encodeVarintNet(dAtA, i, uint64(len(m.BodyNode)))
+		i--
+		dAtA[i] = 0x22
 	}
 	if len(m.HeaderNode) > 0 {
-		dAtA[i] = 0x1a
-		i++
+		i -= len(m.HeaderNode)
+		copy(dAtA[i:], m.HeaderNode)
 		i = encodeVarintNet(dAtA, i, uint64(len(m.HeaderNode)))
-		i += copy(dAtA[i:], m.HeaderNode)
+		i--
+		dAtA[i] = 0x1a
 	}
-	if len(m.BodyNode) > 0 {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(len(m.BodyNode)))
-		i += copy(dAtA[i:], m.BodyNode)
+	if len(m.EventNode) > 0 {
+		i -= len(m.EventNode)
+		copy(dAtA[i:], m.EventNode)
+		i = encodeVarintNet(dAtA, i, uint64(len(m.EventNode)))
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if len(m.RecordNode) > 0 {
+		i -= len(m.RecordNode)
+		copy(dAtA[i:], m.RecordNode)
+		i = encodeVarintNet(dAtA, i, uint64(len(m.RecordNode)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetLogsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1272,37 +1642,46 @@ func (m *GetLogsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetLogsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetLogsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Header.Size()))
-		n5, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n5
-	}
 	if m.Body != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Body.Size()))
-		n6, err := m.Body.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Body.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n6
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetLogsRequest_Body) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1310,37 +1689,46 @@ func (m *GetLogsRequest_Body) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetLogsRequest_Body) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetLogsRequest_Body) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ThreadID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ThreadID.Size()))
-		n7, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n7
-	}
 	if m.ServiceKey != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ServiceKey.Size()))
-		n8, err := m.ServiceKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.ServiceKey.Size()
+			i -= size
+			if _, err := m.ServiceKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n8
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetLogsReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1348,29 +1736,36 @@ func (m *GetLogsReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetLogsReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetLogsReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Logs) > 0 {
-		for _, msg := range m.Logs {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintNet(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Logs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Logs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNet(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *PushLogRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1378,37 +1773,46 @@ func (m *PushLogRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushLogRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushLogRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Header.Size()))
-		n9, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n9
-	}
 	if m.Body != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Body.Size()))
-		n10, err := m.Body.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Body.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n10
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushLogRequest_Body) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1416,57 +1820,70 @@ func (m *PushLogRequest_Body) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushLogRequest_Body) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushLogRequest_Body) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ThreadID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ThreadID.Size()))
-		n11, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.Log != nil {
+		{
+			size, err := m.Log.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n11
-	}
-	if m.ServiceKey != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ServiceKey.Size()))
-		n12, err := m.ServiceKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n12
+		i--
+		dAtA[i] = 0x22
 	}
 	if m.ReadKey != nil {
+		{
+			size := m.ReadKey.Size()
+			i -= size
+			if _, err := m.ReadKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ReadKey.Size()))
-		n13, err := m.ReadKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n13
 	}
-	if m.Log != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Log.Size()))
-		n14, err := m.Log.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.ServiceKey != nil {
+		{
+			size := m.ServiceKey.Size()
+			i -= size
+			if _, err := m.ServiceKey.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n14
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushLogReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1474,17 +1891,22 @@ func (m *PushLogReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushLogReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushLogReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1492,37 +1914,46 @@ func (m *GetRecordsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Header.Size()))
-		n15, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n15
-	}
 	if m.Body != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Body.Size()))
-		n16, err := m.Body.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Body.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n16
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsRequest_Body) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1530,49 +1961,60 @@ func (m *GetRecordsRequest_Body) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsRequest_Body) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsRequest_Body) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ThreadID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ThreadID.Size()))
-		n17, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.Logs) > 0 {
+		for iNdEx := len(m.Logs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Logs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNet(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
 		}
-		i += n17
 	}
 	if m.ServiceKey != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ServiceKey.Size()))
-		n18, err := m.ServiceKey.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n18
-	}
-	if len(m.Logs) > 0 {
-		for _, msg := range m.Logs {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintNet(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
+		{
+			size := m.ServiceKey.Size()
+			i -= size
+			if _, err := m.ServiceKey.MarshalTo(dAtA[i:]); err != nil {
 				return 0, err
 			}
-			i += n
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsRequest_Body_LogEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1580,42 +2022,51 @@ func (m *GetRecordsRequest_Body_LogEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsRequest_Body_LogEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsRequest_Body_LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.LogID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.LogID.Size()))
-		n19, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n19
+	if m.Limit != 0 {
+		i = encodeVarintNet(dAtA, i, uint64(m.Limit))
+		i--
+		dAtA[i] = 0x18
 	}
 	if m.Offset != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Offset.Size()))
-		n20, err := m.Offset.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Offset.Size()
+			i -= size
+			if _, err := m.Offset.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n20
+		i--
+		dAtA[i] = 0x12
 	}
-	if m.Limit != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Limit))
+	if m.LogID != nil {
+		{
+			size := m.LogID.Size()
+			i -= size
+			if _, err := m.LogID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1623,29 +2074,36 @@ func (m *GetRecordsReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Logs) > 0 {
-		for _, msg := range m.Logs {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintNet(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Logs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Logs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNet(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRecordsReply_LogEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1653,49 +2111,60 @@ func (m *GetRecordsReply_LogEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRecordsReply_LogEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRecordsReply_LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.LogID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.LogID.Size()))
-		n21, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n21
-	}
-	if len(m.Records) > 0 {
-		for _, msg := range m.Records {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintNet(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.Log != nil {
+		{
+			size, err := m.Log.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-	}
-	if m.Log != nil {
+		i--
 		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Log.Size()))
-		n22, err := m.Log.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n22
 	}
-	return i, nil
+	if len(m.Records) > 0 {
+		for iNdEx := len(m.Records) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Records[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNet(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if m.LogID != nil {
+		{
+			size := m.LogID.Size()
+			i -= size
+			if _, err := m.LogID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushRecordRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1703,37 +2172,46 @@ func (m *PushRecordRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushRecordRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushRecordRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Header != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Header.Size()))
-		n23, err := m.Header.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n23
-	}
 	if m.Body != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Body.Size()))
-		n24, err := m.Body.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Body.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n24
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PushRecordRequest_Body) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1741,47 +2219,58 @@ func (m *PushRecordRequest_Body) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushRecordRequest_Body) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushRecordRequest_Body) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ThreadID != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.ThreadID.Size()))
-		n25, err := m.ThreadID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.Record != nil {
+		{
+			size, err := m.Record.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n25
+		i--
+		dAtA[i] = 0x1a
 	}
 	if m.LogID != nil {
+		{
+			size := m.LogID.Size()
+			i -= size
+			if _, err := m.LogID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x12
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.LogID.Size()))
-		n26, err := m.LogID.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n26
 	}
-	if m.Record != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintNet(dAtA, i, uint64(m.Record.Size()))
-		n27, err := m.Record.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
 		}
-		i += n27
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *PushRecordReply) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1789,21 +2278,249 @@ func (m *PushRecordReply) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PushRecordReply) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PushRecordReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
+}
+
+func (m *ExchangeEdgesRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ExchangeEdgesRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExchangeEdgesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Body != nil {
+		{
+			size, err := m.Body.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Header != nil {
+		{
+			size, err := m.Header.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ExchangeEdgesRequest_Body) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ExchangeEdgesRequest_Body) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExchangeEdgesRequest_Body) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Threads) > 0 {
+		for iNdEx := len(m.Threads) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Threads[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNet(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.HeadsEdge != 0 {
+		i = encodeVarintNet(dAtA, i, uint64(m.HeadsEdge))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.AddressEdge != 0 {
+		i = encodeVarintNet(dAtA, i, uint64(m.AddressEdge))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ExchangeEdgesReply) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ExchangeEdgesReply) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExchangeEdgesReply) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Edges) > 0 {
+		for iNdEx := len(m.Edges) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Edges[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintNet(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.HeadsEdge != 0 {
+		i = encodeVarintNet(dAtA, i, uint64(m.HeadsEdge))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.AddressEdge != 0 {
+		i = encodeVarintNet(dAtA, i, uint64(m.AddressEdge))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Exists {
+		i--
+		if m.Exists {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.ThreadID != nil {
+		{
+			size := m.ThreadID.Size()
+			i -= size
+			if _, err := m.ThreadID.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+			i = encodeVarintNet(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintNet(dAtA []byte, offset int, v uint64) int {
+	offset -= sovNet(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func NewPopulatedHeader(r randyNet, easy bool) *Header {
 	this := &Header{}
@@ -1863,10 +2580,10 @@ func NewPopulatedLog_Record(r randyNet, easy bool) *Log_Record {
 
 func NewPopulatedGetLogsRequest(r randyNet, easy bool) *GetLogsRequest {
 	this := &GetLogsRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedHeader(r, easy)
 	}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Body = NewPopulatedGetLogsRequest_Body(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -1885,7 +2602,7 @@ func NewPopulatedGetLogsRequest_Body(r randyNet, easy bool) *GetLogsRequest_Body
 
 func NewPopulatedGetLogsReply(r randyNet, easy bool) *GetLogsReply {
 	this := &GetLogsReply{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v8 := r.Intn(5)
 		this.Logs = make([]*Log, v8)
 		for i := 0; i < v8; i++ {
@@ -1899,10 +2616,10 @@ func NewPopulatedGetLogsReply(r randyNet, easy bool) *GetLogsReply {
 
 func NewPopulatedPushLogRequest(r randyNet, easy bool) *PushLogRequest {
 	this := &PushLogRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedHeader(r, easy)
 	}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Body = NewPopulatedPushLogRequest_Body(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -1915,7 +2632,7 @@ func NewPopulatedPushLogRequest_Body(r randyNet, easy bool) *PushLogRequest_Body
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.ServiceKey = NewPopulatedProtoKey(r)
 	this.ReadKey = NewPopulatedProtoKey(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Log = NewPopulatedLog(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -1932,10 +2649,10 @@ func NewPopulatedPushLogReply(r randyNet, easy bool) *PushLogReply {
 
 func NewPopulatedGetRecordsRequest(r randyNet, easy bool) *GetRecordsRequest {
 	this := &GetRecordsRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedHeader(r, easy)
 	}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Body = NewPopulatedGetRecordsRequest_Body(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -1947,7 +2664,7 @@ func NewPopulatedGetRecordsRequest_Body(r randyNet, easy bool) *GetRecordsReques
 	this := &GetRecordsRequest_Body{}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.ServiceKey = NewPopulatedProtoKey(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v9 := r.Intn(5)
 		this.Logs = make([]*GetRecordsRequest_Body_LogEntry, v9)
 		for i := 0; i < v9; i++ {
@@ -1974,7 +2691,7 @@ func NewPopulatedGetRecordsRequest_Body_LogEntry(r randyNet, easy bool) *GetReco
 
 func NewPopulatedGetRecordsReply(r randyNet, easy bool) *GetRecordsReply {
 	this := &GetRecordsReply{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v10 := r.Intn(5)
 		this.Logs = make([]*GetRecordsReply_LogEntry, v10)
 		for i := 0; i < v10; i++ {
@@ -1989,14 +2706,14 @@ func NewPopulatedGetRecordsReply(r randyNet, easy bool) *GetRecordsReply {
 func NewPopulatedGetRecordsReply_LogEntry(r randyNet, easy bool) *GetRecordsReply_LogEntry {
 	this := &GetRecordsReply_LogEntry{}
 	this.LogID = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		v11 := r.Intn(5)
 		this.Records = make([]*Log_Record, v11)
 		for i := 0; i < v11; i++ {
 			this.Records[i] = NewPopulatedLog_Record(r, easy)
 		}
 	}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Log = NewPopulatedLog(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -2006,10 +2723,10 @@ func NewPopulatedGetRecordsReply_LogEntry(r randyNet, easy bool) *GetRecordsRepl
 
 func NewPopulatedPushRecordRequest(r randyNet, easy bool) *PushRecordRequest {
 	this := &PushRecordRequest{}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Header = NewPopulatedHeader(r, easy)
 	}
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Body = NewPopulatedPushRecordRequest_Body(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -2021,7 +2738,7 @@ func NewPopulatedPushRecordRequest_Body(r randyNet, easy bool) *PushRecordReques
 	this := &PushRecordRequest_Body{}
 	this.ThreadID = NewPopulatedProtoThreadID(r)
 	this.LogID = NewPopulatedProtoPeerID(r)
-	if r.Intn(10) != 0 {
+	if r.Intn(5) != 0 {
 		this.Record = NewPopulatedLog_Record(r, easy)
 	}
 	if !easy && r.Intn(10) != 0 {
@@ -2031,6 +2748,68 @@ func NewPopulatedPushRecordRequest_Body(r randyNet, easy bool) *PushRecordReques
 
 func NewPopulatedPushRecordReply(r randyNet, easy bool) *PushRecordReply {
 	this := &PushRecordReply{}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedExchangeEdgesRequest(r randyNet, easy bool) *ExchangeEdgesRequest {
+	this := &ExchangeEdgesRequest{}
+	if r.Intn(5) != 0 {
+		this.Header = NewPopulatedHeader(r, easy)
+	}
+	if r.Intn(5) != 0 {
+		this.Body = NewPopulatedExchangeEdgesRequest_Body(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedExchangeEdgesRequest_Body(r randyNet, easy bool) *ExchangeEdgesRequest_Body {
+	this := &ExchangeEdgesRequest_Body{}
+	if r.Intn(5) != 0 {
+		v12 := r.Intn(5)
+		this.Threads = make([]*ExchangeEdgesRequest_Body_ThreadEntry, v12)
+		for i := 0; i < v12; i++ {
+			this.Threads[i] = NewPopulatedExchangeEdgesRequest_Body_ThreadEntry(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedExchangeEdgesRequest_Body_ThreadEntry(r randyNet, easy bool) *ExchangeEdgesRequest_Body_ThreadEntry {
+	this := &ExchangeEdgesRequest_Body_ThreadEntry{}
+	this.ThreadID = NewPopulatedProtoThreadID(r)
+	this.AddressEdge = uint64(uint64(r.Uint32()))
+	this.HeadsEdge = uint64(uint64(r.Uint32()))
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedExchangeEdgesReply(r randyNet, easy bool) *ExchangeEdgesReply {
+	this := &ExchangeEdgesReply{}
+	if r.Intn(5) != 0 {
+		v13 := r.Intn(5)
+		this.Edges = make([]*ExchangeEdgesReply_ThreadEdges, v13)
+		for i := 0; i < v13; i++ {
+			this.Edges[i] = NewPopulatedExchangeEdgesReply_ThreadEdges(r, easy)
+		}
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedExchangeEdgesReply_ThreadEdges(r randyNet, easy bool) *ExchangeEdgesReply_ThreadEdges {
+	this := &ExchangeEdgesReply_ThreadEdges{}
+	this.ThreadID = NewPopulatedProtoThreadID(r)
+	this.Exists = bool(bool(r.Intn(2) == 0))
+	this.AddressEdge = uint64(uint64(r.Uint32()))
+	this.HeadsEdge = uint64(uint64(r.Uint32()))
 	if !easy && r.Intn(10) != 0 {
 	}
 	return this
@@ -2055,9 +2834,9 @@ func randUTF8RuneNet(r randyNet) rune {
 	return rune(ru + 61)
 }
 func randStringNet(r randyNet) string {
-	v12 := r.Intn(100)
-	tmps := make([]rune, v12)
-	for i := 0; i < v12; i++ {
+	v14 := r.Intn(100)
+	tmps := make([]rune, v14)
+	for i := 0; i < v14; i++ {
 		tmps[i] = randUTF8RuneNet(r)
 	}
 	return string(tmps)
@@ -2079,11 +2858,11 @@ func randFieldNet(dAtA []byte, r randyNet, fieldNumber int, wire int) []byte {
 	switch wire {
 	case 0:
 		dAtA = encodeVarintPopulateNet(dAtA, uint64(key))
-		v13 := r.Int63()
+		v15 := r.Int63()
 		if r.Intn(2) == 0 {
-			v13 *= -1
+			v15 *= -1
 		}
-		dAtA = encodeVarintPopulateNet(dAtA, uint64(v13))
+		dAtA = encodeVarintPopulateNet(dAtA, uint64(v15))
 	case 1:
 		dAtA = encodeVarintPopulateNet(dAtA, uint64(key))
 		dAtA = append(dAtA, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -2422,15 +3201,96 @@ func (m *PushRecordReply) Size() (n int) {
 	return n
 }
 
-func sovNet(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
+func (m *ExchangeEdgesRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Header != nil {
+		l = m.Header.Size()
+		n += 1 + l + sovNet(uint64(l))
+	}
+	if m.Body != nil {
+		l = m.Body.Size()
+		n += 1 + l + sovNet(uint64(l))
+	}
+	return n
+}
+
+func (m *ExchangeEdgesRequest_Body) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Threads) > 0 {
+		for _, e := range m.Threads {
+			l = e.Size()
+			n += 1 + l + sovNet(uint64(l))
 		}
 	}
 	return n
+}
+
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ThreadID != nil {
+		l = m.ThreadID.Size()
+		n += 1 + l + sovNet(uint64(l))
+	}
+	if m.AddressEdge != 0 {
+		n += 1 + sovNet(uint64(m.AddressEdge))
+	}
+	if m.HeadsEdge != 0 {
+		n += 1 + sovNet(uint64(m.HeadsEdge))
+	}
+	return n
+}
+
+func (m *ExchangeEdgesReply) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Edges) > 0 {
+		for _, e := range m.Edges {
+			l = e.Size()
+			n += 1 + l + sovNet(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *ExchangeEdgesReply_ThreadEdges) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ThreadID != nil {
+		l = m.ThreadID.Size()
+		n += 1 + l + sovNet(uint64(l))
+	}
+	if m.Exists {
+		n += 2
+	}
+	if m.AddressEdge != 0 {
+		n += 1 + sovNet(uint64(m.AddressEdge))
+	}
+	if m.HeadsEdge != 0 {
+		n += 1 + sovNet(uint64(m.HeadsEdge))
+	}
+	return n
+}
+
+func sovNet(x uint64) (n int) {
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozNet(x uint64) (n int) {
 	return sovNet(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -4652,9 +5512,581 @@ func (m *PushRecordReply) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *ExchangeEdgesRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ExchangeEdgesRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ExchangeEdgesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNet
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Header == nil {
+				m.Header = &Header{}
+			}
+			if err := m.Header.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Body", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNet
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Body == nil {
+				m.Body = &ExchangeEdgesRequest_Body{}
+			}
+			if err := m.Body.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNet(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ExchangeEdgesRequest_Body) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Body: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Body: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Threads", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNet
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Threads = append(m.Threads, &ExchangeEdgesRequest_Body_ThreadEntry{})
+			if err := m.Threads[len(m.Threads)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNet(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ExchangeEdgesRequest_Body_ThreadEntry) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ThreadEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ThreadEntry: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ThreadID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthNet
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthNet
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoThreadID
+			m.ThreadID = &v
+			if err := m.ThreadID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AddressEdge", wireType)
+			}
+			m.AddressEdge = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AddressEdge |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HeadsEdge", wireType)
+			}
+			m.HeadsEdge = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.HeadsEdge |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNet(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ExchangeEdgesReply) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ExchangeEdgesReply: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ExchangeEdgesReply: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Edges", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthNet
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthNet
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Edges = append(m.Edges, &ExchangeEdgesReply_ThreadEdges{})
+			if err := m.Edges[len(m.Edges)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNet(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ExchangeEdgesReply_ThreadEdges) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowNet
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ThreadEdges: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ThreadEdges: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ThreadID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthNet
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthNet
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			var v ProtoThreadID
+			m.ThreadID = &v
+			if err := m.ThreadID.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Exists", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Exists = bool(v != 0)
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AddressEdge", wireType)
+			}
+			m.AddressEdge = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AddressEdge |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HeadsEdge", wireType)
+			}
+			m.HeadsEdge = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowNet
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.HeadsEdge |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipNet(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthNet
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipNet(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -4686,10 +6118,8 @@ func skipNet(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -4710,55 +6140,30 @@ func skipNet(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthNet
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthNet
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowNet
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipNet(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthNet
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupNet
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthNet
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthNet = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowNet   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthNet        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowNet          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupNet = fmt.Errorf("proto: unexpected end of group")
 )
