@@ -569,31 +569,45 @@ func (n *net) AddReplicator(
 	for _, l := range info.Logs {
 		addrs = append(addrs, l.Addrs...)
 	}
+	peers, err := n.uniquePeers(addrs)
+	if err != nil {
+		return
+	}
 
-	wg := sync.WaitGroup{}
-	for _, addr := range addrs {
+	var wg sync.WaitGroup
+	for _, p := range peers {
 		wg.Add(1)
-		go func(addr ma.Multiaddr) {
+		go func(pid peer.ID) {
 			defer wg.Done()
-			pid, ok, err := n.callablePeer(addr)
-			if err != nil {
-				log.Error(err)
-				return
-			} else if !ok {
-				// skip calling itself
-				return
-			}
-
 			for _, lg := range managedLogs {
 				if err = n.server.pushLog(ctx, info.ID, lg, pid, nil, nil); err != nil {
 					log.Errorf("error pushing log %s to %s: %v", lg.ID, pid, err)
 				}
 			}
-		}(addr)
+		}(p)
 	}
 
 	wg.Wait()
 	return pid, nil
+}
+
+func (n *net) uniquePeers(addrs []ma.Multiaddr) ([]peer.ID, error) {
+	var pm = make(map[peer.ID]struct{}, len(addrs))
+	for _, addr := range addrs {
+		pid, ok, err := n.callablePeer(addr)
+		if err != nil {
+			return nil, err
+		} else if !ok {
+			// skip calling itself
+			continue
+		}
+		pm[pid] = struct{}{}
+	}
+	var ps = make([]peer.ID, 0, len(pm))
+	for pid := range pm {
+		ps = append(ps, pid)
+	}
+	return ps, nil
 }
 
 // callablePeer attempts to obtain external peer ID from the multiaddress.
