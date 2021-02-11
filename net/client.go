@@ -164,16 +164,17 @@ func (s *server) getRecords(
 		Body: body,
 	}
 
-	// set of unique log addresses
-	var logAddrs = make(map[ma.Multiaddr]struct{}, len(offsets))
+	var addrs []ma.Multiaddr
 	for lid := range offsets {
 		las, err := s.net.store.Addrs(tid, lid)
 		if err != nil {
 			return nil, err
 		}
-		for _, addr := range las {
-			logAddrs[addr] = struct{}{}
-		}
+		addrs = append(addrs, las...)
+	}
+	peers, err := s.net.uniquePeers(addrs)
+	if err != nil {
+		return nil, err
 	}
 
 	var (
@@ -182,19 +183,10 @@ func (s *server) getRecords(
 	)
 
 	// Pull from each address
-	for addr := range logAddrs {
+	for _, p := range peers {
 		wg.Add(1)
-
-		go withErrLog(addr, func(addr ma.Multiaddr) error {
+		go withErrLog(p, func(pid peer.ID) error {
 			defer wg.Done()
-			pid, ok, err := s.net.callablePeer(addr)
-			if err != nil {
-				return err
-			} else if !ok {
-				// skip calling itself
-				return nil
-			}
-
 			log.Debugf("getting records from %s...", pid)
 
 			client, err := s.dial(pid)
@@ -267,6 +259,10 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	for _, l := range info.Logs {
 		addrs = append(addrs, l.Addrs...)
 	}
+	peers, err := s.net.uniquePeers(addrs)
+	if err != nil {
+		return err
+	}
 
 	pbrec, err := cbor.RecordToProto(ctx, s.net, rec)
 	if err != nil {
@@ -290,16 +286,8 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 	}
 
 	// Push to each address
-	for _, addr := range addrs {
-		go withErrLog(addr, func(addr ma.Multiaddr) error {
-			pid, ok, err := s.net.callablePeer(addr)
-			if err != nil {
-				return err
-			} else if !ok {
-				// skip calling itself
-				return nil
-			}
-
+	for _, p := range peers {
+		go withErrLog(p, func(pid peer.ID) error {
 			client, err := s.dial(pid)
 			if err != nil {
 				return fmt.Errorf("dial %s failed: %w", pid, err)
@@ -410,8 +398,8 @@ func (s *server) signRequestBody(msg proto.Marshaler) (sig []byte, pk crypto.Pub
 	return sig, sk.GetPublic(), nil
 }
 
-func withErrLog(addr ma.Multiaddr, f func(addr ma.Multiaddr) error) {
-	if err := f(addr); err != nil {
+func withErrLog(pid peer.ID, f func(pid peer.ID) error) {
+	if err := f(pid); err != nil {
 		log.Error(err.Error())
 	}
 }
