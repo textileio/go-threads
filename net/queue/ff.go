@@ -168,19 +168,26 @@ func (q *ffQueue) Call(
 	tid thread.ID,
 	call PeerCall,
 ) error {
+	h := hash(pid, tid)
 	q.mx.Lock()
 	peerQueue, exist := q.peers[pid]
+	q.inflight[h] = struct{}{}
 	q.mx.Unlock()
 
 	if exist {
-		// remove call previously scheduled for the thread
 		peerQueue.Lock()
-		peerQueue.Remove(tid)
+		removed := peerQueue.Remove(tid)
 		peerQueue.Unlock()
-		log.Debugf("deschedule call to [%s/%s]: directly invoked", pid, tid)
+		if removed {
+			log.Debugf("deschedule call to [%s/%s]: directly invoked", pid, tid)
+		}
 	}
 
-	return call(q.ctx, pid, tid)
+	err := call(q.ctx, pid, tid)
+	q.mx.Lock()
+	delete(q.inflight, h)
+	q.mx.Unlock()
+	return err
 }
 
 func (q *ffQueue) pollQueue(pid peer.ID, tq *threadQueue) {
