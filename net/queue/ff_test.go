@@ -20,7 +20,7 @@ func TestOperationQueue(t *testing.T) {
 		val  int
 	)
 
-	if _, tid, ok := q.Pop(); ok || tid != thread.Undef {
+	if _, tid, _, ok := q.Pop(); ok || tid != thread.Undef {
 		t.Error("unexpected element in the empty queue")
 	}
 	if size := q.Size(); size != 0 {
@@ -66,7 +66,7 @@ func TestOperationQueue(t *testing.T) {
 	}
 
 	// evaluate call for t1
-	if op, tid, ok := q.Pop(); !ok || tid != t1 {
+	if op, tid, _, ok := q.Pop(); !ok || tid != t1 {
 		t.Error("cannot get expected operation")
 	} else {
 		eval(op)
@@ -84,7 +84,7 @@ func TestOperationQueue(t *testing.T) {
 	}
 
 	// sequence: t3 -> t1 -> t2, evaluate t3
-	if op, tid, ok := q.Pop(); !ok || tid != t3 {
+	if op, tid, _, ok := q.Pop(); !ok || tid != t3 {
 		t.Error("cannot get expected operation")
 	} else {
 		eval(op)
@@ -100,7 +100,7 @@ func TestOperationQueue(t *testing.T) {
 	}
 
 	// sequence: t1 (replaced) -> t2
-	if op, tid, ok := q.Pop(); !ok || tid != t1 {
+	if op, tid, _, ok := q.Pop(); !ok || tid != t1 {
 		t.Error("cannot get expected operation")
 	} else {
 		eval(op)
@@ -111,7 +111,7 @@ func TestOperationQueue(t *testing.T) {
 	}
 
 	// sequence: t2
-	if op, tid, ok := q.Pop(); !ok || tid != t2 {
+	if op, tid, _, ok := q.Pop(); !ok || tid != t2 {
 		t.Error("cannot get expected operation")
 	} else {
 		eval(op)
@@ -122,7 +122,7 @@ func TestOperationQueue(t *testing.T) {
 	}
 
 	// sequence: empty
-	if _, tid, ok := q.Pop(); ok || q.Size() != 0 || tid != thread.Undef {
+	if _, tid, _, ok := q.Pop(); ok || q.Size() != 0 || tid != thread.Undef {
 		t.Error("unexpected operations in the queue")
 	}
 }
