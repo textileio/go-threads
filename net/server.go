@@ -141,12 +141,11 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	}
 
 	lg := logFromProto(req.Body.Log)
-	err = s.net.createExternalLogIfNotExist(req.Body.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
-	if err != nil {
+	if err = s.net.createExternalLogsIfNotExist(req.Body.ThreadID.ID, []thread.LogInfo{lg}); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	go s.net.updateRecordsFromLog(req.Body.ThreadID.ID, lg.ID)
+	s.net.updateRecordsFromPeer(pid, req.Body.ThreadID.ID)
 	return &pb.PushLogReply{}, nil
 }
 
@@ -265,6 +264,11 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.PushRecordReply{}, nil
+}
+
+func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest) (*pb.ExchangeEdgesReply, error) {
+	// TODO implement
+	return nil, status.Error(codes.Unimplemented, "unsupported call")
 }
 
 // checkServiceKey compares a key with the one stored under thread.

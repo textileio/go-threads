@@ -28,6 +28,7 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
+	"github.com/textileio/go-threads/net/queue"
 	"github.com/textileio/go-threads/net/util"
 	tu "github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
@@ -48,6 +49,9 @@ var (
 	// PullInterval is the interval between automatic log pulls.
 	PullInterval = time.Second * 10
 
+	// QueuePollInterval is the polling interval for the call queue.
+	QueuePollInterval = time.Millisecond * 500
+
 	// EventBusCapacity is the buffer size of local event bus listeners.
 	EventBusCapacity = 1
 
@@ -61,8 +65,12 @@ var (
 	tokenChallengeTimeout = time.Minute
 )
 
+const (
+	callPriorityLow  = 1
+	callPriorityHigh = 3
+)
+
 var (
-	_ util.SemaphoreKey = (*semaThreadPull)(nil)
 	_ util.SemaphoreKey = (*semaThreadUpdate)(nil)
 )
 
@@ -71,13 +79,6 @@ type semaThreadUpdate thread.ID
 
 func (t semaThreadUpdate) Key() string {
 	return "tu:" + string(t)
-}
-
-// semaphore eliminating concurrent pulls
-type semaThreadPull thread.ID
-
-func (t semaThreadPull) Key() string {
-	return "tp:" + string(t)
 }
 
 // net is an implementation of core.DBNet.
@@ -93,9 +94,11 @@ type net struct {
 	bus    *broadcast.Broadcaster
 
 	connectors map[thread.ID]*app.Connector
-	connLock   sync.Mutex
+	connLock   sync.RWMutex
 
-	semaphores *util.SemaphorePool
+	semaphores      *util.SemaphorePool
+	queueGetLogs    queue.CallQueue
+	queueGetRecords queue.CallQueue
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -130,16 +133,18 @@ func NewNetwork(
 
 	ctx, cancel := context.WithCancel(ctx)
 	t := &net{
-		DAGService: ds,
-		host:       h,
-		bstore:     bstore,
-		store:      ls,
-		rpc:        grpc.NewServer(serverOptions...),
-		bus:        broadcast.NewBroadcaster(EventBusCapacity),
-		connectors: make(map[thread.ID]*app.Connector),
-		ctx:        ctx,
-		cancel:     cancel,
-		semaphores: util.NewSemaphorePool(1),
+		DAGService:      ds,
+		host:            h,
+		bstore:          bstore,
+		store:           ls,
+		rpc:             grpc.NewServer(serverOptions...),
+		bus:             broadcast.NewBroadcaster(EventBusCapacity),
+		connectors:      make(map[thread.ID]*app.Connector),
+		ctx:             ctx,
+		cancel:          cancel,
+		semaphores:      util.NewSemaphorePool(1),
+		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, PullInterval),
+		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, PullInterval),
 	}
 
 	t.server, err = newServer(t, conf.PubSub, dialOptions...)
@@ -337,20 +342,22 @@ func (n *net) AddThread(
 		if err = n.Host().Connect(ctx, *addri); err != nil {
 			return
 		}
-		var lgs []thread.LogInfo
-		lgs, err = n.server.getLogs(ctx, id, addri.ID)
-		if err != nil {
+
+		if err = n.queueGetLogs.Call(addri.ID, id, func(ctx context.Context, pid peer.ID, tid thread.ID) error {
+			var lgs []thread.LogInfo
+			lgs, err = n.server.getLogs(ctx, id, addri.ID)
+			if err != nil {
+				return err
+			}
+			if err = n.createExternalLogsIfNotExist(id, lgs); err != nil {
+				return err
+			}
+			if n.server.ps != nil {
+				return n.server.ps.Add(id)
+			}
+			return nil
+		}); err != nil {
 			return
-		}
-		for _, l := range lgs {
-			if err = n.createExternalLogIfNotExist(id, l.ID, l.PubKey, l.PrivKey, l.Addrs); err != nil {
-				return
-			}
-		}
-		if n.server.ps != nil {
-			if err = n.server.ps.Add(id); err != nil {
-				return
-			}
 		}
 	}
 	return n.getThreadWithAddrs(id)
@@ -405,21 +412,13 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 
 // pullThread for the new records. This method is thread-safe.
 func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
-	tps := n.semaphores.Get(semaThreadPull(tid))
-	if !tps.TryAcquire() {
-		log.Debugf("skip pulling thread %s: concurrent pull in progress", tid)
-		return nil
-	}
-
-	offsets, err := n.threadOffsets(tid)
+	offsets, peers, err := n.threadOffsets(tid)
 	if err != nil {
-		tps.Release()
 		return err
 	}
 
-	// Pull from addresses
-	recs, err := n.server.getRecords(ctx, tid, offsets, MaxPullLimit)
-	tps.Release()
+	// Pull from peers
+	recs, err := n.server.getRecords(peers, tid, offsets, MaxPullLimit)
 	if err != nil {
 		return err
 	}
@@ -854,8 +853,8 @@ func (n *net) addConnector(id thread.ID, conn *app.Connector) {
 }
 
 func (n *net) getConnector(id thread.ID) (*app.Connector, bool) {
-	n.connLock.Lock()
-	defer n.connLock.Unlock()
+	n.connLock.RLock()
+	defer n.connLock.RUnlock()
 
 	conn, exist := n.connectors[id]
 	return conn, exist
@@ -1220,11 +1219,30 @@ PullCycle:
 		for {
 			select {
 			case <-ticker.C:
-				go func(tid thread.ID) {
-					if err := n.pullThread(n.ctx, tid); err != nil {
-						log.Errorf("error pulling thread %s: %s", tid, err)
+
+				// TODO replace direct thread pulling with:
+				//  1. ExchangeEdges (many threads grouped for a peer)
+				//  2. as a fallback for old nodes: run updateRecordsFromPeer
+				//  for every peer in a thread (will schedule getRecords under the hood)
+				//
+				// Maybe refactor updateRecordsFromPeer to receive list of peers?
+				// It may help to avoid many repetitive computations - no need
+				// there is not much of peers actually, but it's better to make requests
+				// with updated heads, as it makes server-side processing cheaper
+
+				// transient queue-based version
+				{
+					var tid = ts[idx]
+					_, peers, err := n.threadOffsets(tid)
+					if err != nil {
+						log.Errorf("error getting thread info %s: %s", tid, err)
+						return
 					}
-				}(ts[idx])
+					for _, pid := range peers {
+						n.updateRecordsFromPeer(pid, tid)
+					}
+				}
+
 				idx++
 				if idx >= len(ts) {
 					ticker.Stop()
@@ -1309,32 +1327,30 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 	return n.createLog(id, nil, identity)
 }
 
-// createExternalLogIfNotExist creates an external log if doesn't exists. The created
-// log will have cid.Undef as the current head. Is thread-safe.
-func (n *net) createExternalLogIfNotExist(
+// createExternalLogsIfNotExist creates an external logs if doesn't exists. The created
+// logs will have cid.Undef as the current head. Is thread-safe.
+func (n *net) createExternalLogsIfNotExist(
 	tid thread.ID,
-	lid peer.ID,
-	pubKey crypto.PubKey,
-	privKey crypto.PrivKey,
-	addrs []ma.Multiaddr,
+	lis []thread.LogInfo,
 ) error {
 	ts := n.semaphores.Get(semaThreadUpdate(tid))
 	ts.Acquire()
 	defer ts.Release()
 
-	currHeads, err := n.Store().Heads(tid, lid)
-	if err != nil {
-		return err
-	}
-	if len(currHeads) == 0 {
-		lginfo := thread.LogInfo{
-			ID:      lid,
-			PubKey:  pubKey,
-			PrivKey: privKey,
-			Addrs:   addrs,
-			Head:    cid.Undef,
+	for _, li := range lis {
+		if currHeads, err := n.Store().Heads(tid, li.ID); err != nil {
+			return err
+		} else if len(currHeads) == 0 {
+			li.Head = cid.Undef
+			if err = n.Store().AddLog(tid, li); err != nil {
+				return err
+			}
+		} else {
+			// update log addresses
+			if err = n.Store().AddAddrs(tid, li.ID, li.Addrs, pstore.PermanentAddrTTL); err != nil {
+				return err
+			}
 		}
-		return n.store.AddLog(tid, lginfo)
 	}
 	return nil
 }
@@ -1394,56 +1410,51 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 	return nil
 }
 
-// updateRecordsFromLog will fetch lid addrs for new logs & records,
-// and will add them in the local peer store. Method is thread-safe.
-func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
-	tps := n.semaphores.Get(semaThreadPull(tid))
-	if !tps.TryAcquire() {
-		log.Debugf("skip updating thread %s (log %s): concurrent pull in progress", tid, lid)
-		return
-	}
-
-	// TODO after protocol change request only new log
-	offsets, err := n.threadOffsets(tid)
-	if err != nil {
-		tps.Release()
-		log.Errorf("getting offsets for thread %s failed: %v", tid, err)
-		return
-	}
-
-	// request records for the new log
-	offsets[lid] = cid.Undef
-
-	recs, err := n.server.getRecords(n.ctx, tid, offsets, MaxPullLimit)
-	tps.Release()
-	if err != nil {
-		log.Errorf("getting records from new log %s (thread %s) failed: %v", lid, tid, err)
-		return
-	}
-
-	for lid, rs := range recs {
-		for _, r := range rs {
-			if err = n.putRecord(n.ctx, tid, lid, r); err != nil {
-				log.Errorf("putting records from new log %s (thread %s) failed: %v", lid, tid, err)
-				return
+// updateRecordsFromPeer schedules fetching new logs & records from the
+// peer and adding them in the local peer store. Method is thread-safe.
+func (n *net) updateRecordsFromPeer(pid peer.ID, tid thread.ID) {
+	if n.queueGetRecords.Schedule(pid, tid, callPriorityLow, func(ctx context.Context, p peer.ID, t thread.ID) error {
+		offsets, _, err := n.threadOffsets(tid)
+		if err != nil {
+			return fmt.Errorf("getting offsets for thread %s failed: %w", tid, err)
+		}
+		req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, MaxPullLimit)
+		if err != nil {
+			return fmt.Errorf("building GetRecords request for thread %s failed: %w", tid, err)
+		}
+		recs, err := n.server.getRecordsFromPeer(ctx, tid, pid, req, sk)
+		if err != nil {
+			return fmt.Errorf("getting records for thread %s from %s failed: %w", tid, pid, err)
+		}
+		for lid, rs := range recs {
+			for _, r := range rs {
+				if err = n.putRecord(ctx, tid, lid, r); err != nil {
+					return fmt.Errorf("putting records from log %s (thread %s) failed: %w", lid, tid, err)
+				}
 			}
 		}
+		return nil
+	}) {
+		log.Debugf("update for thread %s from %s scheduled", tid, pid)
 	}
 }
 
-// get offsets for all known thread's logs
-func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]cid.Cid, error) {
+// returns offsets and involved peers for all known thread's logs.
+func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]cid.Cid, []peer.ID, error) {
 	info, err := n.store.GetThread(tid)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	var offsets = make(map[peer.ID]cid.Cid, len(info.Logs))
+	var (
+		offsets = make(map[peer.ID]cid.Cid, len(info.Logs))
+		addrs   []ma.Multiaddr
+	)
 	for _, lg := range info.Logs {
 		var has bool
 		if lg.Head.Defined() {
 			has, err = n.isKnown(lg.Head)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		if has {
@@ -1451,6 +1462,11 @@ func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]cid.Cid, error) {
 		} else {
 			offsets[lg.ID] = cid.Undef
 		}
+		addrs = append(addrs, lg.Addrs...)
 	}
-	return offsets, nil
+	peers, err := n.uniquePeers(addrs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return offsets, peers, nil
 }
