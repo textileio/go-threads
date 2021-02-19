@@ -21,3 +21,18 @@ type (
 		Schedule(p peer.ID, t thread.ID, priority int, c PeerCall) bool
 	}
 )
+
+type (
+	ThreadPack struct {
+		pid  peer.ID
+		tids []thread.ID
+	}
+
+	ThreadPacker interface {
+		// Add thread to peer's queue
+		Add(pid peer.ID, tid thread.ID)
+
+		// Start packing incoming thread requests
+		Run() <-chan ThreadPack
+	}
+)

@@ -10,7 +10,7 @@ import (
 
 func TestOperationQueue(t *testing.T) {
 	var (
-		q  = newThreadQueue()
+		q  = newPeerQueue()
 		t1 = thread.NewIDV1(thread.Raw, 32)
 		t2 = thread.NewIDV1(thread.Raw, 32)
 		t3 = thread.NewIDV1(thread.Raw, 32)

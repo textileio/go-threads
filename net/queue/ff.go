@@ -20,19 +20,19 @@ type linkedOperation struct {
 	created    int64
 }
 
-type threadQueue struct {
+type peerQueue struct {
 	index       map[thread.ID]*linkedOperation
 	first, last *linkedOperation
 	sync.Mutex
 }
 
 // Simple FIFO-queue with O(1)-operations.
-func newThreadQueue() *threadQueue {
-	return &threadQueue{index: make(map[thread.ID]*linkedOperation)}
+func newPeerQueue() *peerQueue {
+	return &peerQueue{index: make(map[thread.ID]*linkedOperation)}
 }
 
 // Add new call to the queue or replace existing one with lower priority.
-func (q *threadQueue) Add(tid thread.ID, call PeerCall, priority int) bool {
+func (q *peerQueue) Add(tid thread.ID, call PeerCall, priority int) bool {
 	op, exist := q.index[tid]
 	if !exist {
 		// append new entry at the end
@@ -63,7 +63,7 @@ func (q *threadQueue) Add(tid thread.ID, call PeerCall, priority int) bool {
 }
 
 // Return previously added calls in FIFO order.
-func (q *threadQueue) Pop() (PeerCall, thread.ID, int64, bool) {
+func (q *peerQueue) Pop() (PeerCall, thread.ID, int64, bool) {
 	if q.first == nil {
 		return nil, thread.Undef, 0, false
 	}
@@ -74,7 +74,7 @@ func (q *threadQueue) Pop() (PeerCall, thread.ID, int64, bool) {
 }
 
 // Remove corresponding call if it was scheduled.
-func (q *threadQueue) Remove(tid thread.ID) bool {
+func (q *peerQueue) Remove(tid thread.ID) bool {
 	op, exist := q.index[tid]
 	if !exist {
 		return false
@@ -104,7 +104,7 @@ func (q *threadQueue) Remove(tid thread.ID) bool {
 	return true
 }
 
-func (q *threadQueue) Size() int {
+func (q *peerQueue) Size() int {
 	return len(q.index)
 }
 
@@ -113,7 +113,7 @@ func (q *threadQueue) Size() int {
 var _ CallQueue = (*ffQueue)(nil)
 
 type ffQueue struct {
-	peers    map[peer.ID]*threadQueue
+	peers    map[peer.ID]*peerQueue
 	inflight map[uint64]struct{}
 	poll     time.Duration
 	timeout  time.Duration
@@ -136,7 +136,7 @@ func NewFFQueue(
 		poll:     pollInterval,
 		timeout:  spawnTimeout,
 		inflight: make(map[uint64]struct{}),
-		peers:    make(map[peer.ID]*threadQueue),
+		peers:    make(map[peer.ID]*peerQueue),
 	}
 }
 
@@ -153,17 +153,17 @@ func (q *ffQueue) Schedule(
 		log.Debugf("skip call to [%s/%s]: in-flight", pid, tid)
 		return false
 	}
-	peerQueue, exist := q.peers[pid]
+	pq, exist := q.peers[pid]
 	if !exist {
-		peerQueue = newThreadQueue()
-		q.peers[pid] = peerQueue
-		go q.pollQueue(pid, peerQueue)
+		pq = newPeerQueue()
+		q.peers[pid] = pq
+		go q.pollQueue(pid, pq)
 	}
 	q.mx.Unlock()
 
-	peerQueue.Lock()
-	defer peerQueue.Unlock()
-	return peerQueue.Add(tid, call, priority)
+	pq.Lock()
+	defer pq.Unlock()
+	return pq.Add(tid, call, priority)
 }
 
 func (q *ffQueue) Call(
@@ -173,14 +173,14 @@ func (q *ffQueue) Call(
 ) error {
 	h := hash(pid, tid)
 	q.mx.Lock()
-	peerQueue, exist := q.peers[pid]
+	pq, exist := q.peers[pid]
 	q.inflight[h] = struct{}{}
 	q.mx.Unlock()
 
 	if exist {
-		peerQueue.Lock()
-		removed := peerQueue.Remove(tid)
-		peerQueue.Unlock()
+		pq.Lock()
+		removed := pq.Remove(tid)
+		pq.Unlock()
 		if removed {
 			log.Debugf("deschedule call to [%s/%s]: directly invoked", pid, tid)
 		}
@@ -193,7 +193,7 @@ func (q *ffQueue) Call(
 	return err
 }
 
-func (q *ffQueue) pollQueue(pid peer.ID, tq *threadQueue) {
+func (q *ffQueue) pollQueue(pid peer.ID, pq *peerQueue) {
 	var tick = time.NewTicker(q.poll)
 
 	for {
@@ -203,10 +203,10 @@ func (q *ffQueue) pollQueue(pid peer.ID, tq *threadQueue) {
 			return
 
 		case <-tick.C:
-			tq.Lock()
+			pq.Lock()
 			var deadline = time.Now().Add(-q.timeout).Unix()
-			for waiting := tq.Size(); waiting > 0; waiting-- {
-				call, tid, created, ok := tq.Pop()
+			for waiting := pq.Size(); waiting > 0; waiting-- {
+				call, tid, created, ok := pq.Pop()
 				if !ok {
 					break
 				}
@@ -236,7 +236,7 @@ func (q *ffQueue) pollQueue(pid peer.ID, tq *threadQueue) {
 					break
 				}
 			}
-			tq.Unlock()
+			pq.Unlock()
 		}
 	}
 }
