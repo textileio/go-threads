@@ -34,9 +34,18 @@ var (
 type Version uint64
 
 const (
-	// V1 is the current thread ID version.
-	V1 Version = 0x01
+	// Version1 is the current thread ID version.
+	Version1 Version = 0x01
 )
+
+func (v Version) String() string {
+	switch v {
+	case Version1:
+		return "1"
+	default:
+		panic(fmt.Errorf("version %d is invalid", v))
+	}
+}
 
 // Variant is a type for thread variants.
 type Variant uint64
@@ -59,22 +68,22 @@ func (v Variant) String() string {
 	}
 }
 
-// NewRandomIDV1 returns a new random V1 ID.
+// NewRandomIDV1 returns a new random Version1 ID.
 func NewRandomIDV1() ID {
 	p := make([]byte, randomVariantSize)
 	if _, err := rand.Read(p); err != nil {
 		panic(fmt.Errorf("random read: %v", err))
 	}
-	return newID(V1, RandomVariant, p)
+	return newID(Version1, RandomVariant, p)
 }
 
-// NewPubKeyIDV1 returns a new pubkey V1 ID.
+// NewPubKeyIDV1 returns a new pubkey Version1 ID.
 func NewPubKeyIDV1(k PubKey) ID {
 	p, err := k.Hash()
 	if err != nil {
 		panic(fmt.Errorf("getting key hash: %v", err))
 	}
-	return newID(V1, PubKeyVariant, p)
+	return newID(Version1, PubKeyVariant, p)
 }
 
 func newID(version Version, variant Variant, payload []byte) ID {
@@ -215,7 +224,7 @@ func validateIDData(data []byte) error {
 		return err
 	}
 
-	if vers != V1 {
+	if vers != Version1 {
 		return fmt.Errorf("expected 1 as the id version number, got: %d", vers)
 	}
 
@@ -279,7 +288,7 @@ func (i ID) Variant() Variant {
 func (i ID) String() string {
 	i.MustValidate()
 	switch i.Version() {
-	case V1:
+	case Version1:
 		b := []byte(i)
 		mbstr, err := mbase.Encode(mbase.Base32, b)
 		if err != nil {
@@ -292,21 +301,21 @@ func (i ID) String() string {
 	}
 }
 
-// DID returns a decentralized identifier in the form of did:thread:string(id).
-func (i ID) DID() string {
-	return "did:thread:" + i.String()
-}
-
 // StringOfBase returns the string representation of an ID
 // encoded is selected base.
 func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 	i.MustValidate()
 	switch i.Version() {
-	case V1:
+	case Version1:
 		return mbase.Encode(base, i.Bytes())
 	default:
 		panic(errors.New("unknown thread id version"))
 	}
+}
+
+// DID returns a decentralized identifier in the form of did:thread:string(id).
+func (i ID) DID() string {
+	return "did:thread:" + i.String()
 }
 
 // Encode return the string representation of an ID in a given base
@@ -314,7 +323,7 @@ func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 func (i ID) Encode(base mbase.Encoder) string {
 	i.MustValidate()
 	switch i.Version() {
-	case V1:
+	case Version1:
 		return base.Encode(i.Bytes())
 	default:
 		panic(errors.New("unknown thread id version"))

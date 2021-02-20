@@ -2,117 +2,122 @@ package thread
 
 import (
 	"crypto/rand"
-	"encoding/binary"
+	"fmt"
 	"testing"
 
 	mbase "github.com/multiformats/go-multibase"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCast(t *testing.T) {
-	i := NewRandomIDV1(RandomVariant, 32)
-	j, err := Cast(i.Bytes())
-	if err != nil {
-		t.Errorf("failed to cast ID %s: %s", i.String(), err)
-	}
-	if i != j {
-		t.Errorf("id %v not equal to id %v", i.String(), j.String())
-	}
+func TestNewRandomIDV1(t *testing.T) {
+
+}
+
+func TestNewPubKeyIDV1(t *testing.T) {
+
 }
 
 func TestDecode(t *testing.T) {
-	i := NewRandomIDV1(RandomVariant, 32)
-	t.Logf("New ID: %s", i.String())
-
-	j, err := Decode(i.String())
-	if err != nil {
-		t.Errorf("failed to decode ID %s: %s", i.String(), err)
-	}
-
-	t.Logf("Decoded ID: %s", j.String())
+	id := NewRandomIDV1()
+	decoded, err := Decode(id.String())
+	require.NoError(t, err)
+	assert.True(t, decoded.Equals(id))
 }
 
 func TestExtractEncoding(t *testing.T) {
-	i := NewRandomIDV1(RandomVariant, 16)
+	e, err := ExtractEncoding(NewRandomIDV1().String())
+	require.NoError(t, err)
+	assert.Equal(t, mbase.Base32, int32(e))
+}
 
-	e, err := ExtractEncoding(i.String())
-	if err != nil {
-		t.Errorf("failed to extract encoding from %s: %s", i.String(), err)
-	}
+func TestCast(t *testing.T) {
+	id := NewRandomIDV1()
+	casted, err := Cast(id.Bytes())
+	require.NoError(t, err)
+	assert.True(t, casted.Equals(id))
+}
 
-	t.Logf("Encoding: %s", mbase.EncodingToStr[e])
+func TestFromAddr(t *testing.T) {
+
+}
+
+func TestToAddr(t *testing.T) {
+
+}
+
+func TestID_Validate(t *testing.T) {
+	require.NoError(t, NewRandomIDV1().Validate())
+	require.NoError(t, NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).Validate())
+	require.Error(t, newID(Version(5), RandomVariant, randBytes(t, 16)).Validate())
+	require.Error(t, newID(Version1, Variant(50), randBytes(t, 16)).Validate())
+	require.Error(t, newID(Version1, RandomVariant, randBytes(t, 0)).Validate())
+}
+
+func TestID_UnmarshalBinary(t *testing.T) {
+
+}
+
+func TestID_UnmarshalText(t *testing.T) {
+
 }
 
 func TestID_Version(t *testing.T) {
-	i := NewRandomIDV1(RandomVariant, 16)
-
-	v := i.Version()
-	if v != V1 {
-		t.Errorf("got wrong version from %s: %d", i.String(), v)
-	}
-
-	t.Logf("Version: %d", v)
+	assert.Equal(t, Version1, NewRandomIDV1().Version())
+	assert.Equal(t, Version1, NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).Version())
 }
 
 func TestID_Variant(t *testing.T) {
-	i := NewRandomIDV1(RandomVariant, 16)
-
-	v := i.Variant()
-	if v != RandomVariant {
-		t.Errorf("got wrong variant from %s: %d", i.String(), v)
-	}
-
-	t.Logf("Variant: %s", v)
-
-	i = NewRandomIDV1(PubKeyVariant, 32)
-
-	v = i.Variant()
-	if v != PubKeyVariant {
-		t.Errorf("got wrong variant from %s: %d", i.String(), v)
-	}
-
-	t.Logf("Variant: %s", v)
+	assert.Equal(t, RandomVariant, NewRandomIDV1().Variant())
+	assert.Equal(t, PubKeyVariant, NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).Variant())
 }
 
-func TestID_Valid(t *testing.T) {
-	i := NewRandomIDV1(RandomVariant, 16)
-	if err := i.Validate(); err != nil {
-		t.Errorf("id %s is invalid", i.String())
-	}
+func TestID_String(t *testing.T) {
+
 }
 
-func TestID_Invalid(t *testing.T) {
-	i := makeID(t, 5, int64(RandomVariant), 16)
-	if err := i.Validate(); err == nil {
-		t.Errorf("id %s is valid but it has an invalid version", i.String())
-	}
+func TestID_StringOfBase(t *testing.T) {
 
-	i = makeID(t, V1, 50, 16)
-	if err := i.Validate(); err == nil {
-		t.Errorf("id %s is valid but it has an invalid variant", i.String())
-	}
-
-	i = makeID(t, V1, int64(RandomVariant), 0)
-	if err := i.Validate(); err == nil {
-		t.Errorf("id %s is valid but it has no random bytes", i.String())
-	}
 }
 
-func makeID(t *testing.T, version uint64, variant int64, size uint8) ID {
-	num := make([]byte, size)
-	_, err := rand.Read(num)
-	if err != nil {
-		t.Errorf("failed to generate random data: %v", err)
-	}
+func TestID_DID(t *testing.T) {
+	fmt.Println(NewRandomIDV1().DID())
+	fmt.Println(NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).DID())
+	assert.NotEmpty(t, NewRandomIDV1().DID())
+	assert.NotEmpty(t, NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).DID())
+}
 
-	numlen := len(num)
-	// two 8 bytes (max) numbers plus num
-	buf := make([]byte, 2*binary.MaxVarintLen64+numlen)
-	n := binary.PutUvarint(buf, version)
-	n += binary.PutUvarint(buf[n:], uint64(variant))
-	cn := copy(buf[n:], num)
-	if cn != numlen {
-		t.Errorf("copy length is inconsistent")
-	}
+func TestID_Encode(t *testing.T) {
 
-	return ID(buf[:n+numlen])
+}
+
+func TestID_Bytes(t *testing.T) {
+
+}
+
+func TestID_MarshalBinary(t *testing.T) {
+
+}
+
+func TestID_MarshalText(t *testing.T) {
+
+}
+
+func TestID_Equals(t *testing.T) {
+
+}
+
+func TestID_KeyString(t *testing.T) {
+
+}
+
+func TestID_Loggable(t *testing.T) {
+
+}
+
+func randBytes(t *testing.T, size uint8) []byte {
+	bytes := make([]byte, size)
+	_, err := rand.Read(bytes)
+	require.NoError(t, err)
+	return bytes
 }
