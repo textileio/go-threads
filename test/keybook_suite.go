@@ -47,7 +47,7 @@ func KeyBookTest(t *testing.T, factory KeyBookFactory) {
 
 func testKeyBookPrivKey(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
 			t.Error("expected logs to be empty on init without erros")
@@ -84,7 +84,7 @@ func testKeyBookPrivKey(kb core.KeyBook) func(t *testing.T) {
 
 func testKeyBookPubKey(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
 			t.Error("expected logs to be empty on init without errors")
@@ -121,7 +121,7 @@ func testKeyBookPubKey(kb core.KeyBook) func(t *testing.T) {
 
 func testKeyBookReadKey(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
 			t.Error("expected logs to be empty on init without errors")
@@ -145,7 +145,7 @@ func testKeyBookReadKey(kb core.KeyBook) func(t *testing.T) {
 
 func testKeyBookServiceKey(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
 			t.Error("expected logs to be empty on init without errors")
@@ -169,7 +169,7 @@ func testKeyBookServiceKey(kb core.KeyBook) func(t *testing.T) {
 
 func testKeyBookClearKeys(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		key1, err := sym.NewRandom()
 		if err != nil {
@@ -239,7 +239,7 @@ func testKeyBookClearKeys(kb core.KeyBook) func(t *testing.T) {
 
 func testKeyBookClearLogKeys(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		key1, err := sym.NewRandom()
 		if err != nil {
@@ -303,7 +303,7 @@ func testKeyBookClearLogKeys(kb core.KeyBook) func(t *testing.T) {
 
 func testKeyBookLogs(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
 			t.Error("expected logs to be empty on init without errors")
@@ -351,9 +351,9 @@ func testKeyBookThreads(kb core.KeyBook) func(t *testing.T) {
 		}
 
 		threads := thread.IDSlice{
-			thread.NewIDV1(thread.Raw, 16),
-			thread.NewIDV1(thread.Raw, 24),
-			thread.NewIDV1(thread.AccessControlled, 32),
+			thread.NewRandomIDV1(thread.RandomVariant, 16),
+			thread.NewRandomIDV1(thread.RandomVariant, 24),
+			thread.NewRandomIDV1(thread.PubKeyVariant, 32),
 		}
 		rand.Seed(time.Now().Unix())
 		for i := 0; i < 10; i++ {
@@ -394,7 +394,7 @@ func testInlinedPubKeyAddedOnRetrieve(kb core.KeyBook) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Skip("key inlining disabled for now: see libp2p/specs#111")
 
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		if logs, err := kb.LogsWithKeys(tid); err != nil || len(logs) > 0 {
 			t.Error("expected logs to be empty on init without errors")
@@ -435,7 +435,7 @@ func testKeyBookExport(kb core.KeyBook) func(t *testing.T) {
 
 		// generate key set
 		for i := 0; i < numThreads; i++ {
-			tid := thread.NewIDV1(thread.Raw, 24)
+			tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 			readKey, err := sym.NewRandom()
 			if err != nil {
@@ -571,7 +571,7 @@ func BenchmarkKeyBook(b *testing.B, factory KeyBookFactory) {
 
 func benchmarkPubKey(kb core.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -597,7 +597,7 @@ func benchmarkPubKey(kb core.KeyBook) func(*testing.B) {
 
 func benchmarkAddPubKey(kb core.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		_, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -618,7 +618,7 @@ func benchmarkAddPubKey(kb core.KeyBook) func(*testing.B) {
 
 func benchmarkPrivKey(kb core.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		priv, _, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -644,7 +644,7 @@ func benchmarkPrivKey(kb core.KeyBook) func(*testing.B) {
 
 func benchmarkAddPrivKey(kb core.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		priv, _, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		if err != nil {
@@ -665,7 +665,7 @@ func benchmarkAddPrivKey(kb core.KeyBook) func(*testing.B) {
 
 func benchmarkLogsWithKeys(kb core.KeyBook) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 		for i := 0; i < 10; i++ {
 			priv, pub, err := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 			if err != nil {

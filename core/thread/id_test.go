@@ -9,7 +9,7 @@ import (
 )
 
 func TestCast(t *testing.T) {
-	i := NewIDV1(Raw, 32)
+	i := NewRandomIDV1(RandomVariant, 32)
 	j, err := Cast(i.Bytes())
 	if err != nil {
 		t.Errorf("failed to cast ID %s: %s", i.String(), err)
@@ -20,7 +20,7 @@ func TestCast(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
-	i := NewIDV1(Raw, 32)
+	i := NewRandomIDV1(RandomVariant, 32)
 	t.Logf("New ID: %s", i.String())
 
 	j, err := Decode(i.String())
@@ -32,7 +32,7 @@ func TestDecode(t *testing.T) {
 }
 
 func TestExtractEncoding(t *testing.T) {
-	i := NewIDV1(Raw, 16)
+	i := NewRandomIDV1(RandomVariant, 16)
 
 	e, err := ExtractEncoding(i.String())
 	if err != nil {
@@ -43,7 +43,7 @@ func TestExtractEncoding(t *testing.T) {
 }
 
 func TestID_Version(t *testing.T) {
-	i := NewIDV1(Raw, 16)
+	i := NewRandomIDV1(RandomVariant, 16)
 
 	v := i.Version()
 	if v != V1 {
@@ -54,19 +54,19 @@ func TestID_Version(t *testing.T) {
 }
 
 func TestID_Variant(t *testing.T) {
-	i := NewIDV1(Raw, 16)
+	i := NewRandomIDV1(RandomVariant, 16)
 
 	v := i.Variant()
-	if v != Raw {
+	if v != RandomVariant {
 		t.Errorf("got wrong variant from %s: %d", i.String(), v)
 	}
 
 	t.Logf("Variant: %s", v)
 
-	i = NewIDV1(AccessControlled, 32)
+	i = NewRandomIDV1(PubKeyVariant, 32)
 
 	v = i.Variant()
-	if v != AccessControlled {
+	if v != PubKeyVariant {
 		t.Errorf("got wrong variant from %s: %d", i.String(), v)
 	}
 
@@ -74,14 +74,14 @@ func TestID_Variant(t *testing.T) {
 }
 
 func TestID_Valid(t *testing.T) {
-	i := NewIDV1(Raw, 16)
+	i := NewRandomIDV1(RandomVariant, 16)
 	if err := i.Validate(); err != nil {
 		t.Errorf("id %s is invalid", i.String())
 	}
 }
 
 func TestID_Invalid(t *testing.T) {
-	i := makeID(t, 5, int64(Raw), 16)
+	i := makeID(t, 5, int64(RandomVariant), 16)
 	if err := i.Validate(); err == nil {
 		t.Errorf("id %s is valid but it has an invalid version", i.String())
 	}
@@ -91,7 +91,7 @@ func TestID_Invalid(t *testing.T) {
 		t.Errorf("id %s is valid but it has an invalid variant", i.String())
 	}
 
-	i = makeID(t, V1, int64(Raw), 0)
+	i = makeID(t, V1, int64(RandomVariant), 0)
 	if err := i.Validate(); err == nil {
 		t.Errorf("id %s is valid but it has no random bytes", i.String())
 	}

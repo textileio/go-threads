@@ -327,7 +327,7 @@ func NewPopulatedProtoCid(_ randyNet) *ProtoCid {
 // NewPopulatedProtoThreadID generates a populated instance of the custom gogo type ProtoThreadID.
 // It is required by gogo-generated tests.
 func NewPopulatedProtoThreadID(_ randyNet) *ProtoThreadID {
-	id := thread.NewIDV1(thread.Raw, 16)
+	id := thread.NewRandomIDV1(thread.RandomVariant, 16)
 	return &ProtoThreadID{ID: id}
 }
 

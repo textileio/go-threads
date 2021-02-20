@@ -299,7 +299,7 @@ func (n *net) AddThread(
 		return
 	}
 
-	threadComp, err := ma.NewComponent(thread.Name, id.String())
+	threadComp, err := ma.NewComponent(thread.ProtocolName, id.String())
 	if err != nil {
 		return
 	}

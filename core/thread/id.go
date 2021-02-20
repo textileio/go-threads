@@ -3,12 +3,13 @@ package thread
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	ma "github.com/multiformats/go-multiaddr"
+	maddr "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
 )
 
@@ -25,52 +26,68 @@ var (
 	// ErrIDTooShort means that the ID passed to decode was not long
 	// enough to be a valid ID.
 	ErrIDTooShort = fmt.Errorf("id too short")
+
+	randomVariantSize = 38
 )
 
-// Versions.
+// Version is a type for thread versions.
+type Version uint64
+
 const (
-	V1 = 0x01
+	// V1 is the current thread ID version.
+	V1 Version = 0x01
 )
 
 // Variant is a type for thread variants.
 type Variant uint64
 
-// Variants.
 const (
-	Raw              Variant = 0x55
-	AccessControlled Variant = 0x70 // Supports access control lists
+	// RandomVariant IDs are generated from random bytes.
+	RandomVariant Variant = 0x55
+	// PubKeyVariant IDs are generated from multihash(multibase(key))
+	PubKeyVariant Variant = 0x70
 )
 
 func (v Variant) String() string {
 	switch v {
-	case Raw:
-		return "raw"
-	case AccessControlled:
-		return "access_controlled"
+	case RandomVariant:
+		return "random"
+	case PubKeyVariant:
+		return "pubkey"
 	default:
 		panic(fmt.Errorf("variant %d is invalid", v))
 	}
 }
 
-// NewIDV1 returns a new random ID using the given variant.
-func NewIDV1(variant Variant, size uint8) ID {
-	num := make([]byte, size)
-	_, err := rand.Read(num)
+// NewRandomIDV1 returns a new random V1 ID.
+func NewRandomIDV1() ID {
+	p := make([]byte, randomVariantSize)
+	if _, err := rand.Read(p); err != nil {
+		panic(fmt.Errorf("random read: %v", err))
+	}
+	return newID(V1, RandomVariant, p)
+}
+
+// NewPubKeyIDV1 returns a new pubkey V1 ID.
+func NewPubKeyIDV1(k PubKey) ID {
+	p, err := k.Hash()
 	if err != nil {
-		panic("random read failed")
+		panic(fmt.Errorf("getting key hash: %v", err))
 	}
+	return newID(V1, PubKeyVariant, p)
+}
 
-	numlen := len(num)
+func newID(version Version, variant Variant, payload []byte) ID {
+	l := len(payload)
 	// two 8 bytes (max) numbers plus num
-	buf := make([]byte, 2*binary.MaxVarintLen64+numlen)
-	n := binary.PutUvarint(buf, V1)
+	buf := make([]byte, 2*binary.MaxVarintLen64+l)
+	n := binary.PutUvarint(buf, uint64(version))
 	n += binary.PutUvarint(buf[n:], uint64(variant))
-	cn := copy(buf[n:], num)
-	if cn != numlen {
-		panic("copy length is inconsistent")
+	c := copy(buf[n:], payload)
+	if c != l {
+		panic(errors.New("copy length is inconsistent"))
 	}
-
-	return ID(buf[:n+numlen])
+	return ID(buf[:n+l])
 }
 
 // ID represents a self-describing thread identifier.
@@ -143,8 +160,8 @@ func Cast(data []byte) (ID, error) {
 }
 
 // FromAddr returns ID from a multiaddress if present.
-func FromAddr(addr ma.Multiaddr) (ID, error) {
-	idstr, err := addr.ValueForProtocol(Code)
+func FromAddr(addr maddr.Multiaddr) (ID, error) {
+	idstr, err := addr.ValueForProtocol(ProtocolCode)
 	if err != nil {
 		return Undef, err
 	}
@@ -152,8 +169,8 @@ func FromAddr(addr ma.Multiaddr) (ID, error) {
 }
 
 // ToAddr returns ID wrapped as a multiaddress.
-func ToAddr(id ID) ma.Multiaddr {
-	addr, err := ma.NewMultiaddr("/" + Name + "/ " + string(id))
+func ToAddr(id ID) maddr.Multiaddr {
+	addr, err := maddr.NewMultiaddr("/" + ProtocolName + "/ " + string(id))
 	if err != nil {
 		panic(err) // This should not happen
 	}
@@ -177,12 +194,19 @@ func (i ID) Validate() error {
 	return validateIDData(data)
 }
 
-func getVersion(data []byte) (uint64, int, error) {
+// MustValidate panics if ID is not valid.
+func (i ID) MustValidate() {
+	if err := i.Validate(); err != nil {
+		panic(errors.New("invalid thread id"))
+	}
+}
+
+func getVersion(data []byte) (Version, int, error) {
 	vers, n := binary.Uvarint(data)
 	if err := uvError(n); err != nil {
 		return 0, 0, err
 	}
-	return vers, n, nil
+	return Version(vers), n, nil
 }
 
 func validateIDData(data []byte) error {
@@ -200,8 +224,8 @@ func validateIDData(data []byte) error {
 		return err
 	}
 
-	if variant != uint64(Raw) && variant != uint64(AccessControlled) {
-		return fmt.Errorf("expected Raw or AccessControlled as the id variant, got: %d", variant)
+	if variant != uint64(RandomVariant) && variant != uint64(PubKeyVariant) {
+		return fmt.Errorf("expected RandomVariant or PubKeyVariant as the id variant, got: %d", variant)
 	}
 
 	id := data[n+cn:]
@@ -235,10 +259,10 @@ func (i *ID) UnmarshalText(text []byte) error {
 }
 
 // Version returns the ID version.
-func (i ID) Version() uint64 {
+func (i ID) Version() Version {
 	version, _, err := getVersion(i.Bytes())
 	if err != nil {
-		panic("error getting version: " + err.Error())
+		panic(fmt.Errorf("getting version: %v", err))
 	}
 	return version
 }
@@ -253,48 +277,47 @@ func (i ID) Variant() Variant {
 // String returns the default string representation of an ID.
 // Currently, Base32 is used as the encoding for the multibase string.
 func (i ID) String() string {
-	if err := i.Validate(); err != nil {
-		panic("invalid thread id")
-	}
+	i.MustValidate()
 	switch i.Version() {
 	case V1:
 		b := []byte(i)
 		mbstr, err := mbase.Encode(mbase.Base32, b)
 		if err != nil {
-			panic("should not error with hardcoded mbase: " + err.Error())
+			panic(fmt.Errorf("should not error with hardcoded mbase: %v", err))
 		}
 
 		return mbstr
 	default:
-		panic("unknown thread id version")
+		panic(errors.New("unknown thread id version"))
 	}
+}
+
+// DID returns a decentralized identifier in the form of did:thread:string(id).
+func (i ID) DID() string {
+	return "did:thread:" + i.String()
 }
 
 // StringOfBase returns the string representation of an ID
 // encoded is selected base.
 func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
-	if err := i.Validate(); err != nil {
-		panic("invalid thread id")
-	}
+	i.MustValidate()
 	switch i.Version() {
 	case V1:
 		return mbase.Encode(base, i.Bytes())
 	default:
-		panic("unknown thread id version")
+		panic(errors.New("unknown thread id version"))
 	}
 }
 
 // Encode return the string representation of an ID in a given base
 // when applicable.
 func (i ID) Encode(base mbase.Encoder) string {
-	if err := i.Validate(); err != nil {
-		panic("invalid thread id")
-	}
+	i.MustValidate()
 	switch i.Version() {
 	case V1:
 		return base.Encode(i.Bytes())
 	default:
-		panic("unknown thread id version")
+		panic(errors.New("unknown thread id version"))
 	}
 }
 
@@ -314,9 +337,7 @@ func (i ID) MarshalBinary() ([]byte, error) {
 // MarshalText is equivalent to String(). It implements the
 // encoding.TextMarshaler interface.
 func (i ID) MarshalText() ([]byte, error) {
-	if err := i.Validate(); err != nil {
-		panic("invalid thread id")
-	}
+	i.MustValidate()
 	return []byte(i.String()), nil
 }
 
@@ -350,7 +371,7 @@ type Info struct {
 	ID    ID
 	Key   Key
 	Logs  []LogInfo
-	Addrs []ma.Multiaddr
+	Addrs []maddr.Multiaddr
 }
 
 // GetFirstPrivKeyLog returns the first log found with a private key.
@@ -374,7 +395,7 @@ type LogInfo struct {
 	// PrivKey is the log's private key.
 	PrivKey crypto.PrivKey
 	// Addrs are the addresses associated with the given log.
-	Addrs []ma.Multiaddr
+	Addrs []maddr.Multiaddr
 	// Head is the log's current head.
 	Head cid.Cid
 	// Managed logs are any logs directly added/created by the host, and/or logs for which we have the private key

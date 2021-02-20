@@ -69,7 +69,7 @@ func TestClient_CreateThread(t *testing.T) {
 	defer done()
 
 	t.Run("test create thread", func(t *testing.T) {
-		id := thread.NewIDV1(thread.Raw, 32)
+		id := thread.NewRandomIDV1(thread.RandomVariant, 32)
 		info, err := client.CreateThread(context.Background(), id)
 		if err != nil {
 			t.Fatalf("failed to create thread: %v", err)
@@ -219,7 +219,7 @@ func TestClient_AddRecord(t *testing.T) {
 	defer done()
 
 	// Create a thread, keeping read key and log private key on the client
-	id := thread.NewIDV1(thread.Raw, 32)
+	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
 	tk := thread.NewRandomKey()
 	logSk, logPk, err := crypto.GenerateEd25519Key(crand.Reader)
 	if err != nil {
@@ -472,7 +472,7 @@ func createIdentity(t *testing.T) thread.Identity {
 }
 
 func createThread(t *testing.T, client *Client) thread.Info {
-	id := thread.NewIDV1(thread.Raw, 32)
+	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
 	info, err := client.CreateThread(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
@@ -485,7 +485,7 @@ func threadAddr(t *testing.T, hostAddr ma.Multiaddr, hostID peer.ID, info thread
 	if err != nil {
 		t.Fatal(err)
 	}
-	ta, err := ma.NewMultiaddr("/" + thread.Name + "/" + info.ID.String())
+	ta, err := ma.NewMultiaddr("/" + thread.ProtocolName + "/" + info.ID.String())
 	if err != nil {
 		t.Fatal(err)
 	}

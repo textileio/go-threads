@@ -43,7 +43,7 @@ func AddrBookTest(t *testing.T, factory AddrBookFactory) {
 
 func testAddAddress(ab core.AddrBook) func(*testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		t.Run("add a single address", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
@@ -140,7 +140,7 @@ func testAddAddress(ab core.AddrBook) func(*testing.T) {
 
 func testClearWorks(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs := GenerateAddrs(5)
@@ -163,7 +163,7 @@ func testClearWorks(ab core.AddrBook) func(t *testing.T) {
 
 func testSetNegativeTTLClears(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		id := GeneratePeerIDs(1)[0]
 		addrs := GenerateAddrs(100)
@@ -185,7 +185,7 @@ func testSetNegativeTTLClears(ab core.AddrBook) func(t *testing.T) {
 
 func testUpdateTTLs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		t.Run("update ttl of log with no addrs", func(t *testing.T) {
 			id := GeneratePeerIDs(1)[0]
@@ -241,7 +241,7 @@ func testUpdateTTLs(ab core.AddrBook) func(t *testing.T) {
 
 func testNilAddrsDontBreak(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		id := GeneratePeerIDs(1)[0]
 
@@ -252,7 +252,7 @@ func testNilAddrsDontBreak(ab core.AddrBook) func(t *testing.T) {
 
 func testAddressesExpire(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs1 := GenerateAddrs(3)
@@ -299,7 +299,7 @@ func testAddressesExpire(ab core.AddrBook) func(t *testing.T) {
 
 func testClearWithIterator(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		ids := GeneratePeerIDs(2)
 		addrs := GenerateAddrs(100)
@@ -328,7 +328,7 @@ func testClearWithIterator(ab core.AddrBook) func(t *testing.T) {
 
 func testLogsWithAddrs(ab core.AddrBook) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		// cannot run in parallel as the store is modified.
 		// go runs sequentially in the specified order
@@ -371,7 +371,7 @@ func testThreadsFromAddrs(ab core.AddrBook) func(t *testing.T) {
 		t.Run("non-empty addrbook", func(t *testing.T) {
 			tids := make([]thread.ID, 3)
 			for i := range tids {
-				tids[i] = thread.NewIDV1(thread.Raw, 24)
+				tids[i] = thread.NewRandomIDV1(thread.RandomVariant, 24)
 				ids := GeneratePeerIDs(2)
 				addrs := GenerateAddrs(4)
 
@@ -390,7 +390,7 @@ func testThreadsFromAddrs(ab core.AddrBook) func(t *testing.T) {
 
 func testExportAddressBook(ab core.AddrBook) func(*testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewIDV1(thread.Raw, 24)
+		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
 
 		t.Run("dump and restore", func(t *testing.T) {
 			ids := GeneratePeerIDs(2)

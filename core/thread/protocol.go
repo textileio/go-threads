@@ -9,20 +9,20 @@ import (
 )
 
 const (
-	// Name is the protocol slug.
-	Name = "thread"
-	// Code is the protocol code.
-	Code = 406
-	// Version is the current protocol version.
-	Version = "0.0.1"
+	// ProtocolName is the protocol slug.
+	ProtocolName = "thread"
+	// ProtocolCode is the protocol code.
+	ProtocolCode = 406
+	// ProtocolVersion is the current protocol version.
+	ProtocolVersion = "0.0.1"
 	// Protocol is the threads protocol tag.
-	Protocol protocol.ID = "/" + Name + "/" + Version
+	Protocol protocol.ID = "/" + ProtocolName + "/" + ProtocolVersion
 )
 
 var addrProtocol = ma.Protocol{
-	Name:       Name,
-	Code:       Code,
-	VCode:      ma.CodeToVarint(Code),
+	Name:       ProtocolName,
+	Code:       ProtocolCode,
+	VCode:      ma.CodeToVarint(ProtocolCode),
 	Size:       ma.LengthPrefixedVarSize,
 	Transcoder: ma.NewTranscoderFromFunctions(threadStB, threadBtS, threadVal),
 }

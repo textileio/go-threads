@@ -68,7 +68,7 @@ func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 	checkBenchErr(b, err)
 	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
 	checkBenchErr(b, err)
-	d, err := NewDB(context.Background(), store, n, thread.NewIDV1(thread.Raw, 32), opts...)
+	d, err := NewDB(context.Background(), store, n, thread.NewRandomIDV1(thread.RandomVariant, 32), opts...)
 	checkBenchErr(b, err)
 	return d, func() {
 		if err := n.Close(); err != nil {

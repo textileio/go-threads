@@ -10,10 +10,13 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gogo/status"
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
+	mhash "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/crypto/asymmetric"
+	"github.com/textileio/go-threads/did"
 	jwted25519 "github.com/textileio/go-threads/jwt"
 	"google.golang.org/grpc/codes"
 )
@@ -32,8 +35,16 @@ type Identity interface {
 	GetPublic() PubKey
 	// Decrypt returns decrypted data.
 	Decrypt(context.Context, []byte) ([]byte, error)
+	// Token returns a JWT-encoded verifiable claim to identity.
+	Token(aud did.DID, dur time.Duration) (did.Token, error)
 	// Equals returns true if the identities are equal.
 	Equals(Identity) bool
+}
+
+// IdentityClaims defines a verifiable claim to an identity.
+type IdentityClaims struct {
+	jwt.StandardClaims
+	VerifiableCredential did.VerifiableCredential `json:"vc"`
 }
 
 // Libp2pIdentity wraps crypto.PrivKey, overwriting GetPublic with thread.PubKey.
@@ -46,40 +57,88 @@ func NewLibp2pIdentity(key crypto.PrivKey) Identity {
 	return &Libp2pIdentity{PrivKey: key}
 }
 
-func (p *Libp2pIdentity) MarshalBinary() ([]byte, error) {
-	return crypto.MarshalPrivateKey(p.PrivKey)
+func (i *Libp2pIdentity) MarshalBinary() ([]byte, error) {
+	return crypto.MarshalPrivateKey(i.PrivKey)
 }
 
-func (p *Libp2pIdentity) UnmarshalBinary(bytes []byte) (err error) {
-	p.PrivKey, err = crypto.UnmarshalPrivateKey(bytes)
+func (i *Libp2pIdentity) UnmarshalBinary(bytes []byte) (err error) {
+	i.PrivKey, err = crypto.UnmarshalPrivateKey(bytes)
 	if err != nil {
 		return err
 	}
 	return err
 }
 
-func (p *Libp2pIdentity) Sign(_ context.Context, msg []byte) ([]byte, error) {
-	return p.PrivKey.Sign(msg)
+func (i *Libp2pIdentity) Sign(_ context.Context, msg []byte) ([]byte, error) {
+	return i.PrivKey.Sign(msg)
 }
 
-func (p *Libp2pIdentity) GetPublic() PubKey {
-	return NewLibp2pPubKey(p.PrivKey.GetPublic())
+func (i *Libp2pIdentity) GetPublic() PubKey {
+	return NewLibp2pPubKey(i.PrivKey.GetPublic())
 }
 
-func (p *Libp2pIdentity) Decrypt(_ context.Context, data []byte) ([]byte, error) {
-	dk, err := asymmetric.FromPrivKey(p.PrivKey)
+func (i *Libp2pIdentity) Decrypt(_ context.Context, data []byte) ([]byte, error) {
+	dk, err := asymmetric.FromPrivKey(i.PrivKey)
 	if err != nil {
 		return nil, err
 	}
 	return dk.Decrypt(data)
 }
 
-func (p *Libp2pIdentity) Equals(i Identity) bool {
-	li, ok := i.(*Libp2pIdentity)
+func (i *Libp2pIdentity) Token(aud did.DID, dur time.Duration) (did.Token, error) {
+	id, err := i.GetPublic().DID()
+	if err != nil {
+		return "", nil
+	}
+	claims := IdentityClaims{
+		StandardClaims: jwt.StandardClaims{
+			Id:        uuid.New().URN(),
+			Subject:   string(id),
+			Issuer:    string(id),
+			Audience:  string(aud),
+			ExpiresAt: time.Now().Add(dur).Unix(),
+			IssuedAt:  time.Now().Unix(),
+			NotBefore: time.Now().Unix(),
+		},
+		VerifiableCredential: did.VerifiableCredential{
+			Context: []string{
+				"https://www.w3.org/2018/credentials/v1",
+			},
+			Type: []string{
+				"VerifiableCredential",
+			},
+			CredentialSubject: did.VerifiableCredentialSubject{
+				ID: string(id),
+				Document: did.Document{
+					Context: []string{
+						"https://www.w3.org/ns/did/v1",
+					},
+					ID: string(id),
+					Authentication: []did.VerificationMethod{
+						{
+							ID:                 string(id) + "#keys-1",
+							Type:               "Ed25519VerificationKey2018",
+							Controller:         string(id),
+							PublicKeyMultiBase: i.GetPublic().String(),
+						},
+					},
+				},
+			},
+		},
+	}
+	t, err := jwt.NewWithClaims(jwted25519.SigningMethodEd25519i, claims).SignedString(i.PrivKey)
+	if err != nil {
+		return "", err
+	}
+	return did.Token(t), nil
+}
+
+func (i *Libp2pIdentity) Equals(id Identity) bool {
+	i2, ok := id.(*Libp2pIdentity)
 	if !ok {
 		return false
 	}
-	return p.PrivKey.Equals(li.PrivKey)
+	return i.PrivKey.Equals(i2.PrivKey)
 }
 
 // Pubkey can be anything that provides a verify method.
@@ -95,6 +154,10 @@ type PubKey interface {
 	Verify(data []byte, sig []byte) (bool, error)
 	// Encrypt data with the public key.
 	Encrypt([]byte) ([]byte, error)
+	// Hash returns a multihash of the key.
+	Hash() ([]byte, error)
+	// DID returns a decentralized identifier in the form of did:key:multibase(key).
+	DID() (did.DID, error)
 	// Equals returns true if the keys are equal.
 	Equals(PubKey) bool
 }
@@ -109,53 +172,73 @@ func NewLibp2pPubKey(key crypto.PubKey) PubKey {
 	return &Libp2pPubKey{PubKey: key}
 }
 
-func (p *Libp2pPubKey) MarshalBinary() ([]byte, error) {
-	return crypto.MarshalPublicKey(p.PubKey)
+func (k *Libp2pPubKey) MarshalBinary() ([]byte, error) {
+	return crypto.MarshalPublicKey(k.PubKey)
 }
 
-func (p *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
-	p.PubKey, err = crypto.UnmarshalPublicKey(bytes)
+func (k *Libp2pPubKey) UnmarshalBinary(bytes []byte) (err error) {
+	k.PubKey, err = crypto.UnmarshalPublicKey(bytes)
 	if err != nil {
 		return err
 	}
 	return err
 }
 
-func (p *Libp2pPubKey) String() string {
-	bytes, err := crypto.MarshalPublicKey(p.PubKey)
+func (k *Libp2pPubKey) String() string {
+	bytes, err := crypto.MarshalPublicKey(k.PubKey)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("marshal pubkey: %v", err))
 	}
 	str, err := mbase.Encode(mbase.Base32, bytes)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("multibase encoding pubkey: %v", err))
 	}
 	return str
 }
 
-func (p *Libp2pPubKey) UnmarshalString(str string) error {
+func (k *Libp2pPubKey) UnmarshalString(str string) error {
 	_, bytes, err := mbase.Decode(str)
 	if err != nil {
 		return err
 	}
-	p.PubKey, err = crypto.UnmarshalPublicKey(bytes)
+	k.PubKey, err = crypto.UnmarshalPublicKey(bytes)
 	return err
 }
 
-func (p *Libp2pPubKey) Encrypt(data []byte) ([]byte, error) {
-	ek, err := asymmetric.FromPubKey(p.PubKey)
+func (k *Libp2pPubKey) Encrypt(data []byte) ([]byte, error) {
+	ek, err := asymmetric.FromPubKey(k.PubKey)
 	if err != nil {
 		return nil, err
 	}
 	return ek.Encrypt(data)
 }
 
-func (p *Libp2pPubKey) Equals(k PubKey) bool {
-	lk, ok := k.(*Libp2pPubKey)
+func (k *Libp2pPubKey) Hash() ([]byte, error) {
+	bytes, err := k.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return mhash.Encode(bytes, mhash.SHA3_256)
+}
+
+func (k *Libp2pPubKey) DID() (did.DID, error) {
+	hash, err := k.Hash()
+	if err != nil {
+		return "", err
+	}
+	id, err := mbase.Encode(mbase.Base32, hash)
+	if err != nil {
+		return "", err
+	}
+	return did.DID("did:key:" + id), nil
+}
+
+func (k *Libp2pPubKey) Equals(pk PubKey) bool {
+	k2, ok := pk.(*Libp2pPubKey)
 	if !ok {
 		return false
 	}
-	return p.PubKey.Equals(lk.PubKey)
+	return k.PubKey.Equals(k2.PubKey)
 }
 
 // Token is a concrete type for a JWT token string, which provides

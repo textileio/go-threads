@@ -30,7 +30,7 @@ func createTestDB(t *testing.T, opts ...NewOption) (*DB, func()) {
 	checkErr(t, err)
 	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
 	checkErr(t, err)
-	d, err := NewDB(context.Background(), store, n, thread.NewIDV1(thread.Raw, 32), opts...)
+	d, err := NewDB(context.Background(), store, n, thread.NewRandomIDV1(thread.RandomVariant, 32), opts...)
 	checkErr(t, err)
 	return d, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work
