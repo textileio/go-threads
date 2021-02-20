@@ -20,23 +20,23 @@ var ed25519TestData = []struct {
 	valid       bool
 }{
 	{
-		"Ed25519",
-		"eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJqdGkiOiJmb28iLCJzdWIiOiJiYXIifQ.E73qcBjcCSsYto_Pa5CpwZUu9lA3ecCVkZ8pJiFYNaOe2x-uZCDmZnx52AByO78oxft09GosVcJtqYNv1VBxDQ",
-		"Ed25519",
+		"EdDSA",
+		"eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmb28iLCJzdWIiOiJiYXIifQ.bEOyiiKwfUnwxQxqCW7k6g_uriuCndKdiiX0F_Br0PkBbghDg4aP5sxotWFkNoPq_38Di5msYv-R6MiAk2nCBA",
+		"EdDSA",
 		map[string]interface{}{"jti": "foo", "sub": "bar"},
 		true,
 	},
 	{
 		"invalid key",
-		"eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJqdGkiOiJmb28iLCJzdWIiOiJiYXIifQ.7FSQFedbbRl42nvUWJqBswvjmyMaBBLKk0opiARjxtZmQ86dVMYs5wcZ0gItVV8YLVu6F5065IFD699tVcacBA",
-		"Ed25519",
+		"eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmb28iLCJzdWIiOiJiYXIifQ.bEOyiiKwfUnwxQxqCW7k6g_uriuCndKdiiX0F_Br0PkBbghDg4aP5sxotWFkNoPq_38Di5msYv-R6MiAk2nABC",
+		"EdDSA",
 		map[string]interface{}{"jti": "foo", "sub": "bar"},
 		false,
 	},
 }
 
 func TestSigningMethodEd25519_Alg(t *testing.T) {
-	if SigningMethodEd25519i.Alg() != "Ed25519" {
+	if SigningMethodEd25519i.Alg() != "EdDSA" {
 		t.Fatal("wrong alg")
 	}
 }
@@ -86,8 +86,8 @@ func TestGenerateEd25519Token(t *testing.T) {
 		t.Fatal(err)
 	}
 	claims := &jwt.StandardClaims{
-		Id:      "bar",
-		Subject: "foo",
+		Id:      "foo",
+		Subject: "bar",
 	}
 	_, err = jwt.NewWithClaims(SigningMethodEd25519i, claims).SignedString(sk)
 	if err != nil {

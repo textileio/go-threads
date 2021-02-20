@@ -2,7 +2,6 @@ package thread
 
 import (
 	"crypto/rand"
-	"fmt"
 	"testing"
 
 	mbase "github.com/multiformats/go-multibase"
@@ -46,6 +45,10 @@ func TestToAddr(t *testing.T) {
 
 }
 
+func TestID_Defined(t *testing.T) {
+
+}
+
 func TestID_Validate(t *testing.T) {
 	require.NoError(t, NewRandomIDV1().Validate())
 	require.NoError(t, NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).Validate())
@@ -81,8 +84,6 @@ func TestID_StringOfBase(t *testing.T) {
 }
 
 func TestID_DID(t *testing.T) {
-	fmt.Println(NewRandomIDV1().DID())
-	fmt.Println(NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).DID())
 	assert.NotEmpty(t, NewRandomIDV1().DID())
 	assert.NotEmpty(t, NewPubKeyIDV1(makeLibp2pIdentity(t).GetPublic()).DID())
 }

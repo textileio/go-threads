@@ -15,7 +15,7 @@ type SigningMethodEd25519 struct {
 var SigningMethodEd25519i *SigningMethodEd25519
 
 func init() {
-	SigningMethodEd25519i = &SigningMethodEd25519{"Ed25519"}
+	SigningMethodEd25519i = &SigningMethodEd25519{"EdDSA"}
 	jwt.RegisterSigningMethod(SigningMethodEd25519i.Alg(), func() jwt.SigningMethod {
 		return SigningMethodEd25519i
 	})
