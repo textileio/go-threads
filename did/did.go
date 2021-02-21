@@ -1,5 +1,14 @@
 package did
 
+import (
+	"context"
+	"strings"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
 /*
 {
   "jti": "urn:uuid:288b92c1-46a6-4c0d-9e16-bb4be1ff5a36",
@@ -80,4 +89,55 @@ type Token string
 // Defined returns true if token is not empty.
 func (t Token) Defined() bool {
 	return t != ""
+}
+
+// NewTokenFromMD returns Token from the given context, if present.
+func NewTokenFromMD(ctx context.Context) (tok Token, err error) {
+	val := metautils.ExtractIncoming(ctx).Get("authorization")
+	if val == "" {
+		return
+	}
+	parts := strings.SplitN(val, " ", 2)
+	if len(parts) < 2 {
+		return "", status.Error(codes.Unauthenticated, "Bad authorization string")
+	}
+	if !strings.EqualFold(parts[0], "bearer") {
+		return "", status.Errorf(codes.Unauthenticated, "Request unauthenticated with bearer")
+	}
+	return Token(parts[1]), nil
+}
+
+type ctxKey string
+
+// NewTokenContext adds Token to a context.
+func NewTokenContext(ctx context.Context, token Token) context.Context {
+	if token == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, ctxKey("token"), token)
+}
+
+// TokenFromContext returns Token from a context.
+func TokenFromContext(ctx context.Context) (Token, bool) {
+	token, ok := ctx.Value(ctxKey("token")).(Token)
+	return token, ok
+}
+
+// RPCCredentials implements PerRPCCredentials, allowing context values
+// to be included in request metadata.
+type RPCCredentials struct {
+	Secure bool
+}
+
+func (c RPCCredentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
+	md := map[string]string{}
+	token, ok := TokenFromContext(ctx)
+	if ok {
+		md["authorization"] = "bearer " + string(token)
+	}
+	return md, nil
+}
+
+func (c RPCCredentials) RequireTransportSecurity() bool {
+	return c.Secure
 }

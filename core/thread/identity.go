@@ -3,22 +3,18 @@ package thread
 import (
 	"context"
 	"encoding"
+	"errors"
 	"fmt"
-	"log"
-	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gogo/status"
 	"github.com/google/uuid"
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	mhash "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/crypto/asymmetric"
 	"github.com/textileio/go-threads/did"
 	jwted25519 "github.com/textileio/go-threads/jwt"
-	"google.golang.org/grpc/codes"
 )
 
 // Identity represents an entity capable of signing a message
@@ -158,6 +154,8 @@ type PubKey interface {
 	Hash() ([]byte, error)
 	// DID returns a decentralized identifier in the form of did:key:multibase(key).
 	DID() (did.DID, error)
+	// Validate parses and validates an identity token and returns the associated key.
+	Validate(identity did.Token) (PubKey, error)
 	// Equals returns true if the keys are equal.
 	Equals(PubKey) bool
 }
@@ -233,6 +231,42 @@ func (k *Libp2pPubKey) DID() (did.DID, error) {
 	return did.DID("did:key:" + id), nil
 }
 
+func (k *Libp2pPubKey) Validate(identity did.Token) (PubKey, error) {
+	var claims IdentityClaims
+	_, _, err := new(jwt.Parser).ParseUnverified(string(identity), &claims)
+	if err != nil {
+		return nil, fmt.Errorf("parsing token: %v", err)
+	}
+
+	// todo: check jti is uuid urn
+	// todo: parse issuer, subject, audience as dids
+	// todo: check issuer is subject
+	// todo: check audience is this
+	// todo: check credential subject id is sub
+	// todo: check document id is credential subject id
+
+	key := &Libp2pPubKey{}
+	keyfunc := func(*jwt.Token) (interface{}, error) {
+		auth := claims.VerifiableCredential.CredentialSubject.Document.Authentication
+		if len(auth) == 0 {
+			return nil, errors.New("authentication not found")
+		}
+		// todo: get auth method that matches kid?
+		_, bytes, err := mbase.Decode(auth[0].PublicKeyMultiBase)
+		if err != nil {
+			return nil, fmt.Errorf("decoding key: %v", err)
+		}
+		if err := key.UnmarshalBinary(bytes); err != nil {
+			return nil, fmt.Errorf("unmarshalling key: %v", err)
+		}
+		return key.PubKey, nil
+	}
+	if _, err := jwt.Parse(string(identity), keyfunc); err != nil {
+		return nil, fmt.Errorf("parsing token: %v", err)
+	}
+	return key, nil
+}
+
 func (k *Libp2pPubKey) Equals(pk PubKey) bool {
 	k2, ok := pk.(*Libp2pPubKey)
 	if !ok {
@@ -241,6 +275,7 @@ func (k *Libp2pPubKey) Equals(pk PubKey) bool {
 	return k.PubKey.Equals(k2.PubKey)
 }
 
+/*
 // Token is a concrete type for a JWT token string, which provides
 // a claim to an identity.
 type Token string
@@ -362,22 +397,4 @@ func TokenFromContext(ctx context.Context) (Token, bool) {
 	token, ok := ctx.Value(ctxKey("token")).(Token)
 	return token, ok
 }
-
-// Credentials implements PerRPCCredentials, allowing context values
-// to be included in request metadata.
-type Credentials struct {
-	Secure bool
-}
-
-func (c Credentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
-	md := map[string]string{}
-	token, ok := TokenFromContext(ctx)
-	if ok {
-		md["authorization"] = "bearer " + string(token)
-	}
-	return md, nil
-}
-
-func (c Credentials) RequireTransportSecurity() bool {
-	return c.Secure
-}
+*/

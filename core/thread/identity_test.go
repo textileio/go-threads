@@ -42,6 +42,18 @@ func TestLibp2pIdentity_Token(t *testing.T) {
 	assert.NotEmpty(t, tk)
 }
 
+func TestLibp2pPubKey_Validate(t *testing.T) {
+	i1 := makeLibp2pIdentity(t).GetPublic() // The key receiving the token, i.e., the audience
+	aud, err := i1.DID()
+	require.NoError(t, err)
+	i2 := makeLibp2pIdentity(t) // The identity that will be validated by the audience
+	tk, err := i2.Token(aud, time.Minute)
+	require.NoError(t, err)
+	k, err := i1.Validate(tk)
+	require.NoError(t, err)
+	assert.True(t, k.Equals(i2.GetPublic()))
+}
+
 func TestLibp2pIdentity_Equals(t *testing.T) {
 
 }

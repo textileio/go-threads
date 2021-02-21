@@ -382,7 +382,7 @@ func TestClient_Close(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
+	client, err := NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.RPCCredentials{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -400,7 +400,7 @@ func setup(t *testing.T) (ma.Multiaddr, *Client, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
+	client, err := NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.RPCCredentials{}))
 	if err != nil {
 		t.Fatal(err)
 	}
