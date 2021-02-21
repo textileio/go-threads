@@ -12,8 +12,8 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
 	mhash "github.com/multiformats/go-multihash"
+	"github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/crypto/asymmetric"
-	"github.com/textileio/go-threads/did"
 	jwted25519 "github.com/textileio/go-threads/jwt"
 )
 
@@ -84,7 +84,7 @@ func (i *Libp2pIdentity) Decrypt(_ context.Context, data []byte) ([]byte, error)
 func (i *Libp2pIdentity) Token(aud did.DID, dur time.Duration) (did.Token, error) {
 	id, err := i.GetPublic().DID()
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	claims := IdentityClaims{
 		StandardClaims: jwt.StandardClaims{
@@ -155,7 +155,7 @@ type PubKey interface {
 	// DID returns a decentralized identifier in the form of did:key:multibase(key).
 	DID() (did.DID, error)
 	// Validate parses and validates an identity token and returns the associated key.
-	Validate(identity did.Token) (PubKey, error)
+	Validate(identity did.Token) (PubKey, did.Document, error)
 	// Equals returns true if the keys are equal.
 	Equals(PubKey) bool
 }
@@ -216,7 +216,14 @@ func (k *Libp2pPubKey) Hash() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return mhash.Encode(bytes, mhash.SHA3_256)
+	hash, err := mhash.Encode(bytes, mhash.SHA3_256)
+	if err != nil {
+		return nil, err
+	}
+	if len(hash) > 20 {
+		hash = hash[len(hash)-20:]
+	}
+	return hash, nil
 }
 
 func (k *Libp2pPubKey) DID() (did.DID, error) {
@@ -231,12 +238,13 @@ func (k *Libp2pPubKey) DID() (did.DID, error) {
 	return did.DID("did:key:" + id), nil
 }
 
-func (k *Libp2pPubKey) Validate(identity did.Token) (PubKey, error) {
+func (k *Libp2pPubKey) Validate(identity did.Token) (key PubKey, doc did.Document, err error) {
 	var claims IdentityClaims
-	_, _, err := new(jwt.Parser).ParseUnverified(string(identity), &claims)
+	_, _, err = new(jwt.Parser).ParseUnverified(string(identity), &claims)
 	if err != nil {
-		return nil, fmt.Errorf("parsing token: %v", err)
+		return nil, doc, fmt.Errorf("parsing token: %v", err)
 	}
+	doc = claims.VerifiableCredential.CredentialSubject.Document
 
 	// todo: check jti is uuid urn
 	// todo: parse issuer, subject, audience as dids
@@ -245,26 +253,26 @@ func (k *Libp2pPubKey) Validate(identity did.Token) (PubKey, error) {
 	// todo: check credential subject id is sub
 	// todo: check document id is credential subject id
 
-	key := &Libp2pPubKey{}
+	key = &Libp2pPubKey{}
 	keyfunc := func(*jwt.Token) (interface{}, error) {
-		auth := claims.VerifiableCredential.CredentialSubject.Document.Authentication
-		if len(auth) == 0 {
+		if len(doc.Authentication) == 0 {
 			return nil, errors.New("authentication not found")
 		}
 		// todo: get auth method that matches kid?
-		_, bytes, err := mbase.Decode(auth[0].PublicKeyMultiBase)
+		_, bytes, err := mbase.Decode(doc.Authentication[0].PublicKeyMultiBase)
 		if err != nil {
 			return nil, fmt.Errorf("decoding key: %v", err)
 		}
 		if err := key.UnmarshalBinary(bytes); err != nil {
 			return nil, fmt.Errorf("unmarshalling key: %v", err)
 		}
-		return key.PubKey, nil
+		// todo: ckeck that key.DID() equals subject
+		return key.(*Libp2pPubKey).PubKey, nil
 	}
 	if _, err := jwt.Parse(string(identity), keyfunc); err != nil {
-		return nil, fmt.Errorf("parsing token: %v", err)
+		return nil, doc, fmt.Errorf("parsing token: %v", err)
 	}
-	return key, nil
+	return key, doc, nil
 }
 
 func (k *Libp2pPubKey) Equals(pk PubKey) bool {

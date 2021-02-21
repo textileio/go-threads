@@ -49,9 +49,10 @@ func TestLibp2pPubKey_Validate(t *testing.T) {
 	i2 := makeLibp2pIdentity(t) // The identity that will be validated by the audience
 	tk, err := i2.Token(aud, time.Minute)
 	require.NoError(t, err)
-	k, err := i1.Validate(tk)
+	k, doc, err := i1.Validate(tk)
 	require.NoError(t, err)
 	assert.True(t, k.Equals(i2.GetPublic()))
+	assert.NotEmpty(t, doc)
 }
 
 func TestLibp2pIdentity_Equals(t *testing.T) {

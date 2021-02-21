@@ -27,7 +27,7 @@ var (
 	// enough to be a valid ID.
 	ErrIDTooShort = fmt.Errorf("id too short")
 
-	randomVariantSize = 38
+	randomVariantSize = 20
 )
 
 // Version is a type for thread versions.
