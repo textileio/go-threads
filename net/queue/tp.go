@@ -106,11 +106,11 @@ func (q *threadPacker) drainPeerQueue(pid peer.ID, sink chan<- ThreadPack) {
 	}
 
 	pack := ThreadPack{
-		pid:  pid,
-		tids: make([]thread.ID, len(pq)),
+		Peer:    pid,
+		Threads: make([]thread.ID, len(pq)),
 	}
 	for i := 0; i < len(pq); i++ {
-		pack.tids[i] = pq[i].tid
+		pack.Threads[i] = pq[i].tid
 	}
 	sink <- pack
 
