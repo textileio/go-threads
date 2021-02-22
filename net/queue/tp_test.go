@@ -48,11 +48,11 @@ func TestThreadPacker(t *testing.T) {
 	}
 
 	var equal = func(p1, p2 ThreadPack) bool {
-		if p1.pid != p2.pid || len(p1.tids) != len(p2.tids) {
+		if p1.Peer != p2.Peer || len(p1.Threads) != len(p2.Threads) {
 			return false
 		}
-		for i := 0; i < len(p1.tids); i++ {
-			if p1.tids[i] != p2.tids[i] {
+		for i := 0; i < len(p1.Threads); i++ {
+			if p1.Threads[i] != p2.Threads[i] {
 				return false
 			}
 		}
@@ -63,13 +63,13 @@ func TestThreadPacker(t *testing.T) {
 		t.Errorf("wrong number of packs: %d, expected: 3", numPacks)
 	}
 
-	if !equal(packs[0], ThreadPack{pid: pid, tids: tids[:3]}) {
+	if !equal(packs[0], ThreadPack{Peer: pid, Threads: tids[:3]}) {
 		t.Error("unexpected first pack")
 	}
-	if !equal(packs[1], ThreadPack{pid: pid, tids: tids[3:5]}) {
+	if !equal(packs[1], ThreadPack{Peer: pid, Threads: tids[3:5]}) {
 		t.Error("unexpected second pack")
 	}
-	if !equal(packs[2], ThreadPack{pid: pid, tids: tids[5:]}) {
+	if !equal(packs[2], ThreadPack{Peer: pid, Threads: tids[5:]}) {
 		t.Error("unexpected final pack")
 	}
 }

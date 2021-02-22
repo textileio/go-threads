@@ -24,8 +24,8 @@ type (
 
 type (
 	ThreadPack struct {
-		pid  peer.ID
-		tids []thread.ID
+		Peer    peer.ID
+		Threads []thread.ID
 	}
 
 	ThreadPacker interface {
