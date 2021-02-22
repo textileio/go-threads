@@ -40,14 +40,20 @@ var (
 	// MaxPullLimit is the maximum page size for pulling records.
 	MaxPullLimit = 10000
 
-	// PullStartAfter is the pause before thread pulling process starts.
+	// PullStartAfter is the pause before exchange edges starts.
 	PullStartAfter = time.Second
 
-	// InitialPullInterval is the interval for the first iteration of log pulls.
+	// InitialPullInterval is the interval for the first iteration of edge exchange.
 	InitialPullInterval = time.Second
 
-	// PullInterval is the interval between automatic log pulls.
+	// PullInterval is the interval between automatic edge exchanges.
 	PullInterval = time.Second * 10
+
+	// MaxThreadsExchanged is the maximum number of threads for the single edge exchange.
+	MaxThreadsExchanged = 10
+
+	// ExchangeCompressionTimeout is the maximum duration of collecting threads for the exchange edges request.
+	ExchangeCompressionTimeout = PullTimeout / 2
 
 	// QueuePollInterval is the polling interval for the call queue.
 	QueuePollInterval = time.Millisecond * 500
@@ -1186,6 +1192,10 @@ func (n *net) startPulling() {
 	// it will be redefined on the next iteration
 	var interval = InitialPullInterval
 
+	// group threads by peers and exchange edges efficiently
+	var compressor = queue.NewThreadPacker(n.ctx, MaxThreadsExchanged, ExchangeCompressionTimeout)
+	go n.startExchange(compressor)
+
 PullCycle:
 	for {
 		ts, err := n.store.Threads()
@@ -1214,29 +1224,13 @@ PullCycle:
 		for {
 			select {
 			case <-ticker.C:
-
-				// TODO replace direct thread pulling with:
-				//  1. ExchangeEdges (many threads grouped for a peer)
-				//  2. as a fallback for old nodes: run updateRecordsFromPeer
-				//  for every peer in a thread (will schedule getRecords under the hood)
-				//
-				// Maybe refactor updateRecordsFromPeer to receive list of peers?
-				// It may help to avoid many repetitive computations - no need
-				// there is not much of peers actually, but it's better to make requests
-				// with updated heads, as it makes server-side processing cheaper
-
-				// transient queue-based version
-				{
-					var tid = ts[idx]
-					_, peers, err := n.threadOffsets(tid)
-					if err != nil {
-						log.Errorf("error getting thread info %s: %s", tid, err)
-						return
-					}
+				var tid = ts[idx]
+				if _, peers, err := n.threadOffsets(tid); err != nil {
+					log.Errorf("error getting thread info %s: %s", tid, err)
+					return
+				} else {
 					for _, pid := range peers {
-						if n.queueGetRecords.Schedule(pid, tid, callPriorityLow, n.updateRecordsFromPeer) {
-							log.Debugf("record update for thread %s from %s scheduled", tid, pid)
-						}
+						compressor.Add(pid, tid)
 					}
 				}
 
@@ -1252,6 +1246,27 @@ PullCycle:
 				return
 			}
 		}
+	}
+}
+
+func (n *net) startExchange(compressor queue.ThreadPacker) {
+	for pack := range compressor.Run() {
+		go func(p queue.ThreadPack) {
+			if err := n.server.exchangeEdges(n.ctx, p.Peer, p.Threads); err != nil {
+				log.Errorf("exchangeEdges with %s failed: %v", p.Peer, err)
+
+				// TODO error handling
+
+				// old peer fallback
+				for _, tid := range p.Threads {
+					if n.queueGetRecords.Schedule(p.Peer, tid, callPriorityLow, n.updateRecordsFromPeer) {
+						log.Debugf("record update for thread %s from %s scheduled", tid, p.Peer)
+					}
+				}
+
+				// other errors
+			}
+		}(pack)
 	}
 }
 
