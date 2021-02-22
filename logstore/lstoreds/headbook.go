@@ -282,7 +282,7 @@ func (hb *dsHeadBook) decodeHeadEntry(
 	withHeads bool,
 ) (tid thread.ID, lid peer.ID, heads []cid.Cid, err error) {
 	kns := ds.RawKey(entry.Key).Namespaces()
-	if len(kns) < 4 {
+	if len(kns) < 3 {
 		err = fmt.Errorf("bad headbook key detected: %s", entry.Key)
 		return
 	}
