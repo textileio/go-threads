@@ -371,7 +371,77 @@ func (s *server) exchangeEdges(
 	pid peer.ID,
 	tids []thread.ID,
 ) error {
-	// TODO implement
+	var body = &pb.ExchangeEdgesRequest_Body{}
+
+	// get local edges
+	for _, tid := range tids {
+		addrsEdge, headsEdge, err := s.localEdges(tid)
+		if err != nil {
+			return err
+		}
+		body.Threads = append(body.Threads, &pb.ExchangeEdgesRequest_Body_ThreadEntry{
+			ThreadID:    &pb.ProtoThreadID{ID: tid},
+			HeadsEdge:   headsEdge,
+			AddressEdge: addrsEdge,
+		})
+	}
+
+	sig, key, err := s.signRequestBody(body)
+	if err != nil {
+		return err
+	}
+	req := &pb.ExchangeEdgesRequest{
+		Header: &pb.Header{
+			PubKey:    &pb.ProtoPubKey{PubKey: key},
+			Signature: sig,
+		},
+		Body: body,
+	}
+
+	// send request
+	client, err := s.dial(pid)
+	if err != nil {
+		return fmt.Errorf("dial %s failed: %w", pid, err)
+	}
+	cctx, cancel := context.WithTimeout(ctx, PullTimeout)
+	defer cancel()
+	reply, err := client.ExchangeEdges(cctx, req)
+	if err != nil {
+
+		// TODO special error handling:
+		//  - routing/dial: peer unreachable, do nothing
+		//  - (gRPC) peer doesn't support exchange method: schedule separate GetRecords requests for all threads.
+		//  - otherwise: return error
+
+		log.Errorf("exchange edges with %s failed: %v", pid, err)
+		return nil
+	}
+
+	for i, e := range reply.GetEdges() {
+		tid := tids[i]
+		if !e.GetExists() {
+			// invariant: respondent should request missing thread info
+			continue
+		}
+
+		// get local edges potentially updated by another process
+		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
+		if err != nil {
+			return err
+		}
+
+		if e.GetAddressEdge() != addrsEdgeLocal {
+			if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
+				log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
+			}
+		}
+		if e.GetHeadsEdge() != headsEdgeLocal {
+			if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
+				log.Debugf("record update for thread %s from %s scheduled", tid, pid)
+			}
+		}
+	}
+
 	return nil
 }
 
