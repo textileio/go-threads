@@ -145,7 +145,9 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	s.net.updateRecordsFromPeer(pid, req.Body.ThreadID.ID)
+	if s.net.queueGetRecords.Schedule(pid, req.Body.ThreadID.ID, callPriorityLow, s.net.updateRecordsFromPeer) {
+		log.Debugf("record update for thread %s from %s scheduled", req.Body.ThreadID.ID, pid)
+	}
 	return &pb.PushLogReply{}, nil
 }
 
@@ -266,9 +268,67 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	return &pb.PushRecordReply{}, nil
 }
 
+// ExchangeEdges receives an exchange edges request.
 func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest) (*pb.ExchangeEdgesReply, error) {
-	// TODO implement
-	return nil, status.Error(codes.Unimplemented, "unsupported call")
+	pid, err := verifyRequest(req.Header, req.Body)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("received exchange edges request from %s", pid)
+
+	var reply pb.ExchangeEdgesReply
+	for _, entry := range req.Body.Threads {
+		var tid = entry.ThreadID.ID
+		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
+		if err != nil {
+			if errors.Is(err, lstore.ErrThreadNotFound) {
+				s.net.queueGetLogs.Schedule(
+					pid,
+					tid,
+					callPriorityHigh,
+					func(ctx context.Context, p peer.ID, t thread.ID) error {
+						if err := s.net.updateLogsFromPeer(ctx, p, t); err != nil {
+							return err
+						}
+						if s.net.server.ps != nil {
+							return s.net.server.ps.Add(t)
+						}
+						return nil
+					})
+				reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+					ThreadID: &pb.ProtoThreadID{ID: tid},
+					Exists:   false,
+				})
+				continue
+			}
+			return nil, err
+		}
+
+		var (
+			addrsEdgeRemote = entry.AddressEdge
+			headsEdgeRemote = entry.HeadsEdge
+		)
+
+		if addrsEdgeLocal != addrsEdgeRemote {
+			if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
+				log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
+			}
+		}
+		if headsEdgeLocal != headsEdgeRemote {
+			if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
+				log.Debugf("record update for thread %s from %s scheduled", tid, pid)
+			}
+		}
+
+		reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+			ThreadID:    &pb.ProtoThreadID{ID: tid},
+			Exists:      true,
+			AddressEdge: addrsEdgeLocal,
+			HeadsEdge:   headsEdgeLocal,
+		})
+	}
+
+	return &reply, nil
 }
 
 // checkServiceKey compares a key with the one stored under thread.
@@ -300,6 +360,19 @@ func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 		return false, err
 	}
 	return util.ComputeHeadsEdge(reqHeads) != currEdge, nil
+}
+
+// localEdges returns values of local addresses/heads edges for the thread.
+func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err error) {
+	addrsEdge, err = s.net.store.AddrsEdge(tid)
+	if err != nil {
+		return
+	}
+	headsEdge, err = s.net.store.HeadsEdge(tid)
+	if err != nil {
+		return
+	}
+	return
 }
 
 // verifyRequest verifies that the signature associated with a request is valid.

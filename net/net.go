@@ -343,13 +343,8 @@ func (n *net) AddThread(
 			return
 		}
 
-		if err = n.queueGetLogs.Call(addri.ID, id, func(ctx context.Context, pid peer.ID, tid thread.ID) error {
-			var lgs []thread.LogInfo
-			lgs, err = n.server.getLogs(ctx, id, addri.ID)
-			if err != nil {
-				return err
-			}
-			if err = n.createExternalLogsIfNotExist(id, lgs); err != nil {
+		if err = n.queueGetLogs.Call(addri.ID, id, func(ctx context.Context, p peer.ID, t thread.ID) error {
+			if err := n.updateLogsFromPeer(ctx, p, t); err != nil {
 				return err
 			}
 			if n.server.ps != nil {
@@ -1239,7 +1234,9 @@ PullCycle:
 						return
 					}
 					for _, pid := range peers {
-						n.updateRecordsFromPeer(pid, tid)
+						if n.queueGetRecords.Schedule(pid, tid, callPriorityLow, n.updateRecordsFromPeer) {
+							log.Debugf("record update for thread %s from %s scheduled", tid, pid)
+						}
 					}
 				}
 
@@ -1410,33 +1407,37 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 	return nil
 }
 
-// updateRecordsFromPeer schedules fetching new logs & records from the
-// peer and adding them in the local peer store. Method is thread-safe.
-func (n *net) updateRecordsFromPeer(pid peer.ID, tid thread.ID) {
-	if n.queueGetRecords.Schedule(pid, tid, callPriorityLow, func(ctx context.Context, p peer.ID, t thread.ID) error {
-		offsets, _, err := n.threadOffsets(tid)
-		if err != nil {
-			return fmt.Errorf("getting offsets for thread %s failed: %w", tid, err)
-		}
-		req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, MaxPullLimit)
-		if err != nil {
-			return fmt.Errorf("building GetRecords request for thread %s failed: %w", tid, err)
-		}
-		recs, err := n.server.getRecordsFromPeer(ctx, tid, pid, req, sk)
-		if err != nil {
-			return fmt.Errorf("getting records for thread %s from %s failed: %w", tid, pid, err)
-		}
-		for lid, rs := range recs {
-			for _, r := range rs {
-				if err = n.putRecord(ctx, tid, lid, r); err != nil {
-					return fmt.Errorf("putting records from log %s (thread %s) failed: %w", lid, tid, err)
-				}
+// updateRecordsFromPeer fetches new logs & records from the peer and adds them in the local peer store.
+func (n *net) updateRecordsFromPeer(ctx context.Context, pid peer.ID, tid thread.ID) error {
+	offsets, _, err := n.threadOffsets(tid)
+	if err != nil {
+		return fmt.Errorf("getting offsets for thread %s failed: %w", tid, err)
+	}
+	req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, MaxPullLimit)
+	if err != nil {
+		return fmt.Errorf("building GetRecords request for thread %s failed: %w", tid, err)
+	}
+	recs, err := n.server.getRecordsFromPeer(ctx, tid, pid, req, sk)
+	if err != nil {
+		return fmt.Errorf("getting records for thread %s from %s failed: %w", tid, pid, err)
+	}
+	for lid, rs := range recs {
+		for _, r := range rs {
+			if err = n.putRecord(ctx, tid, lid, r); err != nil {
+				return fmt.Errorf("putting records from log %s (thread %s) failed: %w", lid, tid, err)
 			}
 		}
-		return nil
-	}) {
-		log.Debugf("update for thread %s from %s scheduled", tid, pid)
 	}
+	return nil
+}
+
+// updateLogsFromPeer gets new logs information from the peer and adds it in the local peer store.
+func (n *net) updateLogsFromPeer(ctx context.Context, pid peer.ID, tid thread.ID) error {
+	lgs, err := n.server.getLogs(ctx, tid, pid)
+	if err != nil {
+		return err
+	}
+	return n.createExternalLogsIfNotExist(tid, lgs)
 }
 
 // returns offsets and involved peers for all known thread's logs.
