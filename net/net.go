@@ -1254,17 +1254,6 @@ func (n *net) startExchange(compressor queue.ThreadPacker) {
 		go func(p queue.ThreadPack) {
 			if err := n.server.exchangeEdges(n.ctx, p.Peer, p.Threads); err != nil {
 				log.Errorf("exchangeEdges with %s failed: %v", p.Peer, err)
-
-				// TODO error handling
-
-				// old peer fallback
-				for _, tid := range p.Threads {
-					if n.queueGetRecords.Schedule(p.Peer, tid, callPriorityLow, n.updateRecordsFromPeer) {
-						log.Debugf("record update for thread %s from %s scheduled", tid, p.Peer)
-					}
-				}
-
-				// other errors
 			}
 		}(pack)
 	}
