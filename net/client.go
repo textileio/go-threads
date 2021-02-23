@@ -366,11 +366,8 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 }
 
 // exchangeEdges of specified threads with a peer.
-func (s *server) exchangeEdges(
-	ctx context.Context,
-	pid peer.ID,
-	tids []thread.ID,
-) error {
+func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.ID) error {
+	log.Debugf("exchanging edges of %d threads with %s...", len(tids), pid)
 	var body = &pb.ExchangeEdgesRequest_Body{}
 
 	// get local edges
@@ -407,14 +404,22 @@ func (s *server) exchangeEdges(
 	defer cancel()
 	reply, err := client.ExchangeEdges(cctx, req)
 	if err != nil {
-
-		// TODO special error handling:
-		//  - routing/dial: peer unreachable, do nothing
-		//  - (gRPC) peer doesn't support exchange method: schedule separate GetRecords requests for all threads.
-		//  - otherwise: return error
-
-		log.Errorf("exchange edges with %s failed: %v", pid, err)
-		return nil
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.Unimplemented:
+				log.Debugf("%s doesn't support edge exchange, falling back to direct record pulling", pid)
+				for _, tid := range tids {
+					if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
+						log.Debugf("record update for thread %s from %s scheduled", tid, pid)
+					}
+				}
+				return nil
+			case codes.Unavailable:
+				log.Debugf("%s unavailable, skip edge exchange", pid)
+				return nil
+			}
+		}
+		return err
 	}
 
 	for i, e := range reply.GetEdges() {
