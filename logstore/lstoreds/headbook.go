@@ -2,8 +2,12 @@ package lstoreds
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 
+	"github.com/dgraph-io/badger"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
@@ -157,20 +161,28 @@ func (hb *dsHeadBook) ClearHeads(t thread.ID, p peer.ID) error {
 }
 
 func (hb *dsHeadBook) HeadsEdge(tid thread.ID) (uint64, error) {
+	var key = dsThreadKey(tid, hbEdge)
+	// computing and writing back previously invalidated
+	// edge frequently results in transaction conflicts
+	for attempt := 1; attempt <= 3; attempt++ {
+		edge, err := hb.getEdge(tid, key)
+		if err == nil {
+			return edge, nil
+		} else if !errors.Is(err, badger.ErrConflict) {
+			return 0, err
+		}
+		time.Sleep(time.Duration(50*attempt+rand.Intn(30)) * time.Millisecond)
+	}
+	return 0, core.ErrEdgeUnavailable
+}
+
+func (hb *dsHeadBook) getEdge(tid thread.ID, key ds.Key) (uint64, error) {
 	txn, err := hb.ds.NewTransaction(false)
 	if err != nil {
 		return 0, fmt.Errorf("error when creating txn in datastore: %w", err)
 	}
 	defer txn.Discard()
-	edge, err := hb.getEdge(txn, tid)
-	if err != nil {
-		return 0, err
-	}
-	return edge, txn.Commit()
-}
 
-func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
-	var key = dsThreadKey(tid, hbEdge)
 	if v, err := txn.Get(key); err == nil {
 		return binary.BigEndian.Uint64(v), nil
 	} else if err != ds.ErrNotFound {
@@ -199,11 +211,15 @@ func (hb *dsHeadBook) getEdge(txn ds.Txn, tid thread.ID) (uint64, error) {
 	}
 
 	var (
-		buff [8]byte
 		edge = util.ComputeHeadsEdge(hs)
+		buff [8]byte
 	)
+
 	binary.BigEndian.PutUint64(buff[:], edge)
-	return edge, txn.Put(key, buff[:])
+	if err := txn.Put(key, buff[:]); err != nil {
+		return 0, err
+	}
+	return edge, txn.Commit()
 }
 
 func (hb *dsHeadBook) invalidateEdge(txn ds.Txn, tid thread.ID) error {
