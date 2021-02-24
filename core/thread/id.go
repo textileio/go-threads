@@ -15,7 +15,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
-	"github.com/textileio/go-threads/core/did"
+	d "github.com/textileio/go-threads/core/did"
 	jwted25519 "github.com/textileio/go-threads/jwt"
 )
 
@@ -176,13 +176,13 @@ func FromAddr(addr maddr.Multiaddr) (ID, error) {
 	return Decode(idstr)
 }
 
-// ToAddr returns ID wrapped as a multiaddress.
-func ToAddr(id ID) maddr.Multiaddr {
-	addr, err := maddr.NewMultiaddr("/" + ProtocolName + "/ " + string(id))
+// FromDID returns ID from a DID.
+func FromDID(did d.DID) (ID, error) {
+	decoded, err := did.Decode()
 	if err != nil {
-		panic(err) // This should not happen
+		return Undef, err
 	}
-	return addr
+	return Decode(decoded.ID)
 }
 
 func uvError(read int) error {
@@ -321,8 +321,8 @@ func (i ID) Encode(base mbase.Encoder) string {
 }
 
 // DID returns a decentralized identifier in the form of did:thread:string(id).
-func (i ID) DID() did.DID {
-	return did.DID("did:thread:" + i.String())
+func (i ID) DID() d.DID {
+	return d.DID("did:thread:" + i.String())
 }
 
 // Bytes returns the byte representation of an ID.
@@ -382,17 +382,17 @@ type Info struct {
 }
 
 // Token returns a JWT-encoded verifiable claim representing of thread info.
-func (i Info) Token(issuer Identity, aud did.DID, dur time.Duration) (did.Token, error) {
+func (i Info) Token(issuer Identity, aud d.DID, dur time.Duration) (d.Token, error) {
 	id := i.ID.DID()
 	iss, err := issuer.GetPublic().DID()
 	if err != nil {
 		return "", err
 	}
-	services := make([]did.Service, len(i.Addrs))
+	services := make([]d.Service, len(i.Addrs))
 	for i, a := range i.Addrs {
 		parts := strings.Split(a.String(), "/"+maddr.ProtocolWithCode(maddr.P_P2P).Name)
-		services[i] = did.Service{
-			ID:              did.DID(string(id) + "#" + parts[1]),
+		services[i] = d.Service{
+			ID:              d.DID(string(id) + "#" + parts[1]),
 			Type:            "ThreadService",
 			ServiceEndpoint: a.String(),
 			ServiceProtocol: string(Protocol),
@@ -408,24 +408,24 @@ func (i Info) Token(issuer Identity, aud did.DID, dur time.Duration) (did.Token,
 			IssuedAt:  time.Now().Unix(),
 			NotBefore: time.Now().Unix(),
 		},
-		VerifiableCredential: did.VerifiableCredential{
+		VerifiableCredential: d.VerifiableCredential{
 			Context: []string{
 				"https://www.w3.org/2018/credentials/v1",
 			},
 			Type: []string{
 				"VerifiableCredential",
 			},
-			CredentialSubject: did.VerifiableCredentialSubject{
+			CredentialSubject: d.VerifiableCredentialSubject{
 				ID: id,
-				Document: did.Document{
+				Document: d.Document{
 					Context: []string{
 						"https://www.w3.org/ns/did/v1",
 					},
 					ID: id,
-					Conroller: []did.DID{
+					Conroller: []d.DID{
 						iss,
 					},
-					Authentication: []did.VerificationMethod{
+					Authentication: []d.VerificationMethod{
 						{
 							ID:                 iss + "#keys-1",
 							Type:               "Ed25519VerificationKey2018",
@@ -443,7 +443,7 @@ func (i Info) Token(issuer Identity, aud did.DID, dur time.Duration) (did.Token,
 	if err != nil {
 		return "", err
 	}
-	return did.Token(t), nil
+	return d.Token(t), nil
 }
 
 // GetFirstPrivKeyLog returns the first log found with a private key.

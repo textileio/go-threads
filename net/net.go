@@ -19,7 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
-	ma "github.com/multiformats/go-multiaddr"
+	maddr "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
@@ -273,7 +273,7 @@ func (n *net) CreateThread(
 
 func (n *net) AddThread(
 	ctx context.Context,
-	addr ma.Multiaddr,
+	addr maddr.Multiaddr,
 	opts ...core.NewThreadOption,
 ) (info thread.Info, err error) {
 	args := &core.NewThreadOptions{}
@@ -299,7 +299,7 @@ func (n *net) AddThread(
 		return
 	}
 
-	threadComp, err := ma.NewComponent(thread.ProtocolName, id.String())
+	threadComp, err := maddr.NewComponent(thread.ProtocolName, id.String())
 	if err != nil {
 		return
 	}
@@ -368,30 +368,25 @@ func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOpti
 }
 
 func (n *net) getThreadWithAddrs(id thread.ID) (info thread.Info, err error) {
-	var (
-		tinfo    thread.Info
-		peerID   *ma.Component
-		threadID *ma.Component
-	)
-	tinfo, err = n.store.GetThread(id)
+	info, err = n.store.GetThread(id)
 	if err != nil {
 		return
 	}
-	peerID, err = ma.NewComponent("p2p", n.host.ID().String())
+	pc, err := maddr.NewComponent(maddr.ProtocolWithCode(maddr.P_P2P).Name, n.host.ID().String())
 	if err != nil {
 		return
 	}
-	threadID, err = ma.NewComponent("thread", tinfo.ID.String())
+	tc, err := maddr.NewComponent(thread.ProtocolName, info.ID.String())
 	if err != nil {
 		return
 	}
 	addrs := n.host.Addrs()
-	res := make([]ma.Multiaddr, len(addrs))
+	res := make([]maddr.Multiaddr, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID)
+		res[i] = addrs[i].Encapsulate(pc).Encapsulate(tc)
 	}
-	tinfo.Addrs = res
-	return tinfo, nil
+	info.Addrs = res
+	return info, nil
 }
 
 func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
@@ -493,7 +488,7 @@ func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
 func (n *net) AddReplicator(
 	ctx context.Context,
 	id thread.ID,
-	paddr ma.Multiaddr,
+	paddr maddr.Multiaddr,
 	opts ...core.ThreadOption,
 ) (pid peer.ID, err error) {
 	args := &core.ThreadOptions{}
@@ -510,7 +505,7 @@ func (n *net) AddReplicator(
 	}
 
 	// Extract peer portion
-	p2p, err := paddr.ValueForProtocol(ma.P_P2P)
+	p2p, err := paddr.ValueForProtocol(maddr.P_P2P)
 	if err != nil {
 		return
 	}
@@ -520,7 +515,7 @@ func (n *net) AddReplicator(
 	}
 
 	// Update local addresses
-	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + p2p)
+	addr, err := maddr.NewMultiaddr("/" + maddr.ProtocolWithCode(maddr.P_P2P).Name + "/" + p2p)
 	if err != nil {
 		return
 	}
@@ -541,7 +536,7 @@ func (n *net) AddReplicator(
 	// Check if we're dialing ourselves (regardless of addr)
 	if pid != n.host.ID() {
 		// If not, update peerstore address
-		var dialable ma.Multiaddr
+		var dialable maddr.Multiaddr
 		dialable, err = getDialable(paddr)
 		if err == nil {
 			n.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
@@ -567,7 +562,7 @@ func (n *net) AddReplicator(
 	}
 
 	// Send the updated log(s) to peers
-	var addrs []ma.Multiaddr
+	var addrs []maddr.Multiaddr
 	for _, l := range info.Logs {
 		addrs = append(addrs, l.Addrs...)
 	}
@@ -575,7 +570,7 @@ func (n *net) AddReplicator(
 	wg := sync.WaitGroup{}
 	for _, addr := range addrs {
 		wg.Add(1)
-		go func(addr ma.Multiaddr) {
+		go func(addr maddr.Multiaddr) {
 			defer wg.Done()
 			pid, ok, err := n.callablePeer(addr)
 			if err != nil {
@@ -599,8 +594,8 @@ func (n *net) AddReplicator(
 }
 
 // callablePeer attempts to obtain external peer ID from the multiaddress.
-func (n *net) callablePeer(addr ma.Multiaddr) (peer.ID, bool, error) {
-	p, err := addr.ValueForProtocol(ma.P_P2P)
+func (n *net) callablePeer(addr maddr.Multiaddr) (peer.ID, bool, error) {
+	p, err := addr.ValueForProtocol(maddr.P_P2P)
 	if err != nil {
 		return "", false, err
 	}
@@ -617,9 +612,9 @@ func (n *net) callablePeer(addr ma.Multiaddr) (peer.ID, bool, error) {
 	return pid, true, nil
 }
 
-func getDialable(addr ma.Multiaddr) (ma.Multiaddr, error) {
-	parts := strings.Split(addr.String(), "/"+ma.ProtocolWithCode(ma.P_P2P).Name)
-	return ma.NewMultiaddr(parts[0])
+func getDialable(addr maddr.Multiaddr) (maddr.Multiaddr, error) {
+	parts := strings.Split(addr.String(), "/"+maddr.ProtocolWithCode(maddr.P_P2P).Name)
+	return maddr.NewMultiaddr(parts[0])
 }
 
 func (n *net) CreateRecord(
@@ -1245,11 +1240,11 @@ func (n *net) createLog(id thread.ID, key crypto.Key, identity thread.PubKey) (i
 	if err != nil {
 		return
 	}
-	addr, err := ma.NewMultiaddr("/" + ma.ProtocolWithCode(ma.P_P2P).Name + "/" + n.host.ID().String())
+	addr, err := maddr.NewMultiaddr("/" + maddr.ProtocolWithCode(maddr.P_P2P).Name + "/" + n.host.ID().String())
 	if err != nil {
 		return
 	}
-	info.Addrs = []ma.Multiaddr{addr}
+	info.Addrs = []maddr.Multiaddr{addr}
 	// If we're creating the log, we're 'managing' it
 	info.Managed = true
 
@@ -1304,7 +1299,7 @@ func (n *net) createExternalLogIfNotExist(
 	lid peer.ID,
 	pubKey crypto.PubKey,
 	privKey crypto.PrivKey,
-	addrs []ma.Multiaddr,
+	addrs []maddr.Multiaddr,
 ) error {
 	ts := n.semaphores.Get(semaThreadUpdate(tid))
 	ts.Acquire()

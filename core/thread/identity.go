@@ -229,19 +229,11 @@ func (k *Libp2pPubKey) Hash() ([]byte, error) {
 }
 
 func (k *Libp2pPubKey) DID() (did.DID, error) {
-	//hash, err := k.Hash()
-	//if err != nil {
-	//	return "", err
-	//}
-	//id, err := mbase.Encode(mbase.Base32, hash)
-	//if err != nil {
-	//	return "", err
-	//}
 	id, err := peer.IDFromPublicKey(k.PubKey)
 	if err != nil {
 		return "", err
 	}
-	return did.DID("did:key:" + id.String()), nil
+	return did.NewKeyDID(id.String()), nil
 }
 
 func (k *Libp2pPubKey) Validate(identity did.Token) (key PubKey, doc did.Document, err error) {

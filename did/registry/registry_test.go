@@ -3,7 +3,6 @@ package registry
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -13,7 +12,9 @@ import (
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/logstore/lstoremem"
 )
 
@@ -25,9 +26,24 @@ func TestMain(m *testing.M) {
 func TestRegistry_Resolve(t *testing.T) {
 	r := setupN(t, 3)
 
-	doc, err := r[0].Resolve(context.Background(), "did:thread:123")
+	// Resolve invalid thread DID
+	//_, err := r[0].Resolve(context.Background(), "did:thread:123")
+	//require.Error(t, err)
+
+	// Add a thread to peer 1
+	info := thread.Info{
+		ID:  thread.NewRandomIDV1(),
+		Key: thread.NewRandomKey(),
+	}
+	err := r[1].store.AddThread(info)
 	require.NoError(t, err)
-	fmt.Println(doc)
+
+	// Resolve it from peer 0
+	doc, err := r[0].Resolve(context.Background(), info.ID.DID())
+	require.NoError(t, err)
+	assert.Equal(t, info.ID.DID(), doc.ID)
+	assert.Len(t, doc.Services, 1)
+	assert.Equal(t, info.Addrs[0].String(), doc.Services[0].ServiceEndpoint)
 }
 
 func setup(t *testing.T) *Registry {
@@ -56,23 +72,17 @@ func setupN(t *testing.T, n int) []*Registry {
 	rs := make([]*Registry, n)
 	for i := range rs {
 		r := setup(t)
-		//j := 0
-		//for j < i {
-		for _, p := range rs {
-			if p == nil {
-				continue
-			}
+		j := 0
+		for j < i {
+			// Direct connect to the other registries.
 			err := r.host.Connect(context.Background(), peer.AddrInfo{
-				ID:    p.host.ID(),
-				Addrs: p.host.Addrs(),
+				ID:    rs[j].host.ID(),
+				Addrs: rs[j].host.Addrs(),
 			})
 			require.NoError(t, err)
-			//j++
+			j++
 		}
 		rs[i] = r
-	}
-	for _, r := range rs {
-		require.NoError(t, r.Join())
 	}
 	time.Sleep(time.Second)
 	return rs

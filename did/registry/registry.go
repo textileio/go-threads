@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	ma "github.com/multiformats/go-multiaddr"
+	maddr "github.com/multiformats/go-multiaddr"
 	d "github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
@@ -30,7 +30,7 @@ type Registry struct {
 	ps    *pubsub.PubSub
 	store logstore.Logstore
 	cache *s.Store
-	reqs  map[d.DID]<-chan d.Token
+	reqs  map[d.DID]chan d.Document
 
 	t *pubsub.Topic
 	h *pubsub.TopicEventHandler
@@ -61,23 +61,21 @@ func NewRegistry(host host.Host, store logstore.Logstore, cache ds.Datastore) (*
 		return nil, fmt.Errorf("starting libp2p pubsub: %v", err)
 	}
 
-	return &Registry{
+	r := &Registry{
 		host:   host,
 		id:     thread.NewLibp2pIdentity(sk),
 		did:    self,
 		ps:     ps,
 		store:  store,
 		cache:  s.NewStore(cache),
-		reqs:   make(map[d.DID]<-chan d.Token),
+		reqs:   make(map[d.DID]chan d.Document),
 		ctx:    ctx,
 		cancel: cancel,
-	}, nil
+	}
+	return r, r.join()
 }
 
-// Join the registry.
-func (r *Registry) Join() (err error) {
-	r.Lock()
-	defer r.Unlock()
+func (r *Registry) join() (err error) {
 	r.t, err = r.ps.Join(string(thread.Protocol))
 	if err != nil {
 		return fmt.Errorf("joining registry topic: %v", err)
@@ -124,7 +122,7 @@ func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err 
 		r.Unlock()
 		return doc, fmt.Errorf("request for %s already in flight", did)
 	}
-	r.reqs[did] = make(chan d.Token)
+	r.reqs[did] = make(chan d.Document)
 	r.Unlock()
 
 	// First, check if we have it locally.
@@ -136,6 +134,16 @@ func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err 
 		return doc, err
 	}
 
+	// Subscribe to response topic.
+	t, err := r.ps.Join(string(did))
+	if err != nil {
+		return doc, fmt.Errorf("joining response topic %s: %v", did, err)
+	}
+	defer t.Close()
+	ctx, cancel := context.WithCancel(r.ctx)
+	defer cancel()
+	t.Subscribe()
+
 	// Request it from the network.
 	if err := r.t.Publish(ctx, []byte(did)); err != nil {
 		return doc, err
@@ -146,10 +154,9 @@ func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err 
 		case <-r.ctx.Done():
 			timer.Stop()
 		case <-timer.C:
-			return doc, nil
-		case tk, ok := <-r.reqs[did]:
+			return doc, logstore.ErrThreadNotFound
+		case doc, ok := <-r.reqs[did]:
 			if ok {
-				fmt.Println(tk)
 				return doc, nil
 			}
 		}
@@ -190,13 +197,14 @@ func (r *Registry) listen() {
 		}
 		log.Debugf("received message from %s", msg.ReceivedFrom)
 
-		fmt.Println(string(msg.Data))
-		req, err := d.DID(string(msg.Data)).Decode()
+		id, err := thread.FromDID(d.DID(msg.Data))
 		if err != nil {
-			log.Error(err) // tmp
-			// todo: handle as response
+			if err := r.handleThreadToken(d.Token(msg.Data), msg.ReceivedFrom); err != nil {
+				log.Debug(err)
+				continue
+			}
 		} else {
-			if err := r.handleThreadRequest(req.ID, msg.ReceivedFrom); err != nil {
+			if err := r.handleThreadRequest(id, msg.ReceivedFrom); err != nil {
 				log.Debug(err)
 				continue
 			}
@@ -204,17 +212,13 @@ func (r *Registry) listen() {
 	}
 }
 
-func (r *Registry) handleThreadRequest(id string, from peer.ID) error {
-	tid, err := thread.Decode(id)
-	if err != nil {
-		return fmt.Errorf("decoding thread id %s: %v", id, err)
-	}
-	tk, err := r.getThreadToken(tid, d.NewKeyDID(from.String()))
+func (r *Registry) handleThreadRequest(id thread.ID, from peer.ID) error {
+	tk, err := r.getThreadToken(id, d.NewKeyDID(from.String()))
 	if err != nil {
 		return fmt.Errorf("getting document for %s: %v", id, err)
 	}
 
-	topic := string(tid.DID())
+	topic := string(id.DID())
 	t, err := r.ps.Join(topic)
 	if err != nil {
 		return fmt.Errorf("joining response topic %s: %v", topic, err)
@@ -228,47 +232,52 @@ func (r *Registry) handleThreadRequest(id string, from peer.ID) error {
 	return nil
 }
 
-//func (r *Registry) handleRes(did d.DID) {
-//k, doc, err := r.id.GetPublic().Validate(d.Token(m.Data))
-//if err != nil {
-//	return from, doc, fmt.Errorf("validating token: %v", err)
-//}
-//pk, ok := k.(*thread.Libp2pPubKey)
-//if !ok {
-//	return from, doc, fmt.Errorf("token issuer must be a Libp2pPubKey")
-//}
-//if !from.MatchesPublicKey(pk.PubKey) {
-//	return from, doc, fmt.Errorf("token issuer does not match sender: %v", err)
-//}
-//return from, doc, nil
-//}
+func (r *Registry) handleThreadToken(token d.Token, from peer.ID) error {
+	k, doc, err := r.id.GetPublic().Validate(token)
+	if err != nil {
+		return fmt.Errorf("validating token: %v", err)
+	}
+	pk, ok := k.(*thread.Libp2pPubKey)
+	if !ok {
+		return fmt.Errorf("token issuer must be a Libp2pPubKey")
+	}
+	if !from.MatchesPublicKey(pk.PubKey) {
+		return fmt.Errorf("token issuer does not match sender: %v", err)
+	}
+
+	r.Lock()
+	defer r.Unlock()
+	ch, ok := r.reqs[doc.ID]
+	if ok {
+		select {
+		case ch <- doc:
+		default:
+			log.Warnf("slow document receiver for %s", doc.ID)
+		}
+	}
+	return nil
+}
 
 func (r *Registry) getThreadToken(id thread.ID, aud d.DID) (d.Token, error) {
-	var (
-		tinfo    thread.Info
-		peerID   *ma.Component
-		threadID *ma.Component
-	)
-	tinfo, err := r.store.GetThread(id)
+	info, err := r.store.GetThread(id)
 	if err != nil {
 		return "", err
 	}
-	peerID, err = ma.NewComponent("p2p", r.host.ID().String())
+	pc, err := maddr.NewComponent(maddr.ProtocolWithCode(maddr.P_P2P).Name, r.host.ID().String())
 	if err != nil {
 		return "", nil
 	}
-	threadID, err = ma.NewComponent("thread", tinfo.ID.String())
+	tc, err := maddr.NewComponent(thread.ProtocolName, info.ID.String())
 	if err != nil {
 		return "", nil
 	}
 	addrs := r.host.Addrs()
-	res := make([]ma.Multiaddr, len(addrs))
+	res := make([]maddr.Multiaddr, len(addrs))
 	for i := range addrs {
-		res[i] = addrs[i].Encapsulate(peerID).Encapsulate(threadID)
+		res[i] = addrs[i].Encapsulate(pc).Encapsulate(tc)
 	}
-	tinfo.Addrs = res
-
-	return tinfo.Token(r.id, aud, time.Minute)
+	info.Addrs = res
+	return info.Token(r.id, aud, time.Minute)
 }
 
 //// queryResultSet holds a unique set of search results

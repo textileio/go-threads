@@ -10,43 +10,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-/*
-{
-  "jti": "urn:uuid:288b92c1-46a6-4c0d-9e16-bb4be1ff5a36",
-  "iss": "did:key:bcysaqaisecgbahlntn4ampcqasnwpepe7alrf2xzcw76azgjyh3qsjnz6zv4k",
-  "sub": "did:key:bcysaqaisecgbahlntn4ampcqasnwpepe7alrf2xzcw76azgjyh3qsjnz6zv4k",
-  "aud": "did:key:bcysaqaiseb6ghomt5cct3a3iysh6fwc6w7ibujfkk7oe6ohynh45olzpqcppw",
-  "iat": 1613863106,
-  "exp": 1613863166,
-  "nbf": 1613863106,
-  "vc": {
-    "@context": [
-      "https://www.w3.org/2018/credentials/v1"
-    ],
-    "type": [
-      "VerifiableCredential"
-    ],
-    "credentialSubject": {
-      "id": "did:key:bcysaqaisecgbahlntn4ampcqasnwpepe7alrf2xzcw76azgjyh3qsjnz6zv4k",
-      "document": {
-        "@context": [
-          "https://www.w3.org/ns/did/v1"
-        ],
-        "id": "did:key:bcysaqaisecgbahlntn4ampcqasnwpepe7alrf2xzcw76azgjyh3qsjnz6zv4k",
-        "authentication": [
-          {
-            "id": "did:key:bcysaqaisecgbahlntn4ampcqasnwpepe7alrf2xzcw76azgjyh3qsjnz6zv4k#keys-1",
-            "type": "Ed25519VerificationKey2018",
-            "controller": "did:key:bcysaqaisecgbahlntn4ampcqasnwpepe7alrf2xzcw76azgjyh3qsjnz6zv4k",
-            "publicKeyMultiBase": "bbaareiemcaow3g3yay6fabe3m6i6j6axclvpsfn74bsmtqpxbes3t5tlyu"
-          }
-        ]
-      }
-    }
-  }
-}
-*/
-
 // DID is a concrete type for a decentralized identifier.
 // See https://www.w3.org/TR/did-core/#dfn-did-schemes.
 type DID string
