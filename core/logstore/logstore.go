@@ -203,6 +203,9 @@ type HeadBook interface {
 	// ClearHeads deletes the head entry for a log.
 	ClearHeads(thread.ID, peer.ID) error
 
+	// HeadsEdge returns deterministic hash of all heads of a given thread.
+	HeadsEdge(t thread.ID) (uint64, error)
+
 	// DumpHeads packs entire headbook into the tree.
 	DumpHeads() (DumpHeadBook, error)
 

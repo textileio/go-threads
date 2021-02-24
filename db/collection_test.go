@@ -872,6 +872,9 @@ func TestModifiedSince(t *testing.T) {
 		})
 		checkErr(t, err)
 
+		// let write transaction propagate
+		time.Sleep(10 * time.Millisecond)
+
 		var instance []byte
 		err = c.ReadTxn(func(txn *Txn) (err error) {
 			instance, err = txn.FindByID(res[0])
@@ -891,7 +894,7 @@ func TestModifiedSince(t *testing.T) {
 			t.Fatalf("should have had %d modified instance", 1)
 		}
 		if mods[0] != p.ID {
-			t.Fatalf("should have modfied id %s", p.ID)
+			t.Fatalf("should have modified id %s", p.ID)
 		}
 	})
 	t.Run("WithCreateSaveAndDelete", func(t *testing.T) {
@@ -936,6 +939,9 @@ func TestModifiedSince(t *testing.T) {
 			return
 		})
 		checkErr(t, err)
+
+		// let write transactions propagate
+		time.Sleep(10 * time.Millisecond)
 
 		var mods []core.InstanceID
 		err = c.ReadTxn(func(txn *Txn) (err error) {
