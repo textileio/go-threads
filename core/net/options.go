@@ -2,6 +2,7 @@ package net
 
 import (
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/core/thread"
 )
 
@@ -9,7 +10,7 @@ import (
 type NewThreadOptions struct {
 	ThreadKey thread.Key
 	LogKey    crypto.Key
-	Token     thread.Token
+	Token     did.Token
 }
 
 // NewThreadOption specifies new thread options.
@@ -33,7 +34,7 @@ func WithLogKey(key crypto.Key) NewThreadOption {
 }
 
 // WithNewThreadToken provides authorization for creating a new thread.
-func WithNewThreadToken(t thread.Token) NewThreadOption {
+func WithNewThreadToken(t did.Token) NewThreadOption {
 	return func(args *NewThreadOptions) {
 		args.Token = t
 	}
@@ -41,7 +42,7 @@ func WithNewThreadToken(t thread.Token) NewThreadOption {
 
 // ThreadOptions defines options for interacting with a thread.
 type ThreadOptions struct {
-	Token    thread.Token
+	Token    did.Token
 	APIToken Token
 }
 
@@ -49,7 +50,7 @@ type ThreadOptions struct {
 type ThreadOption func(*ThreadOptions)
 
 // WithThreadToken provides authorization for interacting with a thread.
-func WithThreadToken(t thread.Token) ThreadOption {
+func WithThreadToken(t did.Token) ThreadOption {
 	return func(args *ThreadOptions) {
 		args.Token = t
 	}
@@ -68,7 +69,7 @@ func WithAPIToken(t Token) ThreadOption {
 // SubOptions defines options for a thread subscription.
 type SubOptions struct {
 	ThreadIDs thread.IDSlice
-	Token     thread.Token
+	Token     did.Token
 }
 
 // SubOption is a thread subscription option.
@@ -83,7 +84,7 @@ func WithSubFilter(id thread.ID) SubOption {
 }
 
 // WithSubToken provides authorization for a subscription.
-func WithSubToken(t thread.Token) SubOption {
+func WithSubToken(t did.Token) SubOption {
 	return func(args *SubOptions) {
 		args.Token = t
 	}

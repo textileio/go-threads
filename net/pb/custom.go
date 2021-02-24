@@ -47,7 +47,7 @@ func (id ProtoPeerID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *ProtoPeerID) Unmarshal(data []byte) (err error) {
-	id.ID = peer.ID(string(data))
+	id.ID = peer.ID(data)
 	return nil
 }
 
@@ -327,7 +327,7 @@ func NewPopulatedProtoCid(_ randyNet) *ProtoCid {
 // NewPopulatedProtoThreadID generates a populated instance of the custom gogo type ProtoThreadID.
 // It is required by gogo-generated tests.
 func NewPopulatedProtoThreadID(_ randyNet) *ProtoThreadID {
-	id := thread.NewRandomIDV1(thread.RandomVariant, 16)
+	id := thread.NewRandomIDV1()
 	return &ProtoThreadID{ID: id}
 }
 

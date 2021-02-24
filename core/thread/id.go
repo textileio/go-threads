@@ -5,12 +5,18 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
+	"github.com/textileio/go-threads/core/did"
+	jwted25519 "github.com/textileio/go-threads/jwt"
 )
 
 var (
@@ -18,13 +24,10 @@ var (
 	// long enough, or did not contain an invalid ID.
 	ErrVarintBuffSmall = fmt.Errorf("reading varint: buffer too small")
 
-	// ErrVarintTooBig means that the varint in the given ID was above the
-	// limit of 2^64.
-	ErrVarintTooBig = fmt.Errorf("reading varint: varint bigger than 64bits" +
-		" and not supported")
+	// ErrVarintTooBig means that the varint in the given ID was above the limit of 2^64.
+	ErrVarintTooBig = fmt.Errorf("reading varint: varint bigger than 64bits and not supported")
 
-	// ErrIDTooShort means that the ID passed to decode was not long
-	// enough to be a valid ID.
+	// ErrIDTooShort means that the ID passed to decode was not long enough to be a valid ID.
 	ErrIDTooShort = fmt.Errorf("id too short")
 
 	randomVariantSize = 20
@@ -100,17 +103,14 @@ func newID(version Version, variant Variant, payload []byte) ID {
 }
 
 // ID represents a self-describing thread identifier.
-// It is formed by a Version, a Variant, and a random number
-// of a given length.
+// It is formed by a Version, a Variant, and a random number of a given length.
 type ID string
 
-// Undef can be used to represent a nil or undefined Cid, using Cid{}
-// directly is also acceptable.
+// Undef can be used to represent a nil or undefined Cid, using Cid{} directly is also acceptable.
 var Undef = ID("")
 
 // Defined returns true if an ID is defined.
-// Calling any other methods on an undefined ID will result in
-// undefined behavior.
+// Calling any other methods on an undefined ID will result in undefined behavior.
 func (i ID) Defined() bool {
 	return i != Undef
 }
@@ -136,8 +136,7 @@ func Decode(v string) (ID, error) {
 	return Cast(data)
 }
 
-// ExtractEncoding from an ID. If Decode on the same string did
-// not return an error neither will this function.
+// ExtractEncoding from an ID. If Decode on the same string did not return an error neither will this function.
 func ExtractEncoding(v string) (mbase.Encoding, error) {
 	if len(v) < 2 {
 		return -1, ErrIDTooShort
@@ -245,8 +244,7 @@ func validateIDData(data []byte) error {
 	return nil
 }
 
-// UnmarshalBinary is equivalent to Cast(). It implements the
-// encoding.BinaryUnmarshaler interface.
+// UnmarshalBinary is equivalent to Cast(). It implements the encoding.BinaryUnmarshaler interface.
 func (i *ID) UnmarshalBinary(data []byte) error {
 	id, err := Cast(data)
 	if err != nil {
@@ -256,8 +254,7 @@ func (i *ID) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// UnmarshalText is equivalent to Decode(). It implements the
-// encoding.TextUnmarshaler interface.
+// UnmarshalText is equivalent to Decode(). It implements the encoding.TextUnmarshaler interface.
 func (i *ID) UnmarshalText(text []byte) error {
 	id, err := Decode(string(text))
 	if err != nil {
@@ -301,8 +298,7 @@ func (i ID) String() string {
 	}
 }
 
-// StringOfBase returns the string representation of an ID
-// encoded is selected base.
+// StringOfBase returns the string representation of an ID encoded is selected base.
 func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 	i.MustValidate()
 	switch i.Version() {
@@ -313,13 +309,7 @@ func (i ID) StringOfBase(base mbase.Encoding) (string, error) {
 	}
 }
 
-// DID returns a decentralized identifier in the form of did:thread:string(id).
-func (i ID) DID() string {
-	return "did:thread:" + i.String()
-}
-
-// Encode return the string representation of an ID in a given base
-// when applicable.
+// Encode return the string representation of an ID in a given base when applicable.
 func (i ID) Encode(base mbase.Encoder) string {
 	i.MustValidate()
 	switch i.Version() {
@@ -330,21 +320,23 @@ func (i ID) Encode(base mbase.Encoder) string {
 	}
 }
 
+// DID returns a decentralized identifier in the form of did:thread:string(id).
+func (i ID) DID() did.DID {
+	return did.DID("did:thread:" + i.String())
+}
+
 // Bytes returns the byte representation of an ID.
-// The output of bytes can be parsed back into an ID
-// with Cast().
+// The output of bytes can be parsed back into an ID with Cast().
 func (i ID) Bytes() []byte {
 	return []byte(i)
 }
 
-// MarshalBinary is equivalent to Bytes(). It implements the
-// encoding.BinaryMarshaler interface.
+// MarshalBinary is equivalent to Bytes(). It implements the encoding.BinaryMarshaler interface.
 func (i ID) MarshalBinary() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
-// MarshalText is equivalent to String(). It implements the
-// encoding.TextMarshaler interface.
+// MarshalText is equivalent to String(). It implements the encoding.TextMarshaler interface.
 func (i ID) MarshalText() ([]byte, error) {
 	i.MustValidate()
 	return []byte(i.String()), nil
@@ -377,10 +369,81 @@ func (s IDSlice) Less(i, j int) bool { return s[i] < s[j] }
 
 // Info holds thread logs, keys and addresses.
 type Info struct {
-	ID    ID
-	Key   Key
-	Logs  []LogInfo
+	// ID is the thread's unique identifier.
+	ID ID
+	// Key wraps the thread's encryption keys.
+	Key Key
+	// Logs are the thread's currently known single-writer logs.
+	Logs []LogInfo
+	// Addrs are full addresses where the thread can be found without interacting with the peer DHT, e.g.,
+	//     /ip4/<host_ip>/tcp/<host_port>/p2p/<peer_id_1>/thread/<thread_id>
+	//     /dnsaddr/<host_name>/p2p/<peer_id_2>/thread/<thread_id>
 	Addrs []maddr.Multiaddr
+}
+
+// Token returns a JWT-encoded verifiable claim representing of thread info.
+func (i Info) Token(issuer Identity, aud did.DID, dur time.Duration) (did.Token, error) {
+	id := i.ID.DID()
+	iss, err := issuer.GetPublic().DID()
+	if err != nil {
+		return "", err
+	}
+	services := make([]did.Service, len(i.Addrs))
+	for i, a := range i.Addrs {
+		parts := strings.Split(a.String(), "/"+maddr.ProtocolWithCode(maddr.P_P2P).Name)
+		services[i] = did.Service{
+			ID:              did.DID(string(id) + "#" + parts[1]),
+			Type:            "ThreadService",
+			ServiceEndpoint: a.String(),
+			ServiceProtocol: string(Protocol),
+		}
+	}
+	claims := IdentityClaims{
+		StandardClaims: jwt.StandardClaims{
+			Id:        uuid.New().URN(),
+			Subject:   string(id),
+			Issuer:    string(iss),
+			Audience:  string(aud),
+			ExpiresAt: time.Now().Add(dur).Unix(),
+			IssuedAt:  time.Now().Unix(),
+			NotBefore: time.Now().Unix(),
+		},
+		VerifiableCredential: did.VerifiableCredential{
+			Context: []string{
+				"https://www.w3.org/2018/credentials/v1",
+			},
+			Type: []string{
+				"VerifiableCredential",
+			},
+			CredentialSubject: did.VerifiableCredentialSubject{
+				ID: id,
+				Document: did.Document{
+					Context: []string{
+						"https://www.w3.org/ns/did/v1",
+					},
+					ID: id,
+					Conroller: []did.DID{
+						iss,
+					},
+					Authentication: []did.VerificationMethod{
+						{
+							ID:                 iss + "#keys-1",
+							Type:               "Ed25519VerificationKey2018",
+							Controller:         iss,
+							PublicKeyMultiBase: issuer.GetPublic().String(),
+						},
+					},
+					Services: services,
+				},
+			},
+		},
+	}
+	t, err := jwt.NewWithClaims(jwted25519.SigningMethodEd25519i, claims).
+		SignedString(issuer.(*Libp2pIdentity).PrivKey)
+	if err != nil {
+		return "", err
+	}
+	return did.Token(t), nil
 }
 
 // GetFirstPrivKeyLog returns the first log found with a private key.
@@ -403,7 +466,9 @@ type LogInfo struct {
 	PubKey crypto.PubKey
 	// PrivKey is the log's private key.
 	PrivKey crypto.PrivKey
-	// Addrs are the addresses associated with the given log.
+	// Addrs are the peer addresses associated with the given log, e.g.,
+	//     /p2p/<peer_id_1>
+	//     /p2p/<peer_id_2>
 	Addrs []maddr.Multiaddr
 	// Head is the log's current head.
 	Head cid.Cid

@@ -208,23 +208,23 @@ func (n *net) GetHostID(_ context.Context) (peer.ID, error) {
 	return n.host.ID(), nil
 }
 
-func (n *net) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
-	msg := make([]byte, tokenChallengeBytes)
-	if _, err = rand.Read(msg); err != nil {
-		return
-	}
-	sctx, cancel := context.WithTimeout(ctx, tokenChallengeTimeout)
-	defer cancel()
-	sig, err := identity.Sign(sctx, msg)
-	if err != nil {
-		return
-	}
-	key := identity.GetPublic()
-	if ok, err := key.Verify(msg, sig); !ok || err != nil {
-		return tok, fmt.Errorf("bad signature")
-	}
-	return thread.NewToken(n.getPrivKey(), key)
-}
+//func (n *net) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
+//	msg := make([]byte, tokenChallengeBytes)
+//	if _, err = rand.Read(msg); err != nil {
+//		return
+//	}
+//	sctx, cancel := context.WithTimeout(ctx, tokenChallengeTimeout)
+//	defer cancel()
+//	sig, err := identity.Sign(sctx, msg)
+//	if err != nil {
+//		return
+//	}
+//	key := identity.GetPublic()
+//	if ok, err := key.Verify(msg, sig); !ok || err != nil {
+//		return tok, fmt.Errorf("bad signature")
+//	}
+//	return thread.NewToken(n.getPrivKey(), key)
+//}
 
 func (n *net) CreateThread(
 	_ context.Context,
@@ -235,16 +235,16 @@ func (n *net) CreateThread(
 	for _, opt := range opts {
 		opt(args)
 	}
-	// @todo: Check identity key against ACL.
-	identity, err := n.Validate(id, args.Token, false)
-	if err != nil {
-		return
-	}
-	if identity != nil {
-		log.Debugf("creating thread with identity: %s", identity)
-	} else {
-		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	}
+	//// @todo: Check identity key against ACL.
+	//identity, err := n.Validate(id, args.Token, false)
+	//if err != nil {
+	//	return
+	//}
+	//if identity != nil {
+	//	log.Debugf("creating thread with identity: %s", identity)
+	//} else {
+	identity := thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
+	//}
 
 	if err = n.ensureUniqueLog(id, args.LogKey, identity); err != nil {
 		return
@@ -285,15 +285,15 @@ func (n *net) AddThread(
 	if err != nil {
 		return
 	}
-	identity, err := n.Validate(id, args.Token, false)
-	if err != nil {
-		return
-	}
-	if identity != nil {
-		log.Debugf("adding thread with identity: %s", identity)
-	} else {
-		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	}
+	//identity, err := n.Validate(id, args.Token, false)
+	//if err != nil {
+	//	return
+	//}
+	//if identity != nil {
+	//	log.Debugf("adding thread with identity: %s", identity)
+	//} else {
+	identity := thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
+	//}
 
 	if err = n.ensureUniqueLog(id, args.LogKey, identity); err != nil {
 		return
@@ -361,16 +361,18 @@ func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOpti
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = n.Validate(id, args.Token, true); err != nil {
-		return
-	}
+	//if _, err = n.Validate(id, args.Token, true); err != nil {
+	//	return
+	//}
 	return n.getThreadWithAddrs(id)
 }
 
 func (n *net) getThreadWithAddrs(id thread.ID) (info thread.Info, err error) {
-	var tinfo thread.Info
-	var peerID *ma.Component
-	var threadID *ma.Component
+	var (
+		tinfo    thread.Info
+		peerID   *ma.Component
+		threadID *ma.Component
+	)
 	tinfo, err = n.store.GetThread(id)
 	if err != nil {
 		return
@@ -397,9 +399,9 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := n.Validate(id, args.Token, true); err != nil {
-		return err
-	}
+	//if _, err := n.Validate(id, args.Token, true); err != nil {
+	//	return err
+	//}
 	return n.pullThread(ctx, id)
 }
 
@@ -440,9 +442,9 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := n.Validate(id, args.Token, false); err != nil {
-		return err
-	}
+	//if _, err := n.Validate(id, args.Token, false); err != nil {
+	//	return err
+	//}
 	if _, ok := n.getConnectorProtected(id, args.APIToken); !ok {
 		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
 	}
@@ -498,9 +500,9 @@ func (n *net) AddReplicator(
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err = n.Validate(id, args.Token, true); err != nil {
-		return
-	}
+	//if _, err = n.Validate(id, args.Token, true); err != nil {
+	//	return
+	//}
 
 	info, err := n.store.GetThread(id)
 	if err != nil {
@@ -630,13 +632,13 @@ func (n *net) CreateRecord(
 	for _, opt := range opts {
 		opt(args)
 	}
-	identity, err := n.Validate(id, args.Token, false)
-	if err != nil {
-		return
-	}
-	if identity == nil {
-		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	}
+	//identity, err := n.Validate(id, args.Token, false)
+	//if err != nil {
+	//	return
+	//}
+	//if identity == nil {
+	identity := thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
+	//}
 	con, ok := n.getConnectorProtected(id, args.APIToken)
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
@@ -679,9 +681,9 @@ func (n *net) AddRecord(
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := n.Validate(id, args.Token, false); err != nil {
-		return err
-	}
+	//if _, err := n.Validate(id, args.Token, false); err != nil {
+	//	return err
+	//}
 
 	logpk, err := n.store.PubKey(id, lid)
 	if err != nil {
@@ -716,9 +718,9 @@ func (n *net) GetRecord(
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, err := n.Validate(id, args.Token, true); err != nil {
-		return nil, err
-	}
+	//if _, err := n.Validate(id, args.Token, true); err != nil {
+	//	return nil, err
+	//}
 	return n.getRecord(ctx, id, rid)
 }
 
@@ -769,9 +771,9 @@ func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 			return nil, err
 		}
 		if id.Defined() {
-			if _, err := n.Validate(id, args.Token, true); err != nil {
-				return nil, err
-			}
+			//if _, err := n.Validate(id, args.Token, true); err != nil {
+			//	return nil, err
+			//}
 			filter[id] = struct{}{}
 		}
 	}
@@ -826,12 +828,12 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 }
 
 // @todo: Handle thread ACL checks against ID and readOnly.
-func (n *net) Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error) {
-	if err := id.Validate(); err != nil {
-		return nil, err
-	}
-	return token.Validate(n.getPrivKey())
-}
+//func (n *net) Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error) {
+//	if err := id.Validate(); err != nil {
+//		return nil, err
+//	}
+//	return token.Validate(n.getPrivKey())
+//}
 
 func (n *net) addConnector(id thread.ID, conn *app.Connector) {
 	n.connLock.Lock()

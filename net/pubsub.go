@@ -56,11 +56,15 @@ func (s *PubSub) Add(id thread.ID) error {
 	if err := id.Validate(); err != nil {
 		return err
 	}
-	pt, err := s.ps.Join(id.String())
+	t, err := s.ps.Join(id.String())
 	if err != nil {
 		return err
 	}
-	h, err := pt.EventHandler()
+	h, err := t.EventHandler()
+	if err != nil {
+		return err
+	}
+	sub, err := t.Subscribe()
 	if err != nil {
 		return err
 	}
@@ -70,8 +74,9 @@ func (s *PubSub) Add(id thread.ID) error {
 
 	ctx, cancel := context.WithCancel(s.ctx)
 	topic := &topic{
-		t:      pt,
+		t:      t,
 		h:      h,
+		s:      sub,
 		cancel: cancel,
 	}
 	s.m[id] = topic
@@ -145,15 +150,6 @@ func (s *PubSub) watch(ctx context.Context, id thread.ID, topic *topic) {
 
 // subscribe to a topic for thread updates.
 func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
-	var err error
-	s.Lock()
-	topic.s, err = topic.t.Subscribe()
-	s.Unlock()
-	if err != nil {
-		log.Errorf("error subscribing to topic %s: %s", id, err)
-		return
-	}
-
 	for {
 		msg, err := topic.s.Next(ctx)
 		if err != nil {
@@ -166,8 +162,7 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 		} else if req == nil {
 			continue
 		}
-		log.Debugf("received multicast record from %s", from)
-
+		log.Debugf("received multicast record from %s in %s", from, id)
 		s.handler(ctx, req)
 	}
 }

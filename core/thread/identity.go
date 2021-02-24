@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/peer"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -104,17 +106,17 @@ func (i *Libp2pIdentity) Token(aud did.DID, dur time.Duration) (did.Token, error
 				"VerifiableCredential",
 			},
 			CredentialSubject: did.VerifiableCredentialSubject{
-				ID: string(id),
+				ID: id,
 				Document: did.Document{
 					Context: []string{
 						"https://www.w3.org/ns/did/v1",
 					},
-					ID: string(id),
+					ID: id,
 					Authentication: []did.VerificationMethod{
 						{
-							ID:                 string(id) + "#keys-1",
+							ID:                 id + "#keys-1",
 							Type:               "Ed25519VerificationKey2018",
-							Controller:         string(id),
+							Controller:         id,
 							PublicKeyMultiBase: i.GetPublic().String(),
 						},
 					},
@@ -227,15 +229,19 @@ func (k *Libp2pPubKey) Hash() ([]byte, error) {
 }
 
 func (k *Libp2pPubKey) DID() (did.DID, error) {
-	hash, err := k.Hash()
+	//hash, err := k.Hash()
+	//if err != nil {
+	//	return "", err
+	//}
+	//id, err := mbase.Encode(mbase.Base32, hash)
+	//if err != nil {
+	//	return "", err
+	//}
+	id, err := peer.IDFromPublicKey(k.PubKey)
 	if err != nil {
 		return "", err
 	}
-	id, err := mbase.Encode(mbase.Base32, hash)
-	if err != nil {
-		return "", err
-	}
-	return did.DID("did:key:" + id), nil
+	return did.DID("did:key:" + id.String()), nil
 }
 
 func (k *Libp2pPubKey) Validate(identity did.Token) (key PubKey, doc did.Document, err error) {

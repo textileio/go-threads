@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	"github.com/ockam-network/did"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -50,22 +51,42 @@ import (
 // See https://www.w3.org/TR/did-core/#dfn-did-schemes.
 type DID string
 
+// NewKeyDID prefixes "did:key:" to an identifier.
+func NewKeyDID(id string) DID {
+	return DID("did:key:" + id)
+}
+
+// Decode returns info about a DID.
+func (d DID) Decode() (*did.DID, error) {
+	return did.Parse(string(d))
+}
+
 // Document is a DID document that describes a DID subject.
 // See https://www.w3.org/TR/did-core/#dfn-did-documents.
 type Document struct {
 	Context        []string             `json:"@context"`
-	ID             string               `json:"id"`
-	Conroller      []string             `json:"conroller,omitempty"`
+	ID             DID                  `json:"id"`
+	Conroller      []DID                `json:"conroller,omitempty"`
 	Authentication []VerificationMethod `json:"authentication"`
+	Services       []Service            `json:"services,omitempty"`
 }
 
 // VerificationMethod describes how to authenticate or authorize interactions with a DID subject.
 // See https://www.w3.org/TR/did-core/#dfn-verification-method.
 type VerificationMethod struct {
-	ID                 string `json:"id"`
+	ID                 DID    `json:"id"`
 	Type               string `json:"type"`
-	Controller         string `json:"controller"`
+	Controller         DID    `json:"controller"`
 	PublicKeyMultiBase string `json:"publicKeyMultiBase"`
+}
+
+// Service describes a service provided by the DID subject.
+// See https://www.w3.org/TR/did-core/#dfn-service.
+type Service struct {
+	ID              DID    `json:"id"`
+	Type            string `json:"type"`
+	ServiceEndpoint string `json:"serviceEndpoint"`
+	ServiceProtocol string `json:"serviceProtocol"`
 }
 
 // VerifiableCredential is a set of claims about a subject.
@@ -79,7 +100,7 @@ type VerifiableCredential struct {
 // VerifiableCredentialSubject is an entity about which claims are made.
 // See https://www.w3.org/TR/vc-data-model/#dfn-subjects.
 type VerifiableCredentialSubject struct {
-	ID       string   `json:"id"`
+	ID       DID      `json:"id"`
 	Document Document `json:"document,omitempty"`
 }
 

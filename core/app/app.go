@@ -8,6 +8,7 @@ import (
 
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/broadcast"
+	"github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/util"
@@ -74,8 +75,8 @@ func (leb *LocalEventsBus) Discard() {
 
 // LocalEvent wraps an IPLD node and auth for delivery to a thread.
 type LocalEvent struct {
-	Node  format.Node
-	Token thread.Token
+	Node format.Node
+	//Token thread.Token
 }
 
 // LocalEventListener notifies about new locally generated events.
@@ -102,10 +103,10 @@ type Net interface {
 	// ConnectApp returns an app<->thread connector.
 	ConnectApp(App, thread.ID) (*Connector, error)
 
-	// Validate thread ID and token against the net host.
-	// If token is present and was issued the net host (is valid), the embedded public key is returned.
-	// If token is not present, both the returned public key and error will be nil.
-	Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error)
+	//// Validate thread ID and token against the net host.
+	//// If token is present and was issued the net host (is valid), the embedded public key is returned.
+	//// If token is not present, both the returned public key and error will be nil.
+	//Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error)
 }
 
 // Connector connects an app to a thread.
@@ -146,15 +147,15 @@ func (c *Connector) Token() net.Token {
 }
 
 // CreateNetRecord calls net.CreateRecord while supplying thread ID and API token.
-func (c *Connector) CreateNetRecord(ctx context.Context, body format.Node, token thread.Token) (net.ThreadRecord, error) {
+func (c *Connector) CreateNetRecord(ctx context.Context, body format.Node, token did.Token) (net.ThreadRecord, error) {
 	return c.Net.CreateRecord(ctx, c.threadID, body, net.WithThreadToken(token), net.WithAPIToken(c.token))
 }
 
-// Validate thread token against the net host.
-func (c *Connector) Validate(token thread.Token, readOnly bool) error {
-	_, err := c.Net.Validate(c.threadID, token, readOnly)
-	return err
-}
+//// Validate thread token against the net host.
+//func (c *Connector) Validate(token thread.Token, readOnly bool) error {
+//	_, err := c.Net.Validate(c.threadID, token, readOnly)
+//	return err
+//}
 
 // ValidateNetRecordBody calls the connection app's ValidateNetRecordBody.
 func (c *Connector) ValidateNetRecordBody(ctx context.Context, body format.Node, identity thread.PubKey) error {

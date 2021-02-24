@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -31,9 +31,9 @@ type API interface {
 	// GetHostID returns the host's peer id.
 	GetHostID(ctx context.Context) (peer.ID, error)
 
-	// GetToken returns a signed token representing an identity that can be used with other API methods, e.g.,
-	// CreateThread, AddThread, etc.
-	GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error)
+	//// GetToken returns a signed token representing an identity that can be used with other API methods, e.g.,
+	//// CreateThread, AddThread, etc.
+	//GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error)
 
 	// CreateThread creates and adds a new thread with id and opts.
 	CreateThread(ctx context.Context, id thread.ID, opts ...NewThreadOption) (thread.Info, error)

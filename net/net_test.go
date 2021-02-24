@@ -26,24 +26,24 @@ import (
 	"github.com/textileio/go-threads/util"
 )
 
-func TestNet_GetToken(t *testing.T) {
-	t.Parallel()
-	n := makeNetwork(t)
-	defer n.Close()
-	ctx := context.Background()
-
-	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tok, err := n.GetToken(ctx, thread.NewLibp2pIdentity(sk))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tok == "" {
-		t.Fatal("bad token")
-	}
-}
+//func TestNet_GetToken(t *testing.T) {
+//	t.Parallel()
+//	n := makeNetwork(t)
+//	defer n.Close()
+//	ctx := context.Background()
+//
+//	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	tok, err := n.GetToken(ctx, thread.NewLibp2pIdentity(sk))
+//	if err != nil {
+//		t.Fatal(err)
+//	}
+//	if tok == "" {
+//		t.Fatal("bad token")
+//	}
+//}
 
 func TestNet_CreateRecord(t *testing.T) {
 	t.Parallel()
@@ -180,7 +180,7 @@ func TestNet_CreateThreadManaged(t *testing.T) {
 	defer n.Close()
 
 	ctx := context.Background()
-	info, err := n.CreateThread(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32))
+	info, err := n.CreateThread(ctx, thread.NewRandomIDV1())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestNet_AddThreadManaged(t *testing.T) {
 	n2.Host().Peerstore().AddAddrs(n1.Host().ID(), n1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
 	ctx := context.Background()
-	info, err := n1.CreateThread(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32))
+	info, err := n1.CreateThread(ctx, thread.NewRandomIDV1())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -332,7 +332,7 @@ func TestNet_AddReplicatorManaged(t *testing.T) {
 	n2.Host().Peerstore().AddAddrs(n1.Host().ID(), n1.Host().Addrs(), peerstore.PermanentAddrTTL)
 
 	// Create managed thread
-	tid := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	tid := thread.NewRandomIDV1()
 	ctx := context.Background()
 	_, pk, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
@@ -455,7 +455,7 @@ func makeNetwork(t *testing.T) core.Net {
 }
 
 func createThread(t *testing.T, ctx context.Context, api core.API) thread.Info {
-	info, err := api.CreateThread(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32))
+	info, err := api.CreateThread(ctx, thread.NewRandomIDV1())
 	if err != nil {
 		t.Fatal(err)
 	}
