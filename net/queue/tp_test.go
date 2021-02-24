@@ -37,6 +37,9 @@ func TestThreadPacker(t *testing.T) {
 		tp.Add(pid, tids[2*maxPack-1])
 		tp.Add(pid, tids[2*maxPack])
 
+		// add thread duplicate
+		tp.Add(pid, tids[2*maxPack-1])
+
 		// let last request propagate and stop the packer
 		time.Sleep(10 * time.Millisecond)
 		cancel()
