@@ -42,8 +42,7 @@ func TestRegistry_Resolve(t *testing.T) {
 	doc, err := r[0].Resolve(context.Background(), info.ID.DID())
 	require.NoError(t, err)
 	assert.Equal(t, info.ID.DID(), doc.ID)
-	assert.Len(t, doc.Services, 1)
-	assert.Equal(t, info.Addrs[0].String(), doc.Services[0].ServiceEndpoint)
+	assert.NotEmpty(t, doc.Services)
 }
 
 func setup(t *testing.T) *Registry {

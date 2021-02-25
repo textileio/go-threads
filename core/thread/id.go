@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -390,9 +389,12 @@ func (i Info) Token(issuer Identity, aud d.DID, dur time.Duration) (d.Token, err
 	}
 	services := make([]d.Service, len(i.Addrs))
 	for i, a := range i.Addrs {
-		parts := strings.Split(a.String(), "/"+maddr.ProtocolWithCode(maddr.P_P2P).Name)
+		p, err := a.ValueForProtocol(maddr.P_P2P)
+		if err != nil {
+			return "", err
+		}
 		services[i] = d.Service{
-			ID:              d.DID(string(id) + "#" + parts[1]),
+			ID:              d.DID(string(id) + "#" + p),
 			Type:            "ThreadService",
 			ServiceEndpoint: a.String(),
 			ServiceProtocol: string(Protocol),
