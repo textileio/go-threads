@@ -1,7 +1,7 @@
 package thread
 
 import (
-	"fmt"
+	"errors"
 
 	mbase "github.com/multiformats/go-multibase"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
@@ -9,7 +9,7 @@ import (
 
 var (
 	// ErrInvalidKey indicates an invalid byte slice was given to KeyFromBytes.
-	ErrInvalidKey = fmt.Errorf("invalid key")
+	ErrInvalidKey = errors.New("invalid key")
 )
 
 // Key is a thread encryption key with two components.

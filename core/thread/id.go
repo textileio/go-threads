@@ -19,15 +19,15 @@ import (
 )
 
 var (
-	// ErrVarintBuffSmall means that a buffer passed to the ID parser was not
-	// long enough, or did not contain an invalid ID.
-	ErrVarintBuffSmall = fmt.Errorf("reading varint: buffer too small")
+	// ErrVarintBuffSmall indicates a buffer passed to the ID parser was not
+	// long enough, or contained an invalid ID.
+	ErrVarintBuffSmall = errors.New("reading varint: buffer too small")
 
-	// ErrVarintTooBig means that the varint in the given ID was above the limit of 2^64.
-	ErrVarintTooBig = fmt.Errorf("reading varint: varint bigger than 64bits and not supported")
+	// ErrVarintTooBig indicates the varint in the given ID was above the limit of 2^64.
+	ErrVarintTooBig = errors.New("reading varint: varint bigger than 64bits and not supported")
 
-	// ErrIDTooShort means that the ID passed to decode was not long enough to be a valid ID.
-	ErrIDTooShort = fmt.Errorf("id too short")
+	// ErrIDTooShort indicates the ID passed to decode was not long enough to be a valid ID.
+	ErrIDTooShort = errors.New("id too short")
 
 	randomVariantSize = 20
 )

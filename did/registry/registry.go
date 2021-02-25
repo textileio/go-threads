@@ -17,12 +17,19 @@ import (
 	"github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	s "github.com/textileio/go-threads/did/store"
+	"github.com/textileio/go-threads/net/util"
 	"github.com/textileio/go-threads/pubsub"
 )
 
-var (
-	log = logging.Logger("registry")
-)
+var log = logging.Logger("registry")
+
+//var _ util.SemaphoreKey = (*didLock)(nil)
+//
+//type didLock map[d.DID]
+//
+//func (l customerLock) Key() string {
+//	return string(l)
+//}
 
 type Registry struct {
 	host host.Host
@@ -38,7 +45,8 @@ type Registry struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	lk sync.Mutex
+	semaphores *util.SemaphorePool
+	lk         sync.Mutex
 }
 
 // NewRegistry returns a new pubsub DID registry.
@@ -67,16 +75,17 @@ func NewRegistry(host host.Host, store logstore.Logstore, cache ds.Datastore) (*
 	}
 
 	r := &Registry{
-		host:   host,
-		id:     thread.NewLibp2pIdentity(sk),
-		did:    self,
-		ps:     ps,
-		topic:  topic,
-		store:  store,
-		cache:  s.NewStore(cache),
-		reqs:   make(map[d.DID]chan d.Document),
-		ctx:    ctx,
-		cancel: cancel,
+		host:       host,
+		id:         thread.NewLibp2pIdentity(sk),
+		did:        self,
+		ps:         ps,
+		topic:      topic,
+		store:      store,
+		cache:      s.NewStore(cache),
+		reqs:       make(map[d.DID]chan d.Document),
+		ctx:        ctx,
+		cancel:     cancel,
+		semaphores: util.NewSemaphorePool(1),
 	}
 
 	topic.SetEventHandler(r.eventHandler)
@@ -97,25 +106,33 @@ func (r *Registry) Close() error {
 //	return r.store.Put(did, doc)
 //}
 
-// todo: use semaphores not a single lock
-// todo: close results channel?
 func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err error) {
+	if _, err := thread.FromDID(did); err != nil {
+		return doc, fmt.Errorf("decoding did: %v", err)
+	}
+
 	r.lk.Lock()
 	if _, ok := r.reqs[did]; ok {
 		r.lk.Unlock()
 		return doc, fmt.Errorf("request for %s already in flight", did)
 	}
-	r.reqs[did] = make(chan d.Document)
+	resCh := make(chan d.Document)
+	r.reqs[did] = resCh
 	r.lk.Unlock()
-
-	// First, check if we have it locally.
-	doc, err = r.cache.Get(did)
-	if err != nil && !errors.Is(err, ds.ErrNotFound) {
+	defer func() {
 		r.lk.Lock()
 		delete(r.reqs, did)
 		r.lk.Unlock()
-		return doc, err
-	}
+	}()
+
+	// First, check if we have it locally.
+	//doc, err = r.cache.Get(did)
+	//if err != nil && !errors.Is(err, ds.ErrNotFound) {
+	//	r.lk.Lock()
+	//	delete(r.reqs, did)
+	//	r.lk.Unlock()
+	//	return doc, err
+	//}
 
 	// Subscribe to response topic.
 	res, err := pubsub.NewTopic(r.ctx, r.ps, r.host.ID(), string(did), true)
@@ -137,7 +154,7 @@ func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err 
 			timer.Stop()
 		case <-timer.C:
 			return doc, logstore.ErrThreadNotFound
-		case doc, ok := <-r.reqs[did]:
+		case doc, ok := <-resCh:
 			if ok {
 				return doc, nil
 			}
@@ -156,6 +173,7 @@ func (r *Registry) eventHandler(from peer.ID, topic, msg string) {
 func (r *Registry) messageHandler(from peer.ID, topic, msg string) {
 	log.Debugf("%s received message from %s", topic, from)
 
+	// See if this message is a DID request.
 	id, err := thread.FromDID(d.DID(msg))
 	if err == nil {
 		if err := r.handleRequest(id, from); err != nil {
@@ -163,7 +181,7 @@ func (r *Registry) messageHandler(from peer.ID, topic, msg string) {
 			return
 		}
 	} else {
-		// todo: superficial check to see if this is a token?
+		// Not a DID. Treat the message as a token response.
 		if err := r.handleResponse(d.Token(msg), from); err != nil {
 			log.Debug(err)
 			return

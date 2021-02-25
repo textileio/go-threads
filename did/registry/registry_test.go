@@ -24,18 +24,22 @@ func TestMain(m *testing.M) {
 }
 
 func TestRegistry_Resolve(t *testing.T) {
-	r := setupN(t, 3)
+	r := setupN(t, 2)
 
 	// Resolve invalid thread DID
-	//_, err := r[0].Resolve(context.Background(), "did:thread:123")
-	//require.Error(t, err)
+	_, err := r[0].Resolve(context.Background(), "did:thread:123")
+	require.Error(t, err)
+
+	// Resolve non-existent DID
+	_, err = r[0].Resolve(context.Background(), thread.NewRandomIDV1().DID())
+	require.Error(t, err)
 
 	// Add a thread to peer 1
 	info := thread.Info{
 		ID:  thread.NewRandomIDV1(),
 		Key: thread.NewRandomKey(),
 	}
-	err := r[1].store.AddThread(info)
+	err = r[1].store.AddThread(info)
 	require.NoError(t, err)
 
 	// Resolve it from peer 0
