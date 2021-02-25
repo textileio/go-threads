@@ -74,7 +74,7 @@ type Listener interface {
 }
 
 type stateChangedNotifee struct {
-	lock      sync.Mutex
+	lock      sync.RWMutex
 	listeners []*listener
 }
 
@@ -87,6 +87,8 @@ type listener struct {
 var _ Listener = (*listener)(nil)
 
 func (scn *stateChangedNotifee) notify(actions []Action) {
+	scn.lock.RLock()
+	defer scn.lock.RUnlock()
 	for _, a := range actions {
 		for _, l := range scn.listeners {
 			if l.evaluate(a) {
@@ -107,6 +109,8 @@ func (scn *stateChangedNotifee) addListener(sl *listener) {
 }
 
 func (scn *stateChangedNotifee) remove(sl *listener) bool {
+	scn.lock.Lock()
+	defer scn.lock.Unlock()
 	for i := range scn.listeners {
 		if scn.listeners[i] == sl {
 			scn.listeners[i] = scn.listeners[len(scn.listeners)-1]
@@ -122,8 +126,10 @@ func (scn *stateChangedNotifee) close() {
 	scn.lock.Lock()
 	defer scn.lock.Unlock()
 	for i := range scn.listeners {
-		scn.listeners[i].Close()
+		close(scn.listeners[i].c)
+		scn.listeners[i] = nil
 	}
+	scn.listeners = nil
 }
 
 // Channel returns an unbuffered channel to receive
