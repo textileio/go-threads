@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -366,10 +367,12 @@ func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err error) {
 	addrsEdge, err = s.net.store.AddrsEdge(tid)
 	if err != nil {
+		err = fmt.Errorf("address edge for %s: %w", tid, err)
 		return
 	}
 	headsEdge, err = s.net.store.HeadsEdge(tid)
 	if err != nil {
+		err = fmt.Errorf("heads edge for %s: %w", tid, err)
 		return
 	}
 	return

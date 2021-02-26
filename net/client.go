@@ -374,7 +374,8 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 	for _, tid := range tids {
 		addrsEdge, headsEdge, err := s.localEdges(tid)
 		if err != nil {
-			return err
+			log.Errorf("getting local edges failed: %v", err)
+			continue
 		}
 		body.Threads = append(body.Threads, &pb.ExchangeEdgesRequest_Body_ThreadEntry{
 			ThreadID:    &pb.ProtoThreadID{ID: tid},
@@ -382,10 +383,13 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 			AddressEdge: addrsEdge,
 		})
 	}
+	if len(body.Threads) == 0 {
+		return nil
+	}
 
 	sig, key, err := s.signRequestBody(body)
 	if err != nil {
-		return err
+		return fmt.Errorf("signing request body: %w", err)
 	}
 	req := &pb.ExchangeEdgesRequest{
 		Header: &pb.Header{
@@ -432,7 +436,8 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 		// get local edges potentially updated by another process
 		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
 		if err != nil {
-			return err
+			log.Errorf("getting local edges failed: %v", err)
+			continue
 		}
 
 		if e.GetAddressEdge() != addrsEdgeLocal {
