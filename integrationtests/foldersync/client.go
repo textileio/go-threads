@@ -72,7 +72,7 @@ type client struct {
 }
 
 func newRootClient(name, folderPath, repoPath string) (*client, error) {
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 
 	network, err := newNetwork(repoPath)
 	if err != nil {

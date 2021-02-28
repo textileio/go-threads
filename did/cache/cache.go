@@ -1,4 +1,4 @@
-package store
+package cache
 
 import (
 	"encoding/json"
@@ -7,15 +7,15 @@ import (
 	"github.com/textileio/go-threads/core/did"
 )
 
-type Store struct {
+type TokenCache struct {
 	s ds.Datastore
 }
 
-func NewStore(s ds.Datastore) *Store {
-	return &Store{s: s}
+func NewTokenCache(store ds.Datastore) *TokenCache {
+	return &TokenCache{s: store}
 }
 
-func (s *Store) Put(did did.DID, document did.Document) error {
+func (s *TokenCache) Put(did did.DID, document did.Document) error {
 	v, err := json.Marshal(document)
 	if err != nil {
 		return err
@@ -23,7 +23,7 @@ func (s *Store) Put(did did.DID, document did.Document) error {
 	return s.s.Put(ds.NewKey(string(did)), v)
 }
 
-func (s *Store) Get(did did.DID) (doc did.Document, err error) {
+func (s *TokenCache) Get(did did.DID) (doc did.Document, err error) {
 	v, err := s.s.Get(ds.NewKey(string(did)))
 	if err != nil {
 		return doc, err
@@ -34,6 +34,6 @@ func (s *Store) Get(did did.DID) (doc did.Document, err error) {
 	return doc, err
 }
 
-func (s *Store) Delete(did did.DID) error {
+func (s *TokenCache) Delete(did did.DID) error {
 	return s.s.Delete(ds.NewKey(string(did)))
 }

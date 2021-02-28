@@ -7,7 +7,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
-	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/core/did"
 )
 
 // Listen returns a Listener which notifies about actions applying the
@@ -33,7 +33,7 @@ func (d *DB) notifyStateChanged(actions []Action) {
 	d.stateChangedNotifee.notify(actions)
 }
 
-func (d *DB) notifyTxnEvents(node format.Node, token thread.Token) error {
+func (d *DB) notifyTxnEvents(node format.Node, token did.Token) error {
 	return d.localEventsBus.Send(&app.LocalEvent{
 		Node:  node,
 		Token: token,

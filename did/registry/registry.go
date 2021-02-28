@@ -16,20 +16,12 @@ import (
 	d "github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	s "github.com/textileio/go-threads/did/store"
+	"github.com/textileio/go-threads/did/cache"
 	"github.com/textileio/go-threads/net/util"
 	"github.com/textileio/go-threads/pubsub"
 )
 
 var log = logging.Logger("registry")
-
-//var _ util.SemaphoreKey = (*didLock)(nil)
-//
-//type didLock map[d.DID]
-//
-//func (l customerLock) Key() string {
-//	return string(l)
-//}
 
 type Registry struct {
 	host host.Host
@@ -38,8 +30,8 @@ type Registry struct {
 	ps   *libpubsub.PubSub
 
 	topic *pubsub.Topic
-	store logstore.Logstore
-	cache *s.Store
+	logs  logstore.Logstore
+	cache *cache.TokenCache
 	reqs  map[d.DID]chan d.Document
 
 	ctx    context.Context
@@ -50,7 +42,7 @@ type Registry struct {
 }
 
 // NewRegistry returns a new pubsub DID registry.
-func NewRegistry(host host.Host, store logstore.Logstore, cache ds.Datastore) (*Registry, error) {
+func NewRegistry(host host.Host, logs logstore.Logstore, store ds.Datastore) (*Registry, error) {
 	sk := host.Peerstore().PrivKey(host.ID())
 	if sk == nil {
 		return nil, errors.New("host key not found")
@@ -80,8 +72,8 @@ func NewRegistry(host host.Host, store logstore.Logstore, cache ds.Datastore) (*
 		did:        self,
 		ps:         ps,
 		topic:      topic,
-		store:      store,
-		cache:      s.NewStore(cache),
+		logs:       logs,
+		cache:      cache.NewTokenCache(store),
 		reqs:       make(map[d.DID]chan d.Document),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -128,14 +120,11 @@ func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err 
 	// First, check if we have it locally.
 	//doc, err = r.cache.Get(did)
 	//if err != nil && !errors.Is(err, ds.ErrNotFound) {
-	//	r.lk.Lock()
-	//	delete(r.reqs, did)
-	//	r.lk.Unlock()
 	//	return doc, err
 	//}
 
 	// Subscribe to response topic.
-	res, err := pubsub.NewTopic(r.ctx, r.ps, r.host.ID(), string(did), true)
+	res, err := pubsub.NewTopic(ctx, r.ps, r.host.ID(), string(did), true)
 	if err != nil {
 		return doc, fmt.Errorf("creating results topic %s: %v", did, err)
 	}
@@ -147,12 +136,11 @@ func (r *Registry) Resolve(ctx context.Context, did d.DID) (doc d.Document, err 
 	if err := r.topic.Publish(ctx, []byte(did)); err != nil {
 		return doc, err
 	}
-	timer := time.NewTimer(time.Second * 5)
 	for {
 		select {
 		case <-r.ctx.Done():
-			timer.Stop()
-		case <-timer.C:
+			return doc, logstore.ErrThreadNotFound
+		case <-ctx.Done():
 			return doc, logstore.ErrThreadNotFound
 		case doc, ok := <-resCh:
 			if ok {
@@ -212,7 +200,7 @@ func (r *Registry) handleRequest(id thread.ID, from peer.ID) error {
 
 func (r *Registry) getToken(id thread.ID, aud d.DID) (d.Token, error) {
 	// Build a token from local thread info.
-	info, err := r.store.GetThread(id)
+	info, err := r.logs.GetThread(id)
 	if err != nil {
 		return "", err
 	}

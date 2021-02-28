@@ -3,6 +3,7 @@ package db
 import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/jsonpatcher"
 )
@@ -19,7 +20,7 @@ type NewOptions struct {
 	Collections []CollectionConfig
 	Block       bool
 	EventCodec  core.EventCodec
-	Token       thread.Token
+	Token       did.Token
 	Debug       bool
 }
 
@@ -77,7 +78,7 @@ func WithNewEventCodec(ec core.EventCodec) NewOption {
 }
 
 // WithNewToken provides authorization for interacting with a db.
-func WithNewToken(t thread.Token) NewOption {
+func WithNewToken(t did.Token) NewOption {
 	return func(o *NewOptions) {
 		o.Token = t
 	}
@@ -92,14 +93,14 @@ func WithNewDebug(enable bool) NewOption {
 
 // Options defines options for interacting with a db.
 type Options struct {
-	Token thread.Token
+	Token did.Token
 }
 
 // Option specifies a db option.
 type Option func(*Options)
 
 // WithToken provides authorization for interacting with a db.
-func WithToken(t thread.Token) Option {
+func WithToken(t did.Token) Option {
 	return func(o *Options) {
 		o.Token = t
 	}
@@ -107,14 +108,14 @@ func WithToken(t thread.Token) Option {
 
 // TxnOptions defines options for a transaction.
 type TxnOptions struct {
-	Token thread.Token
+	Token did.Token
 }
 
 // TxnOption specifies a transaction option.
 type TxnOption func(*TxnOptions)
 
 // WithTxnToken provides authorization for the transaction.
-func WithTxnToken(t thread.Token) TxnOption {
+func WithTxnToken(t did.Token) TxnOption {
 	return func(o *TxnOptions) {
 		o.Token = t
 	}
@@ -125,7 +126,7 @@ type NewManagedOptions struct {
 	Name        string
 	Key         thread.Key
 	LogKey      crypto.Key
-	Token       thread.Token
+	Token       did.Token
 	Collections []CollectionConfig
 	Block       bool
 }
@@ -141,7 +142,7 @@ func WithNewManagedName(name string) NewManagedOption {
 }
 
 // WithNewManagedToken provides authorization for creating a new managed db.
-func WithNewManagedToken(t thread.Token) NewManagedOption {
+func WithNewManagedToken(t did.Token) NewManagedOption {
 	return func(o *NewManagedOptions) {
 		o.Token = t
 	}
@@ -184,14 +185,14 @@ func WithNewManagedBackfillBlock(block bool) NewManagedOption {
 
 // ManagedOptions defines options for interacting with a managed db.
 type ManagedOptions struct {
-	Token thread.Token
+	Token did.Token
 }
 
 // ManagedOption specifies a managed db option.
 type ManagedOption func(*ManagedOptions)
 
 // WithManagedToken provides authorization for interacting with a managed db.
-func WithManagedToken(t thread.Token) ManagedOption {
+func WithManagedToken(t did.Token) ManagedOption {
 	return func(o *ManagedOptions) {
 		o.Token = t
 	}

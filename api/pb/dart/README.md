@@ -1,1 +1,0 @@
-This is a support library used by the [Dart Threads Client](https://github.com/textileio/dart-threads-client/), available on pub.dev [here](https://pub.dev/packages/threads_client).

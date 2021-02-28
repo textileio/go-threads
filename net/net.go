@@ -10,6 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/textileio/go-threads/core/did"
+
+	"github.com/textileio/go-threads/did/registry"
+
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -88,6 +92,8 @@ type net struct {
 
 	store lstore.Logstore
 
+	registry *registry.Registry
+
 	rpc    *grpc.Server
 	server *server
 	bus    *broadcast.Broadcaster
@@ -114,6 +120,7 @@ func NewNetwork(
 	bstore bs.Blockstore,
 	ds format.DAGService,
 	ls lstore.Logstore,
+	reg *registry.Registry,
 	conf Config,
 	serverOptions []grpc.ServerOption,
 	dialOptions []grpc.DialOption,
@@ -129,11 +136,12 @@ func NewNetwork(
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	t := &net{
+	n := &net{
 		DAGService: ds,
 		host:       h,
 		bstore:     bstore,
 		store:      ls,
+		registry:   reg,
 		rpc:        grpc.NewServer(serverOptions...),
 		bus:        broadcast.NewBroadcaster(EventBusCapacity),
 		connectors: make(map[thread.ID]*app.Connector),
@@ -142,7 +150,7 @@ func NewNetwork(
 		semaphores: util.NewSemaphorePool(1),
 	}
 
-	t.server, err = newServer(t, conf.PubSub, dialOptions...)
+	n.server, err = newServer(n, conf.PubSub, dialOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -152,14 +160,14 @@ func NewNetwork(
 		return nil, err
 	}
 	go func() {
-		pb.RegisterServiceServer(t.rpc, t.server)
-		if err := t.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+		pb.RegisterServiceServer(n.rpc, n.server)
+		if err := n.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Fatalf("serve error: %v", err)
 		}
 	}()
 
-	go t.startPulling()
-	return t, nil
+	go n.startPulling()
+	return n, nil
 }
 
 func (n *net) Close() (err error) {
@@ -198,6 +206,10 @@ func (n *net) Close() (err error) {
 
 func (n *net) Host() host.Host {
 	return n.host
+}
+
+func (n *net) Registry() *registry.Registry {
+	return n.registry
 }
 
 func (n *net) Store() lstore.Logstore {
@@ -638,7 +650,7 @@ func (n *net) CreateRecord(
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
 	} else if con != nil {
-		if err = con.ValidateNetRecordBody(ctx, body, identity); err != nil {
+		if err = con.ValidateNetRecordBody(ctx, body, did.NewKeyDID("foo")); err != nil {
 			return
 		}
 	}
@@ -823,12 +835,12 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 }
 
 // @todo: Handle thread ACL checks against ID and readOnly.
-//func (n *net) Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error) {
-//	if err := id.Validate(); err != nil {
-//		return nil, err
-//	}
-//	return token.Validate(n.getPrivKey())
-//}
+func (n *net) Validate(id thread.ID, token did.Token) (did.DID, error) {
+	if err := id.Validate(); err != nil {
+		return "", err
+	}
+	return "", nil
+}
 
 func (n *net) addConnector(id thread.ID, conn *app.Connector) {
 	n.connLock.Lock()
@@ -1013,7 +1025,7 @@ func (n *net) loadUnknownRecords(
 				return nil, head, err
 			}
 
-			if err = connector.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
+			if err = connector.ValidateNetRecordBody(ctx, dbody, did.NewKeyDID("foo")); err != nil {
 				return nil, head, err
 			}
 		}

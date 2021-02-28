@@ -14,6 +14,7 @@ import (
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/did"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
@@ -61,102 +62,102 @@ func (s *Service) Close() error {
 	return s.manager.Close()
 }
 
-type remoteIdentity struct {
-	pk     thread.PubKey
-	server pb.API_GetTokenServer
-}
+//type remoteIdentity struct {
+//	pk     thread.PubKey
+//	server pb.API_GetTokenServer
+//}
 
-func (i *remoteIdentity) MarshalBinary() ([]byte, error) {
-	return nil, nil
-}
+//func (i *remoteIdentity) MarshalBinary() ([]byte, error) {
+//	return nil, nil
+//}
 
-func (i *remoteIdentity) UnmarshalBinary([]byte) error {
-	return nil
-}
+//func (i *remoteIdentity) UnmarshalBinary([]byte) error {
+//	return nil
+//}
 
-func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
-	if err := i.server.Send(&pb.GetTokenReply{
-		Payload: &pb.GetTokenReply_Challenge{
-			Challenge: msg,
-		},
-	}); err != nil {
-		return nil, err
-	}
+//func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
+//	if err := i.server.Send(&pb.GetTokenReply{
+//		Payload: &pb.GetTokenReply_Challenge{
+//			Challenge: msg,
+//		},
+//	}); err != nil {
+//		return nil, err
+//	}
+//
+//	var req *pb.GetTokenRequest
+//	done := make(chan error)
+//	go func() {
+//		defer close(done)
+//		var err error
+//		req, err = i.server.Recv()
+//		if err != nil {
+//			done <- err
+//			return
+//		}
+//	}()
+//	select {
+//	case <-ctx.Done():
+//		return nil, status.Error(codes.DeadlineExceeded, "Challenge deadline exceeded")
+//	case err, ok := <-done:
+//		if ok {
+//			return nil, err
+//		}
+//	}
+//
+//	var sig []byte
+//	switch payload := req.Payload.(type) {
+//	case *pb.GetTokenRequest_Signature:
+//		sig = payload.Signature
+//	default:
+//		return nil, status.Error(codes.InvalidArgument, "Signature is required")
+//	}
+//	return sig, nil
+//}
 
-	var req *pb.GetTokenRequest
-	done := make(chan error)
-	go func() {
-		defer close(done)
-		var err error
-		req, err = i.server.Recv()
-		if err != nil {
-			done <- err
-			return
-		}
-	}()
-	select {
-	case <-ctx.Done():
-		return nil, status.Error(codes.DeadlineExceeded, "Challenge deadline exceeded")
-	case err, ok := <-done:
-		if ok {
-			return nil, err
-		}
-	}
+//func (i *remoteIdentity) GetPublic() thread.PubKey {
+//	return i.pk
+//}
 
-	var sig []byte
-	switch payload := req.Payload.(type) {
-	case *pb.GetTokenRequest_Signature:
-		sig = payload.Signature
-	default:
-		return nil, status.Error(codes.InvalidArgument, "Signature is required")
-	}
-	return sig, nil
-}
+//func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
+//	return nil, nil // no-op
+//}
 
-func (i *remoteIdentity) GetPublic() thread.PubKey {
-	return i.pk
-}
+//func (i *remoteIdentity) Equals(thread.Identity) bool {
+//	return false
+//}
 
-func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
-	return nil, nil // no-op
-}
-
-func (i *remoteIdentity) Equals(thread.Identity) bool {
-	return false
-}
-
-func (s *Service) GetToken(server pb.API_GetTokenServer) error {
-	log.Debugf("received get token request")
-
-	req, err := server.Recv()
-	if err != nil {
-		return err
-	}
-	key := &thread.Libp2pPubKey{}
-	switch payload := req.Payload.(type) {
-	case *pb.GetTokenRequest_Key:
-		err = key.UnmarshalString(payload.Key)
-		if err != nil {
-			return err
-		}
-	default:
-		return status.Error(codes.InvalidArgument, "Key is required")
-	}
-
-	identity := &remoteIdentity{
-		pk:     key,
-		server: server,
-	}
-	tok, err := s.manager.GetToken(server.Context(), identity)
-	if err != nil {
-		return err
-	}
-	return server.Send(&pb.GetTokenReply{
-		Payload: &pb.GetTokenReply_Token{
-			Token: string(tok),
-		},
-	})
-}
+//func (s *Service) GetToken(server pb.API_GetTokenServer) error {
+//	log.Debugf("received get token request")
+//
+//	req, err := server.Recv()
+//	if err != nil {
+//		return err
+//	}
+//	key := &thread.Libp2pPubKey{}
+//	switch payload := req.Payload.(type) {
+//	case *pb.GetTokenRequest_Key:
+//		err = key.UnmarshalString(payload.Key)
+//		if err != nil {
+//			return err
+//		}
+//	default:
+//		return status.Error(codes.InvalidArgument, "Key is required")
+//	}
+//
+//	identity := &remoteIdentity{
+//		pk:     key,
+//		server: server,
+//	}
+//	tok, err := s.manager.GetToken(server.Context(), identity)
+//	if err != nil {
+//		return err
+//	}
+//	return server.Send(&pb.GetTokenReply{
+//		Payload: &pb.GetTokenReply_Token{
+//			Token: string(tok),
+//		},
+//	})
+//}
 
 func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBReply, error) {
 	log.Debugf("received new db request")
@@ -173,7 +174,7 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 		}
 		collections[i] = cc
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +222,7 @@ func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrReques
 		}
 		collections[i] = cc
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +281,7 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 }
 
 func (s *Service) ListDBs(ctx context.Context, _ *pb.ListDBsRequest) (*pb.ListDBsReply, error) {
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +311,7 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +323,7 @@ func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.
 	return dBInfoToPb(d, token)
 }
 
-func dBInfoToPb(d *db.DB, token thread.Token) (*pb.GetDBInfoReply, error) {
+func dBInfoToPb(d *db.DB, token did.Token) (*pb.GetDBInfoReply, error) {
 	info, err := d.GetDBInfo(db.WithToken(token))
 	if err != nil {
 		return nil, err
@@ -343,7 +344,7 @@ func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.De
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +364,7 @@ func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionReques
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +387,7 @@ func (s *Service) UpdateCollection(ctx context.Context, req *pb.UpdateCollection
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +410,7 @@ func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollection
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +429,7 @@ func (s *Service) GetCollectionInfo(ctx context.Context, req *pb.GetCollectionIn
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +462,7 @@ func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectio
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +480,7 @@ func (s *Service) ListCollections(ctx context.Context, req *pb.ListCollectionsRe
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +507,7 @@ func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.Create
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +523,7 @@ func (s *Service) Verify(ctx context.Context, req *pb.VerifyRequest) (*pb.Verify
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +539,7 @@ func (s *Service) Save(ctx context.Context, req *pb.SaveRequest) (*pb.SaveReply,
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -554,7 +555,7 @@ func (s *Service) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.Delete
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -570,7 +571,7 @@ func (s *Service) Has(ctx context.Context, req *pb.HasRequest) (*pb.HasReply, er
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +587,7 @@ func (s *Service) Find(ctx context.Context, req *pb.FindRequest) (*pb.FindReply,
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +603,7 @@ func (s *Service) FindByID(ctx context.Context, req *pb.FindByIDRequest) (*pb.Fi
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(ctx)
+	token, err := did.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +635,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 		return fmt.Errorf("ReadTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	token, err := thread.NewTokenFromMD(stream.Context())
+	token, err := did.NewTokenFromMD(stream.Context())
 	if err != nil {
 		return err
 	}
@@ -719,7 +720,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 		return fmt.Errorf("WriteTransactionRequest.Option has unexpected type %T", x)
 	}
 
-	token, err := thread.NewTokenFromMD(stream.Context())
+	token, err := did.NewTokenFromMD(stream.Context())
 	if err != nil {
 		return err
 	}
@@ -838,7 +839,7 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	if err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := thread.NewTokenFromMD(server.Context())
+	token, err := did.NewTokenFromMD(server.Context())
 	if err != nil {
 		return err
 	}
@@ -914,7 +915,7 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 	}
 }
 
-func (s *Service) instanceForAction(d *db.DB, action db.Action, token thread.Token) ([]byte, error) {
+func (s *Service) instanceForAction(d *db.DB, action db.Action, token did.Token) ([]byte, error) {
 	collection := d.GetCollection(action.Collection, db.WithToken(token))
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
@@ -926,7 +927,7 @@ func (s *Service) instanceForAction(d *db.DB, action db.Action, token thread.Tok
 	return res, nil
 }
 
-func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token, createFunc func([][]byte, ...db.TxnOption) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
+func (s *Service) processCreateRequest(req *pb.CreateRequest, token did.Token, createFunc func([][]byte, ...db.TxnOption) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
 	res, err := createFunc(req.Instances, db.WithTxnToken(token))
 	if err != nil {
 		return &pb.CreateReply{}, err
@@ -938,17 +939,17 @@ func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token
 	return &pb.CreateReply{InstanceIDs: ids}, nil
 }
 
-func (s *Service) processVerifyRequest(req *pb.VerifyRequest, token thread.Token, verifyFunc func([][]byte, ...db.TxnOption) error) (*pb.VerifyReply, error) {
+func (s *Service) processVerifyRequest(req *pb.VerifyRequest, token did.Token, verifyFunc func([][]byte, ...db.TxnOption) error) (*pb.VerifyReply, error) {
 	err := verifyFunc(req.Instances, db.WithTxnToken(token))
 	return &pb.VerifyReply{}, err
 }
 
-func (s *Service) processSaveRequest(req *pb.SaveRequest, token thread.Token, saveFunc func([][]byte, ...db.TxnOption) error) (*pb.SaveReply, error) {
+func (s *Service) processSaveRequest(req *pb.SaveRequest, token did.Token, saveFunc func([][]byte, ...db.TxnOption) error) (*pb.SaveReply, error) {
 	err := saveFunc(req.Instances, db.WithTxnToken(token))
 	return &pb.SaveReply{}, err
 }
 
-func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token, deleteFunc func([]core.InstanceID, ...db.TxnOption) error) (*pb.DeleteReply, error) {
+func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token did.Token, deleteFunc func([]core.InstanceID, ...db.TxnOption) error) (*pb.DeleteReply, error) {
 	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
@@ -957,7 +958,7 @@ func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token
 	return &pb.DeleteReply{}, err
 }
 
-func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasFunc func([]core.InstanceID, ...db.TxnOption) (bool, error)) (*pb.HasReply, error) {
+func (s *Service) processHasRequest(req *pb.HasRequest, token did.Token, hasFunc func([]core.InstanceID, ...db.TxnOption) (bool, error)) (*pb.HasReply, error) {
 	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
@@ -966,13 +967,13 @@ func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasF
 	return &pb.HasReply{Exists: exists}, err
 }
 
-func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, token thread.Token, findFunc func(id core.InstanceID, opts ...db.TxnOption) ([]byte, error)) (*pb.FindByIDReply, error) {
+func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, token did.Token, findFunc func(id core.InstanceID, opts ...db.TxnOption) ([]byte, error)) (*pb.FindByIDReply, error) {
 	instanceID := core.InstanceID(req.InstanceID)
 	found, err := findFunc(instanceID, db.WithTxnToken(token))
 	return &pb.FindByIDReply{Instance: found}, err
 }
 
-func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, findFunc func(q *db.Query, opts ...db.TxnOption) (ret [][]byte, err error)) (*pb.FindReply, error) {
+func (s *Service) processFindRequest(req *pb.FindRequest, token did.Token, findFunc func(q *db.Query, opts ...db.TxnOption) (ret [][]byte, err error)) (*pb.FindReply, error) {
 	q := &db.Query{}
 	if err := json.Unmarshal(req.QueryJSON, q); err != nil {
 		return &pb.FindReply{}, err
@@ -981,7 +982,7 @@ func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, fi
 	return &pb.FindReply{Instances: instances}, err
 }
 
-func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (*db.DB, error) {
+func (s *Service) getDB(ctx context.Context, id thread.ID, token did.Token) (*db.DB, error) {
 	d, err := s.manager.GetDB(ctx, id, db.WithManagedToken(token))
 	if err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) || errors.Is(err, db.ErrDBNotFound) {
@@ -993,7 +994,7 @@ func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (
 	return d, nil
 }
 
-func (s *Service) getCollection(ctx context.Context, collectionName string, id thread.ID, token thread.Token) (*db.Collection, error) {
+func (s *Service) getCollection(ctx context.Context, collectionName string, id thread.ID, token did.Token) (*db.Collection, error) {
 	d, err := s.getDB(ctx, id, token)
 	if err != nil {
 		return nil, err

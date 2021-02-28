@@ -41,7 +41,7 @@ func TestE2EWithThreads(t *testing.T) {
 	checkErr(t, err)
 	defer store.Close()
 
-	id1 := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id1 := thread.NewRandomIDV1()
 	d1, err := NewDB(context.Background(), store, n1, id1)
 	checkErr(t, err)
 	defer d1.Close()
@@ -143,7 +143,7 @@ func TestMissingCollection(t *testing.T) {
 	checkErr(t, err)
 	defer store.Close()
 
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 	db, err := NewDB(context.Background(), store, n, id)
 	checkErr(t, err)
 	defer db.Close()
@@ -180,7 +180,7 @@ func TestWithNewName(t *testing.T) {
 	defer store.Close()
 
 	name := "my-db"
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 	d, err := NewDB(context.Background(), store, n, id, WithNewName(name))
 	checkErr(t, err)
 	if d.name != name {
@@ -228,7 +228,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	defer store.Close()
 
 	ec := &mockEventCodec{}
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 	d, err := NewDB(context.Background(), store, n, id, WithNewEventCodec(ec))
 	checkErr(t, err)
 

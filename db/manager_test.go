@@ -2,14 +2,12 @@ package db
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/textileio/go-threads/common"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
@@ -45,20 +43,20 @@ var (
 	}`
 )
 
-func TestManager_GetToken(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	man, clean := createTestManager(t)
-	defer clean()
-
-	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	checkErr(t, err)
-	tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
-	checkErr(t, err)
-	if tok == "" {
-		t.Fatal("bad token")
-	}
-}
+//func TestManager_GetToken(t *testing.T) {
+//	t.Parallel()
+//	ctx := context.Background()
+//	man, clean := createTestManager(t)
+//	defer clean()
+//
+//	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
+//	checkErr(t, err)
+//	tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
+//	checkErr(t, err)
+//	if tok == "" {
+//		t.Fatal("bad token")
+//	}
+//}
 
 func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
@@ -67,21 +65,22 @@ func TestManager_NewDB(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32))
+		_, err := man.NewDB(ctx, thread.NewRandomIDV1())
 		checkErr(t, err)
 	})
 	t.Run("test multiple new dbs", func(t *testing.T) {
 		t.Parallel()
 		man, clean := createTestManager(t)
 		defer clean()
-		_, err := man.NewDB(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32))
+		_, err := man.NewDB(ctx, thread.NewRandomIDV1())
 		checkErr(t, err)
 		// NewDB with token
-		sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
-		checkErr(t, err)
-		tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
-		checkErr(t, err)
-		_, err = man.NewDB(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32), WithNewManagedToken(tok))
+		//sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
+		//checkErr(t, err)
+		//tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
+		//checkErr(t, err)
+		//_, err = man.NewDB(ctx, thread.NewRandomIDV1(), WithNewManagedToken(tok))
+		_, err = man.NewDB(ctx, thread.NewRandomIDV1())
 		checkErr(t, err)
 	})
 	t.Run("test new db with bad name", func(t *testing.T) {
@@ -89,7 +88,7 @@ func TestManager_NewDB(t *testing.T) {
 		man, clean := createTestManager(t)
 		defer clean()
 		name := "my db"
-		_, err := man.NewDB(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32), WithNewManagedName(name))
+		_, err := man.NewDB(ctx, thread.NewRandomIDV1(), WithNewManagedName(name))
 		if err == nil {
 			t.Fatal("new db with bad name should fail")
 		}
@@ -99,7 +98,7 @@ func TestManager_NewDB(t *testing.T) {
 		man, clean := createTestManager(t)
 		defer clean()
 		name := "my-db"
-		d, err := man.NewDB(ctx, thread.NewRandomIDV1(thread.RandomVariant, 32), WithNewManagedName(name))
+		d, err := man.NewDB(ctx, thread.NewRandomIDV1(), WithNewManagedName(name))
 		checkErr(t, err)
 		if d.name != name {
 			t.Fatalf("expected name %s, got %s", name, d.name)
@@ -128,7 +127,7 @@ func TestManager_GetDB(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 	_, err = man.GetDB(ctx, id)
 	if !errors.Is(err, lstore.ErrThreadNotFound) {
 		t.Fatal("should be not found error")
@@ -225,7 +224,7 @@ func TestManager_DeleteDB(t *testing.T) {
 	man, clean := createTestManager(t)
 	defer clean()
 
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 	db, err := man.NewDB(ctx, id)
 	checkErr(t, err)
 

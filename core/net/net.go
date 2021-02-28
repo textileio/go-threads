@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/did/registry"
 )
 
 // Net wraps API with a DAGService and libp2p host.
@@ -22,6 +23,9 @@ type Net interface {
 
 	// Host provides a network identity.
 	Host() host.Host
+
+	// Registry for decentralized thread identifiers (DIDs).
+	Registry() *registry.Registry
 }
 
 // API is the network interface for thread orchestration.

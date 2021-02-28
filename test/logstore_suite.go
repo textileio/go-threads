@@ -43,7 +43,7 @@ func LogstoreTest(t *testing.T, factory LogstoreFactory) {
 
 func testAddrStream(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 
 		addrs, pid := getAddrs(t, 100), peer.ID("testlog")
 		err := ls.AddAddrs(tid, pid, addrs[:10], time.Hour)
@@ -129,7 +129,7 @@ func testAddrStream(ls core.Logstore) func(t *testing.T) {
 
 func testGetStreamBeforeLogAdded(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 
 		addrs, pid := getAddrs(t, 10), peer.ID("testlog")
 
@@ -184,7 +184,7 @@ func testGetStreamBeforeLogAdded(ls core.Logstore) func(t *testing.T) {
 
 func testAddrStreamDuplicates(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 
 		addrs, pid := getAddrs(t, 10), peer.ID("testlog")
 
@@ -233,7 +233,7 @@ func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 		addrs := getAddrs(t, 10)
 
 		for _, a := range addrs {
-			tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+			tid := thread.NewRandomIDV1()
 			tids = append(tids, tid)
 			err := ls.AddServiceKey(tid, sym.New())
 			check(t, err)
@@ -272,7 +272,7 @@ func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 		}
 
 		// Test add entire log
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		priv, pub, _ := crypto.GenerateKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		p, _ := peer.IDFromPrivateKey(priv)
 		err = ls.AddLog(tid, thread.LogInfo{
@@ -313,7 +313,7 @@ func testBasicLogstore(ls core.Logstore) func(t *testing.T) {
 
 func testLogstoreManaged(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		addrs := getAddrs(t, 1)
 		err := ls.AddServiceKey(tid, sym.New())
 		check(t, err)
@@ -371,7 +371,7 @@ func testMetadata(ls core.Logstore) func(t *testing.T) {
 	return func(t *testing.T) {
 		tids := make([]thread.ID, 10)
 		for i := range tids {
-			tids[i] = thread.NewRandomIDV1(thread.RandomVariant, 24)
+			tids[i] = thread.NewRandomIDV1()
 		}
 		for _, p := range tids {
 			if err := ls.PutString(p, "AgentVersion", "string"); err != nil {

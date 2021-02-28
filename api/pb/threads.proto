@@ -1,24 +1,26 @@
 syntax = "proto3";
 package threads.pb;
 
+option go_package = "github.com/textileio/go-buckets/api/pb";
+
 option java_multiple_files = true;
 option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";
 option objc_class_prefix = "THREADS";
 
-message GetTokenRequest {
-    oneof payload {
-        string key = 1;
-        bytes signature = 2;
-    }
-}
+//message GetTokenRequest {
+//    oneof payload {
+//        string key = 1;
+//        bytes signature = 2;
+//    }
+//}
 
-message GetTokenReply {
-    oneof payload {
-        bytes challenge = 1;
-        string token = 2;
-    }
-}
+//message GetTokenReply {
+//    oneof payload {
+//        bytes challenge = 1;
+//        string token = 2;
+//    }
+//}
 
 // @todo: Clean up tag numbers with next major release
 message NewDBRequest {
@@ -294,7 +296,7 @@ message ListenReply {
 }
 
 service API {
-    rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
+    // rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc NewDB(NewDBRequest) returns (NewDBReply) {}
     rpc NewDBFromAddr(NewDBFromAddrRequest) returns (NewDBReply) {}
     rpc ListDBs(ListDBsRequest) returns (ListDBsReply) {}

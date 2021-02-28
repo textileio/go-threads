@@ -33,7 +33,7 @@ func TestSimple(t *testing.T) {
 		t.Skip("Skipping foldersync tests")
 	}
 
-	id := thread.NewRandomIDV1(thread.RandomVariant, 32)
+	id := thread.NewRandomIDV1()
 
 	// db0
 

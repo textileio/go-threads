@@ -21,6 +21,7 @@ import (
 	mongods "github.com/textileio/go-ds-mongo"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/logstore"
+	"github.com/textileio/go-threads/did/registry"
 	"github.com/textileio/go-threads/logstore/lstoreds"
 	"github.com/textileio/go-threads/logstore/lstorehybrid"
 	"github.com/textileio/go-threads/logstore/lstoremem"
@@ -96,8 +97,19 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 		return nil, fin.Cleanup(err)
 	}
 
+	regcache, err := persistentStore(ctx, config, "registry", fin)
+	if err != nil {
+		return nil, fin.Cleanup(err)
+	}
+	fin.Add(regcache)
+	reg, err := registry.NewRegistry(h, tstore, regcache)
+	if err != nil {
+		return nil, fin.Cleanup(err)
+	}
+	fin.Add(reg)
+
 	// Build a network
-	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, net.Config{
+	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, reg, net.Config{
 		Debug:  config.Debug,
 		PubSub: config.PubSub,
 	}, config.GRPCServerOptions, config.GRPCDialOptions)

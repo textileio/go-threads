@@ -2,16 +2,16 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
+	"github.com/textileio/go-threads/core/did"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto"
@@ -57,66 +57,66 @@ func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
 	return peer.IDFromBytes(resp.PeerID)
 }
 
-func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
-	stream, err := c.c.GetToken(ctx)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if e := stream.CloseSend(); e != nil && err == nil {
-			err = e
-		}
-	}()
-	if err = stream.Send(&pb.GetTokenRequest{
-		Payload: &pb.GetTokenRequest_Key{
-			Key: identity.GetPublic().String(),
-		},
-	}); err == io.EOF {
-		var noOp interface{}
-		return tok, stream.RecvMsg(noOp)
-	} else if err != nil {
-		return
-	}
-
-	rep, err := stream.Recv()
-	if err != nil {
-		return
-	}
-	var challenge []byte
-	switch payload := rep.Payload.(type) {
-	case *pb.GetTokenReply_Challenge:
-		challenge = payload.Challenge
-	default:
-		return tok, fmt.Errorf("challenge was not received")
-	}
-
-	sig, err := identity.Sign(ctx, challenge)
-	if err != nil {
-		return
-	}
-	if err = stream.Send(&pb.GetTokenRequest{
-		Payload: &pb.GetTokenRequest_Signature{
-			Signature: sig,
-		},
-	}); err == io.EOF {
-		var noOp interface{}
-		return tok, stream.RecvMsg(noOp)
-	} else if err != nil {
-		return
-	}
-
-	rep, err = stream.Recv()
-	if err != nil {
-		return
-	}
-	switch payload := rep.Payload.(type) {
-	case *pb.GetTokenReply_Token:
-		tok = thread.Token(payload.Token)
-	default:
-		return tok, fmt.Errorf("token was not received")
-	}
-	return tok, nil
-}
+//func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok did.Token, err error) {
+//	stream, err := c.c.GetToken(ctx)
+//	if err != nil {
+//		return
+//	}
+//	defer func() {
+//		if e := stream.CloseSend(); e != nil && err == nil {
+//			err = e
+//		}
+//	}()
+//	if err = stream.Send(&pb.GetTokenRequest{
+//		Payload: &pb.GetTokenRequest_Key{
+//			Key: identity.GetPublic().String(),
+//		},
+//	}); err == io.EOF {
+//		var noOp interface{}
+//		return tok, stream.RecvMsg(noOp)
+//	} else if err != nil {
+//		return
+//	}
+//
+//	rep, err := stream.Recv()
+//	if err != nil {
+//		return
+//	}
+//	var challenge []byte
+//	switch payload := rep.Payload.(type) {
+//	case *pb.GetTokenReply_Challenge:
+//		challenge = payload.Challenge
+//	default:
+//		return tok, fmt.Errorf("challenge was not received")
+//	}
+//
+//	sig, err := identity.Sign(ctx, challenge)
+//	if err != nil {
+//		return
+//	}
+//	if err = stream.Send(&pb.GetTokenRequest{
+//		Payload: &pb.GetTokenRequest_Signature{
+//			Signature: sig,
+//		},
+//	}); err == io.EOF {
+//		var noOp interface{}
+//		return tok, stream.RecvMsg(noOp)
+//	} else if err != nil {
+//		return
+//	}
+//
+//	rep, err = stream.Recv()
+//	if err != nil {
+//		return
+//	}
+//	switch payload := rep.Payload.(type) {
+//	case *pb.GetTokenReply_Token:
+//		tok = did.Token(payload.Token)
+//	default:
+//		return tok, fmt.Errorf("token was not received")
+//	}
+//	return tok, nil
+//}
 
 func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
 	args := &core.NewThreadOptions{}
@@ -127,7 +127,7 @@ func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.Ne
 	if err != nil {
 		return
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
 		ThreadID: id.Bytes(),
 		Keys:     keys,
@@ -147,7 +147,7 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 	if err != nil {
 		return
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
 		Addr: addr.Bytes(),
 		Keys: keys,
@@ -163,7 +163,7 @@ func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
 		ThreadID: id.Bytes(),
 	})
@@ -178,7 +178,7 @@ func (c *Client) PullThread(ctx context.Context, id thread.ID, opts ...core.Thre
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	_, err := c.c.PullThread(ctx, &pb.PullThreadRequest{
 		ThreadID: id.Bytes(),
 	})
@@ -190,7 +190,7 @@ func (c *Client) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Th
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	_, err := c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
 		ThreadID: id.Bytes(),
 	})
@@ -202,7 +202,7 @@ func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multi
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
 		ThreadID: id.Bytes(),
 		Addr:     paddr.Bytes(),
@@ -222,7 +222,7 @@ func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Nod
 	if err != nil {
 		return nil, err
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.CreateRecord(ctx, &pb.CreateRecordRequest{
 		ThreadID: id.Bytes(),
 		Body:     body.RawData(),
@@ -243,7 +243,7 @@ func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec c
 	if err != nil {
 		return err
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	_, err = c.c.AddRecord(ctx, &pb.AddRecordRequest{
 		ThreadID: id.Bytes(),
 		LogID:    lidb,
@@ -261,7 +261,7 @@ func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts 
 	if err != nil {
 		return nil, err
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
 		ThreadID: id.Bytes(),
 		RecordID: rid.Bytes(),
@@ -282,7 +282,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	for i, id := range args.ThreadIDs {
 		ids[i] = id.Bytes()
 	}
-	ctx = thread.NewTokenContext(ctx, args.Token)
+	ctx = did.NewTokenContext(ctx, args.Token)
 	stream, err := c.c.Subscribe(ctx, &pb.SubscribeRequest{
 		ThreadIDs: ids,
 	})

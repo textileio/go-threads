@@ -22,6 +22,7 @@ import (
 	"github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/did/registry"
 	tstore "github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/util"
 )
@@ -436,6 +437,13 @@ func makeNetwork(t *testing.T) core.Net {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	ls := tstore.NewLogstore()
+	reg, err := registry.NewRegistry(host, ls, ds.NewMapDatastore())
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	bs := bstore.NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
 	bsrv := bserv.New(bs, offline.Exchange(bs))
 	n, err := NewNetwork(
@@ -443,7 +451,8 @@ func makeNetwork(t *testing.T) core.Net {
 		host,
 		bsrv.Blockstore(),
 		dag.NewDAGService(bsrv),
-		tstore.NewLogstore(),
+		ls,
+		reg,
 		Config{
 			Debug:  true,
 			PubSub: true,

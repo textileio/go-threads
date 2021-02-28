@@ -299,7 +299,7 @@ func benchmarkClearHeads(hb core.HeadBook) func(*testing.B) {
 func genHeads(numLogs, numHeads int) (thread.ID, map[peer.ID][]cid.Cid) {
 	var (
 		logs = make(map[peer.ID][]cid.Cid)
-		tid  = thread.NewIDV1(thread.Raw, 32)
+		tid  = thread.NewRandomIDV1()
 	)
 
 	for i := 0; i < numLogs; i++ {

@@ -30,7 +30,7 @@ type App interface {
 	// ValidateNetRecordBody provides the app an opportunity to validate the contents
 	// of a record before it's committed to a thread log.
 	// identity is the author's public key.
-	ValidateNetRecordBody(ctx context.Context, body format.Node, identity thread.PubKey) error
+	ValidateNetRecordBody(ctx context.Context, body format.Node, identity did.DID) error
 
 	// HandleNetRecord handles an inbound thread record from net.
 	HandleNetRecord(ctx context.Context, rec net.ThreadRecord, key thread.Key) error
@@ -75,8 +75,8 @@ func (leb *LocalEventsBus) Discard() {
 
 // LocalEvent wraps an IPLD node and auth for delivery to a thread.
 type LocalEvent struct {
-	Node format.Node
-	//Token thread.Token
+	Node  format.Node
+	Token did.Token
 }
 
 // LocalEventListener notifies about new locally generated events.
@@ -103,10 +103,10 @@ type Net interface {
 	// ConnectApp returns an app<->thread connector.
 	ConnectApp(App, thread.ID) (*Connector, error)
 
-	//// Validate thread ID and token against the net host.
-	//// If token is present and was issued the net host (is valid), the embedded public key is returned.
-	//// If token is not present, both the returned public key and error will be nil.
-	//Validate(id thread.ID, token thread.Token, readOnly bool) (thread.PubKey, error)
+	// Validate thread ID and token against the net host.
+	// If token is present and valid, the embedded DID is returned.
+	// If token is not present, error will be nil.
+	Validate(id thread.ID, token did.Token) (did.DID, error)
 }
 
 // Connector connects an app to a thread.
@@ -151,14 +151,14 @@ func (c *Connector) CreateNetRecord(ctx context.Context, body format.Node, token
 	return c.Net.CreateRecord(ctx, c.threadID, body, net.WithThreadToken(token), net.WithAPIToken(c.token))
 }
 
-//// Validate thread token against the net host.
-//func (c *Connector) Validate(token thread.Token, readOnly bool) error {
-//	_, err := c.Net.Validate(c.threadID, token, readOnly)
-//	return err
-//}
+// Validate thread token against the net host.
+func (c *Connector) Validate(token did.Token) error {
+	_, err := c.Net.Validate(c.threadID, token)
+	return err
+}
 
 // ValidateNetRecordBody calls the connection app's ValidateNetRecordBody.
-func (c *Connector) ValidateNetRecordBody(ctx context.Context, body format.Node, identity thread.PubKey) error {
+func (c *Connector) ValidateNetRecordBody(ctx context.Context, body format.Node, identity did.DID) error {
 	return c.app.ValidateNetRecordBody(ctx, body, identity)
 }
 

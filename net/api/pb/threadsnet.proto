@@ -1,6 +1,8 @@
 syntax = "proto3";
 package threads.net.pb;
 
+option go_package = "github.com/textileio/go-buckets/net/api/pb";
+
 option java_multiple_files = true;
 option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
@@ -12,19 +14,19 @@ message GetHostIDReply {
     bytes peerID = 1;
 }
 
-message GetTokenRequest {
-    oneof payload {
-        string key = 1;
-        bytes signature = 2;
-    }
-}
+//message GetTokenRequest {
+//    oneof payload {
+//        string key = 1;
+//        bytes signature = 2;
+//    }
+//}
 
-message GetTokenReply {
-    oneof payload {
-        bytes challenge = 1;
-        string token = 2;
-    }
-}
+//message GetTokenReply {
+//    oneof payload {
+//        bytes challenge = 1;
+//        string token = 2;
+//    }
+//}
 
 message CreateThreadRequest {
     bytes threadID = 1;
@@ -122,7 +124,7 @@ message SubscribeRequest {
 
 service API {
     rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
-    rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
+    // rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
     rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
     rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
     rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}

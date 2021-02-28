@@ -31,7 +31,9 @@ func TestRegistry_Resolve(t *testing.T) {
 	require.Error(t, err)
 
 	// Resolve non-existent DID
-	_, err = r[0].Resolve(context.Background(), thread.NewRandomIDV1().DID())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = r[0].Resolve(ctx, thread.NewRandomIDV1().DID())
 	require.Error(t, err)
 
 	// Add a thread to peer 1
@@ -39,11 +41,13 @@ func TestRegistry_Resolve(t *testing.T) {
 		ID:  thread.NewRandomIDV1(),
 		Key: thread.NewRandomKey(),
 	}
-	err = r[1].store.AddThread(info)
+	err = r[1].logs.AddThread(info)
 	require.NoError(t, err)
 
 	// Resolve it from peer 0
-	doc, err := r[0].Resolve(context.Background(), info.ID.DID())
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second)
+	defer cancel2()
+	doc, err := r[0].Resolve(ctx2, info.ID.DID())
 	require.NoError(t, err)
 	assert.Equal(t, info.ID.DID(), doc.ID)
 	assert.NotEmpty(t, doc.Services)

@@ -67,7 +67,7 @@ func BenchmarkLogstore(b *testing.B, factory LogstoreFactory, variant string) {
 
 func benchmarkAddAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
@@ -78,7 +78,7 @@ func benchmarkAddAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 
 func benchmarkSetAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
@@ -89,7 +89,7 @@ func benchmarkSetAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 
 func benchmarkGetAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		pp := <-addrs
 		_ = ls.SetAddrs(tid, pp.ID, pp.Addr, pstore.PermanentAddrTTL)
 
@@ -102,7 +102,7 @@ func benchmarkGetAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 
 func benchmarkAddGetAndClearAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			pp := <-addrs
@@ -115,7 +115,7 @@ func benchmarkAddGetAndClearAddrs(ls core.Logstore, addrs chan *logpair) func(*t
 
 func benchmarkGet1000LogsWithAddrs(ls core.Logstore, addrs chan *logpair) func(*testing.B) {
 	return func(b *testing.B) {
-		tid := thread.NewRandomIDV1(thread.RandomVariant, 24)
+		tid := thread.NewRandomIDV1()
 		var logs = make([]*logpair, 1000)
 		for i := range logs {
 			pp := <-addrs

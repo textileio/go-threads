@@ -18,7 +18,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
-	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/core/did"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -310,7 +310,7 @@ func (c *Collection) validInstance(v []byte) error {
 }
 
 // validWrite validates new events against the identity and user-defined write validator function.
-func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
+func (c *Collection) validWrite(identity did.DID, e core.Event) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.writeValidator == nil {
@@ -358,7 +358,7 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 }
 
 // filterRead filters an instance against the identity and user-defined read filter function.
-func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte, error) {
+func (c *Collection) filterRead(identity did.DID, instance []byte) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.readFilter == nil {
@@ -389,7 +389,7 @@ func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte
 // serializable isolation level within the db.
 type Txn struct {
 	collection *Collection
-	token      thread.Token
+	token      did.Token
 	discarded  bool
 	committed  bool
 	readonly   bool
@@ -449,10 +449,11 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 
 // Verify verifies updated instances but does not save them.
 func (t *Txn) Verify(updated ...[]byte) error {
-	identity, err := t.token.PubKey()
-	if err != nil {
-		return err
-	}
+	//identity, err := t.token.PubKey()
+	//if err != nil {
+	//	return err
+	//}
+	identity := did.NewKeyDID("foo")
 	actions, err := t.createSaveActions(identity, updated...)
 	if err != nil {
 		return err
@@ -473,12 +474,13 @@ func (t *Txn) Verify(updated ...[]byte) error {
 	return nil
 }
 
-// Save saves an instance changes to be committed when the current transaction commits.
+// Save saves instance changes to be committed when the current transaction commits.
 func (t *Txn) Save(updated ...[]byte) error {
-	identity, err := t.token.PubKey()
-	if err != nil {
-		return err
-	}
+	//identity, err := t.token.PubKey()
+	//if err != nil {
+	//	return err
+	//}
+	identity := did.NewKeyDID("foo")
 	actions, err := t.createSaveActions(identity, updated...)
 	if err != nil {
 		return err
@@ -488,7 +490,7 @@ func (t *Txn) Save(updated ...[]byte) error {
 	return nil
 }
 
-func (t *Txn) createSaveActions(identity thread.PubKey, updated ...[]byte) ([]core.Action, error) {
+func (t *Txn) createSaveActions(identity did.DID, updated ...[]byte) ([]core.Action, error) {
 	var actions []core.Action
 	for i := range updated {
 		if t.readonly {
@@ -566,13 +568,14 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 
 // Has returns true if all IDs exists in the collection, false otherwise.
 func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
-	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
+	if err := t.collection.db.connector.Validate(t.token); err != nil {
 		return false, err
 	}
-	pk, err := t.token.PubKey()
-	if err != nil {
-		return false, err
-	}
+	//pk, err := t.token.PubKey()
+	//if err != nil {
+	//	return false, err
+	//}
+	identity := did.NewKeyDID("foo")
 	for i := range ids {
 		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -587,7 +590,7 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 			if err != nil {
 				return false, err
 			}
-			bytes, err = t.collection.filterRead(pk, bytes)
+			bytes, err = t.collection.filterRead(identity, bytes)
 			if err != nil {
 				return false, err
 			}
@@ -603,7 +606,7 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
-	if err := t.collection.db.connector.Validate(t.token, true); err != nil {
+	if err := t.collection.db.connector.Validate(t.token); err != nil {
 		return nil, err
 	}
 	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
@@ -614,11 +617,12 @@ func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	pk, err := t.token.PubKey()
-	if err != nil {
-		return nil, err
-	}
-	bytes, err = t.collection.filterRead(pk, bytes)
+	//pk, err := t.token.PubKey()
+	//if err != nil {
+	//	return nil, err
+	//}
+	identity := did.NewKeyDID("foo")
+	bytes, err = t.collection.filterRead(identity, bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -776,9 +780,9 @@ func loadJSFunc(vm *goja.Runtime, name string, obj []byte) (goja.Callable, error
 	return fn, nil
 }
 
-func loadJSIdentity(vm *goja.Runtime, identity thread.PubKey) (goja.Value, error) {
-	if identity == nil {
+func loadJSIdentity(vm *goja.Runtime, identity did.DID) (goja.Value, error) {
+	if len(identity) == 0 {
 		return nil, nil
 	}
-	return vm.RunString(fmt.Sprintf("'%s'", identity.String()))
+	return vm.RunString(fmt.Sprintf("'%s'", identity))
 }

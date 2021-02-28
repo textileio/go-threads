@@ -22,6 +22,7 @@ import (
 	threadcbor "github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/did"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
@@ -367,7 +368,7 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token, false); err != nil {
+	if err := d.connector.Validate(args.Token); err != nil {
 		return nil, err
 	}
 	if _, ok := d.collections[config.Name]; ok {
@@ -396,7 +397,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token, false); err != nil {
+	if err := d.connector.Validate(args.Token); err != nil {
 		return nil, err
 	}
 	xc, ok := d.collections[config.Name]
@@ -464,7 +465,7 @@ func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token, true); err != nil {
+	if err := d.connector.Validate(args.Token); err != nil {
 		return nil
 	}
 	return d.collections[name]
@@ -478,7 +479,7 @@ func (d *DB) ListCollections(opts ...Option) []*Collection {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token, true); err != nil {
+	if err := d.connector.Validate(args.Token); err != nil {
 		return nil
 	}
 	list := make([]*Collection, len(d.collections))
@@ -498,7 +499,7 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token, false); err != nil {
+	if err := d.connector.Validate(args.Token); err != nil {
 		return err
 	}
 	c, ok := d.collections[name]
@@ -583,7 +584,7 @@ func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newDat
 	}
 }
 
-func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity thread.PubKey) error {
+func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity did.DID) error {
 	events, err := d.eventcodec.EventsFromBytes(body.RawData())
 	if err != nil {
 		return err
