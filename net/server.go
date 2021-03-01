@@ -179,21 +179,22 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	info, err := s.net.store.GetThread(req.Body.ThreadID.ID)
 	if err != nil {
 		return nil, err
+	} else if len(info.Logs) == 0 {
+		return pbrecs, nil
 	}
 	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, len(info.Logs))
 
-	var recordLimit = MaxPullLimit
+	var (
+		logRecordLimit = MaxPullLimit / len(info.Logs)
+		wg             sync.WaitGroup
+	)
+
 	for i, lg := range info.Logs {
 		var (
 			offset cid.Cid
 			limit  int
 			pblg   *pb.Log
-
-			// correct records-per-log limit
-			logsRemain     = len(info.Logs) - i
-			logRecordLimit = recordLimit / logsRemain
 		)
-
 		if opts, ok := reqd[lg.ID]; ok {
 			offset = opts.Offset.Cid
 			limit = minInt(int(opts.Limit), logRecordLimit)
@@ -202,30 +203,32 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			limit = logRecordLimit
 			pblg = logToProto(lg)
 		}
-		recs, err := s.net.getLocalRecords(ctx, req.Body.ThreadID.ID, lg.ID, offset, limit)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
 
-		entry := &pb.GetRecordsReply_LogEntry{
-			LogID:   &pb.ProtoPeerID{ID: lg.ID},
-			Records: make([]*pb.Log_Record, len(recs)),
-			Log:     pblg,
-		}
-		for j, r := range recs {
-			entry.Records[j], err = cbor.RecordToProto(ctx, s.net, r)
+		wg.Add(1)
+		go func(idx int, tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
+			defer wg.Done()
+			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim)
 			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+				log.Errorf("getting local records (thread %s, log %s): %v", tid, lid, err)
+				return
 			}
-		}
-		pbrecs.Logs[i] = entry
-
-		// update remaining records limit
-		recordLimit -= len(recs)
-
-		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID, pid)
+			entry := &pb.GetRecordsReply_LogEntry{
+				LogID:   &pb.ProtoPeerID{ID: lid},
+				Records: make([]*pb.Log_Record, len(recs)),
+				Log:     pblg,
+			}
+			for j, r := range recs {
+				if entry.Records[j], err = cbor.RecordToProto(ctx, s.net, r); err != nil {
+					log.Errorf("constructing proto-record %s (thread %s, log %s): %v", r.Cid(), tid, lid, err)
+					return
+				}
+			}
+			pbrecs.Logs[idx] = entry
+			log.Debugf("sending %d records in log %s to %s", len(recs), lid, pid)
+		}(i, req.Body.ThreadID.ID, lg.ID, offset, limit)
 	}
 
+	wg.Wait()
 	return pbrecs, nil
 }
 
