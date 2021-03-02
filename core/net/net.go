@@ -5,6 +5,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/textileio/go-threads/core/did"
+
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -32,12 +34,13 @@ type Net interface {
 type API interface {
 	io.Closer
 
-	// GetHostID returns the host's peer id.
-	GetHostID(ctx context.Context) (peer.ID, error)
+	// GetDID returns the host's DID.
+	GetDID(ctx context.Context) (did.DID, error)
 
-	//// GetToken returns a signed token representing an identity that can be used with other API methods, e.g.,
-	//// CreateThread, AddThread, etc.
-	//GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error)
+	// ValidateIdentity validates a self-signed DID token representing an external identity.
+	// The token subject must the host's DID obtained from GetDID.
+	// A valid token's claims are returned in the form of a did.Document.
+	ValidateIdentity(ctx context.Context, identity did.Token) (did.Document, error)
 
 	// CreateThread creates and adds a new thread with id and opts.
 	CreateThread(ctx context.Context, id thread.ID, opts ...NewThreadOption) (thread.Info, error)

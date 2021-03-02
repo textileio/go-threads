@@ -8,25 +8,19 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
-message GetHostIDRequest {}
+message GetDIDRequest {}
 
-message GetHostIDReply {
-    bytes peerID = 1;
+message GetDIDReply {
+    string DID = 1;
 }
 
-//message GetTokenRequest {
-//    oneof payload {
-//        string key = 1;
-//        bytes signature = 2;
-//    }
-//}
+message ValidateIdentityRequest {
+    string identity = 1;
+}
 
-//message GetTokenReply {
-//    oneof payload {
-//        bytes challenge = 1;
-//        string token = 2;
-//    }
-//}
+message ValidateIdentityReply {
+    bytes document = 1;
+}
 
 message CreateThreadRequest {
     bytes threadID = 1;
@@ -123,8 +117,8 @@ message SubscribeRequest {
 }
 
 service API {
-    rpc GetHostID(GetHostIDRequest) returns (GetHostIDReply) {}
-    // rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
+    rpc GetDID(GetDIDRequest) returns (GetDIDReply) {}
+    rpc ValidateIdentity(ValidateIdentityRequest) returns (ValidateIdentityReply) {}
     rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
     rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
     rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}

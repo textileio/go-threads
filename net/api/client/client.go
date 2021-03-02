@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 
@@ -12,6 +13,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/did"
+	d "github.com/textileio/go-threads/core/did"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/crypto"
@@ -49,74 +51,24 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) GetHostID(ctx context.Context) (peer.ID, error) {
-	resp, err := c.c.GetHostID(ctx, &pb.GetHostIDRequest{})
+func (c *Client) GetDID(ctx context.Context) (d.DID, error) {
+	res, err := c.c.GetDID(ctx, &pb.GetDIDRequest{})
 	if err != nil {
 		return "", err
 	}
-	return peer.IDFromBytes(resp.PeerID)
+	return d.DID(res.DID), nil
 }
 
-//func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok did.Token, err error) {
-//	stream, err := c.c.GetToken(ctx)
-//	if err != nil {
-//		return
-//	}
-//	defer func() {
-//		if e := stream.CloseSend(); e != nil && err == nil {
-//			err = e
-//		}
-//	}()
-//	if err = stream.Send(&pb.GetTokenRequest{
-//		Payload: &pb.GetTokenRequest_Key{
-//			Key: identity.GetPublic().String(),
-//		},
-//	}); err == io.EOF {
-//		var noOp interface{}
-//		return tok, stream.RecvMsg(noOp)
-//	} else if err != nil {
-//		return
-//	}
-//
-//	rep, err := stream.Recv()
-//	if err != nil {
-//		return
-//	}
-//	var challenge []byte
-//	switch payload := rep.Payload.(type) {
-//	case *pb.GetTokenReply_Challenge:
-//		challenge = payload.Challenge
-//	default:
-//		return tok, fmt.Errorf("challenge was not received")
-//	}
-//
-//	sig, err := identity.Sign(ctx, challenge)
-//	if err != nil {
-//		return
-//	}
-//	if err = stream.Send(&pb.GetTokenRequest{
-//		Payload: &pb.GetTokenRequest_Signature{
-//			Signature: sig,
-//		},
-//	}); err == io.EOF {
-//		var noOp interface{}
-//		return tok, stream.RecvMsg(noOp)
-//	} else if err != nil {
-//		return
-//	}
-//
-//	rep, err = stream.Recv()
-//	if err != nil {
-//		return
-//	}
-//	switch payload := rep.Payload.(type) {
-//	case *pb.GetTokenReply_Token:
-//		tok = did.Token(payload.Token)
-//	default:
-//		return tok, fmt.Errorf("token was not received")
-//	}
-//	return tok, nil
-//}
+func (c *Client) ValidateIdentity(ctx context.Context, identity did.Token) (doc did.Document, err error) {
+	res, err := c.c.ValidateIdentity(ctx, &pb.ValidateIdentityRequest{
+		Identity: string(identity),
+	})
+	if err != nil {
+		return doc, err
+	}
+	err = json.Unmarshal(res.Document, &doc)
+	return doc, err
+}
 
 func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {
 	args := &core.NewThreadOptions{}
@@ -127,15 +79,15 @@ func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.Ne
 	if err != nil {
 		return
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
-	resp, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
+	ctx = d.NewTokenContext(ctx, args.Token)
+	res, err := c.c.CreateThread(ctx, &pb.CreateThreadRequest{
 		ThreadID: id.Bytes(),
 		Keys:     keys,
 	})
 	if err != nil {
 		return
 	}
-	return threadInfoFromProto(resp)
+	return threadInfoFromProto(res)
 }
 
 func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.NewThreadOption) (info thread.Info, err error) {
@@ -147,15 +99,15 @@ func (c *Client) AddThread(ctx context.Context, addr ma.Multiaddr, opts ...core.
 	if err != nil {
 		return
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
-	resp, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
+	ctx = d.NewTokenContext(ctx, args.Token)
+	res, err := c.c.AddThread(ctx, &pb.AddThreadRequest{
 		Addr: addr.Bytes(),
 		Keys: keys,
 	})
 	if err != nil {
 		return
 	}
-	return threadInfoFromProto(resp)
+	return threadInfoFromProto(res)
 }
 
 func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
@@ -163,14 +115,14 @@ func (c *Client) GetThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
-	resp, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
+	ctx = d.NewTokenContext(ctx, args.Token)
+	res, err := c.c.GetThread(ctx, &pb.GetThreadRequest{
 		ThreadID: id.Bytes(),
 	})
 	if err != nil {
 		return
 	}
-	return threadInfoFromProto(resp)
+	return threadInfoFromProto(res)
 }
 
 func (c *Client) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) error {
@@ -178,7 +130,7 @@ func (c *Client) PullThread(ctx context.Context, id thread.ID, opts ...core.Thre
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
+	ctx = d.NewTokenContext(ctx, args.Token)
 	_, err := c.c.PullThread(ctx, &pb.PullThreadRequest{
 		ThreadID: id.Bytes(),
 	})
@@ -190,7 +142,7 @@ func (c *Client) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Th
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
+	ctx = d.NewTokenContext(ctx, args.Token)
 	_, err := c.c.DeleteThread(ctx, &pb.DeleteThreadRequest{
 		ThreadID: id.Bytes(),
 	})
@@ -202,15 +154,15 @@ func (c *Client) AddReplicator(ctx context.Context, id thread.ID, paddr ma.Multi
 	for _, opt := range opts {
 		opt(args)
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
-	resp, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
+	ctx = d.NewTokenContext(ctx, args.Token)
+	res, err := c.c.AddReplicator(ctx, &pb.AddReplicatorRequest{
 		ThreadID: id.Bytes(),
 		Addr:     paddr.Bytes(),
 	})
 	if err != nil {
 		return
 	}
-	return peer.IDFromBytes(resp.PeerID)
+	return peer.IDFromBytes(res.PeerID)
 }
 
 func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Node, opts ...core.ThreadOption) (core.ThreadRecord, error) {
@@ -222,15 +174,15 @@ func (c *Client) CreateRecord(ctx context.Context, id thread.ID, body format.Nod
 	if err != nil {
 		return nil, err
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
-	resp, err := c.c.CreateRecord(ctx, &pb.CreateRecordRequest{
+	ctx = d.NewTokenContext(ctx, args.Token)
+	res, err := c.c.CreateRecord(ctx, &pb.CreateRecordRequest{
 		ThreadID: id.Bytes(),
 		Body:     body.RawData(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return threadRecordFromProto(resp, info.Key.Service())
+	return threadRecordFromProto(res, info.Key.Service())
 }
 
 func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record, opts ...core.ThreadOption) error {
@@ -243,7 +195,7 @@ func (c *Client) AddRecord(ctx context.Context, id thread.ID, lid peer.ID, rec c
 	if err != nil {
 		return err
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
+	ctx = d.NewTokenContext(ctx, args.Token)
 	_, err = c.c.AddRecord(ctx, &pb.AddRecordRequest{
 		ThreadID: id.Bytes(),
 		LogID:    lidb,
@@ -261,15 +213,15 @@ func (c *Client) GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts 
 	if err != nil {
 		return nil, err
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
-	resp, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
+	ctx = d.NewTokenContext(ctx, args.Token)
+	res, err := c.c.GetRecord(ctx, &pb.GetRecordRequest{
 		ThreadID: id.Bytes(),
 		RecordID: rid.Bytes(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return cbor.RecordFromProto(util.RecToServiceRec(resp.Record), info.Key.Service())
+	return cbor.RecordFromProto(util.RecToServiceRec(res.Record), info.Key.Service())
 }
 
 func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan core.ThreadRecord, error) {
@@ -282,7 +234,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	for i, id := range args.ThreadIDs {
 		ids[i] = id.Bytes()
 	}
-	ctx = did.NewTokenContext(ctx, args.Token)
+	ctx = d.NewTokenContext(ctx, args.Token)
 	stream, err := c.c.Subscribe(ctx, &pb.SubscribeRequest{
 		ThreadIDs: ids,
 	})
@@ -294,7 +246,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 	go func() {
 		defer close(channel)
 		for {
-			resp, err := stream.Recv()
+			res, err := stream.Recv()
 			if err == io.EOF {
 				return
 			}
@@ -305,7 +257,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 				}
 				return
 			}
-			threadID, err := thread.Cast(resp.ThreadID)
+			threadID, err := thread.Cast(res.ThreadID)
 			if err != nil {
 				log.Fatalf("error casting thread ID: %v", err)
 			}
@@ -322,7 +274,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 				sk = info.Key.Service()
 				threads[threadID] = sk
 			}
-			rec, err := threadRecordFromProto(resp, sk)
+			rec, err := threadRecordFromProto(res, sk)
 			if err != nil {
 				log.Fatalf("error unpacking record: %v", err)
 			}

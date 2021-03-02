@@ -19,6 +19,12 @@ func NewKeyDID(id string) DID {
 	return DID("did:key:" + id)
 }
 
+// Defined returns whether or not the DID is an empty string.
+// Note: A DID that is defined may not be valid. Use Decode to determine DID validity.
+func (d DID) Defined() bool {
+	return len(d) != 0
+}
+
 // Decode returns info about a DID.
 func (d DID) Decode() (*did.DID, error) {
 	return did.Parse(string(d))
@@ -72,7 +78,7 @@ type Token string
 
 // Defined returns true if token is not empty.
 func (t Token) Defined() bool {
-	return t != ""
+	return len(t) != 0
 }
 
 // NewTokenFromMD returns Token from the given context, if present.

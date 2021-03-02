@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -12,7 +13,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/cbor"
-	"github.com/textileio/go-threads/core/did"
+	d "github.com/textileio/go-threads/core/did"
 	"github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/api/pb"
@@ -22,9 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	log = logging.Logger("netapi")
-)
+var log = logging.Logger("netapi")
 
 // Service is a gRPC service for a thread network.
 type Service struct {
@@ -50,110 +49,36 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 	return &Service{net: network}, nil
 }
 
-func (s *Service) GetHostID(_ context.Context, _ *pb.GetHostIDRequest) (*pb.GetHostIDReply, error) {
-	log.Debugf("received get host ID request")
+func (s *Service) GetDID(ctx context.Context, _ *pb.GetDIDRequest) (*pb.GetDIDReply, error) {
+	log.Debugf("received get DID request")
 
-	return &pb.GetHostIDReply{
-		PeerID: marshalPeerID(s.net.Host().ID()),
+	did, err := s.net.GetDID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetDIDReply{
+		DID: string(did),
 	}, nil
 }
 
-//type remoteIdentity struct {
-//	pk     thread.PubKey
-//	server pb.API_GetTokenServer
-//}
+func (s *Service) ValidateIdentity(
+	ctx context.Context,
+	req *pb.ValidateIdentityRequest,
+) (*pb.ValidateIdentityReply, error) {
+	log.Debugf("received validate identity request")
 
-//func (i *remoteIdentity) MarshalBinary() ([]byte, error) {
-//	return nil, nil
-//}
-
-//func (i *remoteIdentity) UnmarshalBinary([]byte) error {
-//	return nil
-//}
-
-//func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
-//	if err := i.server.Send(&pb.GetTokenReply{
-//		Payload: &pb.GetTokenReply_Challenge{
-//			Challenge: msg,
-//		},
-//	}); err != nil {
-//		return nil, err
-//	}
-//
-//	var req *pb.GetTokenRequest
-//	done := make(chan error)
-//	go func() {
-//		defer close(done)
-//		var err error
-//		req, err = i.server.Recv()
-//		if err != nil {
-//			done <- err
-//			return
-//		}
-//	}()
-//	select {
-//	case <-ctx.Done():
-//		return nil, status.Error(codes.DeadlineExceeded, "Challenge deadline exceeded")
-//	case err, ok := <-done:
-//		if ok {
-//			return nil, err
-//		}
-//	}
-//
-//	var sig []byte
-//	switch payload := req.Payload.(type) {
-//	case *pb.GetTokenRequest_Signature:
-//		sig = payload.Signature
-//	default:
-//		return nil, status.Error(codes.InvalidArgument, "Signature is required")
-//	}
-//	return sig, nil
-//}
-
-//func (i *remoteIdentity) GetPublic() thread.PubKey {
-//	return i.pk
-//}
-
-//func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
-//	return nil, nil // no-op
-//}
-
-//func (i *remoteIdentity) Equals(thread.Identity) bool {
-//	return false
-//}
-
-//func (s *Service) GetToken(server pb.API_GetTokenServer) error {
-//	log.Debugf("received get token request")
-//
-//	req, err := server.Recv()
-//	if err != nil {
-//		return err
-//	}
-//	key := &thread.Libp2pPubKey{}
-//	switch payload := req.Payload.(type) {
-//	case *pb.GetTokenRequest_Key:
-//		err = key.UnmarshalString(payload.Key)
-//		if err != nil {
-//			return err
-//		}
-//	default:
-//		return status.Error(codes.InvalidArgument, "Key is required")
-//	}
-//
-//	identity := &remoteIdentity{
-//		pk:     key,
-//		server: server,
-//	}
-//	tok, err := s.net.GetToken(server.Context(), identity)
-//	if err != nil {
-//		return err
-//	}
-//	return server.Send(&pb.GetTokenReply{
-//		Payload: &pb.GetTokenReply_Token{
-//			Token: string(tok),
-//		},
-//	})
-//}
+	doc, err := s.net.ValidateIdentity(ctx, d.Token(req.Identity))
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := json.Marshal(doc)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ValidateIdentityReply{
+		Document: bytes,
+	}, nil
+}
 
 func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest) (*pb.ThreadInfoReply, error) {
 	log.Debugf("received create thread request")
@@ -166,7 +91,7 @@ func (s *Service) CreateThread(ctx context.Context, req *pb.CreateThreadRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +114,7 @@ func (s *Service) AddThread(ctx context.Context, req *pb.AddThreadRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +138,7 @@ func (s *Service) GetThread(ctx context.Context, req *pb.GetThreadRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +156,7 @@ func (s *Service) PullThread(ctx context.Context, req *pb.PullThreadRequest) (*p
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +173,7 @@ func (s *Service) DeleteThread(ctx context.Context, req *pb.DeleteThreadRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +194,7 @@ func (s *Service) AddReplicator(ctx context.Context, req *pb.AddReplicatorReques
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +218,7 @@ func (s *Service) CreateRecord(ctx context.Context, req *pb.CreateRecordRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +244,7 @@ func (s *Service) AddRecord(ctx context.Context, req *pb.AddRecordRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +277,7 @@ func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	token, err := did.NewTokenFromMD(ctx)
+	token, err := d.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +306,7 @@ func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeSer
 		opts[i] = net.WithSubFilter(id)
 	}
 
-	token, err := did.NewTokenFromMD(server.Context())
+	token, err := d.NewTokenFromMD(server.Context())
 	if err != nil {
 		return err
 	}

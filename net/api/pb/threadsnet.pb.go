@@ -29,14 +29,14 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-type GetHostIDRequest struct {
+type GetDIDRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 }
 
-func (x *GetHostIDRequest) Reset() {
-	*x = GetHostIDRequest{}
+func (x *GetDIDRequest) Reset() {
+	*x = GetDIDRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_threadsnet_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -44,13 +44,13 @@ func (x *GetHostIDRequest) Reset() {
 	}
 }
 
-func (x *GetHostIDRequest) String() string {
+func (x *GetDIDRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetHostIDRequest) ProtoMessage() {}
+func (*GetDIDRequest) ProtoMessage() {}
 
-func (x *GetHostIDRequest) ProtoReflect() protoreflect.Message {
+func (x *GetDIDRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_threadsnet_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -62,21 +62,21 @@ func (x *GetHostIDRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetHostIDRequest.ProtoReflect.Descriptor instead.
-func (*GetHostIDRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetDIDRequest.ProtoReflect.Descriptor instead.
+func (*GetDIDRequest) Descriptor() ([]byte, []int) {
 	return file_threadsnet_proto_rawDescGZIP(), []int{0}
 }
 
-type GetHostIDReply struct {
+type GetDIDReply struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	PeerID []byte `protobuf:"bytes,1,opt,name=peerID,proto3" json:"peerID,omitempty"`
+	DID string `protobuf:"bytes,1,opt,name=DID,proto3" json:"DID,omitempty"`
 }
 
-func (x *GetHostIDReply) Reset() {
-	*x = GetHostIDReply{}
+func (x *GetDIDReply) Reset() {
+	*x = GetDIDReply{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_threadsnet_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -84,13 +84,13 @@ func (x *GetHostIDReply) Reset() {
 	}
 }
 
-func (x *GetHostIDReply) String() string {
+func (x *GetDIDReply) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetHostIDReply) ProtoMessage() {}
+func (*GetDIDReply) ProtoMessage() {}
 
-func (x *GetHostIDReply) ProtoReflect() protoreflect.Message {
+func (x *GetDIDReply) ProtoReflect() protoreflect.Message {
 	mi := &file_threadsnet_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -102,14 +102,108 @@ func (x *GetHostIDReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetHostIDReply.ProtoReflect.Descriptor instead.
-func (*GetHostIDReply) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetDIDReply.ProtoReflect.Descriptor instead.
+func (*GetDIDReply) Descriptor() ([]byte, []int) {
 	return file_threadsnet_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetHostIDReply) GetPeerID() []byte {
+func (x *GetDIDReply) GetDID() string {
 	if x != nil {
-		return x.PeerID
+		return x.DID
+	}
+	return ""
+}
+
+type ValidateIdentityRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Identity string `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+}
+
+func (x *ValidateIdentityRequest) Reset() {
+	*x = ValidateIdentityRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_threadsnet_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ValidateIdentityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateIdentityRequest) ProtoMessage() {}
+
+func (x *ValidateIdentityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_threadsnet_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateIdentityRequest.ProtoReflect.Descriptor instead.
+func (*ValidateIdentityRequest) Descriptor() ([]byte, []int) {
+	return file_threadsnet_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ValidateIdentityRequest) GetIdentity() string {
+	if x != nil {
+		return x.Identity
+	}
+	return ""
+}
+
+type ValidateIdentityReply struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Document []byte `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
+}
+
+func (x *ValidateIdentityReply) Reset() {
+	*x = ValidateIdentityReply{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_threadsnet_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ValidateIdentityReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateIdentityReply) ProtoMessage() {}
+
+func (x *ValidateIdentityReply) ProtoReflect() protoreflect.Message {
+	mi := &file_threadsnet_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateIdentityReply.ProtoReflect.Descriptor instead.
+func (*ValidateIdentityReply) Descriptor() ([]byte, []int) {
+	return file_threadsnet_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ValidateIdentityReply) GetDocument() []byte {
+	if x != nil {
+		return x.Document
 	}
 	return nil
 }
@@ -126,7 +220,7 @@ type CreateThreadRequest struct {
 func (x *CreateThreadRequest) Reset() {
 	*x = CreateThreadRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[2]
+		mi := &file_threadsnet_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -139,7 +233,7 @@ func (x *CreateThreadRequest) String() string {
 func (*CreateThreadRequest) ProtoMessage() {}
 
 func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[2]
+	mi := &file_threadsnet_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -152,7 +246,7 @@ func (x *CreateThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateThreadRequest.ProtoReflect.Descriptor instead.
 func (*CreateThreadRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{2}
+	return file_threadsnet_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateThreadRequest) GetThreadID() []byte {
@@ -181,7 +275,7 @@ type Keys struct {
 func (x *Keys) Reset() {
 	*x = Keys{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[3]
+		mi := &file_threadsnet_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -194,7 +288,7 @@ func (x *Keys) String() string {
 func (*Keys) ProtoMessage() {}
 
 func (x *Keys) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[3]
+	mi := &file_threadsnet_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -207,7 +301,7 @@ func (x *Keys) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Keys.ProtoReflect.Descriptor instead.
 func (*Keys) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{3}
+	return file_threadsnet_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Keys) GetThreadKey() []byte {
@@ -238,7 +332,7 @@ type ThreadInfoReply struct {
 func (x *ThreadInfoReply) Reset() {
 	*x = ThreadInfoReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[4]
+		mi := &file_threadsnet_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -251,7 +345,7 @@ func (x *ThreadInfoReply) String() string {
 func (*ThreadInfoReply) ProtoMessage() {}
 
 func (x *ThreadInfoReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[4]
+	mi := &file_threadsnet_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -264,7 +358,7 @@ func (x *ThreadInfoReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreadInfoReply.ProtoReflect.Descriptor instead.
 func (*ThreadInfoReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{4}
+	return file_threadsnet_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ThreadInfoReply) GetThreadID() []byte {
@@ -310,7 +404,7 @@ type LogInfo struct {
 func (x *LogInfo) Reset() {
 	*x = LogInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[5]
+		mi := &file_threadsnet_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -323,7 +417,7 @@ func (x *LogInfo) String() string {
 func (*LogInfo) ProtoMessage() {}
 
 func (x *LogInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[5]
+	mi := &file_threadsnet_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +430,7 @@ func (x *LogInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogInfo.ProtoReflect.Descriptor instead.
 func (*LogInfo) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{5}
+	return file_threadsnet_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *LogInfo) GetID() []byte {
@@ -386,7 +480,7 @@ type AddThreadRequest struct {
 func (x *AddThreadRequest) Reset() {
 	*x = AddThreadRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[6]
+		mi := &file_threadsnet_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -399,7 +493,7 @@ func (x *AddThreadRequest) String() string {
 func (*AddThreadRequest) ProtoMessage() {}
 
 func (x *AddThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[6]
+	mi := &file_threadsnet_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +506,7 @@ func (x *AddThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddThreadRequest.ProtoReflect.Descriptor instead.
 func (*AddThreadRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{6}
+	return file_threadsnet_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AddThreadRequest) GetAddr() []byte {
@@ -440,7 +534,7 @@ type GetThreadRequest struct {
 func (x *GetThreadRequest) Reset() {
 	*x = GetThreadRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[7]
+		mi := &file_threadsnet_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -453,7 +547,7 @@ func (x *GetThreadRequest) String() string {
 func (*GetThreadRequest) ProtoMessage() {}
 
 func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[7]
+	mi := &file_threadsnet_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +560,7 @@ func (x *GetThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{7}
+	return file_threadsnet_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetThreadRequest) GetThreadID() []byte {
@@ -487,7 +581,7 @@ type PullThreadRequest struct {
 func (x *PullThreadRequest) Reset() {
 	*x = PullThreadRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[8]
+		mi := &file_threadsnet_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -500,7 +594,7 @@ func (x *PullThreadRequest) String() string {
 func (*PullThreadRequest) ProtoMessage() {}
 
 func (x *PullThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[8]
+	mi := &file_threadsnet_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -513,7 +607,7 @@ func (x *PullThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullThreadRequest.ProtoReflect.Descriptor instead.
 func (*PullThreadRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{8}
+	return file_threadsnet_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PullThreadRequest) GetThreadID() []byte {
@@ -532,7 +626,7 @@ type PullThreadReply struct {
 func (x *PullThreadReply) Reset() {
 	*x = PullThreadReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[9]
+		mi := &file_threadsnet_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -545,7 +639,7 @@ func (x *PullThreadReply) String() string {
 func (*PullThreadReply) ProtoMessage() {}
 
 func (x *PullThreadReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[9]
+	mi := &file_threadsnet_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,7 +652,7 @@ func (x *PullThreadReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullThreadReply.ProtoReflect.Descriptor instead.
 func (*PullThreadReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{9}
+	return file_threadsnet_proto_rawDescGZIP(), []int{11}
 }
 
 type DeleteThreadRequest struct {
@@ -572,7 +666,7 @@ type DeleteThreadRequest struct {
 func (x *DeleteThreadRequest) Reset() {
 	*x = DeleteThreadRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[10]
+		mi := &file_threadsnet_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -585,7 +679,7 @@ func (x *DeleteThreadRequest) String() string {
 func (*DeleteThreadRequest) ProtoMessage() {}
 
 func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[10]
+	mi := &file_threadsnet_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -598,7 +692,7 @@ func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteThreadRequest.ProtoReflect.Descriptor instead.
 func (*DeleteThreadRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{10}
+	return file_threadsnet_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteThreadRequest) GetThreadID() []byte {
@@ -617,7 +711,7 @@ type DeleteThreadReply struct {
 func (x *DeleteThreadReply) Reset() {
 	*x = DeleteThreadReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[11]
+		mi := &file_threadsnet_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -630,7 +724,7 @@ func (x *DeleteThreadReply) String() string {
 func (*DeleteThreadReply) ProtoMessage() {}
 
 func (x *DeleteThreadReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[11]
+	mi := &file_threadsnet_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -643,7 +737,7 @@ func (x *DeleteThreadReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteThreadReply.ProtoReflect.Descriptor instead.
 func (*DeleteThreadReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{11}
+	return file_threadsnet_proto_rawDescGZIP(), []int{13}
 }
 
 type AddReplicatorRequest struct {
@@ -658,7 +752,7 @@ type AddReplicatorRequest struct {
 func (x *AddReplicatorRequest) Reset() {
 	*x = AddReplicatorRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[12]
+		mi := &file_threadsnet_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -671,7 +765,7 @@ func (x *AddReplicatorRequest) String() string {
 func (*AddReplicatorRequest) ProtoMessage() {}
 
 func (x *AddReplicatorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[12]
+	mi := &file_threadsnet_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +778,7 @@ func (x *AddReplicatorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddReplicatorRequest.ProtoReflect.Descriptor instead.
 func (*AddReplicatorRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{12}
+	return file_threadsnet_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AddReplicatorRequest) GetThreadID() []byte {
@@ -712,7 +806,7 @@ type AddReplicatorReply struct {
 func (x *AddReplicatorReply) Reset() {
 	*x = AddReplicatorReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[13]
+		mi := &file_threadsnet_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -725,7 +819,7 @@ func (x *AddReplicatorReply) String() string {
 func (*AddReplicatorReply) ProtoMessage() {}
 
 func (x *AddReplicatorReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[13]
+	mi := &file_threadsnet_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -738,7 +832,7 @@ func (x *AddReplicatorReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddReplicatorReply.ProtoReflect.Descriptor instead.
 func (*AddReplicatorReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{13}
+	return file_threadsnet_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AddReplicatorReply) GetPeerID() []byte {
@@ -760,7 +854,7 @@ type CreateRecordRequest struct {
 func (x *CreateRecordRequest) Reset() {
 	*x = CreateRecordRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[14]
+		mi := &file_threadsnet_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -773,7 +867,7 @@ func (x *CreateRecordRequest) String() string {
 func (*CreateRecordRequest) ProtoMessage() {}
 
 func (x *CreateRecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[14]
+	mi := &file_threadsnet_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +880,7 @@ func (x *CreateRecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRecordRequest.ProtoReflect.Descriptor instead.
 func (*CreateRecordRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{14}
+	return file_threadsnet_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateRecordRequest) GetThreadID() []byte {
@@ -816,7 +910,7 @@ type NewRecordReply struct {
 func (x *NewRecordReply) Reset() {
 	*x = NewRecordReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[15]
+		mi := &file_threadsnet_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -829,7 +923,7 @@ func (x *NewRecordReply) String() string {
 func (*NewRecordReply) ProtoMessage() {}
 
 func (x *NewRecordReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[15]
+	mi := &file_threadsnet_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -842,7 +936,7 @@ func (x *NewRecordReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NewRecordReply.ProtoReflect.Descriptor instead.
 func (*NewRecordReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{15}
+	return file_threadsnet_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *NewRecordReply) GetThreadID() []byte {
@@ -879,7 +973,7 @@ type AddRecordRequest struct {
 func (x *AddRecordRequest) Reset() {
 	*x = AddRecordRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[16]
+		mi := &file_threadsnet_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -892,7 +986,7 @@ func (x *AddRecordRequest) String() string {
 func (*AddRecordRequest) ProtoMessage() {}
 
 func (x *AddRecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[16]
+	mi := &file_threadsnet_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +999,7 @@ func (x *AddRecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddRecordRequest.ProtoReflect.Descriptor instead.
 func (*AddRecordRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{16}
+	return file_threadsnet_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AddRecordRequest) GetThreadID() []byte {
@@ -943,7 +1037,7 @@ type Record struct {
 func (x *Record) Reset() {
 	*x = Record{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[17]
+		mi := &file_threadsnet_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -956,7 +1050,7 @@ func (x *Record) String() string {
 func (*Record) ProtoMessage() {}
 
 func (x *Record) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[17]
+	mi := &file_threadsnet_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +1063,7 @@ func (x *Record) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Record.ProtoReflect.Descriptor instead.
 func (*Record) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{17}
+	return file_threadsnet_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Record) GetRecordNode() []byte {
@@ -1009,7 +1103,7 @@ type AddRecordReply struct {
 func (x *AddRecordReply) Reset() {
 	*x = AddRecordReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[18]
+		mi := &file_threadsnet_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1022,7 +1116,7 @@ func (x *AddRecordReply) String() string {
 func (*AddRecordReply) ProtoMessage() {}
 
 func (x *AddRecordReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[18]
+	mi := &file_threadsnet_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1035,7 +1129,7 @@ func (x *AddRecordReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddRecordReply.ProtoReflect.Descriptor instead.
 func (*AddRecordReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{18}
+	return file_threadsnet_proto_rawDescGZIP(), []int{20}
 }
 
 type GetRecordRequest struct {
@@ -1050,7 +1144,7 @@ type GetRecordRequest struct {
 func (x *GetRecordRequest) Reset() {
 	*x = GetRecordRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[19]
+		mi := &file_threadsnet_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1063,7 +1157,7 @@ func (x *GetRecordRequest) String() string {
 func (*GetRecordRequest) ProtoMessage() {}
 
 func (x *GetRecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[19]
+	mi := &file_threadsnet_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1076,7 +1170,7 @@ func (x *GetRecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecordRequest.ProtoReflect.Descriptor instead.
 func (*GetRecordRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{19}
+	return file_threadsnet_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetRecordRequest) GetThreadID() []byte {
@@ -1104,7 +1198,7 @@ type GetRecordReply struct {
 func (x *GetRecordReply) Reset() {
 	*x = GetRecordReply{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[20]
+		mi := &file_threadsnet_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1117,7 +1211,7 @@ func (x *GetRecordReply) String() string {
 func (*GetRecordReply) ProtoMessage() {}
 
 func (x *GetRecordReply) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[20]
+	mi := &file_threadsnet_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1130,7 +1224,7 @@ func (x *GetRecordReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecordReply.ProtoReflect.Descriptor instead.
 func (*GetRecordReply) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{20}
+	return file_threadsnet_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetRecordReply) GetRecord() *Record {
@@ -1151,7 +1245,7 @@ type SubscribeRequest struct {
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_threadsnet_proto_msgTypes[21]
+		mi := &file_threadsnet_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1164,7 +1258,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_threadsnet_proto_msgTypes[21]
+	mi := &file_threadsnet_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1177,7 +1271,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_threadsnet_proto_rawDescGZIP(), []int{21}
+	return file_threadsnet_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SubscribeRequest) GetThreadIDs() [][]byte {
@@ -1192,10 +1286,16 @@ var File_threadsnet_proto protoreflect.FileDescriptor
 var file_threadsnet_proto_rawDesc = []byte{
 	0x0a, 0x10, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x72, 0x6f,
 	0x74, 0x6f, 0x12, 0x0e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e,
-	0x70, 0x62, 0x22, 0x12, 0x0a, 0x10, 0x47, 0x65, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x49, 0x44, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x28, 0x0a, 0x0e, 0x47, 0x65, 0x74, 0x48, 0x6f, 0x73,
-	0x74, 0x49, 0x44, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x70, 0x65, 0x65, 0x72,
-	0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x70, 0x65, 0x65, 0x72, 0x49, 0x44,
+	0x70, 0x62, 0x22, 0x0f, 0x0a, 0x0d, 0x47, 0x65, 0x74, 0x44, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x22, 0x1f, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x44, 0x49, 0x44, 0x52, 0x65, 0x70,
+	0x6c, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x44, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x03, 0x44, 0x49, 0x44, 0x22, 0x35, 0x0a, 0x17, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65,
+	0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x1a, 0x0a, 0x08, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x08, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x22, 0x33, 0x0a, 0x15, 0x56,
+	0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52,
+	0x65, 0x70, 0x6c, 0x79, 0x12, 0x1a, 0x0a, 0x08, 0x64, 0x6f, 0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x08, 0x64, 0x6f, 0x63, 0x75, 0x6d, 0x65, 0x6e, 0x74,
 	0x22, 0x5b, 0x0a, 0x13, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64,
 	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x74, 0x68, 0x72, 0x65, 0x61,
 	0x64, 0x49, 0x44, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x08, 0x74, 0x68, 0x72, 0x65, 0x61,
@@ -1287,72 +1387,78 @@ var file_threadsnet_proto_rawDesc = []byte{
 	0x10, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x62, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
 	0x74, 0x12, 0x1c, 0x0a, 0x09, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x49, 0x44, 0x73, 0x18, 0x01,
 	0x20, 0x03, 0x28, 0x0c, 0x52, 0x09, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x49, 0x44, 0x73, 0x32,
-	0xa9, 0x07, 0x0a, 0x03, 0x41, 0x50, 0x49, 0x12, 0x4f, 0x0a, 0x09, 0x47, 0x65, 0x74, 0x48, 0x6f,
-	0x73, 0x74, 0x49, 0x44, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e,
-	0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x49, 0x44, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73,
-	0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x48, 0x6f, 0x73, 0x74, 0x49,
-	0x44, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x56, 0x0a, 0x0c, 0x43, 0x72, 0x65, 0x61,
-	0x74, 0x65, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x23, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61,
-	0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65,
-	0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e,
-	0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x54,
-	0x68, 0x72, 0x65, 0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00,
-	0x12, 0x50, 0x0a, 0x09, 0x41, 0x64, 0x64, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x20, 0x2e,
-	0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41,
-	0x64, 0x64, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x1f, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62,
-	0x2e, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x79,
-	0x22, 0x00, 0x12, 0x50, 0x0a, 0x09, 0x47, 0x65, 0x74, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12,
-	0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62,
-	0x2e, 0x47, 0x65, 0x74, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1f, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e,
-	0x70, 0x62, 0x2e, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70,
-	0x6c, 0x79, 0x22, 0x00, 0x12, 0x52, 0x0a, 0x0a, 0x50, 0x75, 0x6c, 0x6c, 0x54, 0x68, 0x72, 0x65,
-	0x61, 0x64, 0x12, 0x21, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74,
+	0x86, 0x08, 0x0a, 0x03, 0x41, 0x50, 0x49, 0x12, 0x46, 0x0a, 0x06, 0x47, 0x65, 0x74, 0x44, 0x49,
+	0x44, 0x12, 0x1d, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e,
+	0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x1a, 0x1b, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70,
+	0x62, 0x2e, 0x47, 0x65, 0x74, 0x44, 0x49, 0x44, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12,
+	0x64, 0x0a, 0x10, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x49, 0x64, 0x65, 0x6e, 0x74,
+	0x69, 0x74, 0x79, 0x12, 0x27, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65,
+	0x74, 0x2e, 0x70, 0x62, 0x2e, 0x56, 0x61, 0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x49, 0x64, 0x65,
+	0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x74,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x56, 0x61,
+	0x6c, 0x69, 0x64, 0x61, 0x74, 0x65, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x74, 0x79, 0x52, 0x65,
+	0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x56, 0x0a, 0x0c, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x54,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x23, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e,
+	0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x54, 0x68, 0x72,
+	0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x74, 0x68, 0x72,
+	0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x54, 0x68, 0x72, 0x65,
+	0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x50, 0x0a,
+	0x09, 0x41, 0x64, 0x64, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72,
+	0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x54,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x74,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x54, 0x68,
+	0x72, 0x65, 0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12,
+	0x50, 0x0a, 0x09, 0x47, 0x65, 0x74, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x20, 0x2e, 0x74,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65,
+	0x74, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f,
+	0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e,
+	0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22,
+	0x00, 0x12, 0x52, 0x0a, 0x0a, 0x50, 0x75, 0x6c, 0x6c, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12,
+	0x21, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62,
+	0x2e, 0x50, 0x75, 0x6c, 0x6c, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74,
 	0x2e, 0x70, 0x62, 0x2e, 0x50, 0x75, 0x6c, 0x6c, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e,
-	0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x50, 0x75, 0x6c, 0x6c, 0x54, 0x68, 0x72, 0x65, 0x61,
-	0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x58, 0x0a, 0x0c, 0x44, 0x65, 0x6c, 0x65,
-	0x74, 0x65, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x23, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61,
-	0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65,
-	0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e,
-	0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x44,
-	0x65, 0x6c, 0x65, 0x74, 0x65, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x79,
-	0x22, 0x00, 0x12, 0x5b, 0x0a, 0x0d, 0x41, 0x64, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61,
-	0x74, 0x6f, 0x72, 0x12, 0x24, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65,
-	0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74,
-	0x6f, 0x72, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x74, 0x68, 0x72, 0x65,
-	0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65,
-	0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x6f, 0x72, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12,
-	0x55, 0x0a, 0x0c, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x12,
-	0x23, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62,
-	0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65, 0x71,
+	0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x58, 0x0a, 0x0c, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x54,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x12, 0x23, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e,
+	0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x54, 0x68, 0x72,
+	0x65, 0x61, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x74, 0x68, 0x72,
+	0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x44, 0x65, 0x6c, 0x65,
+	0x74, 0x65, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12,
+	0x5b, 0x0a, 0x0d, 0x41, 0x64, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x6f, 0x72,
+	0x12, 0x24, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70,
+	0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x6f, 0x72, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73,
+	0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x69,
+	0x63, 0x61, 0x74, 0x6f, 0x72, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x55, 0x0a, 0x0c,
+	0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x12, 0x23, 0x2e, 0x74,
+	0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x43, 0x72,
+	0x65, 0x61, 0x74, 0x65, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e,
+	0x70, 0x62, 0x2e, 0x4e, 0x65, 0x77, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65, 0x70, 0x6c,
+	0x79, 0x22, 0x00, 0x12, 0x4f, 0x0a, 0x09, 0x41, 0x64, 0x64, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64,
+	0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70,
+	0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74,
+	0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65, 0x70,
+	0x6c, 0x79, 0x22, 0x00, 0x12, 0x4f, 0x0a, 0x09, 0x47, 0x65, 0x74, 0x52, 0x65, 0x63, 0x6f, 0x72,
+	0x64, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e,
+	0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65,
+	0x74, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65,
+	0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x51, 0x0a, 0x09, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69,
+	0x62, 0x65, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65, 0x74,
+	0x2e, 0x70, 0x62, 0x2e, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x62, 0x65, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e,
 	0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x4e, 0x65, 0x77, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52,
-	0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x4f, 0x0a, 0x09, 0x41, 0x64, 0x64, 0x52, 0x65, 0x63,
-	0x6f, 0x72, 0x64, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e, 0x65,
-	0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e,
-	0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x41, 0x64, 0x64, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64,
-	0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x4f, 0x0a, 0x09, 0x47, 0x65, 0x74, 0x52, 0x65,
-	0x63, 0x6f, 0x72, 0x64, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e, 0x6e,
-	0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65, 0x63, 0x6f, 0x72, 0x64, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73,
-	0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x65, 0x63, 0x6f, 0x72,
-	0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x12, 0x51, 0x0a, 0x09, 0x53, 0x75, 0x62, 0x73,
-	0x63, 0x72, 0x69, 0x62, 0x65, 0x12, 0x20, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x2e,
-	0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x62, 0x65,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64,
-	0x73, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x70, 0x62, 0x2e, 0x4e, 0x65, 0x77, 0x52, 0x65, 0x63, 0x6f,
-	0x72, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x30, 0x01, 0x42, 0x64, 0x0a, 0x1b, 0x69,
-	0x6f, 0x2e, 0x74, 0x65, 0x78, 0x74, 0x69, 0x6c, 0x65, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64,
-	0x73, 0x5f, 0x6e, 0x65, 0x74, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x42, 0x0a, 0x54, 0x68, 0x72, 0x65,
-	0x61, 0x64, 0x73, 0x4e, 0x65, 0x74, 0x50, 0x01, 0x5a, 0x2a, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
-	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x74, 0x65, 0x78, 0x74, 0x69, 0x6c, 0x65, 0x69, 0x6f, 0x2f, 0x67,
-	0x6f, 0x2d, 0x62, 0x75, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x2f, 0x6e, 0x65, 0x74, 0x2f, 0x61, 0x70,
-	0x69, 0x2f, 0x70, 0x62, 0xa2, 0x02, 0x0a, 0x54, 0x48, 0x52, 0x45, 0x41, 0x44, 0x53, 0x4e, 0x45,
-	0x54, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x70, 0x6c, 0x79, 0x22, 0x00, 0x30, 0x01, 0x42, 0x64, 0x0a, 0x1b, 0x69, 0x6f, 0x2e, 0x74,
+	0x65, 0x78, 0x74, 0x69, 0x6c, 0x65, 0x2e, 0x74, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73, 0x5f, 0x6e,
+	0x65, 0x74, 0x5f, 0x67, 0x72, 0x70, 0x63, 0x42, 0x0a, 0x54, 0x68, 0x72, 0x65, 0x61, 0x64, 0x73,
+	0x4e, 0x65, 0x74, 0x50, 0x01, 0x5a, 0x2a, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
+	0x6d, 0x2f, 0x74, 0x65, 0x78, 0x74, 0x69, 0x6c, 0x65, 0x69, 0x6f, 0x2f, 0x67, 0x6f, 0x2d, 0x62,
+	0x75, 0x63, 0x6b, 0x65, 0x74, 0x73, 0x2f, 0x6e, 0x65, 0x74, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x70,
+	0x62, 0xa2, 0x02, 0x0a, 0x54, 0x48, 0x52, 0x45, 0x41, 0x44, 0x53, 0x4e, 0x45, 0x54, 0x62, 0x06,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1367,62 +1473,66 @@ func file_threadsnet_proto_rawDescGZIP() []byte {
 	return file_threadsnet_proto_rawDescData
 }
 
-var file_threadsnet_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_threadsnet_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_threadsnet_proto_goTypes = []interface{}{
-	(*GetHostIDRequest)(nil),     // 0: threads.net.pb.GetHostIDRequest
-	(*GetHostIDReply)(nil),       // 1: threads.net.pb.GetHostIDReply
-	(*CreateThreadRequest)(nil),  // 2: threads.net.pb.CreateThreadRequest
-	(*Keys)(nil),                 // 3: threads.net.pb.Keys
-	(*ThreadInfoReply)(nil),      // 4: threads.net.pb.ThreadInfoReply
-	(*LogInfo)(nil),              // 5: threads.net.pb.LogInfo
-	(*AddThreadRequest)(nil),     // 6: threads.net.pb.AddThreadRequest
-	(*GetThreadRequest)(nil),     // 7: threads.net.pb.GetThreadRequest
-	(*PullThreadRequest)(nil),    // 8: threads.net.pb.PullThreadRequest
-	(*PullThreadReply)(nil),      // 9: threads.net.pb.PullThreadReply
-	(*DeleteThreadRequest)(nil),  // 10: threads.net.pb.DeleteThreadRequest
-	(*DeleteThreadReply)(nil),    // 11: threads.net.pb.DeleteThreadReply
-	(*AddReplicatorRequest)(nil), // 12: threads.net.pb.AddReplicatorRequest
-	(*AddReplicatorReply)(nil),   // 13: threads.net.pb.AddReplicatorReply
-	(*CreateRecordRequest)(nil),  // 14: threads.net.pb.CreateRecordRequest
-	(*NewRecordReply)(nil),       // 15: threads.net.pb.NewRecordReply
-	(*AddRecordRequest)(nil),     // 16: threads.net.pb.AddRecordRequest
-	(*Record)(nil),               // 17: threads.net.pb.Record
-	(*AddRecordReply)(nil),       // 18: threads.net.pb.AddRecordReply
-	(*GetRecordRequest)(nil),     // 19: threads.net.pb.GetRecordRequest
-	(*GetRecordReply)(nil),       // 20: threads.net.pb.GetRecordReply
-	(*SubscribeRequest)(nil),     // 21: threads.net.pb.SubscribeRequest
+	(*GetDIDRequest)(nil),           // 0: threads.net.pb.GetDIDRequest
+	(*GetDIDReply)(nil),             // 1: threads.net.pb.GetDIDReply
+	(*ValidateIdentityRequest)(nil), // 2: threads.net.pb.ValidateIdentityRequest
+	(*ValidateIdentityReply)(nil),   // 3: threads.net.pb.ValidateIdentityReply
+	(*CreateThreadRequest)(nil),     // 4: threads.net.pb.CreateThreadRequest
+	(*Keys)(nil),                    // 5: threads.net.pb.Keys
+	(*ThreadInfoReply)(nil),         // 6: threads.net.pb.ThreadInfoReply
+	(*LogInfo)(nil),                 // 7: threads.net.pb.LogInfo
+	(*AddThreadRequest)(nil),        // 8: threads.net.pb.AddThreadRequest
+	(*GetThreadRequest)(nil),        // 9: threads.net.pb.GetThreadRequest
+	(*PullThreadRequest)(nil),       // 10: threads.net.pb.PullThreadRequest
+	(*PullThreadReply)(nil),         // 11: threads.net.pb.PullThreadReply
+	(*DeleteThreadRequest)(nil),     // 12: threads.net.pb.DeleteThreadRequest
+	(*DeleteThreadReply)(nil),       // 13: threads.net.pb.DeleteThreadReply
+	(*AddReplicatorRequest)(nil),    // 14: threads.net.pb.AddReplicatorRequest
+	(*AddReplicatorReply)(nil),      // 15: threads.net.pb.AddReplicatorReply
+	(*CreateRecordRequest)(nil),     // 16: threads.net.pb.CreateRecordRequest
+	(*NewRecordReply)(nil),          // 17: threads.net.pb.NewRecordReply
+	(*AddRecordRequest)(nil),        // 18: threads.net.pb.AddRecordRequest
+	(*Record)(nil),                  // 19: threads.net.pb.Record
+	(*AddRecordReply)(nil),          // 20: threads.net.pb.AddRecordReply
+	(*GetRecordRequest)(nil),        // 21: threads.net.pb.GetRecordRequest
+	(*GetRecordReply)(nil),          // 22: threads.net.pb.GetRecordReply
+	(*SubscribeRequest)(nil),        // 23: threads.net.pb.SubscribeRequest
 }
 var file_threadsnet_proto_depIdxs = []int32{
-	3,  // 0: threads.net.pb.CreateThreadRequest.keys:type_name -> threads.net.pb.Keys
-	5,  // 1: threads.net.pb.ThreadInfoReply.logs:type_name -> threads.net.pb.LogInfo
-	3,  // 2: threads.net.pb.AddThreadRequest.keys:type_name -> threads.net.pb.Keys
-	17, // 3: threads.net.pb.NewRecordReply.record:type_name -> threads.net.pb.Record
-	17, // 4: threads.net.pb.AddRecordRequest.record:type_name -> threads.net.pb.Record
-	17, // 5: threads.net.pb.GetRecordReply.record:type_name -> threads.net.pb.Record
-	0,  // 6: threads.net.pb.API.GetHostID:input_type -> threads.net.pb.GetHostIDRequest
-	2,  // 7: threads.net.pb.API.CreateThread:input_type -> threads.net.pb.CreateThreadRequest
-	6,  // 8: threads.net.pb.API.AddThread:input_type -> threads.net.pb.AddThreadRequest
-	7,  // 9: threads.net.pb.API.GetThread:input_type -> threads.net.pb.GetThreadRequest
-	8,  // 10: threads.net.pb.API.PullThread:input_type -> threads.net.pb.PullThreadRequest
-	10, // 11: threads.net.pb.API.DeleteThread:input_type -> threads.net.pb.DeleteThreadRequest
-	12, // 12: threads.net.pb.API.AddReplicator:input_type -> threads.net.pb.AddReplicatorRequest
-	14, // 13: threads.net.pb.API.CreateRecord:input_type -> threads.net.pb.CreateRecordRequest
-	16, // 14: threads.net.pb.API.AddRecord:input_type -> threads.net.pb.AddRecordRequest
-	19, // 15: threads.net.pb.API.GetRecord:input_type -> threads.net.pb.GetRecordRequest
-	21, // 16: threads.net.pb.API.Subscribe:input_type -> threads.net.pb.SubscribeRequest
-	1,  // 17: threads.net.pb.API.GetHostID:output_type -> threads.net.pb.GetHostIDReply
-	4,  // 18: threads.net.pb.API.CreateThread:output_type -> threads.net.pb.ThreadInfoReply
-	4,  // 19: threads.net.pb.API.AddThread:output_type -> threads.net.pb.ThreadInfoReply
-	4,  // 20: threads.net.pb.API.GetThread:output_type -> threads.net.pb.ThreadInfoReply
-	9,  // 21: threads.net.pb.API.PullThread:output_type -> threads.net.pb.PullThreadReply
-	11, // 22: threads.net.pb.API.DeleteThread:output_type -> threads.net.pb.DeleteThreadReply
-	13, // 23: threads.net.pb.API.AddReplicator:output_type -> threads.net.pb.AddReplicatorReply
-	15, // 24: threads.net.pb.API.CreateRecord:output_type -> threads.net.pb.NewRecordReply
-	18, // 25: threads.net.pb.API.AddRecord:output_type -> threads.net.pb.AddRecordReply
-	20, // 26: threads.net.pb.API.GetRecord:output_type -> threads.net.pb.GetRecordReply
-	15, // 27: threads.net.pb.API.Subscribe:output_type -> threads.net.pb.NewRecordReply
-	17, // [17:28] is the sub-list for method output_type
-	6,  // [6:17] is the sub-list for method input_type
+	5,  // 0: threads.net.pb.CreateThreadRequest.keys:type_name -> threads.net.pb.Keys
+	7,  // 1: threads.net.pb.ThreadInfoReply.logs:type_name -> threads.net.pb.LogInfo
+	5,  // 2: threads.net.pb.AddThreadRequest.keys:type_name -> threads.net.pb.Keys
+	19, // 3: threads.net.pb.NewRecordReply.record:type_name -> threads.net.pb.Record
+	19, // 4: threads.net.pb.AddRecordRequest.record:type_name -> threads.net.pb.Record
+	19, // 5: threads.net.pb.GetRecordReply.record:type_name -> threads.net.pb.Record
+	0,  // 6: threads.net.pb.API.GetDID:input_type -> threads.net.pb.GetDIDRequest
+	2,  // 7: threads.net.pb.API.ValidateIdentity:input_type -> threads.net.pb.ValidateIdentityRequest
+	4,  // 8: threads.net.pb.API.CreateThread:input_type -> threads.net.pb.CreateThreadRequest
+	8,  // 9: threads.net.pb.API.AddThread:input_type -> threads.net.pb.AddThreadRequest
+	9,  // 10: threads.net.pb.API.GetThread:input_type -> threads.net.pb.GetThreadRequest
+	10, // 11: threads.net.pb.API.PullThread:input_type -> threads.net.pb.PullThreadRequest
+	12, // 12: threads.net.pb.API.DeleteThread:input_type -> threads.net.pb.DeleteThreadRequest
+	14, // 13: threads.net.pb.API.AddReplicator:input_type -> threads.net.pb.AddReplicatorRequest
+	16, // 14: threads.net.pb.API.CreateRecord:input_type -> threads.net.pb.CreateRecordRequest
+	18, // 15: threads.net.pb.API.AddRecord:input_type -> threads.net.pb.AddRecordRequest
+	21, // 16: threads.net.pb.API.GetRecord:input_type -> threads.net.pb.GetRecordRequest
+	23, // 17: threads.net.pb.API.Subscribe:input_type -> threads.net.pb.SubscribeRequest
+	1,  // 18: threads.net.pb.API.GetDID:output_type -> threads.net.pb.GetDIDReply
+	3,  // 19: threads.net.pb.API.ValidateIdentity:output_type -> threads.net.pb.ValidateIdentityReply
+	6,  // 20: threads.net.pb.API.CreateThread:output_type -> threads.net.pb.ThreadInfoReply
+	6,  // 21: threads.net.pb.API.AddThread:output_type -> threads.net.pb.ThreadInfoReply
+	6,  // 22: threads.net.pb.API.GetThread:output_type -> threads.net.pb.ThreadInfoReply
+	11, // 23: threads.net.pb.API.PullThread:output_type -> threads.net.pb.PullThreadReply
+	13, // 24: threads.net.pb.API.DeleteThread:output_type -> threads.net.pb.DeleteThreadReply
+	15, // 25: threads.net.pb.API.AddReplicator:output_type -> threads.net.pb.AddReplicatorReply
+	17, // 26: threads.net.pb.API.CreateRecord:output_type -> threads.net.pb.NewRecordReply
+	20, // 27: threads.net.pb.API.AddRecord:output_type -> threads.net.pb.AddRecordReply
+	22, // 28: threads.net.pb.API.GetRecord:output_type -> threads.net.pb.GetRecordReply
+	17, // 29: threads.net.pb.API.Subscribe:output_type -> threads.net.pb.NewRecordReply
+	18, // [18:30] is the sub-list for method output_type
+	6,  // [6:18] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name
 	6,  // [6:6] is the sub-list for extension extendee
 	0,  // [0:6] is the sub-list for field type_name
@@ -1435,7 +1545,7 @@ func file_threadsnet_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_threadsnet_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetHostIDRequest); i {
+			switch v := v.(*GetDIDRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1447,7 +1557,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetHostIDReply); i {
+			switch v := v.(*GetDIDReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1459,7 +1569,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateThreadRequest); i {
+			switch v := v.(*ValidateIdentityRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1471,7 +1581,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Keys); i {
+			switch v := v.(*ValidateIdentityReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1483,7 +1593,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ThreadInfoReply); i {
+			switch v := v.(*CreateThreadRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1495,7 +1605,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*LogInfo); i {
+			switch v := v.(*Keys); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1507,7 +1617,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddThreadRequest); i {
+			switch v := v.(*ThreadInfoReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1519,7 +1629,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetThreadRequest); i {
+			switch v := v.(*LogInfo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1531,7 +1641,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PullThreadRequest); i {
+			switch v := v.(*AddThreadRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1543,7 +1653,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PullThreadReply); i {
+			switch v := v.(*GetThreadRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1555,7 +1665,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeleteThreadRequest); i {
+			switch v := v.(*PullThreadRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1567,7 +1677,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeleteThreadReply); i {
+			switch v := v.(*PullThreadReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1579,7 +1689,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddReplicatorRequest); i {
+			switch v := v.(*DeleteThreadRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1591,7 +1701,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddReplicatorReply); i {
+			switch v := v.(*DeleteThreadReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1603,7 +1713,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateRecordRequest); i {
+			switch v := v.(*AddReplicatorRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1615,7 +1725,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*NewRecordReply); i {
+			switch v := v.(*AddReplicatorReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1627,7 +1737,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddRecordRequest); i {
+			switch v := v.(*CreateRecordRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1639,7 +1749,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Record); i {
+			switch v := v.(*NewRecordReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1651,7 +1761,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AddRecordReply); i {
+			switch v := v.(*AddRecordRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1663,7 +1773,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetRecordRequest); i {
+			switch v := v.(*Record); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1675,7 +1785,7 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetRecordReply); i {
+			switch v := v.(*AddRecordReply); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1687,6 +1797,30 @@ func file_threadsnet_proto_init() {
 			}
 		}
 		file_threadsnet_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetRecordRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_threadsnet_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetRecordReply); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_threadsnet_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SubscribeRequest); i {
 			case 0:
 				return &v.state
@@ -1705,7 +1839,7 @@ func file_threadsnet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_threadsnet_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
@@ -1731,8 +1865,8 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type APIClient interface {
-	GetHostID(ctx context.Context, in *GetHostIDRequest, opts ...grpc.CallOption) (*GetHostIDReply, error)
-	// rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
+	GetDID(ctx context.Context, in *GetDIDRequest, opts ...grpc.CallOption) (*GetDIDReply, error)
+	ValidateIdentity(ctx context.Context, in *ValidateIdentityRequest, opts ...grpc.CallOption) (*ValidateIdentityReply, error)
 	CreateThread(ctx context.Context, in *CreateThreadRequest, opts ...grpc.CallOption) (*ThreadInfoReply, error)
 	AddThread(ctx context.Context, in *AddThreadRequest, opts ...grpc.CallOption) (*ThreadInfoReply, error)
 	GetThread(ctx context.Context, in *GetThreadRequest, opts ...grpc.CallOption) (*ThreadInfoReply, error)
@@ -1753,9 +1887,18 @@ func NewAPIClient(cc grpc.ClientConnInterface) APIClient {
 	return &aPIClient{cc}
 }
 
-func (c *aPIClient) GetHostID(ctx context.Context, in *GetHostIDRequest, opts ...grpc.CallOption) (*GetHostIDReply, error) {
-	out := new(GetHostIDReply)
-	err := c.cc.Invoke(ctx, "/threads.net.pb.API/GetHostID", in, out, opts...)
+func (c *aPIClient) GetDID(ctx context.Context, in *GetDIDRequest, opts ...grpc.CallOption) (*GetDIDReply, error) {
+	out := new(GetDIDReply)
+	err := c.cc.Invoke(ctx, "/threads.net.pb.API/GetDID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ValidateIdentity(ctx context.Context, in *ValidateIdentityRequest, opts ...grpc.CallOption) (*ValidateIdentityReply, error) {
+	out := new(ValidateIdentityReply)
+	err := c.cc.Invoke(ctx, "/threads.net.pb.API/ValidateIdentity", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1877,8 +2020,8 @@ func (x *aPISubscribeClient) Recv() (*NewRecordReply, error) {
 
 // APIServer is the server API for API service.
 type APIServer interface {
-	GetHostID(context.Context, *GetHostIDRequest) (*GetHostIDReply, error)
-	// rpc GetToken(stream GetTokenRequest) returns (stream GetTokenReply) {}
+	GetDID(context.Context, *GetDIDRequest) (*GetDIDReply, error)
+	ValidateIdentity(context.Context, *ValidateIdentityRequest) (*ValidateIdentityReply, error)
 	CreateThread(context.Context, *CreateThreadRequest) (*ThreadInfoReply, error)
 	AddThread(context.Context, *AddThreadRequest) (*ThreadInfoReply, error)
 	GetThread(context.Context, *GetThreadRequest) (*ThreadInfoReply, error)
@@ -1895,8 +2038,11 @@ type APIServer interface {
 type UnimplementedAPIServer struct {
 }
 
-func (*UnimplementedAPIServer) GetHostID(context.Context, *GetHostIDRequest) (*GetHostIDReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetHostID not implemented")
+func (*UnimplementedAPIServer) GetDID(context.Context, *GetDIDRequest) (*GetDIDReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDID not implemented")
+}
+func (*UnimplementedAPIServer) ValidateIdentity(context.Context, *ValidateIdentityRequest) (*ValidateIdentityReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateIdentity not implemented")
 }
 func (*UnimplementedAPIServer) CreateThread(context.Context, *CreateThreadRequest) (*ThreadInfoReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateThread not implemented")
@@ -1933,20 +2079,38 @@ func RegisterAPIServer(s *grpc.Server, srv APIServer) {
 	s.RegisterService(&_API_serviceDesc, srv)
 }
 
-func _API_GetHostID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetHostIDRequest)
+func _API_GetDID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(APIServer).GetHostID(ctx, in)
+		return srv.(APIServer).GetDID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/threads.net.pb.API/GetHostID",
+		FullMethod: "/threads.net.pb.API/GetDID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(APIServer).GetHostID(ctx, req.(*GetHostIDRequest))
+		return srv.(APIServer).GetDID(ctx, req.(*GetDIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ValidateIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateIdentityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ValidateIdentity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/threads.net.pb.API/ValidateIdentity",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ValidateIdentity(ctx, req.(*ValidateIdentityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2139,8 +2303,12 @@ var _API_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*APIServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetHostID",
-			Handler:    _API_GetHostID_Handler,
+			MethodName: "GetDID",
+			Handler:    _API_GetDID_Handler,
+		},
+		{
+			MethodName: "ValidateIdentity",
+			Handler:    _API_ValidateIdentity_Handler,
 		},
 		{
 			MethodName: "CreateThread",

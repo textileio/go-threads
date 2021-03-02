@@ -216,27 +216,15 @@ func (n *net) Store() lstore.Logstore {
 	return n.store
 }
 
-func (n *net) GetHostID(_ context.Context) (peer.ID, error) {
-	return n.host.ID(), nil
+func (n *net) GetDID(_ context.Context) (did.DID, error) {
+	return thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID())).DID()
 }
 
-//func (n *net) GetToken(ctx context.Context, identity thread.Identity) (tok thread.Token, err error) {
-//	msg := make([]byte, tokenChallengeBytes)
-//	if _, err = rand.Read(msg); err != nil {
-//		return
-//	}
-//	sctx, cancel := context.WithTimeout(ctx, tokenChallengeTimeout)
-//	defer cancel()
-//	sig, err := identity.Sign(sctx, msg)
-//	if err != nil {
-//		return
-//	}
-//	key := identity.GetPublic()
-//	if ok, err := key.Verify(msg, sig); !ok || err != nil {
-//		return tok, fmt.Errorf("bad signature")
-//	}
-//	return thread.NewToken(n.getPrivKey(), key)
-//}
+func (n *net) ValidateIdentity(_ context.Context, identity did.Token) (did.Document, error) {
+	pk := thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID()))
+	_, doc, err := pk.Validate(identity)
+	return doc, err
+}
 
 func (n *net) CreateThread(
 	_ context.Context,
