@@ -182,14 +182,15 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	} else if len(info.Logs) == 0 {
 		return pbrecs, nil
 	}
-	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, len(info.Logs))
+	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, 0, len(info.Logs))
 
 	var (
 		logRecordLimit = MaxPullLimit / len(info.Logs)
+		mx             sync.Mutex
 		wg             sync.WaitGroup
 	)
 
-	for i, lg := range info.Logs {
+	for _, lg := range info.Logs {
 		var (
 			offset cid.Cid
 			limit  int
@@ -205,7 +206,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		}
 
 		wg.Add(1)
-		go func(idx int, tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
+		go func(tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
 			defer wg.Done()
 			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim)
 			if err != nil {
@@ -223,9 +224,13 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 					return
 				}
 			}
-			pbrecs.Logs[idx] = entry
+
+			mx.Lock()
+			pbrecs.Logs = append(pbrecs.Logs, entry)
+			mx.Unlock()
+
 			log.Debugf("sending %d records in log %s to %s", len(recs), lid, pid)
-		}(i, req.Body.ThreadID.ID, lg.ID, offset, limit)
+		}(req.Body.ThreadID.ID, lg.ID, offset, limit)
 	}
 
 	wg.Wait()
