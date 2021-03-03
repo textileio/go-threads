@@ -217,28 +217,28 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim)
 			if err != nil {
 				log.Errorf("getting local records (thread %s, log %s): %v", tid, lid, err)
-				if len(recs) == 0 {
-					// no partial results to process
-					return
-				}
 			}
 
-			entry := &pb.GetRecordsReply_LogEntry{
-				LogID:   &pb.ProtoPeerID{ID: lid},
-				Records: make([]*pb.Log_Record, 0, len(recs)),
-				Log:     pblg,
-			}
+			var prs = make([]*pb.Log_Record, 0, len(recs))
 			for _, r := range recs {
 				pr, err := cbor.RecordToProto(ctx, s.net, r)
 				if err != nil {
 					log.Errorf("constructing proto-record %s (thread %s, log %s): %v", r.Cid(), tid, lid, err)
 					break
 				}
-				entry.Records = append(entry.Records, pr)
+				prs = append(prs, pr)
+			}
+			if pblg == nil && len(prs) == 0 {
+				// do not include empty logs in reply
+				return
 			}
 
 			mx.Lock()
-			pbrecs.Logs = append(pbrecs.Logs, entry)
+			pbrecs.Logs = append(pbrecs.Logs, &pb.GetRecordsReply_LogEntry{
+				LogID:   &pb.ProtoPeerID{ID: lid},
+				Records: prs,
+				Log:     pblg,
+			})
 			mx.Unlock()
 
 			log.Debugf("sending %d records in log %s to %s", len(recs), lid, pid)
