@@ -370,18 +370,22 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 	log.Debugf("exchanging edges of %d threads with %s...", len(tids), pid)
 	var body = &pb.ExchangeEdgesRequest_Body{}
 
-	// get local edges
+	// fill local edges
 	for _, tid := range tids {
-		addrsEdge, headsEdge, err := s.localEdges(tid)
-		if err != nil {
-			log.Errorf("getting local edges failed: %v", err)
-			continue
+		switch addrsEdge, headsEdge, err := s.localEdges(tid); err {
+		case errNoAddrsEdge:
+			log.Warnf("cannot compute edges for %s: no addresses", tid)
+		case errNoHeadsEdge:
+			log.Debugf("cannot compute edges for %s: no heads", tid)
+		case nil:
+			body.Threads = append(body.Threads, &pb.ExchangeEdgesRequest_Body_ThreadEntry{
+				ThreadID:    &pb.ProtoThreadID{ID: tid},
+				HeadsEdge:   headsEdge,
+				AddressEdge: addrsEdge,
+			})
+		default:
+			log.Errorf("getting local edges for %s failed: %v", tid, err)
 		}
-		body.Threads = append(body.Threads, &pb.ExchangeEdgesRequest_Body_ThreadEntry{
-			ThreadID:    &pb.ProtoThreadID{ID: tid},
-			HeadsEdge:   headsEdge,
-			AddressEdge: addrsEdge,
-		})
 	}
 	if len(body.Threads) == 0 {
 		return nil
@@ -429,14 +433,14 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 	for i, e := range reply.GetEdges() {
 		tid := tids[i]
 		if !e.GetExists() {
-			// invariant: respondent should request missing thread info
+			// invariant: respondent itself must request missing thread info
 			continue
 		}
 
 		// get local edges potentially updated by another process
 		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
 		if err != nil {
-			log.Errorf("getting local edges failed: %v", err)
+			log.Errorf("second retrieval of local edges for %s failed: %v", tid, err)
 			continue
 		}
 

@@ -22,6 +22,11 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
+var (
+	errNoAddrsEdge = errors.New("no addresses to compute edge")
+	errNoHeadsEdge = errors.New("no heads to compute edge")
+)
+
 // server implements the net gRPC server.
 type server struct {
 	sync.Mutex
@@ -288,53 +293,64 @@ func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest
 	var reply pb.ExchangeEdgesReply
 	for _, entry := range req.Body.Threads {
 		var tid = entry.ThreadID.ID
-		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
-		if err != nil {
-			if errors.Is(err, lstore.ErrThreadNotFound) {
-				s.net.queueGetLogs.Schedule(
-					pid,
-					tid,
-					callPriorityHigh,
-					func(ctx context.Context, p peer.ID, t thread.ID) error {
-						if err := s.net.updateLogsFromPeer(ctx, p, t); err != nil {
-							return err
-						}
-						if s.net.server.ps != nil {
-							return s.net.server.ps.Add(t)
-						}
-						return nil
-					})
-				reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
-					ThreadID: &pb.ProtoThreadID{ID: tid},
-					Exists:   false,
+		switch addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid); err {
+		case nil:
+			var (
+				addrsEdgeRemote = entry.AddressEdge
+				headsEdgeRemote = entry.HeadsEdge
+			)
+
+			if addrsEdgeLocal != addrsEdgeRemote {
+				if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
+					log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
+				}
+			}
+			if headsEdgeLocal != headsEdgeRemote {
+				if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
+					log.Debugf("record update for thread %s from %s scheduled", tid, pid)
+				}
+			}
+
+			reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+				ThreadID:    &pb.ProtoThreadID{ID: tid},
+				Exists:      true,
+				AddressEdge: addrsEdgeLocal,
+				HeadsEdge:   headsEdgeLocal,
+			})
+
+		case errNoAddrsEdge:
+			// requested thread doesn't exist locally
+			log.Warnf("addresses for requested thread %s not found", tid)
+			s.net.queueGetLogs.Schedule(
+				pid,
+				tid,
+				callPriorityHigh, // we have to add thread in pubsub, not just update its logs
+				func(ctx context.Context, p peer.ID, t thread.ID) error {
+					if err := s.net.updateLogsFromPeer(ctx, p, t); err != nil {
+						return err
+					}
+					if s.net.server.ps != nil {
+						return s.net.server.ps.Add(t)
+					}
+					return nil
 				})
-				continue
-			}
-			return nil, err
-		}
+			reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+				ThreadID: &pb.ProtoThreadID{ID: tid},
+				Exists:   false,
+			})
 
-		var (
-			addrsEdgeRemote = entry.AddressEdge
-			headsEdgeRemote = entry.HeadsEdge
-		)
+		case errNoHeadsEdge:
+			// thread exists locally and contains addresses, but not heads - pull records for update
+			log.Debugf("heads for requested thread %s not found", tid)
+			s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer)
+			reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+				ThreadID: &pb.ProtoThreadID{ID: tid},
+				Exists:   false,
+			})
 
-		if addrsEdgeLocal != addrsEdgeRemote {
-			if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
-				log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
-			}
+		default:
+			return nil, fmt.Errorf("getting edges for %s: %w", tid, err)
 		}
-		if headsEdgeLocal != headsEdgeRemote {
-			if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
-				log.Debugf("record update for thread %s from %s scheduled", tid, pid)
-			}
-		}
-
-		reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
-			ThreadID:    &pb.ProtoThreadID{ID: tid},
-			Exists:      true,
-			AddressEdge: addrsEdgeLocal,
-			HeadsEdge:   headsEdgeLocal,
-		})
 	}
 
 	return &reply, nil
@@ -365,23 +381,35 @@ func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 		reqHeads[i] = util.LogHead{Head: l.Offset.Cid, LogID: l.LogID.ID}
 	}
 	var currEdge, err = s.net.store.HeadsEdge(req.Body.ThreadID.ID)
-	if err != nil {
+	switch {
+	case err == nil:
+		return util.ComputeHeadsEdge(reqHeads) != currEdge, nil
+	case errors.Is(err, lstore.ErrThreadNotFound):
+		// no local heads, but there could be missing logs info in reply
+		return true, nil
+	default:
 		return false, err
 	}
-	return util.ComputeHeadsEdge(reqHeads) != currEdge, nil
 }
 
 // localEdges returns values of local addresses/heads edges for the thread.
 func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err error) {
 	addrsEdge, err = s.net.store.AddrsEdge(tid)
 	if err != nil {
-		err = fmt.Errorf("address edge for %s: %w", tid, err)
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			err = errNoAddrsEdge
+		} else {
+			err = fmt.Errorf("address edge: %w", err)
+		}
 		return
 	}
 	headsEdge, err = s.net.store.HeadsEdge(tid)
 	if err != nil {
-		err = fmt.Errorf("heads edge for %s: %w", tid, err)
-		return
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			err = errNoHeadsEdge
+		} else {
+			err = fmt.Errorf("heads edge: %w", err)
+		}
 	}
 	return
 }
