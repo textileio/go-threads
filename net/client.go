@@ -275,10 +275,10 @@ func (s *server) getRecordsFromPeer(
 }
 
 // pushRecord to log addresses and thread topic.
-func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core.Record) error {
+func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record) error {
 	// Collect known writers
 	addrs := make([]ma.Multiaddr, 0)
-	info, err := s.net.store.GetThread(id)
+	info, err := s.net.store.GetThread(tid)
 	if err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 		return err
 	}
 	body := &pb.PushRecordRequest_Body{
-		ThreadID: &pb.ProtoThreadID{ID: id},
+		ThreadID: &pb.ProtoThreadID{ID: tid},
 		LogID:    &pb.ProtoPeerID{ID: lid},
 		Record:   pbrec,
 	}
@@ -313,56 +313,83 @@ func (s *server) pushRecord(ctx context.Context, id thread.ID, lid peer.ID, rec 
 
 	// Push to each address
 	for _, p := range peers {
-		go withErrLog(p, func(pid peer.ID) error {
-			client, err := s.dial(pid)
-			if err != nil {
-				return fmt.Errorf("dial %s failed: %w", pid, err)
+		go func(pid peer.ID) {
+			if err := s.pushRecordToPeer(req, pid, tid, lid); err != nil {
+				log.Errorf("pushing record to %s (thread: %s, log: %s) failed: %v", pid, tid, lid, err)
 			}
-			cctx, cancel := context.WithTimeout(context.Background(), PushTimeout)
-			defer cancel()
-			if _, err = client.PushRecord(cctx, req); err != nil {
-				if status.Convert(err).Code() == codes.NotFound { // Send the missing log
-					log.Debugf("pushing log %s to %s...", lid, pid)
-					l, err := s.net.store.GetLog(id, lid)
-					if err != nil {
-						return err
-					}
-					body := &pb.PushLogRequest_Body{
-						ThreadID: &pb.ProtoThreadID{ID: id},
-						Log:      logToProto(l),
-					}
-					sig, key, err := s.signRequestBody(body)
-					if err != nil {
-						return err
-					}
-					lreq := &pb.PushLogRequest{
-						Header: &pb.Header{
-							PubKey:    &pb.ProtoPubKey{PubKey: key},
-							Signature: sig,
-						},
-						Body: body,
-					}
-					if _, err = client.PushLog(cctx, lreq); err != nil {
-						log.Warnf("push log to %s failed: %s", pid, err)
-						return nil
-					}
-					return nil
-				}
-				log.Warnf("push record to %s failed: %s", pid, err)
-				return nil
-			}
-			return nil
-		})
+		}(p)
 	}
 
 	// Finally, publish to the thread's topic
 	if s.ps != nil {
-		if err = s.ps.Publish(ctx, id, req); err != nil {
+		if err = s.ps.Publish(ctx, tid, req); err != nil {
 			log.Errorf("error publishing record: %s", err)
 		}
 	}
 
 	return nil
+}
+
+func (s *server) pushRecordToPeer(
+	req *pb.PushRecordRequest,
+	pid peer.ID,
+	tid thread.ID,
+	lid peer.ID,
+) error {
+	client, err := s.dial(pid)
+	if err != nil {
+		return fmt.Errorf("dial failed: %w", err)
+	}
+	rctx, cancel := context.WithTimeout(context.Background(), PushTimeout)
+	defer cancel()
+	_, err = client.PushRecord(rctx, req)
+	if err == nil {
+		return nil
+	}
+
+	switch status.Convert(err).Code() {
+	case codes.Unavailable:
+		log.Debugf("%s unavailable, skip pushing the record", pid)
+		return nil
+
+	case codes.NotFound:
+		// send the missing log
+		lctx, cancel := context.WithTimeout(s.net.ctx, PushTimeout)
+		defer cancel()
+		lg, err := s.net.store.GetLog(tid, lid)
+		if err != nil {
+			return fmt.Errorf("getting log information: %w", err)
+		}
+		body := &pb.PushLogRequest_Body{
+			ThreadID: &pb.ProtoThreadID{ID: tid},
+			Log:      logToProto(lg),
+		}
+		sig, key, err := s.signRequestBody(body)
+		if err != nil {
+			return fmt.Errorf("signing PushLog request: %w", err)
+		}
+		lreq := &pb.PushLogRequest{
+			Header: &pb.Header{
+				PubKey:    &pb.ProtoPubKey{PubKey: key},
+				Signature: sig,
+			},
+			Body: body,
+		}
+		if _, err = client.PushLog(lctx, lreq); err != nil {
+			return fmt.Errorf("pushing missing log: %w", err)
+		}
+
+		// now push original record again
+		rctx, cancel := context.WithTimeout(context.Background(), PushTimeout)
+		defer cancel()
+		if _, err = client.PushRecord(rctx, req); err != nil {
+			return fmt.Errorf("re-pushing record: %w", err)
+		}
+		return nil
+
+	default:
+		return err
+	}
 }
 
 // exchangeEdges of specified threads with a peer.
