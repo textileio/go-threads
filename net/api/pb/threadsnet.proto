@@ -19,7 +19,8 @@ message ValidateIdentityRequest {
 }
 
 message ValidateIdentityReply {
-    bytes document = 1;
+    bytes pubKey = 1;
+    bytes document = 2;
 }
 
 message CreateThreadRequest {

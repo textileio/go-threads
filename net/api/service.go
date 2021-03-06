@@ -67,16 +67,21 @@ func (s *Service) ValidateIdentity(
 ) (*pb.ValidateIdentityReply, error) {
 	log.Debugf("received validate identity request")
 
-	doc, err := s.net.ValidateIdentity(ctx, d.Token(req.Identity))
+	pk, doc, err := s.net.ValidateIdentity(ctx, d.Token(req.Identity))
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := json.Marshal(doc)
+	pkb, err := pk.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	docb, err := json.Marshal(doc)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.ValidateIdentityReply{
-		Document: bytes,
+		PubKey:   pkb,
+		Document: docb,
 	}, nil
 }
 

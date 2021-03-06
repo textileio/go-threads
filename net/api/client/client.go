@@ -59,15 +59,21 @@ func (c *Client) GetDID(ctx context.Context) (d.DID, error) {
 	return d.DID(res.DID), nil
 }
 
-func (c *Client) ValidateIdentity(ctx context.Context, identity did.Token) (doc did.Document, err error) {
+func (c *Client) ValidateIdentity(ctx context.Context, identity did.Token) (pk thread.PubKey, doc did.Document, err error) {
 	res, err := c.c.ValidateIdentity(ctx, &pb.ValidateIdentityRequest{
 		Identity: string(identity),
 	})
 	if err != nil {
-		return doc, err
+		return nil, doc, err
 	}
-	err = json.Unmarshal(res.Document, &doc)
-	return doc, err
+	pk = &thread.Libp2pPubKey{}
+	if err = pk.UnmarshalBinary(res.PubKey); err != nil {
+		return nil, doc, err
+	}
+	if err = json.Unmarshal(res.Document, &doc); err != nil {
+		return nil, doc, err
+	}
+	return pk, doc, err
 }
 
 func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {

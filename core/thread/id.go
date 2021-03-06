@@ -135,6 +135,15 @@ func Decode(v string) (ID, error) {
 	return Cast(data)
 }
 
+// MustDecode panics if ID is not decodable.
+func MustDecode(v string) ID {
+	id, err := Decode(v)
+	if err != nil {
+		panic(errors.New("could not decode thread id"))
+	}
+	return id
+}
+
 // ExtractEncoding from an ID. If Decode on the same string did not return an error neither will this function.
 func ExtractEncoding(v string) (mbase.Encoding, error) {
 	if len(v) < 2 {

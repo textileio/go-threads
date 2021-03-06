@@ -54,7 +54,7 @@ require (
 	github.com/multiformats/go-varint v0.0.6
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/namsral/flag v1.7.4-pre
-	github.com/ockam-network/did v0.1.3 // indirect
+	github.com/ockam-network/did v0.1.3
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1 // indirect
@@ -74,5 +74,5 @@ require (
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	google.golang.org/grpc v1.31.1
-	google.golang.org/protobuf v1.25.0 // indirect
+	google.golang.org/protobuf v1.25.0
 )

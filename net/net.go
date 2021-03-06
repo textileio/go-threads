@@ -55,12 +55,6 @@ var (
 
 	// notifyTimeout is the duration to wait for a subscriber to read a new record.
 	notifyTimeout = time.Second * 5
-
-	// tokenChallengeBytes is the byte length of token challenges.
-	tokenChallengeBytes = 32
-
-	// tokenChallengeTimeout is the duration of time given to an identity to complete a token challenge.
-	tokenChallengeTimeout = time.Minute
 )
 
 var (
@@ -218,10 +212,9 @@ func (n *net) GetDID(_ context.Context) (did.DID, error) {
 	return thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID())).DID()
 }
 
-func (n *net) ValidateIdentity(_ context.Context, identity did.Token) (did.Document, error) {
+func (n *net) ValidateIdentity(_ context.Context, identity did.Token) (thread.PubKey, did.Document, error) {
 	pk := thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID()))
-	_, doc, err := pk.Validate(identity)
-	return doc, err
+	return pk.Validate(identity)
 }
 
 func (n *net) CreateThread(
@@ -625,18 +618,16 @@ func (n *net) CreateRecord(
 	for _, opt := range opts {
 		opt(args)
 	}
-	//identity, err := n.Validate(id, args.Token, false)
-	//if err != nil {
-	//	return
-	//}
-	//if identity == nil {
-	identity := thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	//}
+
+	identity, doc, err := n.ValidateIdentity(ctx, args.Token)
+	if err != nil {
+		return
+	}
 	con, ok := n.getConnectorProtected(id, args.APIToken)
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
 	} else if con != nil {
-		if err = con.ValidateNetRecordBody(ctx, body, did.NewKeyDID("foo")); err != nil {
+		if err = con.ValidateNetRecordBody(ctx, body, doc.ID); err != nil {
 			return
 		}
 	}
