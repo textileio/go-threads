@@ -10,10 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/textileio/go-threads/core/did"
-
-	"github.com/textileio/go-threads/did/registry"
-
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -27,10 +23,12 @@ import (
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
+	"github.com/textileio/go-threads/core/did"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/did/registry"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/net/util"
 	tu "github.com/textileio/go-threads/util"

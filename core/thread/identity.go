@@ -27,6 +27,10 @@ type Identity interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
+	// String encodes the private key into a base32 string.
+	fmt.Stringer
+	// UnmarshalString decodes the private key from a base32 string.
+	UnmarshalString(string) error
 	// Sign the given bytes cryptographically.
 	Sign(context.Context, []byte) ([]byte, error)
 	// GetPublic returns the public key paired with this identity.
@@ -64,6 +68,27 @@ func (i *Libp2pIdentity) UnmarshalBinary(bytes []byte) (err error) {
 	if err != nil {
 		return err
 	}
+	return err
+}
+
+func (i *Libp2pIdentity) String() string {
+	bytes, err := crypto.MarshalPrivateKey(i.PrivKey)
+	if err != nil {
+		panic(fmt.Errorf("marshal privkey: %v", err))
+	}
+	str, err := mbase.Encode(mbase.Base32, bytes)
+	if err != nil {
+		panic(fmt.Errorf("multibase encoding privkey: %v", err))
+	}
+	return str
+}
+
+func (i *Libp2pIdentity) UnmarshalString(str string) error {
+	_, bytes, err := mbase.Decode(str)
+	if err != nil {
+		return err
+	}
+	i.PrivKey, err = crypto.UnmarshalPrivateKey(bytes)
 	return err
 }
 
@@ -280,127 +305,3 @@ func (k *Libp2pPubKey) Equals(pk PubKey) bool {
 	}
 	return k.PubKey.Equals(k2.PubKey)
 }
-
-/*
-// Token is a concrete type for a JWT token string, which provides
-// a claim to an identity.
-type Token string
-
-// ErrTokenNotFound indicates the token was not found in the context.
-var ErrTokenNotFound = fmt.Errorf("thread token not found")
-
-// ErrInvalidToken indicates the token is invalid.
-var ErrInvalidToken = fmt.Errorf("invalid thread token")
-
-// NewToken issues a new JWT token from issuer for the given pubic key.
-func NewToken(issuer crypto.PrivKey, key PubKey) (tok Token, err error) {
-	var ok bool
-	issuer, ok = issuer.(*crypto.Ed25519PrivateKey)
-	if !ok {
-		log.Fatal("issuer must be an Ed25519PrivateKey")
-	}
-	claims := jwt.StandardClaims{
-		Subject:  key.String(),
-		Issuer:   NewLibp2pIdentity(issuer).GetPublic().String(),
-		IssuedAt: time.Now().Unix(),
-	}
-	str, err := jwt.NewWithClaims(jwted25519.SigningMethodEd25519i, claims).SignedString(issuer)
-	if err != nil {
-		return
-	}
-	return Token(str), nil
-}
-
-// PubKey returns the public key encoded in the token.
-// Note: This does NOT verify the token.
-func (t Token) PubKey() (PubKey, error) {
-	if t == "" {
-		return nil, nil
-	}
-	var claims jwt.StandardClaims
-	tok, _, err := new(jwt.Parser).ParseUnverified(string(t), &claims)
-	if err != nil {
-		if tok == nil {
-			return nil, ErrTokenNotFound
-		} else {
-			return nil, ErrInvalidToken
-		}
-	}
-	key := &Libp2pPubKey{}
-	if err = key.UnmarshalString(claims.Subject); err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
-// Validate token against an issuer.
-// If token is present and was issued by issuer (is valid), the embedded public key is returned.
-// If token is not present, both the returned public key and error will be nil.
-func (t Token) Validate(issuer crypto.PrivKey) (PubKey, error) {
-	if issuer == nil {
-		return nil, fmt.Errorf("cannot validate with nil issuer")
-	}
-	var ok bool
-	issuer, ok = issuer.(*crypto.Ed25519PrivateKey)
-	if !ok {
-		log.Fatal("issuer must be an Ed25519PrivateKey")
-	}
-	if t == "" {
-		return nil, nil
-	}
-	keyfunc := func(*jwt.Token) (interface{}, error) {
-		return issuer.GetPublic(), nil
-	}
-	var claims jwt.StandardClaims
-	tok, err := jwt.ParseWithClaims(string(t), &claims, keyfunc)
-	if err != nil {
-		if tok == nil {
-			return nil, ErrTokenNotFound
-		} else {
-			return nil, ErrInvalidToken
-		}
-	}
-	key := &Libp2pPubKey{}
-	if err = key.UnmarshalString(claims.Subject); err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
-// Defined returns true if token is not empty.
-func (t Token) Defined() bool {
-	return t != ""
-}
-
-// NewTokenFromMD returns Token from the given context, if present.
-func NewTokenFromMD(ctx context.Context) (tok Token, err error) {
-	val := metautils.ExtractIncoming(ctx).Get("authorization")
-	if val == "" {
-		return
-	}
-	parts := strings.SplitN(val, " ", 2)
-	if len(parts) < 2 {
-		return "", status.Error(codes.Unauthenticated, "Bad authorization string")
-	}
-	if !strings.EqualFold(parts[0], "bearer") {
-		return "", status.Errorf(codes.Unauthenticated, "Request unauthenticated with bearer")
-	}
-	return Token(parts[1]), nil
-}
-
-type ctxKey string
-
-// NewTokenContext adds Token to a context.
-func NewTokenContext(ctx context.Context, token Token) context.Context {
-	if token == "" {
-		return ctx
-	}
-	return context.WithValue(ctx, ctxKey("token"), token)
-}
-
-// TokenFromContext returns Token from a context.
-func TokenFromContext(ctx context.Context) (Token, bool) {
-	token, ok := ctx.Value(ctxKey("token")).(Token)
-	return token, ok
-}
-*/
