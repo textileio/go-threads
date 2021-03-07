@@ -91,68 +91,6 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-// GetToken gets a db token for use with the rest of the API.
-//func (c *Client) GetToken(ctx context.Context, identity thread.Identity) (tok did.Token, err error) {
-//	stream, err := c.c.GetToken(ctx)
-//	if err != nil {
-//		return
-//	}
-//	defer func() {
-//		if e := stream.CloseSend(); e != nil && err == nil {
-//			err = e
-//		}
-//	}()
-//	if err = stream.Send(&pb.GetTokenRequest{
-//		Payload: &pb.GetTokenRequest_Key{
-//			Key: identity.GetPublic().String(),
-//		},
-//	}); err == io.EOF {
-//		var noOp interface{}
-//		return tok, stream.RecvMsg(noOp)
-//	} else if err != nil {
-//		return
-//	}
-//
-//	rep, err := stream.Recv()
-//	if err != nil {
-//		return
-//	}
-//	var challenge []byte
-//	switch payload := rep.Payload.(type) {
-//	case *pb.GetTokenReply_Challenge:
-//		challenge = payload.Challenge
-//	default:
-//		return tok, fmt.Errorf("challenge was not received")
-//	}
-//
-//	sig, err := identity.Sign(ctx, challenge)
-//	if err != nil {
-//		return
-//	}
-//	if err = stream.Send(&pb.GetTokenRequest{
-//		Payload: &pb.GetTokenRequest_Signature{
-//			Signature: sig,
-//		},
-//	}); err == io.EOF {
-//		var noOp interface{}
-//		return tok, stream.RecvMsg(noOp)
-//	} else if err != nil {
-//		return
-//	}
-//
-//	rep, err = stream.Recv()
-//	if err != nil {
-//		return
-//	}
-//	switch payload := rep.Payload.(type) {
-//	case *pb.GetTokenReply_Token:
-//		tok = did.Token(payload.Token)
-//	default:
-//		return tok, fmt.Errorf("token was not received")
-//	}
-//	return tok, nil
-//}
-
 // NewDB creates a new DB with ID.
 func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManagedOption) error {
 	args := &db.NewManagedOptions{}
@@ -323,6 +261,7 @@ func (c *Client) NewCollection(ctx context.Context, dbID thread.ID, config db.Co
 	if err != nil {
 		return err
 	}
+	ctx = did.NewTokenContext(ctx, args.Token)
 	_, err = c.c.NewCollection(ctx, &pb.NewCollectionRequest{
 		DbID:   dbID.Bytes(),
 		Config: cc,
@@ -340,6 +279,7 @@ func (c *Client) UpdateCollection(ctx context.Context, dbID thread.ID, config db
 	if err != nil {
 		return err
 	}
+	ctx = did.NewTokenContext(ctx, args.Token)
 	_, err = c.c.UpdateCollection(ctx, &pb.UpdateCollectionRequest{
 		DbID:   dbID.Bytes(),
 		Config: cc,
@@ -353,6 +293,7 @@ func (c *Client) DeleteCollection(ctx context.Context, dbID thread.ID, name stri
 	for _, opt := range opts {
 		opt(args)
 	}
+	ctx = did.NewTokenContext(ctx, args.Token)
 	_, err := c.c.DeleteCollection(ctx, &pb.DeleteCollectionRequest{
 		DbID: dbID.Bytes(),
 		Name: name,
@@ -366,6 +307,7 @@ func (c *Client) GetCollectionInfo(ctx context.Context, dbID thread.ID, name str
 	for _, opt := range opts {
 		opt(args)
 	}
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetCollectionInfo(ctx, &pb.GetCollectionInfoRequest{
 		DbID: dbID.Bytes(),
 		Name: name,
@@ -405,6 +347,7 @@ func (c *Client) GetCollectionIndexes(ctx context.Context, dbID thread.ID, name 
 	for _, opt := range opts {
 		opt(args)
 	}
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.GetCollectionIndexes(ctx, &pb.GetCollectionIndexesRequest{
 		DbID: dbID.Bytes(),
 		Name: name,
@@ -421,6 +364,7 @@ func (c *Client) ListCollections(ctx context.Context, dbID thread.ID, opts ...db
 	for _, opt := range opts {
 		opt(args)
 	}
+	ctx = did.NewTokenContext(ctx, args.Token)
 	resp, err := c.c.ListCollections(ctx, &pb.ListCollectionsRequest{
 		DbID: dbID.Bytes(),
 	})

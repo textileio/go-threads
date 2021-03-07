@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"log"
 
@@ -59,21 +58,18 @@ func (c *Client) GetDID(ctx context.Context) (d.DID, error) {
 	return d.DID(res.DID), nil
 }
 
-func (c *Client) ValidateIdentity(ctx context.Context, identity did.Token) (pk thread.PubKey, doc did.Document, err error) {
-	res, err := c.c.ValidateIdentity(ctx, &pb.ValidateIdentityRequest{
+func (c *Client) Validate(ctx context.Context, identity did.Token) (thread.PubKey, did.DID, error) {
+	res, err := c.c.Validate(ctx, &pb.ValidateRequest{
 		Identity: string(identity),
 	})
 	if err != nil {
-		return nil, doc, err
+		return nil, "", err
 	}
-	pk = &thread.Libp2pPubKey{}
+	pk := &thread.Libp2pPubKey{}
 	if err = pk.UnmarshalBinary(res.PubKey); err != nil {
-		return nil, doc, err
+		return nil, "", err
 	}
-	if err = json.Unmarshal(res.Document, &doc); err != nil {
-		return nil, doc, err
-	}
-	return pk, doc, err
+	return pk, did.DID(res.Did), err
 }
 
 func (c *Client) CreateThread(ctx context.Context, id thread.ID, opts ...core.NewThreadOption) (info thread.Info, err error) {

@@ -108,11 +108,6 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 	return m, nil
 }
 
-// GetToken provides access to thread network tokens.
-//func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error) {
-//	return m.network.GetToken(ctx, identity)
-//}
-
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOption) (*DB, error) {
 	if _, ok := m.dbs[id]; ok {

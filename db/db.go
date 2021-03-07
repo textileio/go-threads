@@ -368,7 +368,7 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.Validate(args.Token); err != nil {
 		return nil, err
 	}
 	if _, ok := d.collections[config.Name]; ok {
@@ -397,7 +397,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.Validate(args.Token); err != nil {
 		return nil, err
 	}
 	xc, ok := d.collections[config.Name]
@@ -465,7 +465,7 @@ func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.Validate(args.Token); err != nil {
 		return nil
 	}
 	return d.collections[name]
@@ -479,7 +479,7 @@ func (d *DB) ListCollections(opts ...Option) []*Collection {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.Validate(args.Token); err != nil {
 		return nil
 	}
 	list := make([]*Collection, len(d.collections))
@@ -499,7 +499,7 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.Validate(args.Token); err != nil {
 		return err
 	}
 	c, ok := d.collections[name]
@@ -570,7 +570,9 @@ func (d *DB) Reduce(events []core.Event) error {
 
 func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
 	return func(collection string, key ds.Key, oldData, newData []byte, txn ds.Txn) error {
-		c := d.GetCollection(collection)
+		d.lock.Lock()
+		c := d.collections[collection]
+		d.lock.Unlock()
 		if c == nil {
 			return fmt.Errorf("collection (%s) not found", collection)
 		}

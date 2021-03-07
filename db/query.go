@@ -12,7 +12,6 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	dse "github.com/textileio/go-datastore-extensions"
 	core "github.com/textileio/go-threads/core/db"
-	"github.com/textileio/go-threads/core/did"
 )
 
 // Query is a json-seriable query representation.
@@ -293,7 +292,8 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 
 // Find queries for instances by Query.
 func (t *Txn) Find(q *Query) ([][]byte, error) {
-	if err := t.collection.db.connector.Validate(t.token); err != nil {
+	_, identity, err := t.collection.db.connector.Validate(t.token)
+	if err != nil {
 		return nil, err
 	}
 	if q == nil {
@@ -310,11 +310,6 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 	iter := newIterator(txn, t.collection.baseKey(), q)
 	defer iter.Close()
 
-	//pk, err := t.token.PubKey()
-	//if err != nil {
-	//	return nil, err
-	//}
-	identity := did.NewKeyDID("foo")
 	var values []MarshaledResult
 	// Use count to track real count of returned values taking into account
 	// read filter and any indexes etc in the query

@@ -38,24 +38,6 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-//func TestClient_GetToken(t *testing.T) {
-//	t.Parallel()
-//	client, done := setup(t)
-//	defer done()
-//
-//	identity := createIdentity(t)
-//
-//	t.Run("test get token", func(t *testing.T) {
-//		tok, err := client.GetToken(context.Background(), identity)
-//		if err != nil {
-//			t.Fatalf("failed to get token: %v", err)
-//		}
-//		if tok == "" {
-//			t.Fatal("emtpy token")
-//		}
-//	})
-//}
-
 func TestClient_NewDB(t *testing.T) {
 	t.Parallel()
 	client, done := setup(t)

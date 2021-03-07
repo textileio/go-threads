@@ -14,13 +14,13 @@ message GetDIDReply {
     string DID = 1;
 }
 
-message ValidateIdentityRequest {
+message ValidateRequest {
     string identity = 1;
 }
 
-message ValidateIdentityReply {
+message ValidateReply {
     bytes pubKey = 1;
-    bytes document = 2;
+    string did = 2;
 }
 
 message CreateThreadRequest {
@@ -119,7 +119,7 @@ message SubscribeRequest {
 
 service API {
     rpc GetDID(GetDIDRequest) returns (GetDIDReply) {}
-    rpc ValidateIdentity(ValidateIdentityRequest) returns (ValidateIdentityReply) {}
+    rpc Validate(ValidateRequest) returns (ValidateReply) {}
     rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
     rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
     rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}

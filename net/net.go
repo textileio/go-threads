@@ -212,11 +212,6 @@ func (n *net) GetDID(_ context.Context) (did.DID, error) {
 	return thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID())).DID()
 }
 
-func (n *net) ValidateIdentity(_ context.Context, identity did.Token) (thread.PubKey, did.Document, error) {
-	pk := thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID()))
-	return pk.Validate(identity)
-}
-
 func (n *net) CreateThread(
 	_ context.Context,
 	id thread.ID,
@@ -619,7 +614,7 @@ func (n *net) CreateRecord(
 		opt(args)
 	}
 
-	identity, doc, err := n.ValidateIdentity(ctx, args.Token)
+	pk, identity, err := n.Validate(ctx, args.Token)
 	if err != nil {
 		return
 	}
@@ -627,16 +622,16 @@ func (n *net) CreateRecord(
 	if !ok {
 		return nil, fmt.Errorf("cannot create record: %w", app.ErrThreadInUse)
 	} else if con != nil {
-		if err = con.ValidateNetRecordBody(ctx, body, doc.ID); err != nil {
+		if err = con.ValidateNetRecordBody(ctx, body, identity); err != nil {
 			return
 		}
 	}
 
-	lg, err := n.getOrCreateLog(id, identity)
+	lg, err := n.getOrCreateLog(id, pk)
 	if err != nil {
 		return
 	}
-	r, err := n.newRecord(ctx, id, lg, body, identity)
+	r, err := n.newRecord(ctx, id, lg, body, pk)
 	if err != nil {
 		return
 	}
@@ -811,12 +806,13 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	return con, nil
 }
 
-// @todo: Handle thread ACL checks against ID and readOnly.
-func (n *net) Validate(id thread.ID, token did.Token) (did.DID, error) {
-	if err := id.Validate(); err != nil {
-		return "", err
+func (n *net) Validate(_ context.Context, token did.Token) (thread.PubKey, did.DID, error) {
+	npk := thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID()))
+	pk, doc, err := npk.Validate(token)
+	if err != nil {
+		return nil, "", err
 	}
-	return "", nil
+	return pk, doc.ID, nil
 }
 
 func (n *net) addConnector(id thread.ID, conn *app.Connector) {
@@ -1253,16 +1249,16 @@ func (n *net) createLog(id thread.ID, key crypto.Key, identity thread.PubKey) (i
 
 // getOrCreateLog returns a log for identity under the given thread.
 // If no log exists, a new one is created.
-func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.LogInfo, err error) {
-	if identity == nil {
-		identity = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
+func (n *net) getOrCreateLog(id thread.ID, pk thread.PubKey) (info thread.LogInfo, err error) {
+	if pk == nil {
+		pk = thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
 	}
-	lidb, err := n.store.GetBytes(id, identity.String())
+	lidb, err := n.store.GetBytes(id, pk.String())
 	if err != nil {
 		return info, err
 	}
 	// Check if we have an old-style "own" (unindexed) log
-	if lidb == nil && identity.Equals(thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())) {
+	if lidb == nil && pk.Equals(thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())) {
 		thrd, err := n.store.GetThread(id)
 		if err != nil {
 			return info, err
@@ -1278,7 +1274,7 @@ func (n *net) getOrCreateLog(id thread.ID, identity thread.PubKey) (info thread.
 		}
 		return n.store.GetLog(id, lid)
 	}
-	return n.createLog(id, nil, identity)
+	return n.createLog(id, nil, pk)
 }
 
 // createExternalLogIfNotExist creates an external log if doesn't exists. The created

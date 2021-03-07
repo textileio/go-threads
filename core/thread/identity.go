@@ -261,9 +261,12 @@ func (k *Libp2pPubKey) DID() (did.DID, error) {
 	return did.NewKeyDID(id.String()), nil
 }
 
-func (k *Libp2pPubKey) Validate(identity did.Token) (key PubKey, doc did.Document, err error) {
-	var claims IdentityClaims
-	_, _, err = new(jwt.Parser).ParseUnverified(string(identity), &claims)
+func (k *Libp2pPubKey) Validate(identity did.Token) (PubKey, did.Document, error) {
+	var (
+		doc    did.Document
+		claims IdentityClaims
+	)
+	_, _, err := new(jwt.Parser).ParseUnverified(string(identity), &claims)
 	if err != nil {
 		return nil, doc, fmt.Errorf("parsing token: %v", err)
 	}
@@ -276,7 +279,7 @@ func (k *Libp2pPubKey) Validate(identity did.Token) (key PubKey, doc did.Documen
 	// todo: check credential subject id is sub
 	// todo: check document id is credential subject id
 
-	key = &Libp2pPubKey{}
+	key := &Libp2pPubKey{}
 	keyfunc := func(*jwt.Token) (interface{}, error) {
 		if len(doc.Authentication) == 0 {
 			return nil, errors.New("authentication not found")
@@ -290,7 +293,7 @@ func (k *Libp2pPubKey) Validate(identity did.Token) (key PubKey, doc did.Documen
 			return nil, fmt.Errorf("unmarshalling key: %v", err)
 		}
 		// todo: ckeck that key.DID() equals subject
-		return key.(*Libp2pPubKey).PubKey, nil
+		return key.PubKey, nil
 	}
 	if _, err := jwt.Parse(string(identity), keyfunc); err != nil {
 		return nil, doc, fmt.Errorf("parsing token: %v", err)

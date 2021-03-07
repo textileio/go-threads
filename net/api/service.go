@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -61,13 +60,10 @@ func (s *Service) GetDID(ctx context.Context, _ *pb.GetDIDRequest) (*pb.GetDIDRe
 	}, nil
 }
 
-func (s *Service) ValidateIdentity(
-	ctx context.Context,
-	req *pb.ValidateIdentityRequest,
-) (*pb.ValidateIdentityReply, error) {
-	log.Debugf("received validate identity request")
+func (s *Service) Validate(ctx context.Context, req *pb.ValidateRequest) (*pb.ValidateReply, error) {
+	log.Debugf("received validate request")
 
-	pk, doc, err := s.net.ValidateIdentity(ctx, d.Token(req.Identity))
+	pk, did, err := s.net.Validate(ctx, d.Token(req.Identity))
 	if err != nil {
 		return nil, err
 	}
@@ -75,13 +71,9 @@ func (s *Service) ValidateIdentity(
 	if err != nil {
 		return nil, err
 	}
-	docb, err := json.Marshal(doc)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.ValidateIdentityReply{
-		PubKey:   pkb,
-		Document: docb,
+	return &pb.ValidateReply{
+		PubKey: pkb,
+		Did:    string(did),
 	}, nil
 }
 

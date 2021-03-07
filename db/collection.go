@@ -449,11 +449,10 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 
 // Verify verifies updated instances but does not save them.
 func (t *Txn) Verify(updated ...[]byte) error {
-	//identity, err := t.token.PubKey()
-	//if err != nil {
-	//	return err
-	//}
-	identity := did.NewKeyDID("foo")
+	_, identity, err := t.collection.db.connector.Validate(t.token)
+	if err != nil {
+		return err
+	}
 	actions, err := t.createSaveActions(identity, updated...)
 	if err != nil {
 		return err
@@ -476,11 +475,10 @@ func (t *Txn) Verify(updated ...[]byte) error {
 
 // Save saves instance changes to be committed when the current transaction commits.
 func (t *Txn) Save(updated ...[]byte) error {
-	//identity, err := t.token.PubKey()
-	//if err != nil {
-	//	return err
-	//}
-	identity := did.NewKeyDID("foo")
+	_, identity, err := t.collection.db.connector.Validate(t.token)
+	if err != nil {
+		return err
+	}
 	actions, err := t.createSaveActions(identity, updated...)
 	if err != nil {
 		return err
@@ -568,14 +566,10 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 
 // Has returns true if all IDs exists in the collection, false otherwise.
 func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
-	if err := t.collection.db.connector.Validate(t.token); err != nil {
+	_, identity, err := t.collection.db.connector.Validate(t.token)
+	if err != nil {
 		return false, err
 	}
-	//pk, err := t.token.PubKey()
-	//if err != nil {
-	//	return false, err
-	//}
-	identity := did.NewKeyDID("foo")
 	for i := range ids {
 		key := baseKey.ChildString(t.collection.name).ChildString(ids[i].String())
 		exists, err := t.collection.db.datastore.Has(key)
@@ -606,7 +600,8 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
-	if err := t.collection.db.connector.Validate(t.token); err != nil {
+	_, identity, err := t.collection.db.connector.Validate(t.token)
+	if err != nil {
 		return nil, err
 	}
 	key := baseKey.ChildString(t.collection.name).ChildString(id.String())
@@ -617,11 +612,6 @@ func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	//pk, err := t.token.PubKey()
-	//if err != nil {
-	//	return nil, err
-	//}
-	identity := did.NewKeyDID("foo")
 	bytes, err = t.collection.filterRead(identity, bytes)
 	if err != nil {
 		return nil, err

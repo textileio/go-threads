@@ -102,11 +102,6 @@ type Net interface {
 
 	// ConnectApp returns an app<->thread connector.
 	ConnectApp(App, thread.ID) (*Connector, error)
-
-	// Validate thread ID and token against the net host.
-	// If token is present and valid, the embedded DID is returned.
-	// If token is not present, error will be nil.
-	Validate(id thread.ID, token did.Token) (did.DID, error)
 }
 
 // Connector connects an app to a thread.
@@ -152,9 +147,8 @@ func (c *Connector) CreateNetRecord(ctx context.Context, body format.Node, token
 }
 
 // Validate thread token against the net host.
-func (c *Connector) Validate(token did.Token) error {
-	_, err := c.Net.Validate(c.threadID, token)
-	return err
+func (c *Connector) Validate(token did.Token) (thread.PubKey, did.DID, error) {
+	return c.Net.Validate(context.TODO(), token)
 }
 
 // ValidateNetRecordBody calls the connection app's ValidateNetRecordBody.

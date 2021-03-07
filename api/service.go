@@ -62,103 +62,6 @@ func (s *Service) Close() error {
 	return s.manager.Close()
 }
 
-//type remoteIdentity struct {
-//	pk     thread.PubKey
-//	server pb.API_GetTokenServer
-//}
-
-//func (i *remoteIdentity) MarshalBinary() ([]byte, error) {
-//	return nil, nil
-//}
-
-//func (i *remoteIdentity) UnmarshalBinary([]byte) error {
-//	return nil
-//}
-
-//func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
-//	if err := i.server.Send(&pb.GetTokenReply{
-//		Payload: &pb.GetTokenReply_Challenge{
-//			Challenge: msg,
-//		},
-//	}); err != nil {
-//		return nil, err
-//	}
-//
-//	var req *pb.GetTokenRequest
-//	done := make(chan error)
-//	go func() {
-//		defer close(done)
-//		var err error
-//		req, err = i.server.Recv()
-//		if err != nil {
-//			done <- err
-//			return
-//		}
-//	}()
-//	select {
-//	case <-ctx.Done():
-//		return nil, status.Error(codes.DeadlineExceeded, "Challenge deadline exceeded")
-//	case err, ok := <-done:
-//		if ok {
-//			return nil, err
-//		}
-//	}
-//
-//	var sig []byte
-//	switch payload := req.Payload.(type) {
-//	case *pb.GetTokenRequest_Signature:
-//		sig = payload.Signature
-//	default:
-//		return nil, status.Error(codes.InvalidArgument, "Signature is required")
-//	}
-//	return sig, nil
-//}
-
-//func (i *remoteIdentity) GetPublic() thread.PubKey {
-//	return i.pk
-//}
-
-//func (i *remoteIdentity) Decrypt(context.Context, []byte) ([]byte, error) {
-//	return nil, nil // no-op
-//}
-
-//func (i *remoteIdentity) Equals(thread.Identity) bool {
-//	return false
-//}
-
-//func (s *Service) GetToken(server pb.API_GetTokenServer) error {
-//	log.Debugf("received get token request")
-//
-//	req, err := server.Recv()
-//	if err != nil {
-//		return err
-//	}
-//	key := &thread.Libp2pPubKey{}
-//	switch payload := req.Payload.(type) {
-//	case *pb.GetTokenRequest_Key:
-//		err = key.UnmarshalString(payload.Key)
-//		if err != nil {
-//			return err
-//		}
-//	default:
-//		return status.Error(codes.InvalidArgument, "Key is required")
-//	}
-//
-//	identity := &remoteIdentity{
-//		pk:     key,
-//		server: server,
-//	}
-//	tok, err := s.manager.GetToken(server.Context(), identity)
-//	if err != nil {
-//		return err
-//	}
-//	return server.Send(&pb.GetTokenReply{
-//		Payload: &pb.GetTokenReply_Token{
-//			Token: string(tok),
-//		},
-//	})
-//}
-
 func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBReply, error) {
 	log.Debugf("received new db request")
 
@@ -376,7 +279,7 @@ func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionReques
 	if err != nil {
 		return nil, err
 	}
-	if _, err = d.NewCollection(cc); err != nil {
+	if _, err = d.NewCollection(cc, db.WithToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.NewCollectionReply{}, nil
@@ -399,7 +302,7 @@ func (s *Service) UpdateCollection(ctx context.Context, req *pb.UpdateCollection
 	if err != nil {
 		return nil, err
 	}
-	if _, err = d.UpdateCollection(cc); err != nil {
+	if _, err = d.UpdateCollection(cc, db.WithToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.UpdateCollectionReply{}, nil
@@ -418,7 +321,7 @@ func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollection
 	if err != nil {
 		return nil, err
 	}
-	if err = d.DeleteCollection(req.Name); err != nil {
+	if err = d.DeleteCollection(req.Name, db.WithToken(token)); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteCollectionReply{}, nil
@@ -999,7 +902,7 @@ func (s *Service) getCollection(ctx context.Context, collectionName string, id t
 	if err != nil {
 		return nil, err
 	}
-	collection := d.GetCollection(collectionName)
+	collection := d.GetCollection(collectionName, db.WithToken(token))
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
 	}

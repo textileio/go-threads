@@ -37,10 +37,10 @@ type API interface {
 	// GetDID returns the host's DID.
 	GetDID(ctx context.Context) (did.DID, error)
 
-	// ValidateIdentity validates a self-signed DID token representing an external identity.
+	// Validate validates a self-signed DID token representing an external identity.
 	// The token subject must the host's DID obtained from GetDID.
 	// A valid token's claims are returned in the form of a did.Document.
-	ValidateIdentity(ctx context.Context, identity did.Token) (thread.PubKey, did.Document, error)
+	Validate(ctx context.Context, identity did.Token) (thread.PubKey, did.DID, error)
 
 	// CreateThread creates and adds a new thread with id and opts.
 	CreateThread(ctx context.Context, id thread.ID, opts ...NewThreadOption) (thread.Info, error)
