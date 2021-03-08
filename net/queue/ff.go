@@ -68,7 +68,14 @@ func (q *peerQueue) Pop() (PeerCall, thread.ID, int64, bool) {
 		return nil, thread.Undef, 0, false
 	}
 	op := q.first
+
 	q.first = op.next
+	if q.first != nil {
+		q.first.prev = nil
+	} else {
+		q.last = nil
+	}
+
 	delete(q.index, op.tid)
 	return op.call, op.tid, op.created, true
 }

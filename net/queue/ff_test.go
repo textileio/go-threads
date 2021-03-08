@@ -126,3 +126,44 @@ func TestOperationQueue(t *testing.T) {
 		t.Error("unexpected operations in the queue")
 	}
 }
+
+func TestOperationQueue_Pop(t *testing.T) {
+	var (
+		q  = newPeerQueue()
+		t1 = thread.NewIDV1(thread.Raw, 32)
+		t2 = thread.NewIDV1(thread.Raw, 32)
+
+		checkedPop = func(expect bool, tid thread.ID) {
+			if _, stid, _, ok := q.Pop(); expect && !ok {
+				t.Errorf("expected call for %s, but queue is empty", tid)
+			} else if !expect && ok {
+				t.Error("unexpected call popped from the queue")
+			} else if expect && ok && stid != tid {
+				t.Errorf("expected call for %s, but get call for %s", tid, stid)
+			}
+		}
+	)
+
+	// empty queue
+	checkedPop(false, thread.Undef)
+
+	// add single thread
+	q.Add(t1, nil, 1)
+	checkedPop(true, t1)
+	checkedPop(false, thread.Undef)
+
+	// add and remove
+	q.Add(t1, nil, 1)
+	q.Remove(t1)
+	checkedPop(false, thread.Undef)
+
+	// add two threads with duplicates
+	q.Add(t1, nil, 1)
+	q.Add(t2, nil, 1)
+	q.Add(t2, nil, 1)
+	q.Add(t1, nil, 1)
+	checkedPop(true, t1)
+	checkedPop(true, t2)
+	checkedPop(false, thread.Undef)
+	checkedPop(false, thread.Undef)
+}
