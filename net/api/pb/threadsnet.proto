@@ -8,10 +8,12 @@ option java_package = "io.textile.threads_net_grpc";
 option java_outer_classname = "ThreadsNet";
 option objc_class_prefix = "THREADSNET";
 
-message GetDIDRequest {}
+message ResolveRequest {
+    string audience = 1;
+}
 
-message GetDIDReply {
-    string DID = 1;
+message ResolveReply {
+    string token = 1;
 }
 
 message ValidateRequest {
@@ -118,7 +120,7 @@ message SubscribeRequest {
 }
 
 service API {
-    rpc GetDID(GetDIDRequest) returns (GetDIDReply) {}
+    rpc Resolve(ResolveRequest) returns (ResolveReply) {}
     rpc Validate(ValidateRequest) returns (ValidateReply) {}
     rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
     rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}

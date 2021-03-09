@@ -28,14 +28,14 @@ type Net interface {
 
 	// Registry for decentralized thread identifiers (DIDs).
 	Registry() *registry.Registry
+
+	// Resolve returns a self-signed DID token for an audience representing the host's identity and services.
+	Resolve(ctx context.Context, audience did.DID) (did.Token, error)
 }
 
 // API is the network interface for thread orchestration.
 type API interface {
 	io.Closer
-
-	// GetDID returns the host's DID.
-	GetDID(ctx context.Context) (did.DID, error)
 
 	// Validate validates a self-signed DID token representing an external identity.
 	// The token subject must the host's DID obtained from GetDID.

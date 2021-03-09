@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
@@ -50,12 +51,20 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) GetDID(ctx context.Context) (d.DID, error) {
-	res, err := c.c.GetDID(ctx, &pb.GetDIDRequest{})
+func (c *Client) Resolve(ctx context.Context, aud d.DID) (doc d.Document, err error) {
+	res, err := c.c.Resolve(ctx, &pb.ResolveRequest{
+		Audience: string(aud),
+	})
 	if err != nil {
-		return "", err
+		return
 	}
-	return d.DID(res.DID), nil
+	token = d.Token(res.Token)
+
+	k, doc, err := r.id.GetPublic().Validate(token)
+	if err != nil {
+		return fmt.Errorf("validating token: %v", err)
+	}
+
 }
 
 func (c *Client) Validate(ctx context.Context, identity did.Token) (thread.PubKey, did.DID, error) {

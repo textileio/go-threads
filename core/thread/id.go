@@ -389,7 +389,7 @@ type Info struct {
 	Addrs []maddr.Multiaddr
 }
 
-// Token returns a JWT-encoded verifiable claim representing of thread info.
+// Token returns a JWT-encoded verifiable claim representing thread info.
 func (i Info) Token(issuer Identity, aud d.DID, dur time.Duration) (d.Token, error) {
 	id := i.ID.DID()
 	iss, err := issuer.GetPublic().DID()

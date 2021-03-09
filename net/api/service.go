@@ -48,15 +48,18 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 	return &Service{net: network}, nil
 }
 
-func (s *Service) GetDID(ctx context.Context, _ *pb.GetDIDRequest) (*pb.GetDIDReply, error) {
-	log.Debugf("received get DID request")
+func (s *Service) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.ResolveReply, error) {
+	log.Debugf("received resolve request")
 
-	did, err := s.net.GetDID(ctx)
+	if _, err := d.DID(req.Audience).Decode(); err != nil {
+		return nil, err
+	}
+	token, err := s.net.Resolve(ctx, d.DID(req.Audience))
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetDIDReply{
-		DID: string(did),
+	return &pb.ResolveReply{
+		Token: string(token),
 	}, nil
 }
 

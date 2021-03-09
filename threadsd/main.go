@@ -34,8 +34,8 @@ func main() {
 
 	repo := fs.String("repo", ".threads", "Repo location")
 	hostAddrStr := fs.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Libp2p host bind address")
-	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "gRPC API bind address")
-	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "gRPC API web proxy bind address")
+	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/4000", "gRPC API bind address")
+	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/4010", "gRPC API web proxy bind address")
 	connLowWater := fs.Int("connLowWater", 100, "Low watermark of libp2p connections that'll be maintained")
 	connHighWater := fs.Int("connHighWater", 400, "High watermark of libp2p connections that'll be maintained")
 	connGracePeriod := fs.Duration("connGracePeriod", time.Second*20, "Duration a new opened connection is not subject to pruning")

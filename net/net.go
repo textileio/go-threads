@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
@@ -29,6 +31,7 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/did/registry"
+	jwted25519 "github.com/textileio/go-threads/jwt"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/net/util"
 	tu "github.com/textileio/go-threads/util"
@@ -208,8 +211,74 @@ func (n *net) Store() lstore.Logstore {
 	return n.store
 }
 
-func (n *net) GetDID(_ context.Context) (did.DID, error) {
-	return thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID())).DID()
+func (n *net) Resolve(_ context.Context, aud did.DID) (did.Token, error) {
+	// Get identity
+	identity := &thread.Libp2pIdentity{
+		PrivKey: n.host.Peerstore().PrivKey(n.host.ID()),
+	}
+	id, err := identity.GetPublic().DID()
+	if err != nil {
+		return "", err
+	}
+
+	// Get services
+	pc, err := maddr.NewComponent(maddr.ProtocolWithCode(maddr.P_P2P).Name, n.host.ID().String())
+	if err != nil {
+		return "", nil
+	}
+	services := []did.Service{
+		{
+			ID:              id + "#threads",
+			Type:            "ThreadService",
+			ServiceEndpoint: pc.String(),
+			ServiceProtocol: string(thread.Protocol),
+		},
+	}
+	claims := thread.IdentityClaims{
+		StandardClaims: jwt.StandardClaims{
+			Id:        uuid.New().URN(),
+			Subject:   string(id),
+			Issuer:    string(id),
+			Audience:  string(aud),
+			ExpiresAt: time.Now().Add(time.Second * 10).Unix(),
+			IssuedAt:  time.Now().Unix(),
+			NotBefore: time.Now().Unix(),
+		},
+		VerifiableCredential: did.VerifiableCredential{
+			Context: []string{
+				"https://www.w3.org/2018/credentials/v1",
+			},
+			Type: []string{
+				"VerifiableCredential",
+			},
+			CredentialSubject: did.VerifiableCredentialSubject{
+				ID: id,
+				Document: did.Document{
+					Context: []string{
+						"https://www.w3.org/ns/did/v1",
+					},
+					ID: id,
+					Conroller: []did.DID{
+						id,
+					},
+					Authentication: []did.VerificationMethod{
+						{
+							ID:                 id + "#keys-1",
+							Type:               "Ed25519VerificationKey2018",
+							Controller:         id,
+							PublicKeyMultiBase: identity.GetPublic().String(),
+						},
+					},
+					Services: services,
+				},
+			},
+		},
+	}
+	t, err := jwt.NewWithClaims(jwted25519.SigningMethodEd25519i, claims).SignedString(identity.PrivKey)
+	if err != nil {
+		return "", err
+	}
+	return did.Token(t), nil
 }
 
 func (n *net) CreateThread(
