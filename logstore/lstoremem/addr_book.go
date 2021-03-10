@@ -526,6 +526,7 @@ func (mab *memoryAddrBook) RestoreAddrs(dump core.DumpAddrBook) error {
 
 	var ts = make(map[thread.ID]struct{}, len(dump.Data))
 	for tid, peers := range dump.Data {
+		ts[tid] = struct{}{}
 		for pid, addrs := range peers {
 			mab.segments.processAddrs(tid, pid, true, true, func(am map[string]*expiringAddr) {
 				var now = time.Now()
