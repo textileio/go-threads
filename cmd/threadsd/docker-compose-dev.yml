@@ -2,7 +2,8 @@ version: "3"
 services:
   threads:
     build:
-      context: .
+      context: ../../
+      dockerfile: ./cmd/threadsd/Dockerfile.dev
     volumes:
       - "${REPO_PATH}/threads:/data/threads"
     environment:
@@ -21,5 +22,9 @@ services:
     ports:
       - "4006:4006"
       - "4006:4006/udp"
-      - "5000:5000"
-      - "5050:5050"
+      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:5050:5050"
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE

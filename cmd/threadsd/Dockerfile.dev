@@ -1,0 +1,39 @@
+FROM golang:1.16.0-buster
+
+RUN apt-get update
+
+RUN go get github.com/go-delve/delve/cmd/dlv
+
+ENV SRC_DIR /go-threads
+
+COPY go.mod go.sum $SRC_DIR/
+RUN cd $SRC_DIR \
+  && go mod download
+
+COPY . $SRC_DIR
+
+RUN cd $SRC_DIR \
+  && CGO_ENABLED=0 GOOS=linux go build -gcflags "all=-N -l" -o threadsd cmd/threadsd/main.go
+
+FROM debian:buster
+LABEL maintainer="Textile <contact@textile.io>"
+
+ENV SRC_DIR /go-threads
+COPY --from=0 /go/bin/dlv /usr/local/bin/dlv
+COPY --from=0 $SRC_DIR/threadsd /usr/local/bin/threadsd
+
+EXPOSE 4006
+EXPOSE 5000
+EXPOSE 5050
+EXPOSE 40000
+
+ENV THREADS_PATH /data/threads
+RUN adduser --home $THREADS_PATH --disabled-login --gecos "" --ingroup users threads
+
+USER threads
+
+VOLUME $THREADS_PATH
+
+ENTRYPOINT ["dlv", "--listen=0.0.0.0:40000", "--headless=true", "--accept-multiclient", "--continue", "--api-version=2", "exec", "/usr/local/bin/threadsd"]
+
+CMD ["--", "--badgerRepo=/data/threads"]
