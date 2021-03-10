@@ -2,7 +2,7 @@ package client
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"io"
 	"log"
 
@@ -28,7 +28,7 @@ import (
 
 // Client provides the client api.
 type Client struct {
-	c    pb.APIClient
+	c    pb.APIServiceClient
 	conn *grpc.ClientConn
 }
 
@@ -41,7 +41,7 @@ func NewClient(target string, opts ...grpc.DialOption) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		c:    pb.NewAPIClient(conn),
+		c:    pb.NewAPIServiceClient(conn),
 		conn: conn,
 	}, nil
 }
@@ -51,24 +51,19 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) Resolve(ctx context.Context, aud d.DID) (doc d.Document, err error) {
-	res, err := c.c.Resolve(ctx, &pb.ResolveRequest{
-		Audience: string(aud),
-	})
+func (c *Client) GetServices(ctx context.Context) (doc d.Document, err error) {
+	res, err := c.c.GetServices(ctx, &pb.GetServicesRequest{})
 	if err != nil {
 		return
 	}
-	token = d.Token(res.Token)
-
-	k, doc, err := r.id.GetPublic().Validate(token)
-	if err != nil {
-		return fmt.Errorf("validating token: %v", err)
+	if err := json.Unmarshal(res.Doc, &doc); err != nil {
+		return doc, err
 	}
-
+	return doc, nil
 }
 
-func (c *Client) Validate(ctx context.Context, identity did.Token) (thread.PubKey, did.DID, error) {
-	res, err := c.c.Validate(ctx, &pb.ValidateRequest{
+func (c *Client) ValidateIdentity(ctx context.Context, identity did.Token) (thread.PubKey, did.DID, error) {
+	res, err := c.c.ValidateIdentity(ctx, &pb.ValidateIdentityRequest{
 		Identity: string(identity),
 	})
 	if err != nil {

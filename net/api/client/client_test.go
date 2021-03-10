@@ -39,30 +39,12 @@ func TestClient_GetHostID(t *testing.T) {
 	_, client, done := setup(t)
 	defer done()
 
-	t.Run("test get host ID", func(t *testing.T) {
-		if _, err := client.GetHostID(context.Background()); err != nil {
-			t.Fatalf("failed to get host ID: %v", err)
+	t.Run("test get services", func(t *testing.T) {
+		if _, err := client.GetServices(context.Background()); err != nil {
+			t.Fatalf("failed to get services: %v", err)
 		}
 	})
 }
-
-//func TestClient_GetToken(t *testing.T) {
-//	t.Parallel()
-//	_, client, done := setup(t)
-//	defer done()
-//
-//	identity := createIdentity(t)
-//
-//	t.Run("test get token", func(t *testing.T) {
-//		tok, err := client.GetToken(context.Background(), identity)
-//		if err != nil {
-//			t.Fatalf("failed to get token: %v", err)
-//		}
-//		if tok == "" {
-//			t.Fatal("emtpy token")
-//		}
-//	})
-//}
 
 func TestClient_CreateThread(t *testing.T) {
 	t.Parallel()
@@ -94,12 +76,12 @@ func TestClient_AddThread(t *testing.T) {
 	_, client2, done2 := setup(t)
 	defer done2()
 
-	hostID1, err := client1.GetHostID(context.Background())
+	hostDoc1, err := client1.GetServices(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	info1 := createThread(t, client1)
-	addr := threadAddr(t, hostAddr1, hostID1, info1)
+	addr := threadAddr(t, hostAddr1, hostDoc1.ID, info1)
 
 	t.Run("test add thread", func(t *testing.T) {
 		info2, err := client2.AddThread(context.Background(), addr, core.WithThreadKey(info1.Key))
@@ -169,13 +151,13 @@ func TestClient_AddReplicator(t *testing.T) {
 	defer done2()
 
 	info := createThread(t, client1)
-	hostID2, err := client2.GetHostID(context.Background())
+	hostDoc2, err := client2.GetServices(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Run("test add replicator", func(t *testing.T) {
-		addr := peerAddr(t, hostAddr2, hostID2)
+		addr := peerAddr(t, hostAddr2, hostDoc2.ID)
 		pid, err := client1.AddReplicator(context.Background(), info.ID, addr)
 		if err != nil {
 			t.Fatalf("failed to add replicator: %v", err)
@@ -323,11 +305,11 @@ func TestClient_Subscribe(t *testing.T) {
 	defer done2()
 
 	info := createThread(t, client1)
-	hostID2, err := client2.GetHostID(context.Background())
+	hostDoc2, err := client2.GetServices(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	addr := peerAddr(t, hostAddr2, hostID2)
+	addr := peerAddr(t, hostAddr2, hostDoc2.ID)
 	if _, err := client1.AddReplicator(context.Background(), info.ID, addr); err != nil {
 		t.Fatal(err)
 	}
@@ -449,7 +431,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	go func() {
-		pb.RegisterAPIServer(server, service)
+		pb.RegisterAPIServiceServer(server, service)
 		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Fatalf("serve error: %v", err)
 		}
@@ -481,8 +463,12 @@ func createThread(t *testing.T, client *Client) thread.Info {
 	return info
 }
 
-func threadAddr(t *testing.T, hostAddr ma.Multiaddr, hostID peer.ID, info thread.Info) ma.Multiaddr {
-	pa, err := ma.NewMultiaddr("/p2p/" + hostID.String())
+func threadAddr(t *testing.T, hostAddr ma.Multiaddr, hostDID did.DID, info thread.Info) ma.Multiaddr {
+	d, err := hostDID.Decode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pa, err := ma.NewMultiaddr("/p2p/" + d.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,8 +479,12 @@ func threadAddr(t *testing.T, hostAddr ma.Multiaddr, hostID peer.ID, info thread
 	return hostAddr.Encapsulate(pa.Encapsulate(ta))
 }
 
-func peerAddr(t *testing.T, hostAddr ma.Multiaddr, hostID peer.ID) ma.Multiaddr {
-	pa, err := ma.NewMultiaddr("/p2p/" + hostID.String())
+func peerAddr(t *testing.T, hostAddr ma.Multiaddr, hostDID did.DID) ma.Multiaddr {
+	d, err := hostDID.Decode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pa, err := ma.NewMultiaddr("/p2p/" + d.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

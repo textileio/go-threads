@@ -1,0 +1,127 @@
+syntax = "proto3";
+package net.api.pb;
+option go_package = "github.com/textileio/go-buckets/net/api/pb";
+
+message GetServicesRequest {}
+
+message GetServicesReply {
+    bytes doc = 1;
+}
+
+message ValidateIdentityRequest {
+    string identity = 1;
+}
+
+message ValidateIdentityReply {
+    bytes pubKey = 1;
+    string did = 2;
+}
+
+message CreateThreadRequest {
+    bytes threadID = 1;
+    Keys keys = 2;
+}
+
+message Keys {
+    bytes threadKey = 1;
+    bytes logKey = 2;
+}
+
+message ThreadInfoReply {
+    bytes threadID = 1;
+    bytes threadKey = 2;
+    repeated LogInfo logs = 3;
+    repeated bytes addrs = 4;
+}
+
+message LogInfo {
+    bytes ID = 1;
+    bytes pubKey = 2;
+    bytes privKey = 3;
+    repeated bytes addrs = 4;
+    bytes head = 5;
+}
+
+message AddThreadRequest {
+    bytes addr = 1;
+    Keys keys = 2;
+}
+
+message GetThreadRequest {
+    bytes threadID = 1;
+}
+
+message PullThreadRequest {
+    bytes threadID = 1;
+}
+
+message PullThreadReply {}
+
+message DeleteThreadRequest {
+    bytes threadID = 1;
+}
+
+message DeleteThreadReply {}
+
+message AddReplicatorRequest {
+    bytes threadID = 1;
+    bytes addr = 2;
+}
+
+message AddReplicatorReply {
+    bytes peerID = 1;
+}
+
+message CreateRecordRequest {
+    bytes threadID = 1;
+    bytes body = 2;
+}
+
+message NewRecordReply {
+    bytes threadID = 1;
+    bytes logID = 2;
+    Record record = 3;
+}
+
+message AddRecordRequest {
+    bytes threadID = 1;
+    bytes logID = 2;
+    Record record = 3;
+}
+
+message Record {
+    bytes recordNode = 1;
+    bytes eventNode = 2;
+    bytes headerNode = 3;
+    bytes bodyNode = 4;
+}
+
+message AddRecordReply {}
+
+message GetRecordRequest {
+    bytes threadID = 1;
+    bytes recordID = 2;
+}
+
+message GetRecordReply {
+    Record record = 1;
+}
+
+message SubscribeRequest {
+    repeated bytes threadIDs = 1;
+}
+
+service APIService {
+    rpc GetServices(GetServicesRequest) returns (GetServicesReply) {}
+    rpc ValidateIdentity(ValidateIdentityRequest) returns (ValidateIdentityReply) {}
+    rpc CreateThread(CreateThreadRequest) returns (ThreadInfoReply) {}
+    rpc AddThread(AddThreadRequest) returns (ThreadInfoReply) {}
+    rpc GetThread(GetThreadRequest) returns (ThreadInfoReply) {}
+    rpc PullThread(PullThreadRequest) returns (PullThreadReply) {}
+    rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadReply) {}
+    rpc AddReplicator(AddReplicatorRequest) returns (AddReplicatorReply) {}
+    rpc CreateRecord(CreateRecordRequest) returns (NewRecordReply) {}
+    rpc AddRecord(AddRecordRequest) returns (AddRecordReply) {}
+    rpc GetRecord(GetRecordRequest) returns (GetRecordReply) {}
+    rpc Subscribe(SubscribeRequest) returns (stream NewRecordReply) {}
+}

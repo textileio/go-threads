@@ -1,0 +1,15 @@
+build:
+  roots:
+    - .
+  excludes:
+    - api/pb/javascript
+    - net/api/pb/javascript
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_VERSION_SUFFIX
+breaking:
+  use:
+    - FILE
+    

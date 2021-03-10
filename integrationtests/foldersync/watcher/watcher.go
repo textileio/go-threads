@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 )
 
 var (

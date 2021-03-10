@@ -8,7 +8,7 @@ import (
 	"io"
 
 	"github.com/alecthomas/jsonschema"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	pb "github.com/textileio/go-threads/api/pb"
@@ -517,7 +517,7 @@ func (s *Service) FindByID(ctx context.Context, req *pb.FindByIDRequest) (*pb.Fi
 	return s.processFindByIDRequest(req, token, collection.FindByID)
 }
 
-func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
+func (s *Service) ReadTransaction(stream pb.APIService_ReadTransactionServer) error {
 	firstReq, err := stream.Recv()
 	if err != nil {
 		return err
@@ -602,7 +602,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 	}, db.WithTxnToken(token))
 }
 
-func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
+func (s *Service) WriteTransaction(stream pb.APIService_WriteTransactionServer) error {
 	firstReq, err := stream.Recv()
 	if err != nil {
 		return err
@@ -737,7 +737,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 	}, db.WithTxnToken(token))
 }
 
-func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
+func (s *Service) Listen(req *pb.ListenRequest, server pb.APIService_ListenServer) error {
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())

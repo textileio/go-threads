@@ -2,11 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -48,25 +49,26 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 	return &Service{net: network}, nil
 }
 
-func (s *Service) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.ResolveReply, error) {
-	log.Debugf("received resolve request")
+func (s *Service) GetServices(ctx context.Context, _ *pb.GetServicesRequest) (*pb.GetServicesReply, error) {
+	log.Debugf("received get services request")
 
-	if _, err := d.DID(req.Audience).Decode(); err != nil {
-		return nil, err
-	}
-	token, err := s.net.Resolve(ctx, d.DID(req.Audience))
+	doc, err := s.net.GetServices(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ResolveReply{
-		Token: string(token),
+	docb, err := json.Marshal(doc)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetServicesReply{
+		Doc: docb,
 	}, nil
 }
 
-func (s *Service) Validate(ctx context.Context, req *pb.ValidateRequest) (*pb.ValidateReply, error) {
+func (s *Service) ValidateIdentity(ctx context.Context, req *pb.ValidateIdentityRequest) (*pb.ValidateIdentityReply, error) {
 	log.Debugf("received validate request")
 
-	pk, did, err := s.net.Validate(ctx, d.Token(req.Identity))
+	pk, did, err := s.net.ValidateIdentity(ctx, d.Token(req.Identity))
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +76,7 @@ func (s *Service) Validate(ctx context.Context, req *pb.ValidateRequest) (*pb.Va
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ValidateReply{
+	return &pb.ValidateIdentityReply{
 		PubKey: pkb,
 		Did:    string(did),
 	}, nil
@@ -294,7 +296,7 @@ func (s *Service) GetRecord(ctx context.Context, req *pb.GetRecordRequest) (*pb.
 	}, nil
 }
 
-func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.API_SubscribeServer) error {
+func (s *Service) Subscribe(req *pb.SubscribeRequest, server pb.APIService_SubscribeServer) error {
 	log.Debugf("received subscribe request")
 
 	opts := make([]net.SubOption, len(req.ThreadIDs))

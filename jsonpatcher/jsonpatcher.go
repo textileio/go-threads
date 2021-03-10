@@ -13,7 +13,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multihash"
 	core "github.com/textileio/go-threads/core/db"
 )

@@ -292,7 +292,7 @@ func (c *Criterion) createcriterion(op Operation, value interface{}) *Query {
 
 // Find queries for instances by Query.
 func (t *Txn) Find(q *Query) ([][]byte, error) {
-	_, identity, err := t.collection.db.connector.Validate(t.token)
+	_, identity, err := t.collection.db.connector.ValidateIdentity(t.token)
 	if err != nil {
 		return nil, err
 	}

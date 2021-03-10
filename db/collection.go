@@ -449,7 +449,7 @@ func (t *Txn) Create(new ...[]byte) ([]core.InstanceID, error) {
 
 // Verify verifies updated instances but does not save them.
 func (t *Txn) Verify(updated ...[]byte) error {
-	_, identity, err := t.collection.db.connector.Validate(t.token)
+	_, identity, err := t.collection.db.connector.ValidateIdentity(t.token)
 	if err != nil {
 		return err
 	}
@@ -475,7 +475,7 @@ func (t *Txn) Verify(updated ...[]byte) error {
 
 // Save saves instance changes to be committed when the current transaction commits.
 func (t *Txn) Save(updated ...[]byte) error {
-	_, identity, err := t.collection.db.connector.Validate(t.token)
+	_, identity, err := t.collection.db.connector.ValidateIdentity(t.token)
 	if err != nil {
 		return err
 	}
@@ -566,7 +566,7 @@ func (t *Txn) Delete(ids ...core.InstanceID) error {
 
 // Has returns true if all IDs exists in the collection, false otherwise.
 func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
-	_, identity, err := t.collection.db.connector.Validate(t.token)
+	_, identity, err := t.collection.db.connector.ValidateIdentity(t.token)
 	if err != nil {
 		return false, err
 	}
@@ -600,7 +600,7 @@ func (t *Txn) Has(ids ...core.InstanceID) (bool, error) {
 
 // FindByID gets an instance by ID in the current txn scope.
 func (t *Txn) FindByID(id core.InstanceID) ([]byte, error) {
-	_, identity, err := t.collection.db.connector.Validate(t.token)
+	_, identity, err := t.collection.db.connector.ValidateIdentity(t.token)
 	if err != nil {
 		return nil, err
 	}

@@ -1,10 +1,14 @@
-FROM golang:1.15.5-buster
+FROM golang:1.16.0-buster
 MAINTAINER Textile <contact@textile.io>
 
 # This is (in large part) copied (with love) from
 # https://hub.docker.com/r/ipfs/go-ipfs/dockerfile
 
-# Get source
+# Install deps
+RUN apt-get update && apt-get install -y \
+  libssl-dev \
+  ca-certificates
+
 ENV SRC_DIR /go-threads
 
 # Download packages first so they can be cached.
@@ -14,56 +18,62 @@ RUN cd $SRC_DIR \
 
 COPY . $SRC_DIR
 
-# Install the daemon
+# Build the thing.
 RUN cd $SRC_DIR \
-  && go install github.com/textileio/go-threads/threadsd
+  && BIN_BUILD_FLAGS="CGO_ENABLED=0 GOOS=linux" make build-threadsd
 
 # Get su-exec, a very minimal tool for dropping privileges,
 # and tini, a very minimal init daemon for containers
 ENV SUEXEC_VERSION v0.2
-ENV TINI_VERSION v0.16.1
-RUN set -x \
-  && cd /tmp \
+ENV TINI_VERSION v0.19.0
+RUN set -eux; \
+    dpkgArch="$(dpkg --print-architecture)"; \
+    case "${dpkgArch##*-}" in \
+        "amd64" | "armhf" | "arm64") tiniArch="tini-static-$dpkgArch" ;;\
+        *) echo >&2 "unsupported architecture: ${dpkgArch}"; exit 1 ;; \
+    esac; \
+  cd /tmp \
   && git clone https://github.com/ncopa/su-exec.git \
   && cd su-exec \
   && git checkout -q $SUEXEC_VERSION \
-  && make \
+  && make su-exec-static \
   && cd /tmp \
-  && wget -q -O tini https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini \
+  && wget -q -O tini https://github.com/krallin/tini/releases/download/$TINI_VERSION/$tiniArch \
   && chmod +x tini
 
-# Get the TLS CA certificates, they're not provided by busybox.
-RUN apt-get update && apt-get install -y ca-certificates
-
 # Now comes the actual target image, which aims to be as small as possible.
-FROM busybox:1.31.0-glibc
+FROM busybox:1.31.1-glibc
 LABEL maintainer="Textile <contact@textile.io>"
 
-# Get the threads binary, entrypoint script, and TLS CAs from the build container.
+# Get the binary, entrypoint script, and TLS CAs from the build container.
 ENV SRC_DIR /go-threads
-COPY --from=0 /go/bin/threadsd /usr/local/bin/threadsd
-COPY --from=0 /tmp/su-exec/su-exec /sbin/su-exec
+COPY --from=0 $SRC_DIR/threadsd /usr/local/bin/threadsd
+COPY --from=0 /tmp/su-exec/su-exec-static /sbin/su-exec
 COPY --from=0 /tmp/tini /sbin/tini
 COPY --from=0 /etc/ssl/certs /etc/ssl/certs
 
 # This shared lib (part of glibc) doesn't seem to be included with busybox.
-COPY --from=0 /lib/x86_64-linux-gnu/libdl.so.2 /lib/libdl.so.2
+COPY --from=0 /lib/*-linux-gnu*/libdl.so.2 /lib/
+
+# Copy over SSL libraries.
+COPY --from=0 /usr/lib/*-linux-gnu*/libssl.so* /usr/lib/
+COPY --from=0 /usr/lib/*-linux-gnu*/libcrypto.so* /usr/lib/
 
 # hostAddr; should be exposed to the public
 EXPOSE 4006
 # apiAddr; should be exposed to the public
-EXPOSE 4000
+EXPOSE 5000
 # apiProxyAddr; should be exposed to the public
-EXPOSE 4010
+EXPOSE 5050
 
-# Create the repo directory and switch to a non-privileged user.
+# Create the repo directory.
 ENV THREADS_PATH /data/threads
 RUN mkdir -p $THREADS_PATH \
-  && adduser -D -h $THREADS_PATH -u 1000 -G users textile \
-  && chown -R textile:users $THREADS_PATH
+  && adduser -D -h $THREADS_PATH -u 1000 -G users threads \
+  && chown threads:users $THREADS_PATH
 
-# Switch to a non-privileged user
-USER textile
+# Switch to a non-privileged user.
+USER threads
 
 # Expose the repo as a volume.
 # Important this happens after the USER directive so permission are correct.
@@ -71,4 +81,4 @@ VOLUME $THREADS_PATH
 
 ENTRYPOINT ["/sbin/tini", "--", "threadsd"]
 
-CMD ["--repo=/data/threads"]
+CMD ["--badgerRepo=/data/threads"]

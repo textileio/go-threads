@@ -4,7 +4,7 @@
 [![Chat on Slack](https://img.shields.io/badge/slack-slack.textile.io-informational.svg?style=popout-square)](https://slack.textile.io)
 [![GitHub license](https://img.shields.io/github/license/textileio/go-threads.svg?style=popout-square)](./LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/textileio/go-threads?style=flat-square)](https://goreportcard.com/report/github.com/textileio/go-threads?style=flat-square)
-[![GitHub action](https://github.com/textileio/go-threads/workflows/Tests/badge.svg?style=popout-square)](https://github.com/textileio/go-threads/actions)
+[![GitHub action](https://github.com/textileio/go-threads/workflows/Test/badge.svg?style=popout-square)](https://github.com/textileio/go-threads/actions)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=popout-square)](https://github.com/RichardLitt/standard-readme)
 
 > Server-less p2p database built on libp2p
@@ -13,7 +13,6 @@ Join us on our [public Slack channel](https://slack.textile.io/) for news, discu
 
 ## Table of Contents
 
-* [Table of Contents](#table-of-contents)
 * [Security](#security)
 * [Background](#background)
 * [Install](#install)
@@ -94,17 +93,16 @@ import "github.com/textileio/go-threads/api/client"
 
 ## Getting Started
 
-You can think of the [DB client](github.com/textileio/go-threads/api/client) as a gRPC client wrapper around the internal `db` package API, and the [Network client](github.com/textileio/go-threads/net/api/client) as a gRPC client wrapper around the internal `net` package API. This section will only focus on getting started with the gRPC clients, but Golang apps may choose to interact directly with `db` and/or `net`.
+You can think of the [DB client](http://github.com/textileio/go-threads/blob/master/api/client) as a gRPC client wrapper around the internal `db` package API, and the [Network client](https://github.com/textileio/go-threads/blob/master/net/api/client) as a gRPC client wrapper around the internal `net` package API. This section will only focus on getting started with the gRPC clients, but Golang apps may choose to interact directly with `db` and/or `net`.
 
 ### Running ThreadDB
 
-The `threadsd` daemon can be run as a server or alongside desktop apps or command-line tools. The easiest way to run `threadsd` is by using the provided Docker Compose files. If you're new to Docker and/or Docker Compose, get started [here](https://docs.docker.com/compose/gettingstarted/). Once you are setup, you should have `docker-compose` in your `PATH`.
+The `threadsd` daemon can be run as a server or alongside desktop apps or command-line tools. The easiest way to run `threadsd` is by using the provided Docker Compose files. If you're new to Docker and/or Docker Compose, get started [here](https://docs.docker.com/compose/gettingstarted/). You should have `docker-compose` in your `PATH`.
 
 Create an `.env` file and add the following values:  
 
 ```
-REPO_PATH=~/myrepo
-THRDS_DEBUG=true
+THREADS_DEBUG=true
 ```
 
 Copy [this compose file](https://github.com/textileio/go-threads/blob/master/docker-compose.yml) and run it with the following command.
@@ -565,7 +563,7 @@ err := net.PullThread(context.Background(), info.ID)
 
 #### Listening for new records
 
-We can listen for new thread records across all or a subset of known threads.
+We can listen for new thread records across all, or a subset of known threads.
 
 ```
 ctx, cancel := context.WithCancel(context.Background())

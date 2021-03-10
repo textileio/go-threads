@@ -17,7 +17,7 @@ import (
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
 	format "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	ma "github.com/multiformats/go-multiaddr"
 	threadcbor "github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
@@ -368,7 +368,7 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, _, err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.ValidateIdentity(args.Token); err != nil {
 		return nil, err
 	}
 	if _, ok := d.collections[config.Name]; ok {
@@ -397,7 +397,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, _, err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.ValidateIdentity(args.Token); err != nil {
 		return nil, err
 	}
 	xc, ok := d.collections[config.Name]
@@ -465,7 +465,7 @@ func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, _, err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.ValidateIdentity(args.Token); err != nil {
 		return nil
 	}
 	return d.collections[name]
@@ -479,7 +479,7 @@ func (d *DB) ListCollections(opts ...Option) []*Collection {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, _, err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.ValidateIdentity(args.Token); err != nil {
 		return nil
 	}
 	list := make([]*Collection, len(d.collections))
@@ -499,7 +499,7 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	for _, opt := range opts {
 		opt(args)
 	}
-	if _, _, err := d.connector.Validate(args.Token); err != nil {
+	if _, _, err := d.connector.ValidateIdentity(args.Token); err != nil {
 		return err
 	}
 	c, ok := d.collections[name]

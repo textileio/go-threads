@@ -10,12 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	bs "github.com/ipfs/go-ipfs-blockstore"
 	format "github.com/ipfs/go-ipld-format"
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -31,7 +29,6 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/did/registry"
-	jwted25519 "github.com/textileio/go-threads/jwt"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/net/util"
 	tu "github.com/textileio/go-threads/util"
@@ -199,6 +196,10 @@ func (n *net) Close() (err error) {
 	return nil
 }
 
+func (n *net) Store() lstore.Logstore {
+	return n.store
+}
+
 func (n *net) Host() host.Host {
 	return n.host
 }
@@ -207,24 +208,18 @@ func (n *net) Registry() *registry.Registry {
 	return n.registry
 }
 
-func (n *net) Store() lstore.Logstore {
-	return n.store
-}
-
-func (n *net) Resolve(_ context.Context, aud did.DID) (did.Token, error) {
-	// Get identity
+func (n *net) GetServices(_ context.Context) (doc did.Document, err error) {
 	identity := &thread.Libp2pIdentity{
 		PrivKey: n.host.Peerstore().PrivKey(n.host.ID()),
 	}
 	id, err := identity.GetPublic().DID()
 	if err != nil {
-		return "", err
+		return doc, err
 	}
 
-	// Get services
 	pc, err := maddr.NewComponent(maddr.ProtocolWithCode(maddr.P_P2P).Name, n.host.ID().String())
 	if err != nil {
-		return "", nil
+		return doc, err
 	}
 	services := []did.Service{
 		{
@@ -234,51 +229,33 @@ func (n *net) Resolve(_ context.Context, aud did.DID) (did.Token, error) {
 			ServiceProtocol: string(thread.Protocol),
 		},
 	}
-	claims := thread.IdentityClaims{
-		StandardClaims: jwt.StandardClaims{
-			Id:        uuid.New().URN(),
-			Subject:   string(id),
-			Issuer:    string(id),
-			Audience:  string(aud),
-			ExpiresAt: time.Now().Add(time.Second * 10).Unix(),
-			IssuedAt:  time.Now().Unix(),
-			NotBefore: time.Now().Unix(),
+	return did.Document{
+		Context: []string{
+			"https://www.w3.org/ns/did/v1",
 		},
-		VerifiableCredential: did.VerifiableCredential{
-			Context: []string{
-				"https://www.w3.org/2018/credentials/v1",
-			},
-			Type: []string{
-				"VerifiableCredential",
-			},
-			CredentialSubject: did.VerifiableCredentialSubject{
-				ID: id,
-				Document: did.Document{
-					Context: []string{
-						"https://www.w3.org/ns/did/v1",
-					},
-					ID: id,
-					Conroller: []did.DID{
-						id,
-					},
-					Authentication: []did.VerificationMethod{
-						{
-							ID:                 id + "#keys-1",
-							Type:               "Ed25519VerificationKey2018",
-							Controller:         id,
-							PublicKeyMultiBase: identity.GetPublic().String(),
-						},
-					},
-					Services: services,
-				},
+		ID: id,
+		Conroller: []did.DID{
+			id,
+		},
+		Authentication: []did.VerificationMethod{
+			{
+				ID:                 id + "#keys-1",
+				Type:               "Ed25519VerificationKey2018",
+				Controller:         id,
+				PublicKeyMultiBase: identity.GetPublic().String(),
 			},
 		},
-	}
-	t, err := jwt.NewWithClaims(jwted25519.SigningMethodEd25519i, claims).SignedString(identity.PrivKey)
+		Services: services,
+	}, nil
+}
+
+func (n *net) ValidateIdentity(_ context.Context, token did.Token) (thread.PubKey, did.DID, error) {
+	npk := thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID()))
+	pk, doc, err := npk.Validate(token)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
-	return did.Token(t), nil
+	return pk, doc.ID, nil
 }
 
 func (n *net) CreateThread(
@@ -683,7 +660,7 @@ func (n *net) CreateRecord(
 		opt(args)
 	}
 
-	pk, identity, err := n.Validate(ctx, args.Token)
+	pk, identity, err := n.ValidateIdentity(ctx, args.Token)
 	if err != nil {
 		return
 	}
@@ -873,15 +850,6 @@ func (n *net) ConnectApp(a app.App, id thread.ID) (*app.Connector, error) {
 	}
 	n.addConnector(id, con)
 	return con, nil
-}
-
-func (n *net) Validate(_ context.Context, token did.Token) (thread.PubKey, did.DID, error) {
-	npk := thread.NewLibp2pPubKey(n.host.Peerstore().PubKey(n.host.ID()))
-	pk, doc, err := npk.Validate(token)
-	if err != nil {
-		return nil, "", err
-	}
-	return pk, doc.ID, nil
 }
 
 func (n *net) addConnector(id thread.ID, conn *app.Connector) {

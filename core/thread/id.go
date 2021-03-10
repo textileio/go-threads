@@ -361,7 +361,7 @@ func (i ID) KeyString() string {
 }
 
 // Loggable returns a Loggable (as defined by
-// https://godoc.org/github.com/ipfs/go-log).
+// https://godoc.org/github.com/ipfs/go-log/v2).
 func (i ID) Loggable() map[string]interface{} {
 	return map[string]interface{}{
 		"id": i,

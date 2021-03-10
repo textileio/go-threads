@@ -14,25 +14,17 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 
-# JS PB files
-*.js
-*.d.ts
+# JS
+node_modules/
 
-# Dart PB Files
-api/pb/dart/.dart_tool
-api/pb/dart/.packages
-api/pb/dart/lib
-
-# vscode config folder
-.vscode/
+# IDEs
 .idea/
+.vscode/
 
-**/node_modules
-tags
-
-# Misc
-**.DS_Store
-
-# Other
-.threads*/
+# Project
 .env
+buildtools/protoc
+buildtools/protoc-gen-go
+build/
+**/javascript/api
+**/javascript/net

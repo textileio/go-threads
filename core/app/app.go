@@ -146,9 +146,9 @@ func (c *Connector) CreateNetRecord(ctx context.Context, body format.Node, token
 	return c.Net.CreateRecord(ctx, c.threadID, body, net.WithThreadToken(token), net.WithAPIToken(c.token))
 }
 
-// Validate thread token against the net host.
-func (c *Connector) Validate(token did.Token) (thread.PubKey, did.DID, error) {
-	return c.Net.Validate(context.TODO(), token)
+// ValidateIdentity an identity token against the net host.
+func (c *Connector) ValidateIdentity(token did.Token) (thread.PubKey, did.DID, error) {
+	return c.Net.ValidateIdentity(context.TODO(), token)
 }
 
 // ValidateNetRecordBody calls the connection app's ValidateNetRecordBody.

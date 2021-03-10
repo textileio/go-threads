@@ -45,19 +45,19 @@ func NewBadgerDatastore(dirPath, name string, lowMem bool) (kt.TxnDatastoreExten
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
-func SetupDefaultLoggingConfig(repoPath string) error {
-	folder := filepath.Join(repoPath, "log")
-	if err := os.MkdirAll(folder, os.ModePerm); err != nil {
-		return err
+func SetupDefaultLoggingConfig(file string) error {
+	if file != "" {
+		if err := os.MkdirAll(filepath.Dir(file), os.ModePerm); err != nil {
+			return err
+		}
 	}
 	c := logging.Config{
 		Format: logging.ColorizedOutput,
 		Stderr: true,
-		File:   filepath.Join(folder, "threads.log"),
+		File:   file,
 		Level:  logging.LevelError,
 	}
 	logging.SetupLogging(c)
-
 	return nil
 }
 

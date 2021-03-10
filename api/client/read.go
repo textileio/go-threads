@@ -12,7 +12,7 @@ import (
 
 // ReadTransaction encapsulates a read transaction.
 type ReadTransaction struct {
-	client         pb.API_ReadTransactionClient
+	client         pb.APIService_ReadTransactionClient
 	dbID           thread.ID
 	collectionName string
 }

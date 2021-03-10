@@ -12,7 +12,7 @@ import (
 
 // WriteTransaction encapsulates a write transaction.
 type WriteTransaction struct {
-	client         pb.API_WriteTransactionClient
+	client         pb.APIService_WriteTransactionClient
 	dbID           thread.ID
 	collectionName string
 }

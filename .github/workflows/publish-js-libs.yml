@@ -1,0 +1,36 @@
+name: Publish JS Libs
+on:
+  release:
+    types: [published]
+jobs:
+  publish-js-libs:
+    name: Publish JS libs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.16
+      - name: Setup env
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+        run: |
+          echo "::set-env name=GOPATH::$(go env GOPATH)"
+          echo "::add-path::$(go env GOPATH)/bin"
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: "14.x"
+          registry-url: "https://registry.npmjs.org"
+      - name: Generate JS libs
+        run: |
+          make js-protos
+      - name: Publish JS libs
+        run: |
+          ./scripts/publish_js_protos.bash -v ${{ github.event.release.tag_name }} -t ${{ secrets.NPM_AUTH_TOKEN }} -p ${{ github.event.release.prerelease }}

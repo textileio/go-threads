@@ -67,7 +67,7 @@ type ListenEvent struct {
 
 // Client provides the client api.
 type Client struct {
-	c    pb.APIClient
+	c    pb.APIServiceClient
 	conn *grpc.ClientConn
 }
 
@@ -81,7 +81,7 @@ func NewClient(target string, opts ...grpc.DialOption) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		c:    pb.NewAPIClient(conn),
+		c:    pb.NewAPIServiceClient(conn),
 		conn: conn,
 	}, nil
 }

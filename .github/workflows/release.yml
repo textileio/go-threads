@@ -10,7 +10,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15
+          go-version: 1.16
       - name: Check out code
         uses: actions/checkout@v1
       - name: Cache dependencies
@@ -26,40 +26,12 @@ jobs:
         run: |
           export PATH=${PATH}:`go env GOPATH`/bin
           go get -v -t -d ./...
-      - name: Install gox
+      - name: Build release artifacts
         run: |
-          export PATH=${PATH}:`go env GOPATH`/bin
-          go get github.com/mitchellh/gox  
-      - name: Compile
-        run: |
-          export PATH=${PATH}:`go env GOPATH`/bin
-          gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
-      - name: Collect artifacts
-        run: |
-          VERSION=${GITHUB_REF##*/}
-          OUT=release
-          mkdir -p ${OUT}
-          rm threadsd/main.go
-          cp LICENSE threadsd/
-          cp dist/README.md threadsd/
-          cp dist/install threadsd/
-          declare -a arr=("darwin-amd64" "windows-amd64.exe" "linux-amd64" "linux-386" "linux-arm")
-          for i in "${arr[@]}"
-          do
-              OSARCH=${i%.*}
-              EXT=$([[ "$i" = *.* ]] && echo ".${i##*.}" || echo '')
-              cp threadsd-${i} threadsd/threadsd${EXT}
-              if [ "${EXT}" == ".exe" ]; then
-                  zip -r threadsd_${VERSION}_${OSARCH}.zip threadsd
-                  mv threadsd_${VERSION}_${OSARCH}.zip ${OUT}/
-              else
-                  tar -czvf threadsd_${VERSION}_${OSARCH}.tar.gz threadsd
-                  mv threadsd_${VERSION}_${OSARCH}.tar.gz ${OUT}/
-              fi
-          done
-          echo $(ls ./release)
-      - name: Upload assets to release
+          BIN_VERSION=${{ github.event.release.tag_name }} make build-releases
+          echo $(ls ./build/dist/)
+      - name: Upload multiple assets to release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: 'release/threadsd_*'
+          files: "build/dist/*"
           repo-token: ${{ secrets.GITHUB_TOKEN }}

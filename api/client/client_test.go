@@ -3,7 +3,6 @@ package client_test
 import (
 	"bytes"
 	"context"
-	crand "crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/crypto"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/phayes/freeport"
 	mongods "github.com/textileio/go-ds-mongo"
@@ -1017,7 +1015,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 		t.Fatal(err)
 	}
 	go func() {
-		pb.RegisterAPIServer(server, service)
+		pb.RegisterAPIServiceServer(server, service)
 		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Fatalf("serve error: %v", err)
 		}
@@ -1041,14 +1039,6 @@ func checkErr(t *testing.T, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func createIdentity(t *testing.T) thread.Identity {
-	sk, _, err := crypto.GenerateEd25519Key(crand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return thread.NewLibp2pIdentity(sk)
 }
 
 func createPerson() *Person {

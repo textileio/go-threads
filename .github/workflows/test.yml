@@ -1,4 +1,4 @@
-name: Tests
+name: Test
 on:
   push:
     branches:
@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15
+          go-version: 1.16
       - name: Check out code
         uses: actions/checkout@v1
       - name: Cache dependencies
@@ -33,14 +33,14 @@ jobs:
       - name: Test
         run: SKIP_FOLDERSYNC=true go test -race ./...
 
-  test-foldersync:
-    name: Foldersync Test
+  test-sync:
+    name: Sync Test
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15
+          go-version: 1.16
       - name: Check out code
         uses: actions/checkout@v1
       - name: Cache dependencies
@@ -56,4 +56,4 @@ jobs:
         run: |
           go get -v -t -d ./...
       - name: Test
-        run: go test ./integrationtests/foldersync/
+        run: go test -race ./integrationtests/foldersync/
