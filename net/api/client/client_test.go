@@ -34,7 +34,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestClient_GetHostID(t *testing.T) {
+func TestClient_GetServices(t *testing.T) {
 	t.Parallel()
 	_, client, done := setup(t)
 	defer done()

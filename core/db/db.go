@@ -1,12 +1,9 @@
 package db
 
 import (
-	"crypto/rand"
-	"strings"
-
 	ds "github.com/ipfs/go-datastore"
-	"github.com/ipfs/go-ipld-format"
-	ulid "github.com/oklog/ulid/v2"
+	format "github.com/ipfs/go-ipld-format"
+	"github.com/textileio/go-threads/util"
 )
 
 const (
@@ -19,8 +16,7 @@ type InstanceID string
 
 // NewInstanceID generates a new identity for an instance.
 func NewInstanceID() InstanceID {
-	id := ulid.MustNew(ulid.Now(), rand.Reader)
-	return InstanceID(strings.ToLower(id.String()))
+	return InstanceID(util.MakeToken())
 }
 
 func (e InstanceID) String() string {

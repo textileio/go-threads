@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/peer"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
 	mbase "github.com/multiformats/go-multibase"
 	mhash "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/core/did"

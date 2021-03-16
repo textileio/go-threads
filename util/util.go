@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dgraph-io/badger/options"
@@ -13,7 +14,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
-	mbase "github.com/multiformats/go-multibase"
+	"github.com/oklog/ulid/v2"
 	"github.com/phayes/freeport"
 	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
@@ -181,11 +182,6 @@ func GenerateRandomBytes(n int) []byte {
 	return b
 }
 
-func MakeToken(n int) string {
-	bytes := GenerateRandomBytes(n)
-	encoded, err := mbase.Encode(mbase.Base32, bytes)
-	if err != nil {
-		panic(err)
-	}
-	return encoded
+func MakeToken() string {
+	return strings.ToLower(ulid.MustNew(ulid.Now(), rand.Reader).String())
 }

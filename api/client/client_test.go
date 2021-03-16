@@ -976,7 +976,7 @@ func setup(t *testing.T) (*Client, func()) {
 func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	time.Sleep(time.Second * time.Duration(rand.Intn(5)))
 	n, err := common.DefaultNetwork(
-		common.WithNetMongoPersistence(test.MongoUri, util.MakeToken(12)),
+		common.WithNetMongoPersistence(test.MongoUri, util.MakeToken()),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
 		common.WithNetPubSub(true),
 		common.WithNetDebug(true),
@@ -988,7 +988,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 	store, err := mongods.New(
 		ctx,
 		test.MongoUri,
-		util.MakeToken(12),
+		util.MakeToken(),
 		mongods.WithCollName("eventstore"),
 	)
 	if err != nil {
