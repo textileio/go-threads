@@ -18,7 +18,8 @@ import (
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/go-threads/util"
+	util "github.com/textileio/go-threads/db/util"
+	tutil "github.com/textileio/go-threads/util"
 )
 
 func TestE2EWithThreads(t *testing.T) {
@@ -31,13 +32,13 @@ func TestE2EWithThreads(t *testing.T) {
 
 	n1, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir1),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
 	defer n1.Close()
 
-	store, err := util.NewBadgerDatastore(tmpDir1, "eventstore", false)
+	store, err := tutil.NewBadgerDatastore(tmpDir1, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -79,7 +80,7 @@ func TestE2EWithThreads(t *testing.T) {
 	defer os.RemoveAll(tmpDir2)
 	n2, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir2),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
@@ -92,7 +93,7 @@ func TestE2EWithThreads(t *testing.T) {
 		Schema: util.SchemaFromInstance(&dummy{}, false),
 	}
 
-	store2, err := util.NewBadgerDatastore(tmpDir2, "eventstore", false)
+	store2, err := tutil.NewBadgerDatastore(tmpDir2, "eventstore", false)
 	checkErr(t, err)
 	defer store2.Close()
 
@@ -133,13 +134,13 @@ func TestMissingCollection(t *testing.T) {
 
 	n, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
 	defer n.Close()
 
-	store, err := util.NewBadgerDatastore(tmpDir, "eventstore", false)
+	store, err := tutil.NewBadgerDatastore(tmpDir, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -170,12 +171,12 @@ func TestWithNewName(t *testing.T) {
 
 	n, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
 
-	store, err := util.NewBadgerDatastore(tmpDir, "eventstore", false)
+	store, err := tutil.NewBadgerDatastore(tmpDir, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -197,7 +198,7 @@ func TestWithNewName(t *testing.T) {
 	time.Sleep(time.Second * 3)
 	n, err = common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
@@ -218,12 +219,12 @@ func TestWithNewEventCodec(t *testing.T) {
 
 	n, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
 
-	store, err := util.NewBadgerDatastore(tmpDir, "eventstore", false)
+	store, err := tutil.NewBadgerDatastore(tmpDir, "eventstore", false)
 	checkErr(t, err)
 	defer store.Close()
 
@@ -254,7 +255,7 @@ func TestWithNewEventCodec(t *testing.T) {
 	time.Sleep(time.Second * 3)
 	n, err = common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)

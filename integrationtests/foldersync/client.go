@@ -23,8 +23,9 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 	kt "github.com/textileio/go-threads/db/keytransform"
+	"github.com/textileio/go-threads/db/util"
 	"github.com/textileio/go-threads/integrationtests/foldersync/watcher"
-	"github.com/textileio/go-threads/util"
+	tutil "github.com/textileio/go-threads/util"
 )
 
 var (
@@ -79,7 +80,7 @@ func newRootClient(name, folderPath, repoPath string) (*client, error) {
 		return nil, err
 	}
 
-	s, err := util.NewBadgerDatastore(repoPath, "eventstore", false)
+	s, err := tutil.NewBadgerDatastore(repoPath, "eventstore", false)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +107,7 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 		return nil, err
 	}
 
-	s, err := util.NewBadgerDatastore(repoPath, "eventstore", false)
+	s, err := tutil.NewBadgerDatastore(repoPath, "eventstore", false)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func newJoinerClient(name, folderPath, repoPath string, addr ma.Multiaddr, key t
 func newNetwork(repoPath string) (common.NetBoostrapper, error) {
 	network, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(repoPath),
-		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetHostAddr(tutil.FreeLocalAddr()),
 		common.WithNetDebug(true),
 	)
 	if err != nil {
