@@ -68,6 +68,7 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 	}
 	defer results.Close()
 	invalids := make(map[thread.ID]struct{})
+	var i int
 	for res := range results.Next() {
 		if res.Error != nil {
 			return nil, err
@@ -97,14 +98,14 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 			continue
 		}
 		m.dbs[id] = d
-	}
 
-	// Cleanup invalids
-	for id := range invalids {
-		if err := m.deleteThreadNamespace(id); err != nil {
-			return nil, err
+		i++
+		if i%1000 == 0 {
+			log.Infof("loaded %d dbs", i)
 		}
 	}
+
+	log.Infof("loaded %d dbs", len(m.dbs))
 	return m, nil
 }
 
