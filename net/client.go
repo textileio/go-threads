@@ -378,13 +378,6 @@ func (s *server) pushRecordToPeer(
 		if _, err = client.PushLog(lctx, lreq); err != nil {
 			return fmt.Errorf("pushing missing log: %w", err)
 		}
-
-		// now push original record again
-		rctx, cancel := context.WithTimeout(context.Background(), PushTimeout)
-		defer cancel()
-		if _, err = client.PushRecord(rctx, req); err != nil {
-			return fmt.Errorf("re-pushing record: %w", err)
-		}
 		return nil
 
 	default:
