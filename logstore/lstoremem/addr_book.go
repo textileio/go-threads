@@ -14,7 +14,7 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 )
 
-var log = logging.Logger("logstore")
+var log = logging.Logger("threads/logstore")
 
 type expiringAddr struct {
 	Addr    ma.Multiaddr

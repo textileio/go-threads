@@ -39,7 +39,7 @@ func (ot operationType) String() (s string) {
 }
 
 var (
-	log                           = logging.Logger("jsonpatcher")
+	log                           = logging.Logger("threads/jsonpatcher")
 	errCantCreateExistingInstance = errors.New("cant't create already existent instance")
 	errUnknownOperation           = errors.New("unknown operation type")
 )

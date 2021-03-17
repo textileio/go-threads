@@ -46,7 +46,7 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 
 	if args.Debug {
 		if err := util.SetLogLevels(map[string]logging.LogLevel{
-			"db": logging.LevelDebug,
+			"threads/db": logging.LevelDebug,
 		}); err != nil {
 			return nil, err
 		}

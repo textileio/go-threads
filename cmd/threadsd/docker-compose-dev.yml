@@ -10,6 +10,9 @@ services:
       - THREADS_HOSTADDR
       - THREADS_APIADDR=/ip4/0.0.0.0/tcp/5000
       - THREADS_APIPROXYADDR=/ip4/0.0.0.0/tcp/5050
+      - THREADS_GATEWAYADDR=0.0.0.0:8000
+      - THREADS_GATEWAYURL
+      - THREADS_GATEWAYSUBDOMAINS
       - THREADS_CONNLOWWATER
       - THREADS_CONNHIGHWATER
       - THREADS_CONNGRACEPERIOD
@@ -24,6 +27,7 @@ services:
       - "4006:4006/udp"
       - "127.0.0.1:5000:5000"
       - "127.0.0.1:5050:5050"
+      - "127.0.0.1:8000:8000"
     security_opt:
       - "seccomp:unconfined"
     cap_add:

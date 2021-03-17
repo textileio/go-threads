@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var log = logging.Logger("netapi")
+var log = logging.Logger("threads/net/api")
 
 // Service is a gRPC service for a thread network.
 type Service struct {
@@ -40,7 +40,7 @@ func NewService(network net.Net, conf Config) (*Service, error) {
 	var err error
 	if conf.Debug {
 		err = tutil.SetLogLevels(map[string]logging.LogLevel{
-			"netapi": logging.LevelDebug,
+			"threads/net/api": logging.LevelDebug,
 		})
 		if err != nil {
 			return nil, err

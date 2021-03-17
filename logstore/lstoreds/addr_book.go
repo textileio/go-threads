@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	log = logging.Logger("logstore")
+	log = logging.Logger("threads/logstore")
 
 	// Thread addresses are stored db key pattern:
 	// /thread/addrs/<b32 thread id no padding>/<b32 log id no padding>

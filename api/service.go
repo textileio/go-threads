@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	log = logging.Logger("threadsapi")
+	log = logging.Logger("threads/db/api")
 )
 
 // Service is a gRPC service for a DB manager.
@@ -44,7 +44,7 @@ func NewService(store kt.TxnDatastoreExtended, network app.Net, conf Config) (*S
 	var err error
 	if conf.Debug {
 		err = util.SetLogLevels(map[string]logging.LogLevel{
-			"threadsapi": logging.LevelDebug,
+			"threads/db/api": logging.LevelDebug,
 		})
 		if err != nil {
 			return nil, err
@@ -60,6 +60,10 @@ func NewService(store kt.TxnDatastoreExtended, network app.Net, conf Config) (*S
 
 func (s *Service) Close() error {
 	return s.manager.Close()
+}
+
+func (s *Service) Manager() *db.Manager {
+	return s.manager
 }
 
 func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBReply, error) {

@@ -36,7 +36,7 @@ import (
 )
 
 var (
-	log = logging.Logger("net")
+	log = logging.Logger("threads/net")
 
 	// MaxPullLimit is the maximum page size for pulling records.
 	MaxPullLimit = 10000
@@ -120,8 +120,8 @@ func NewNetwork(
 	var err error
 	if conf.Debug {
 		if err = tu.SetLogLevels(map[string]logging.LogLevel{
-			"net":      logging.LevelDebug,
-			"logstore": logging.LevelDebug,
+			"threads/net":      logging.LevelDebug,
+			"threads/logstore": logging.LevelDebug,
 		}); err != nil {
 			return nil, err
 		}

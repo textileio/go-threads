@@ -21,7 +21,7 @@ import (
 	"github.com/textileio/go-threads/pubsub"
 )
 
-var log = logging.Logger("registry")
+var log = logging.Logger("threads/registry")
 
 type Registry struct {
 	host host.Host

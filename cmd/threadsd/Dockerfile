@@ -61,10 +61,12 @@ COPY --from=0 /usr/lib/*-linux-gnu*/libcrypto.so* /usr/lib/
 
 # hostAddr; should be exposed to the public
 EXPOSE 4006
-# apiAddr; should be exposed to the public
+# apiAddr; can be exposed to the public
 EXPOSE 5000
-# apiProxyAddr; should be exposed to the public
+# apiProxyAddr; can be exposed to the public
 EXPOSE 5050
+# addrGateway; can be exposed to the public.
+EXPOSE 8000
 
 # Create the repo directory.
 ENV THREADS_PATH /data/threads

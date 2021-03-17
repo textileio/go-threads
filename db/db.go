@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	log = logging.Logger("db")
+	log = logging.Logger("threads/db")
 
 	// ErrThreadReadKeyRequired indicates the provided thread key does not contain a read key.
 	ErrThreadReadKeyRequired = errors.New("thread read key is required")
@@ -107,7 +107,7 @@ func NewDB(
 	}
 	if args.Debug {
 		if err := util.SetLogLevels(map[string]logging.LogLevel{
-			"db": logging.LevelDebug,
+			"threads/db": logging.LevelDebug,
 		}); err != nil {
 			return nil, err
 		}
@@ -145,7 +145,7 @@ func NewDBFromAddr(
 	}
 	if args.Debug {
 		if err := util.SetLogLevels(map[string]logging.LogLevel{
-			"db": logging.LevelDebug,
+			"threads/db": logging.LevelDebug,
 		}); err != nil {
 			return nil, err
 		}

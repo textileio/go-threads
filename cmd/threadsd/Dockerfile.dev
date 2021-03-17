@@ -25,6 +25,7 @@ COPY --from=0 $SRC_DIR/threadsd /usr/local/bin/threadsd
 EXPOSE 4006
 EXPOSE 5000
 EXPOSE 5050
+EXPOSE 8000
 EXPOSE 40000
 
 ENV THREADS_PATH /data/threads

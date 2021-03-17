@@ -21,6 +21,7 @@ import (
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/common"
 	kt "github.com/textileio/go-threads/db/keytransform"
+	"github.com/textileio/go-threads/gateway"
 	netapi "github.com/textileio/go-threads/net/api"
 	netpb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
@@ -36,6 +37,10 @@ func main() {
 
 	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/5000", "gRPC API bind address")
 	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/5050", "gRPC API web proxy bind address")
+
+	gatewayAddr := fs.String("gatewayAddr", "127.0.0.1:8000", "Gateway bind address")
+	gatewayUrl := fs.String("gatewayUrl", "http://127.0.0.1:8000", "Gateway bind address")
+	gatewaySubdomains := fs.Bool("gatewaySubdomains", false, "Enable gateway namespace subdomain redirection")
 
 	connLowWater := fs.Int("connLowWater", 100, "Low watermark of libp2p connections that'll be maintained")
 	connHighWater := fs.Int("connHighWater", 400, "High watermark of libp2p connections that'll be maintained")
@@ -85,7 +90,11 @@ func main() {
 		log.Fatal(err)
 	}
 	if *debug {
-		if err := logging.SetLogLevel("threadsd", "debug"); err != nil {
+		if err := util.SetLogLevels(map[string]logging.LogLevel{
+			"threadsd":         logging.LevelDebug,
+			"threads/registry": logging.LevelDebug,
+			"threads/gateway":  logging.LevelDebug,
+		}); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -93,6 +102,9 @@ func main() {
 	log.Debugf("hostAddr: %v", *hostAddrStr)
 	log.Debugf("apiAddr: %v", *apiAddrStr)
 	log.Debugf("apiProxyAddr: %v", *apiProxyAddrStr)
+	log.Debugf("gatewayAddr: %v", *gatewayAddr)
+	log.Debugf("gatewayUrl: %v", *gatewayUrl)
+	log.Debugf("gatewaySubdomains: %v", *gatewaySubdomains)
 	log.Debugf("connLowWater: %v", *connLowWater)
 	log.Debugf("connHighWater: %v", *connHighWater)
 	log.Debugf("connGracePeriod: %v", *connGracePeriod)
@@ -200,10 +212,19 @@ func main() {
 		}
 	}()
 
+	gw, err := gateway.NewGateway(service.Manager(), *gatewayAddr, *gatewayUrl, *gatewaySubdomains)
+	if err != nil {
+		log.Fatal(err)
+	}
+	gw.Start()
+
 	fmt.Println("Welcome to Threads!")
 	fmt.Println("Your peer ID is " + n.Host().ID().String())
 
 	handleInterrupt(func() {
+		if err := gw.Close(); err != nil {
+			log.Fatal(err)
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		if err := proxy.Shutdown(ctx); err != nil {
