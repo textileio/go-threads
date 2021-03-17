@@ -16,6 +16,8 @@ import (
 	mbase "github.com/multiformats/go-multibase"
 	"github.com/rs/cors"
 	gincors "github.com/rs/cors/wrapper/gin"
+	coredb "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/did"
 	core "github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
 )
@@ -91,6 +93,87 @@ func (g *Gateway) Close() error {
 	return nil
 }
 
+// render404 renders a JSON 404 message.
+func render404(c *gin.Context) {
+	renderError(c, http.StatusNotFound, nil)
+}
+
+// renderError renders a JSON error message.
+func renderError(c *gin.Context, code int, err error) {
+	if err == nil {
+		err = errors.New(http.StatusText(code))
+	}
+	c.JSON(code, gin.H{"code": code, "message": err.Error()})
+}
+
+// collectionHandler handles collection requests.
+func (g *Gateway) collectionHandler(c *gin.Context) {
+	thread, err := core.Decode(c.Param("thread"))
+	if err != nil {
+		renderError(c, http.StatusBadRequest, errors.New("invalid thread ID"))
+		return
+	}
+	g.renderCollection(c, thread, c.Param("collection"))
+}
+
+// renderCollection renders all instances in a collection.
+func (g *Gateway) renderCollection(c *gin.Context, thread core.ID, collection string) {
+	token := did.Token(c.Query("token"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), handlerTimeout)
+	defer cancel()
+	d, err := g.db.GetDB(ctx, thread, db.WithManagedToken(token))
+	if err != nil {
+		render404(c)
+		return
+	}
+	col := d.GetCollection(collection, db.WithToken(token))
+	if c == nil {
+		render404(c)
+		return
+	}
+	res, err := col.Find(&db.Query{}, db.WithTxnToken(token))
+	if err != nil {
+		render404(c)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+// instanceHandler handles collection instance requests.
+func (g *Gateway) instanceHandler(c *gin.Context) {
+	thread, err := core.Decode(c.Param("thread"))
+	if err != nil {
+		renderError(c, http.StatusBadRequest, errors.New("invalid thread ID"))
+		return
+	}
+	g.renderInstance(c, thread, c.Param("collection"), c.Param("id"))
+}
+
+// renderInstance renders an instance in a collection.
+func (g *Gateway) renderInstance(c *gin.Context, thread core.ID, collection, id string) {
+	token := did.Token(c.Query("token"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), handlerTimeout)
+	defer cancel()
+	d, err := g.db.GetDB(ctx, thread, db.WithManagedToken(token))
+	if err != nil {
+		render404(c)
+		return
+	}
+	col := d.GetCollection(collection, db.WithToken(token))
+	if c == nil {
+		render404(c)
+		return
+	}
+	res, err := col.FindByID(coredb.InstanceID(id), db.WithTxnToken(token))
+	if err != nil {
+		render404(c)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 // subdomainOptionHandler redirects valid namespaces to subdomains if the option is enabled.
 func (g *Gateway) subdomainOptionHandler(c *gin.Context) {
 	if !g.subdomains {
@@ -107,19 +190,6 @@ func (g *Gateway) subdomainOptionHandler(c *gin.Context) {
 	c.Request.Header.Set("Clear-Site-Data", "\"cookies\", \"storage\"")
 
 	c.Redirect(http.StatusPermanentRedirect, loc)
-}
-
-// render404 renders a JSON 404 message.
-func render404(c *gin.Context) {
-	renderError(c, http.StatusNotFound, nil)
-}
-
-// renderError renders a JSON error message.
-func renderError(c *gin.Context, code int, err error) {
-	if err == nil {
-		err = errors.New(http.StatusText(code))
-	}
-	c.JSON(code, gin.H{"code": code, "message": err.Error()})
 }
 
 // subdomainHandler handles requests by parsing the request subdomain.
