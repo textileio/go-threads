@@ -425,10 +425,8 @@ func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
 	}
 
 	for lid, rs := range recs {
-		for _, r := range rs {
-			if err = n.putRecord(ctx, tid, lid, r); err != nil {
-				return err
-			}
+		if err = n.putRecords(ctx, tid, lid, rs); err != nil {
+			return err
 		}
 	}
 
@@ -714,7 +712,7 @@ func (n *net) AddRecord(
 	if err = rec.Verify(logpk); err != nil {
 		return err
 	}
-	if err = n.putRecord(ctx, id, lid, rec); err != nil {
+	if err = n.putRecords(ctx, id, lid, []core.Record{rec}); err != nil {
 		return err
 	}
 	return n.server.pushRecord(ctx, id, lid, rec)
@@ -879,34 +877,43 @@ func (n *net) PutRecord(ctx context.Context, id thread.ID, lid peer.ID, rec core
 	if err := id.Validate(); err != nil {
 		return err
 	}
-	return n.putRecord(ctx, id, lid, rec)
+	return n.putRecords(ctx, id, lid, []core.Record{rec})
 }
 
-// putRecord adds an existing record. This method is thread-safe.
-func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record) error {
-	unknown, head, err := n.loadUnknownRecords(ctx, tid, lid, rec)
+// putRecords adds existing records. This method is thread-safe.
+func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs []core.Record) error {
+	chain, head, err := n.loadRecords(ctx, tid, lid, recs)
 	if err != nil {
 		return fmt.Errorf("loading records failed: %w", err)
-	} else if len(unknown) == 0 {
+	} else if len(chain) == 0 {
 		return nil
 	}
 
 	ts := n.semaphores.Get(semaThreadUpdate(tid))
 	ts.Acquire()
-
-	// check head again to detect if some other process concurrently have changed the log
-	if current, err := n.currentHead(tid, lid); err != nil {
-		ts.Release()
-		return fmt.Errorf("fetching head failed: %w", err)
-	} else if current != head {
-		ts.Release()
-		return n.putRecord(ctx, tid, lid, rec)
-	}
-
 	defer ts.Release()
 
+	// check the head again, as some other process could change the log concurrently
+	if current, err := n.currentHead(tid, lid); err != nil {
+		return fmt.Errorf("fetching head failed: %w", err)
+	} else if !current.Equals(head) {
+		// fast-forward the chain up to the updated head
+		var headReached bool
+		for i := 0; i < len(chain); i++ {
+			if chain[i].Value().Cid().Equals(current) {
+				chain = chain[i+1:]
+				headReached = true
+				break
+			}
+		}
+		if !headReached {
+			// entire chain already processed
+			return nil
+		}
+	}
+
 	connector, appConnected := n.getConnector(tid)
-	for _, record := range unknown {
+	for _, record := range chain {
 		if err := n.store.SetHead(tid, lid, record.Value().Cid()); err != nil {
 			return fmt.Errorf("setting log head failed: %w", err)
 		}
@@ -924,6 +931,11 @@ func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec cor
 			}
 		}
 
+		// add record envelope to the blockstore, indicating it was successfully processed
+		if err := n.Add(ctx, record.Value()); err != nil {
+			return fmt.Errorf("adding record to the blockstore failed: %w", err)
+		}
+
 		// Generally broadcasting should not block for too long, i.e. we have to run it
 		// under the semaphore to ensure consistent order seen by the listeners. Record
 		// bursts could be overcome by adjusting listener buffers (EventBusCapacity).
@@ -935,53 +947,71 @@ func (n *net) putRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec cor
 	return nil
 }
 
-// Load, validate and cache all records in log between currentHead and last.
-func (n *net) loadUnknownRecords(
+// Load, validate and cache all records in log between last provided and currentHead.
+func (n *net) loadRecords(
 	ctx context.Context,
 	tid thread.ID,
 	lid peer.ID,
-	last core.Record,
+	recs []core.Record,
 ) ([]core.ThreadRecord, cid.Cid, error) {
-	// check if last record was already loaded and processed
+	if len(recs) == 0 {
+		return nil, cid.Undef, errors.New("cannot load empty record chain")
+	}
+
+	// check if the last record was already loaded and processed
+	var last = recs[len(recs)-1]
 	if exist, err := n.isKnown(last.Cid()); err != nil {
 		return nil, cid.Undef, err
 	} else if exist || !last.Cid().Defined() {
 		return nil, cid.Undef, nil
 	}
 
-	var (
-		c       = last.PrevID()
-		unknown = []core.Record{last}
-	)
-
 	head, err := n.currentHead(tid, lid)
 	if err != nil {
 		return nil, head, err
 	}
 
-	// load record chain between the last and current head
-	for c.Defined() {
-		if c == head {
+	var (
+		chain    = make([]core.Record, 0, len(recs))
+		complete bool
+	)
+
+	for i := len(recs) - 1; i >= 0; i-- {
+		var next = recs[i]
+		if c := next.Cid(); !c.Defined() || c.Equals(head) {
+			complete = true
 			break
 		}
-
-		r, err := n.getRecord(ctx, tid, c)
-		if err != nil {
-			return nil, head, err
-		}
-
-		unknown = append(unknown, r)
-		c = r.PrevID()
+		chain = append(chain, next)
 	}
 
-	if len(unknown) == 0 {
+	if !complete {
+		// bridge the gap between the last provided record and current head
+		var c = chain[len(chain)-1].PrevID()
+		for c.Defined() {
+			if c.Equals(head) {
+				break
+			}
+
+			r, err := n.getRecord(ctx, tid, c)
+			if err != nil {
+				return nil, head, err
+			}
+
+			chain = append(chain, r)
+			c = r.PrevID()
+		}
+	}
+
+	if len(chain) == 0 {
+		// fast path
 		return nil, head, nil
 	}
 
 	var (
 		connector, appConnected = n.getConnector(tid)
 		identity                = &thread.Libp2pPubKey{}
-		tRecords                = make([]core.ThreadRecord, 0, len(unknown))
+		tRecords                = make([]core.ThreadRecord, 0, len(chain))
 		readKey                 *sym.Key
 		validate                bool
 	)
@@ -995,8 +1025,8 @@ func (n *net) loadUnknownRecords(
 		}
 	}
 
-	for i := len(unknown) - 1; i >= 0; i-- {
-		var r = unknown[i]
+	for i := len(chain) - 1; i >= 0; i-- {
+		var r = chain[i]
 		block, err := r.GetBlock(ctx, n)
 		if err != nil {
 			return nil, head, err
@@ -1035,8 +1065,8 @@ func (n *net) loadUnknownRecords(
 			}
 		}
 
-		// store blocks locally
-		if err = n.AddMany(ctx, []format.Node{r, event, header, body}); err != nil {
+		// store internal blocks locally, record envelope will be added by the caller after successful processing
+		if err = n.AddMany(ctx, []format.Node{event, header, body}); err != nil {
 			return nil, head, err
 		}
 
@@ -1427,10 +1457,8 @@ func (n *net) updateRecordsFromPeer(ctx context.Context, pid peer.ID, tid thread
 		return fmt.Errorf("getting records for thread %s from %s failed: %w", tid, pid, err)
 	}
 	for lid, rs := range recs {
-		for _, r := range rs {
-			if err = n.putRecord(ctx, tid, lid, r); err != nil {
-				return fmt.Errorf("putting records from log %s (thread %s) failed: %w", lid, tid, err)
-			}
+		if err = n.putRecords(ctx, tid, lid, rs); err != nil {
+			return fmt.Errorf("putting records from log %s (thread %s) failed: %w", lid, tid, err)
 		}
 	}
 	return nil

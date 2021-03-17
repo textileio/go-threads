@@ -101,7 +101,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		return pblgs, err
 	}
 
-	info, err := s.net.store.GetThread(req.Body.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.net.store.GetThread(req.Body.ThreadID.ID) // Safe since putRecords will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
