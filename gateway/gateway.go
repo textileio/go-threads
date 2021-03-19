@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-contrib/location"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	mbase "github.com/multiformats/go-multibase"
@@ -88,12 +90,13 @@ func (g *Gateway) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if err := g.server.Shutdown(ctx); err != nil {
-		return err
+		return fmt.Errorf("shutting down server: %v", err)
 	}
 	return nil
 }
 
 // render404 renders a JSON 404 message.
+// @todo: Use this
 func render404(c *gin.Context) {
 	renderError(c, http.StatusNotFound, nil)
 }
@@ -137,7 +140,19 @@ func (g *Gateway) renderCollection(c *gin.Context, thread core.ID, collection st
 		render404(c)
 		return
 	}
-	c.JSON(http.StatusOK, res)
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for i, r := range res {
+		if _, err := buf.Write(r); err != nil {
+			renderError(c, http.StatusInternalServerError, fmt.Errorf("writing response: %v", err))
+			return
+		}
+		if i != len(res)-1 {
+			buf.WriteByte(',')
+		}
+	}
+	buf.WriteByte(']')
+	c.Render(200, render.Data{Data: buf.Bytes(), ContentType: "application/json"})
 }
 
 // instanceHandler handles collection instance requests.
@@ -171,7 +186,7 @@ func (g *Gateway) renderInstance(c *gin.Context, thread core.ID, collection, id 
 		render404(c)
 		return
 	}
-	c.JSON(http.StatusOK, res)
+	c.Render(200, render.Data{Data: res, ContentType: "application/json"})
 }
 
 // subdomainOptionHandler redirects valid namespaces to subdomains if the option is enabled.
