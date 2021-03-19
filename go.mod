@@ -13,9 +13,8 @@ require (
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/gin-contrib/location v0.0.2 // indirect
-	github.com/gin-contrib/static v0.0.0-20200916080430-d45d9a37d28e // indirect
-	github.com/gin-gonic/gin v1.6.3 // indirect
+	github.com/gin-contrib/location v0.0.2
+	github.com/gin-gonic/gin v1.6.3
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/gogo/googleapis v1.3.1 // indirect
 	github.com/gogo/protobuf v1.3.1
@@ -39,7 +38,6 @@ require (
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-log/v2 v2.1.1
 	github.com/ipfs/go-merkledag v0.3.2
-	github.com/jbenet/go-is-domain v1.0.5 // indirect
 	github.com/libp2p/go-libp2p v0.12.0
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
 	github.com/libp2p/go-libp2p-core v0.7.0
@@ -63,7 +61,7 @@ require (
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1 // indirect
-	github.com/rs/cors v1.7.0 // indirect
+	github.com/rs/cors v1.7.0
 	github.com/smartystreets/goconvey v0.0.0-20190710185942-9d28bd7c0945 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-datastore-extensions v1.0.1
@@ -83,6 +81,4 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/grpc v1.31.1
 	google.golang.org/protobuf v1.25.0
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
-	gopkg.in/go-playground/validator.v8 v8.18.2 // indirect
 )
