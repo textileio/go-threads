@@ -230,7 +230,7 @@ func (g *Gateway) subdomainHandler(c *gin.Context) {
 			renderError(c, http.StatusBadRequest, errors.New("invalid thread ID"))
 			return
 		}
-		parts := strings.SplitN(strings.TrimSuffix(c.Request.URL.Path, "/"), "/", 4)
+		parts := strings.SplitN(strings.TrimSuffix(c.Request.URL.Path, "/"), "/", 3)
 		switch len(parts) {
 		case 1:
 			// @todo: Render something at the thread root

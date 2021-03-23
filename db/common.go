@@ -7,12 +7,13 @@ import (
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
+	dssync "github.com/ipfs/go-datastore/sync"
 	dse "github.com/textileio/go-datastore-extensions"
 	core "github.com/textileio/go-threads/core/db"
 )
 
 type TxnMapDatastore struct {
-	*ds.MapDatastore
+	*dssync.MutexDatastore
 	lock sync.RWMutex
 }
 
@@ -20,7 +21,7 @@ var _ dse.DatastoreExtensions = (*TxnMapDatastore)(nil)
 
 func NewTxMapDatastore() *TxnMapDatastore {
 	return &TxnMapDatastore{
-		MapDatastore: ds.NewMapDatastore(),
+		MutexDatastore: dssync.MutexWrap(ds.NewMapDatastore()),
 	}
 }
 
