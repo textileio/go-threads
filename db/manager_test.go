@@ -11,6 +11,7 @@ import (
 	"github.com/textileio/go-threads/common"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
+	dutil "github.com/textileio/go-threads/db/util"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -118,7 +119,7 @@ func TestManager_GetDB(t *testing.T) {
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
-	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore")
 	checkErr(t, err)
 	man, err := NewManager(store, n, WithNewDebug(true))
 	checkErr(t, err)
@@ -142,7 +143,7 @@ func TestManager_GetDB(t *testing.T) {
 	}
 
 	// Register a schema and create an instance
-	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: util.SchemaFromSchemaString(jsonSchema)})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: dutil.SchemaFromSchemaString(jsonSchema)})
 	checkErr(t, err)
 	person1 := []byte(`{"_id": "", "name": "foo", "age": 21}`)
 	_, err = collection.Create(person1)
@@ -229,7 +230,7 @@ func TestManager_DeleteDB(t *testing.T) {
 	checkErr(t, err)
 
 	// Register a schema and create an instance
-	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: util.SchemaFromSchemaString(jsonSchema)})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: dutil.SchemaFromSchemaString(jsonSchema)})
 	checkErr(t, err)
 	person1 := []byte(`{"_id": "", "name": "foo", "age": 21}`)
 	_, err = collection.Create(person1)
@@ -255,7 +256,7 @@ func createTestManager(t *testing.T) (*Manager, func()) {
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
-	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore")
 	checkErr(t, err)
 	m, err := NewManager(store, n, WithNewDebug(true))
 	checkErr(t, err)

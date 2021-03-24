@@ -7,14 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dgraph-io/badger/options"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/oklog/ulid/v2"
 	"github.com/phayes/freeport"
-	badger "github.com/textileio/go-ds-badger"
+	badger "github.com/textileio/go-ds-badger3"
 	kt "github.com/textileio/go-threads/db/keytransform"
 	"go.uber.org/zap/zapcore"
 )
@@ -29,16 +28,12 @@ var (
 )
 
 // NewBadgerDatastore returns a badger based datastore.
-func NewBadgerDatastore(dirPath, name string, lowMem bool) (kt.TxnDatastoreExtended, error) {
+func NewBadgerDatastore(dirPath, name string) (kt.TxnDatastoreExtended, error) {
 	path := filepath.Join(dirPath, name)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		return nil, err
 	}
-	opts := badger.DefaultOptions
-	if lowMem {
-		opts.TableLoadingMode = options.FileIO
-	}
-	return badger.NewDatastore(path, &opts)
+	return badger.NewDatastore(path, &badger.DefaultOptions)
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.

@@ -14,7 +14,7 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/namsral/flag"
-	badger "github.com/textileio/go-ds-badger"
+	badger "github.com/textileio/go-ds-badger3"
 	mongods "github.com/textileio/go-ds-mongo"
 )
 

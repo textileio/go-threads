@@ -17,6 +17,7 @@ import (
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	dutil "github.com/textileio/go-threads/db/util"
 	"github.com/textileio/go-threads/util"
 )
 
@@ -43,7 +44,7 @@ func TestSimple(t *testing.T) {
 	network0, err := newNetwork(repoPath0)
 	checkErr(t, err)
 
-	store0, err := util.NewBadgerDatastore(repoPath0, "eventstore", false)
+	store0, err := util.NewBadgerDatastore(repoPath0, "eventstore")
 	checkErr(t, err)
 	defer store0.Close()
 	db0, err := db.NewDB(context.Background(), store0, network0, id, db.WithNewCollections(cc))
@@ -63,7 +64,7 @@ func TestSimple(t *testing.T) {
 	network1, err := newNetwork(repoPath1)
 	checkErr(t, err)
 
-	store1, err := util.NewBadgerDatastore(repoPath1, "eventstore", false)
+	store1, err := util.NewBadgerDatastore(repoPath1, "eventstore")
 	checkErr(t, err)
 	defer store1.Close()
 	db1, err := db.NewDBFromAddr(
@@ -87,7 +88,7 @@ func TestSimple(t *testing.T) {
 	network2, err := newNetwork(repoPath2)
 	checkErr(t, err)
 
-	store2, err := util.NewBadgerDatastore(repoPath2, "eventstore", false)
+	store2, err := util.NewBadgerDatastore(repoPath2, "eventstore")
 	checkErr(t, err)
 	defer store2.Close()
 	db2, err := db.NewDBFromAddr(
@@ -111,7 +112,7 @@ func TestSimple(t *testing.T) {
 	network3, err := newNetwork(repoPath3)
 	checkErr(t, err)
 
-	store3, err := util.NewBadgerDatastore(repoPath3, "eventstore", false)
+	store3, err := util.NewBadgerDatastore(repoPath3, "eventstore")
 	checkErr(t, err)
 	defer store3.Close()
 	db3, err := db.NewDBFromAddr(
@@ -134,13 +135,13 @@ func TestSimple(t *testing.T) {
 	folder2 := folder{ID: core.NewInstanceID(), Owner: "client2", Files: []file{}}
 	folder3 := folder{ID: core.NewInstanceID(), Owner: "client3", Files: []file{}}
 
-	_, err = c0.Create(util.JSONFromInstance(folder0))
+	_, err = c0.Create(dutil.JSONFromInstance(folder0))
 	checkErr(t, err)
-	_, err = c1.Create(util.JSONFromInstance(folder1))
+	_, err = c1.Create(dutil.JSONFromInstance(folder1))
 	checkErr(t, err)
-	_, err = c2.Create(util.JSONFromInstance(folder2))
+	_, err = c2.Create(dutil.JSONFromInstance(folder2))
 	checkErr(t, err)
-	_, err = c3.Create(util.JSONFromInstance(folder3))
+	_, err = c3.Create(dutil.JSONFromInstance(folder3))
 	checkErr(t, err)
 
 	time.Sleep(time.Second * 15)

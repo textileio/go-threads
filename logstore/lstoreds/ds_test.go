@@ -8,7 +8,7 @@ import (
 	"time"
 
 	ds "github.com/ipfs/go-datastore"
-	badger "github.com/textileio/go-ds-badger"
+	badger "github.com/textileio/go-ds-badger3"
 	core "github.com/textileio/go-threads/core/logstore"
 	pt "github.com/textileio/go-threads/test"
 )

@@ -50,7 +50,6 @@ func main() {
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
 
 	badgerRepo := fs.String("badgerRepo", "${HOME}/.threads", "Badger repo location")
-	badgerLowMem := fs.Bool("badgerLowMem", false, "Use Badger's low memory settings")
 	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
 	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
 
@@ -113,7 +112,6 @@ func main() {
 	if parsedMongoUri == nil {
 		*badgerRepo = os.ExpandEnv(*badgerRepo)
 		log.Debugf("badgerRepo: %v", *badgerRepo)
-		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	} else {
 		log.Debugf("mongoUri: %v", parsedMongoUri.Redacted())
 		log.Debugf("mongoDatabase: %v", *mongoDatabase)
@@ -147,7 +145,7 @@ func main() {
 	if *mongoUri != "" {
 		store, err = mongods.New(ctx, *mongoUri, *mongoDatabase, mongods.WithCollName("eventstore"))
 	} else {
-		store, err = util.NewBadgerDatastore(*badgerRepo, "eventstore", *badgerLowMem)
+		store, err = util.NewBadgerDatastore(*badgerRepo, "eventstore")
 	}
 	if err != nil {
 		log.Fatal(err)

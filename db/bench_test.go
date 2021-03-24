@@ -10,6 +10,7 @@ import (
 
 	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/thread"
+	dutil "github.com/textileio/go-threads/db/util"
 	"github.com/textileio/go-threads/util"
 	"github.com/tidwall/sjson"
 )
@@ -66,7 +67,7 @@ func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 		common.WithNetDebug(true),
 	)
 	checkBenchErr(b, err)
-	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
+	store, err := util.NewBadgerDatastore(dir, "eventstore")
 	checkBenchErr(b, err)
 	d, err := NewDB(context.Background(), store, n, thread.NewRandomIDV1(), opts...)
 	checkBenchErr(b, err)
@@ -84,7 +85,7 @@ func createBenchDB(b *testing.B, opts ...NewOption) (*DB, func()) {
 func BenchmarkNoIndexCreate(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: util.SchemaFromSchemaString(testBenchSchema)})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: dutil.SchemaFromSchemaString(testBenchSchema)})
 	checkBenchErr(b, err)
 
 	b.ResetTimer()
@@ -103,7 +104,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
-		Schema: util.SchemaFromSchemaString(testBenchSchema),
+		Schema: dutil.SchemaFromSchemaString(testBenchSchema),
 		Indexes: []Index{{
 			Path:   "Name",
 			Unique: false,
@@ -125,7 +126,7 @@ func BenchmarkIndexCreate(b *testing.B) {
 func BenchmarkNoIndexSave(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: util.SchemaFromSchemaString(testBenchSchema)})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: dutil.SchemaFromSchemaString(testBenchSchema)})
 	checkBenchErr(b, err)
 
 	var benchItem = []byte(`{"_id": "", "Name": "Lucas", "Age": 7}`)
@@ -155,7 +156,7 @@ func BenchmarkIndexSave(b *testing.B) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
-		Schema: util.SchemaFromSchemaString(testBenchSchema),
+		Schema: dutil.SchemaFromSchemaString(testBenchSchema),
 		Indexes: []Index{{
 			Path:   "Age",
 			Unique: false,
@@ -188,7 +189,7 @@ func BenchmarkIndexSave(b *testing.B) {
 func BenchmarkNoIndexFind(b *testing.B) {
 	db, clean := createBenchDB(b)
 	defer clean()
-	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: util.SchemaFromSchemaString(testBenchSchema)})
+	collection, err := db.NewCollection(CollectionConfig{Name: "Dog", Schema: dutil.SchemaFromSchemaString(testBenchSchema)})
 	checkBenchErr(b, err)
 
 	for j := 0; j < 10; j++ {
@@ -223,7 +224,7 @@ func BenchmarkIndexFind(b *testing.B) {
 	defer clean()
 	collection, err := db.NewCollection(CollectionConfig{
 		Name:   "Dog",
-		Schema: util.SchemaFromSchemaString(testBenchSchema),
+		Schema: dutil.SchemaFromSchemaString(testBenchSchema),
 		Indexes: []Index{{
 			Path:   "Name",
 			Unique: false,

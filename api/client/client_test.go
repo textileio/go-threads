@@ -25,6 +25,7 @@ import (
 	"github.com/textileio/go-threads/common"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	dutil "github.com/textileio/go-threads/db/util"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -173,7 +174,7 @@ func TestClient_NewCollection(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		if err != nil {
 			t.Fatalf("failed to add new collection: %v", err)
@@ -192,14 +193,14 @@ func TestClient_UpdateCollection(t *testing.T) {
 	err = client.NewCollection(
 		context.Background(),
 		id,
-		db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+		db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 	)
 	checkErr(t, err)
 
 	t.Run("test update collection", func(t *testing.T) {
 		err = client.UpdateCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
-			Schema: util.SchemaFromSchemaString(schema2),
+			Schema: dutil.SchemaFromSchemaString(schema2),
 			Indexes: []db.Index{{
 				Path:   "age",
 				Unique: false,
@@ -225,7 +226,7 @@ func TestClient_DeleteCollection(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -249,7 +250,7 @@ func TestClient_GetCollectionInfo(t *testing.T) {
 		id := thread.NewRandomIDV1()
 		err := client.NewDB(context.Background(), id)
 		checkErr(t, err)
-		jschema := util.SchemaFromSchemaString(schema)
+		jschema := dutil.SchemaFromSchemaString(schema)
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
 			Schema: jschema,
@@ -288,7 +289,7 @@ func TestClient_GetCollectionIndexes(t *testing.T) {
 		checkErr(t, err)
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
-			Schema: util.SchemaFromSchemaString(schema),
+			Schema: dutil.SchemaFromSchemaString(schema),
 			Indexes: []db.Index{{
 				Path:   "lastName",
 				Unique: true,
@@ -312,7 +313,7 @@ func TestClient_ListCollections(t *testing.T) {
 		id := thread.NewRandomIDV1()
 		err := client.NewDB(context.Background(), id)
 		checkErr(t, err)
-		jschema := util.SchemaFromSchemaString(schema)
+		jschema := dutil.SchemaFromSchemaString(schema)
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
 			Schema: jschema,
@@ -351,7 +352,7 @@ func TestClient_Create(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -368,7 +369,7 @@ func TestClient_Create(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -397,7 +398,7 @@ func TestClient_Verify(t *testing.T) {
 		checkErr(t, err)
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
-			Schema: util.SchemaFromSchemaString(schema),
+			Schema: dutil.SchemaFromSchemaString(schema),
 			WriteValidator: `
 				var type = event.patch.type
 				var patch = event.patch.json_patch
@@ -445,7 +446,7 @@ func TestClient_Save(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -475,7 +476,7 @@ func TestClient_Delete(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -505,7 +506,7 @@ func TestClient_Has(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -538,7 +539,7 @@ func TestClient_Find(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -575,7 +576,7 @@ func TestClient_FindWithIndex(t *testing.T) {
 		checkErr(t, err)
 		err = client.NewCollection(context.Background(), id, db.CollectionConfig{
 			Name:   collectionName,
-			Schema: util.SchemaFromSchemaString(schema),
+			Schema: dutil.SchemaFromSchemaString(schema),
 			Indexes: []db.Index{{
 				Path:   "lastName",
 				Unique: true,
@@ -618,7 +619,7 @@ func TestClient_FindByID(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -652,7 +653,7 @@ func TestClient_ReadTransaction(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -723,7 +724,7 @@ func TestClient_WriteTransaction(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -813,7 +814,7 @@ func TestClient_WriteTransaction(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 
@@ -866,7 +867,7 @@ func TestClient_Listen(t *testing.T) {
 		err = client.NewCollection(
 			context.Background(),
 			id,
-			db.CollectionConfig{Name: collectionName, Schema: util.SchemaFromSchemaString(schema)},
+			db.CollectionConfig{Name: collectionName, Schema: dutil.SchemaFromSchemaString(schema)},
 		)
 		checkErr(t, err)
 

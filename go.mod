@@ -7,7 +7,6 @@ require (
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/alecthomas/jsonschema v0.0.0-20191017121752-4bb6e3fae4f2
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
-	github.com/dgraph-io/badger v1.6.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/dlclark/regexp2 v1.2.0 // indirect
 	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
@@ -65,7 +64,7 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190710185942-9d28bd7c0945 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
+	github.com/textileio/go-ds-badger3 v0.0.0-20210324034212-7b7fb3be3d1c
 	github.com/textileio/go-ds-mongo v0.1.4
 	github.com/tidwall/gjson v1.3.5
 	github.com/tidwall/sjson v1.0.4
@@ -77,8 +76,7 @@ require (
 	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
 	golang.org/x/mod v0.4.1 // indirect
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	google.golang.org/grpc v1.31.1
 	google.golang.org/protobuf v1.25.0
 )

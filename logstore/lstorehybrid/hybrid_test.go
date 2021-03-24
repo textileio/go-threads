@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	badger "github.com/textileio/go-ds-badger"
+	badger "github.com/textileio/go-ds-badger3"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/logstore/lstoreds"
 	m "github.com/textileio/go-threads/logstore/lstoremem"
