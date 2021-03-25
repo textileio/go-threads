@@ -211,7 +211,7 @@ Collections are groups of documents or _instances_ and are analogous to tables i
 The `WriteValidator` function receives three arguments:
 
 -   `writer`: The multibase-encoded public key identity of the writer.
--   `event`: An object describing the update event (see [`core.Event`](https://pkg.go.dev/github.com/textileio/go-threads/core/db#Event)).
+-   `event`: An object describing the update event (see [`core.db.Event`](https://pkg.go.dev/github.com/textileio/go-threads/core/db#Event)).
 -   `instance`: The current instance as a JavaScript object before the update event is applied.
 
 A [falsy](https://developer.mozilla.org/en-US/docs/Glossary/Falsy) return value indicates a failed validation.
@@ -512,7 +512,7 @@ record, err := net.CreateRecord(context.Background(), threadID, body)
 
 #### Adding a thread record
 
-We can add also retain control over the _read_ portion of the thread key and the log private key and create records _locally_.
+We can also retain control over the _read_ portion of the thread key and the log private key and create records _locally_.
 
 ```go
 import ipldcbor "github.com/ipfs/go-ipld-cbor"
