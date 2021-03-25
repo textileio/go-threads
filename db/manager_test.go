@@ -44,21 +44,6 @@ var (
 	}`
 )
 
-//func TestManager_GetToken(t *testing.T) {
-//	t.Parallel()
-//	ctx := context.Background()
-//	man, clean := createTestManager(t)
-//	defer clean()
-//
-//	sk, _, err := crypto.GenerateEd25519Key(rand.Reader)
-//	checkErr(t, err)
-//	tok, err := man.GetToken(ctx, thread.NewLibp2pIdentity(sk))
-//	checkErr(t, err)
-//	if tok == "" {
-//		t.Fatal("bad token")
-//	}
-//}
-
 func TestManager_NewDB(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
