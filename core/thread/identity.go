@@ -26,7 +26,7 @@ type Identity interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	// String encodes the private key into a base32 string.
+	// Stringer encodes the private key into a base32 string.
 	fmt.Stringer
 	// UnmarshalString decodes the private key from a base32 string.
 	UnmarshalString(string) error
@@ -163,12 +163,12 @@ func (i *Libp2pIdentity) Equals(id Identity) bool {
 	return i.PrivKey.Equals(i2.PrivKey)
 }
 
-// Pubkey can be anything that provides a verify method.
+// PubKey can be anything that provides a verify method.
 type PubKey interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 
-	// String encodes the public key into a base32 string.
+	// Stringer encodes the public key into a base32 string.
 	fmt.Stringer
 	// UnmarshalString decodes the public key from a base32 string.
 	UnmarshalString(string) error
@@ -261,6 +261,19 @@ func (k *Libp2pPubKey) DID() (did.DID, error) {
 }
 
 func (k *Libp2pPubKey) Validate(identity did.Token) (PubKey, did.Document, error) {
+	return Validate(identity, k)
+}
+
+func (k *Libp2pPubKey) Equals(pk PubKey) bool {
+	k2, ok := pk.(*Libp2pPubKey)
+	if !ok {
+		return false
+	}
+	return k.PubKey.Equals(k2.PubKey)
+}
+
+// Validate parses and validates an identity token and returns the associated key.
+func Validate(identity did.Token, aud *Libp2pPubKey) (PubKey, did.Document, error) {
 	var (
 		doc    did.Document
 		claims IdentityClaims
@@ -298,12 +311,4 @@ func (k *Libp2pPubKey) Validate(identity did.Token) (PubKey, did.Document, error
 		return nil, doc, fmt.Errorf("parsing token: %v", err)
 	}
 	return key, doc, nil
-}
-
-func (k *Libp2pPubKey) Equals(pk PubKey) bool {
-	k2, ok := pk.(*Libp2pPubKey)
-	if !ok {
-		return false
-	}
-	return k.PubKey.Equals(k2.PubKey)
 }
