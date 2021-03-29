@@ -31,13 +31,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-// DefaultNetwork is a boostrapable default Net with sane defaults.
 type NetBoostrapper interface {
 	app.Net
 	GetIpfsLite() *ipfslite.Peer
 	Bootstrap(addrs []peer.AddrInfo)
 }
 
+// DefaultNetwork is a boostrapable default Net with sane defaults.
 func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	var (
 		config NetConfig
