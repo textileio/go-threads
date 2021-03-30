@@ -14,7 +14,7 @@ ENV SRC_DIR /go-threads
 # Download packages first so they can be cached.
 COPY go.mod go.sum $SRC_DIR/
 RUN cd $SRC_DIR \
-  && go mod download
+  && CGO_ENABLED=0 go mod download
 
 COPY . $SRC_DIR
 

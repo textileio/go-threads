@@ -16,7 +16,7 @@ require (
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/gogo/googleapis v1.3.1 // indirect
-	github.com/gogo/protobuf v1.3.1
+	github.com/gogo/protobuf v1.3.2
 	github.com/gogo/status v1.1.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/uuid v1.2.0
@@ -80,3 +80,5 @@ require (
 	google.golang.org/grpc v1.31.1
 	google.golang.org/protobuf v1.25.0
 )
+
+//replace github.com/textileio/go-ds-badger3 => ../go-ds-badger3
