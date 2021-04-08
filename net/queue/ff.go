@@ -123,25 +123,25 @@ type ffQueue struct {
 	peers    map[peer.ID]*peerQueue
 	inflight map[uint64]struct{}
 	poll     time.Duration
-	timeout  time.Duration
+	deadline time.Duration
 	ctx      context.Context
 	mx       sync.Mutex
 }
 
 // Fair FIFO-queue with isolated per-peer processing and adaptive invocation rate.
-// Queue is polled with specified frequency and all scheduled calls expected to be
-// spawned within given timeout. At every moment only one call for the peer/thread
+// Queue is polled with specified frequency and every scheduled call expected to be
+// spawned until its deadline. At every moment only one call for the peer/thread
 // pair exists in the queue. Scheduled operations could be replaced with a new ones
 // based on the priority value (new higher-priority call replaces waiting one).
 func NewFFQueue(
 	ctx context.Context,
 	pollInterval time.Duration,
-	spawnTimeout time.Duration,
+	spawnDeadline time.Duration,
 ) *ffQueue {
 	return &ffQueue{
 		ctx:      ctx,
 		poll:     pollInterval,
-		timeout:  spawnTimeout,
+		deadline: spawnDeadline,
 		inflight: make(map[uint64]struct{}),
 		peers:    make(map[peer.ID]*peerQueue),
 	}
@@ -211,7 +211,8 @@ func (q *ffQueue) pollQueue(pid peer.ID, pq *peerQueue) {
 
 		case <-tick.C:
 			pq.Lock()
-			var deadline = time.Now().Add(-q.timeout).Unix()
+			// every call scheduled before this moment is overdue now and should be spawned immediately
+			var deadlineBound = time.Now().Add(-q.deadline).Unix()
 			for waiting := pq.Size(); waiting > 0; waiting-- {
 				call, tid, created, ok := pq.Pop()
 				if !ok {
@@ -237,8 +238,29 @@ func (q *ffQueue) pollQueue(pid peer.ID, pq *peerQueue) {
 					q.mx.Unlock()
 				}()
 
-				// spawn all overdue calls and a few ones with coming deadline
-				if remainIters := int(float64(created-deadline) / q.poll.Seconds()); remainIters > 0 &&
+				// Ok, so whats going on. Here we have an underlying FIFO-queue containing every scheduled
+				// call (associated with the moment it was added) in the linked list. There is also a
+				// predefined parameter 'deadline' - every scheduled call should be spawned during this
+				// period, though it's not a hard deadline really, but a desired property. And moreover,
+				// we want it to be as uniform over time as possible in the presence of non-stationary
+				// process of new call arrivals to the queue.
+				// On every polling iteration we repeatedly make a decision: pop and spawn next call from
+				// the queue or wait until the next iteration. It'd be too expensive to obtain precise
+				// deadline distribution from the large queue, but since it's FIFO at least we know that
+				// deadlines of remaining calls are in the interval '[created - deadlineBound; deadline)'.
+				// And, of course, number of calls waiting in the queue is known, as well.
+				// Not much information, but we can use some probabilistic model for polling decisions
+				// and it may help to avoid undesirable synchronization with other queues. Implemented
+				// model doesn't have solid theoretical underpinning, rather it's more an empirical one.
+				// It's based on two assumptions about call popping probability:
+				// 1) it should be inversely proportional to the worst case deadline (when all calls
+				//    waiting in the queue were added at the same time), and
+				// 2) it should grow sublinear depending on a current queue size.
+				// Despite being the best model known to me so far in terms of smooth operation and
+				// meeting deadlines in general, nevertheless it's far from perfect. So if you are
+				// aware of any better approach - please, contribute it!
+
+				if remainIters := int(float64(created-deadlineBound) / q.poll.Seconds()); remainIters > 0 &&
 					rand.Float64() > math.Sqrt(3*float64(waiting))/float64(remainIters) {
 					break
 				}
