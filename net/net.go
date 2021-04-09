@@ -259,7 +259,7 @@ func (n *net) ValidateIdentity(_ context.Context, token did.Token) (thread.PubKe
 }
 
 func (n *net) CreateThread(
-	_ context.Context,
+	ctx context.Context,
 	id thread.ID,
 	opts ...core.NewThreadOption,
 ) (info thread.Info, err error) {
@@ -267,18 +267,14 @@ func (n *net) CreateThread(
 	for _, opt := range opts {
 		opt(args)
 	}
-	//// @todo: Check identity key against ACL.
-	//identity, err := n.Validate(id, args.Token, false)
-	//if err != nil {
-	//	return
-	//}
-	//if identity != nil {
-	//	log.Debugf("creating thread with identity: %s", identity)
-	//} else {
-	identity := thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	//}
 
-	if err = n.ensureUniqueLog(id, args.LogKey, identity); err != nil {
+	pk, identity, err := n.ValidateIdentity(ctx, args.Token)
+	if err != nil {
+		return
+	}
+	log.Debugf("creating thread with identity: %s", identity)
+
+	if err = n.ensureUniqueLog(id, args.LogKey, pk); err != nil {
 		return
 	}
 
@@ -292,7 +288,7 @@ func (n *net) CreateThread(
 	if err = n.store.AddThread(info); err != nil {
 		return
 	}
-	if _, err = n.createLog(id, args.LogKey, identity); err != nil {
+	if _, err = n.createLog(id, args.LogKey, pk); err != nil {
 		return
 	}
 	if n.server.ps != nil {
@@ -317,17 +313,15 @@ func (n *net) AddThread(
 	if err != nil {
 		return
 	}
-	//identity, err := n.Validate(id, args.Token, false)
-	//if err != nil {
-	//	return
-	//}
-	//if identity != nil {
-	//	log.Debugf("adding thread with identity: %s", identity)
-	//} else {
-	identity := thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())
-	//}
 
-	if err = n.ensureUniqueLog(id, args.LogKey, identity); err != nil {
+	// @todo: Check read access against thread did.
+	pk, identity, err := n.ValidateIdentity(ctx, args.Token)
+	if err != nil {
+		return
+	}
+	log.Debugf("adding thread with identity: %s", identity)
+
+	if err = n.ensureUniqueLog(id, args.LogKey, pk); err != nil {
 		return
 	}
 
@@ -359,7 +353,7 @@ func (n *net) AddThread(
 		return
 	}
 	if args.ThreadKey.CanRead() || args.LogKey != nil {
-		if _, err = n.createLog(id, args.LogKey, identity); err != nil {
+		if _, err = n.createLog(id, args.LogKey, pk); err != nil {
 			return
 		}
 	}
@@ -388,14 +382,17 @@ func (n *net) AddThread(
 	return n.getThreadWithAddrs(id)
 }
 
-func (n *net) GetThread(_ context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
+func (n *net) GetThread(ctx context.Context, id thread.ID, opts ...core.ThreadOption) (info thread.Info, err error) {
 	args := &core.ThreadOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
-	//if _, err = n.Validate(id, args.Token, true); err != nil {
-	//	return
-	//}
+
+	// @todo: Check read access against thread did.
+	if _, _, err = n.ValidateIdentity(ctx, args.Token); err != nil {
+		return
+	}
+
 	return n.getThreadWithAddrs(id)
 }
 
@@ -426,9 +423,12 @@ func (n *net) PullThread(ctx context.Context, id thread.ID, opts ...core.ThreadO
 	for _, opt := range opts {
 		opt(args)
 	}
-	//if _, err := n.Validate(id, args.Token, true); err != nil {
-	//	return err
-	//}
+
+	// @todo: Check read access against thread did.
+	if _, _, err := n.ValidateIdentity(ctx, args.Token); err != nil {
+		return err
+	}
+
 	return n.pullThread(ctx, id)
 }
 
@@ -469,9 +469,12 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 	for _, opt := range opts {
 		opt(args)
 	}
-	//if _, err := n.Validate(id, args.Token, false); err != nil {
-	//	return err
-	//}
+
+	// @todo: Check write access against thread did.
+	if _, _, err := n.ValidateIdentity(ctx, args.Token); err != nil {
+		return err
+	}
+
 	if _, ok := n.getConnectorProtected(id, args.APIToken); !ok {
 		return fmt.Errorf("cannot delete thread: %w", app.ErrThreadInUse)
 	}
@@ -527,9 +530,11 @@ func (n *net) AddReplicator(
 	for _, opt := range opts {
 		opt(args)
 	}
-	//if _, err = n.Validate(id, args.Token, true); err != nil {
-	//	return
-	//}
+
+	// @todo: Check read access against thread did.
+	if _, _, err = n.ValidateIdentity(ctx, args.Token); err != nil {
+		return
+	}
 
 	info, err := n.store.GetThread(id)
 	if err != nil {
@@ -660,6 +665,7 @@ func (n *net) CreateRecord(
 		opt(args)
 	}
 
+	// @todo: Check write access against thread did.
 	pk, identity, err := n.ValidateIdentity(ctx, args.Token)
 	if err != nil {
 		return
@@ -706,9 +712,11 @@ func (n *net) AddRecord(
 	for _, opt := range opts {
 		opt(args)
 	}
-	//if _, err := n.Validate(id, args.Token, false); err != nil {
-	//	return err
-	//}
+
+	// @todo: Check write access against thread did.
+	if _, _, err := n.ValidateIdentity(ctx, args.Token); err != nil {
+		return err
+	}
 
 	logpk, err := n.store.PubKey(id, lid)
 	if err != nil {
@@ -743,9 +751,12 @@ func (n *net) GetRecord(
 	for _, opt := range opts {
 		opt(args)
 	}
-	//if _, err := n.Validate(id, args.Token, true); err != nil {
-	//	return nil, err
-	//}
+
+	// @todo: Check read access against thread did.
+	if _, _, err := n.ValidateIdentity(ctx, args.Token); err != nil {
+		return nil, err
+	}
+
 	return n.getRecord(ctx, id, rid)
 }
 
@@ -796,9 +807,12 @@ func (n *net) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan cor
 			return nil, err
 		}
 		if id.Defined() {
-			//if _, err := n.Validate(id, args.Token, true); err != nil {
-			//	return nil, err
-			//}
+
+			// @todo: Check read access against thread did.
+			if _, _, err := n.ValidateIdentity(ctx, args.Token); err != nil {
+				return nil, err
+			}
+
 			filter[id] = struct{}{}
 		}
 	}
@@ -1408,7 +1422,7 @@ func (n *net) updateRecordsFromLog(tid thread.ID, lid peer.ID) {
 		return
 	}
 
-	// TODO after protocol change request only new log
+	// @todo: After protocol change: only request new log.
 	offsets, err := n.threadOffsets(tid)
 	if err != nil {
 		tps.Release()
