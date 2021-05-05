@@ -193,7 +193,7 @@ func (s *server) buildGetRecordsRequest(
 
 	key, err := s.getPubKey()
 	if err != nil {
-		err = fmt.Errorf("signing GetRecords request: %w", err)
+		err = fmt.Errorf("getting public key for request: %w", err)
 		return
 	}
 
@@ -517,7 +517,7 @@ func (s *server) getLibp2pDialer() grpc.DialOption {
 func (s *server) getPubKey() (pk crypto.PubKey, err error) {
 	sk := s.net.getPrivKey()
 	if sk == nil {
-		err = fmt.Errorf("private key for host not found")
+		err = errors.New("private key for host not found")
 		return
 	}
 	return sk.GetPublic(), nil
