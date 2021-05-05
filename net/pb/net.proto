@@ -6,12 +6,13 @@ import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
-// Header holds a key and signature for a request.
+// Header is the message header, for now it just holds the public key of the author
 message Header {
     // pubKey is the author's public key.
     bytes pubKey = 1 [(gogoproto.customtype) = "ProtoPubKey"];
-    // signature is the message signature.
-    bytes signature = 2;
+    // signature is the message signature. Removed as these extra bytes on wire are not needed for integrity.
+    // bytes signature = 2;
+    reserved 2;
 }
 
 // Log represents a thread log.

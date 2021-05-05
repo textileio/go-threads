@@ -427,16 +427,6 @@ func verifyRequest(header *pb.Header, body proto.Marshaler) (pid peer.ID, err er
 		err = status.Error(codes.InvalidArgument, "bad request")
 		return
 	}
-	payload, err := body.Marshal()
-	if err != nil {
-		err = status.Error(codes.Internal, err.Error())
-		return
-	}
-	ok, err := header.PubKey.Verify(payload, header.Signature)
-	if !ok || err != nil {
-		err = status.Error(codes.Unauthenticated, "bad signature")
-		return
-	}
 	pid, err = peer.IDFromPublicKey(header.PubKey)
 	if err != nil {
 		err = status.Error(codes.InvalidArgument, err.Error())
