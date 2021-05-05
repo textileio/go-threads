@@ -32,6 +32,7 @@ tags
 
 # Misc
 **.DS_Store
+*.swp
 
 # Other
 .threads*/
