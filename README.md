@@ -103,7 +103,7 @@ The `threadsd` daemon can be run as a server or alongside desktop apps or comman
 Create an `.env` file and add the following values:  
 
 ```bash
-REPO_PATH=~/myrepo
+THRDS_REPO=~/myrepo
 THRDS_DEBUG=true
 ```
 
@@ -136,7 +136,7 @@ Congrats! Now you have ThreadDB running locally.
 
 Note the various configuration values shown in the output above. These can be modified with environment variables show below.
 
--   ***`THRDS_REPO`***: Repo location. `.threads` by default.
+-   ***`THRDS_REPO`***: Repo location. Mandatory when launching from docker compose. `.threads` by default otherwise. 
 -   ***`THRDS_HOSTADDR`***: Libp2p host bind address. `/ip4/0.0.0.0/tcp/4006` by default.
 -   ***`THRDS_APIADDR`***: gRPC API bind address. `/ip4/0.0.0.0/tcp/6006` by default.
 -   ***`THRDS_APIPROXYADDR`***: gRPC API web proxy bind address. `/ip4/0.0.0.0/tcp/6007` by default.
