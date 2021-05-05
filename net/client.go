@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -47,14 +46,13 @@ func (s *server) getLogs(ctx context.Context, id thread.ID, pid peer.ID) ([]thre
 		ThreadID:   &pb.ProtoThreadID{ID: id},
 		ServiceKey: &pb.ProtoKey{Key: sk},
 	}
-	sig, key, err := s.signRequestBody(body)
+	key, err := s.getPubKey()
 	if err != nil {
 		return nil, err
 	}
 	req := &pb.GetLogsRequest{
 		Header: &pb.Header{
-			PubKey:    &pb.ProtoPubKey{PubKey: key},
-			Signature: sig,
+			PubKey: &pb.ProtoPubKey{PubKey: key},
 		},
 		Body: body,
 	}
@@ -95,14 +93,13 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 	if rk != nil {
 		body.ReadKey = &pb.ProtoKey{Key: rk}
 	}
-	sig, key, err := s.signRequestBody(body)
+	key, err := s.getPubKey()
 	if err != nil {
 		return err
 	}
 	lreq := &pb.PushLogRequest{
 		Header: &pb.Header{
-			PubKey:    &pb.ProtoPubKey{PubKey: key},
-			Signature: sig,
+			PubKey: &pb.ProtoPubKey{PubKey: key},
 		},
 		Body: body,
 	}
@@ -194,7 +191,7 @@ func (s *server) buildGetRecordsRequest(
 		Logs:       pblgs,
 	}
 
-	sig, key, err := s.signRequestBody(body)
+	key, err := s.getPubKey()
 	if err != nil {
 		err = fmt.Errorf("signing GetRecords request: %w", err)
 		return
@@ -202,8 +199,7 @@ func (s *server) buildGetRecordsRequest(
 
 	req = &pb.GetRecordsRequest{
 		Header: &pb.Header{
-			PubKey:    &pb.ProtoPubKey{PubKey: key},
-			Signature: sig,
+			PubKey: &pb.ProtoPubKey{PubKey: key},
 		},
 		Body: body,
 	}
@@ -299,14 +295,13 @@ func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec
 		LogID:    &pb.ProtoPeerID{ID: lid},
 		Record:   pbrec,
 	}
-	sig, key, err := s.signRequestBody(body)
+	key, err := s.getPubKey()
 	if err != nil {
 		return err
 	}
 	req := &pb.PushRecordRequest{
 		Header: &pb.Header{
-			PubKey:    &pb.ProtoPubKey{PubKey: key},
-			Signature: sig,
+			PubKey: &pb.ProtoPubKey{PubKey: key},
 		},
 		Body: body,
 	}
@@ -364,14 +359,13 @@ func (s *server) pushRecordToPeer(
 			ThreadID: &pb.ProtoThreadID{ID: tid},
 			Log:      logToProto(lg),
 		}
-		sig, key, err := s.signRequestBody(body)
+		key, err := s.getPubKey()
 		if err != nil {
 			return fmt.Errorf("signing PushLog request: %w", err)
 		}
 		lreq := &pb.PushLogRequest{
 			Header: &pb.Header{
-				PubKey:    &pb.ProtoPubKey{PubKey: key},
-				Signature: sig,
+				PubKey: &pb.ProtoPubKey{PubKey: key},
 			},
 			Body: body,
 		}
@@ -411,14 +405,13 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 		return nil
 	}
 
-	sig, key, err := s.signRequestBody(body)
+	key, err := s.getPubKey()
 	if err != nil {
 		return fmt.Errorf("signing request body: %w", err)
 	}
 	req := &pb.ExchangeEdgesRequest{
 		Header: &pb.Header{
-			PubKey:    &pb.ProtoPubKey{PubKey: key},
-			Signature: sig,
+			PubKey: &pb.ProtoPubKey{PubKey: key},
 		},
 		Body: body,
 	}
@@ -520,22 +513,14 @@ func (s *server) getLibp2pDialer() grpc.DialOption {
 	})
 }
 
-// signRequestBody signs an outbound request body with the hosts's private key.
-func (s *server) signRequestBody(msg proto.Marshaler) (sig []byte, pk crypto.PubKey, err error) {
-	payload, err := msg.Marshal()
-	if err != nil {
-		return
-	}
+// getPubKey gets the public key associated with the server.
+func (s *server) getPubKey() (pk crypto.PubKey, err error) {
 	sk := s.net.getPrivKey()
 	if sk == nil {
 		err = fmt.Errorf("private key for host not found")
 		return
 	}
-	sig, err = sk.Sign(payload)
-	if err != nil {
-		return
-	}
-	return sig, sk.GetPublic(), nil
+	return sk.GetPublic(), nil
 }
 
 func withErrLog(pid peer.ID, f func(pid peer.ID) error) {
