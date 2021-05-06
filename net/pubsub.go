@@ -2,7 +2,7 @@ package net
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -115,7 +115,7 @@ func (s *PubSub) Publish(ctx context.Context, id thread.ID, req *pb.PushRecordRe
 	defer s.RUnlock()
 	topic, ok := s.m[id]
 	if !ok {
-		return fmt.Errorf("thread topic not found")
+		return errors.New("thread topic not found")
 	}
 
 	data, err := req.Marshal()
@@ -178,7 +178,7 @@ func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordR
 		return "", nil, err
 	}
 	if from.String() == s.host.String() {
-		return "", nil, err
+		return "", nil, errors.New("pubsub message can not be from the host itself")
 	}
 
 	req := new(pb.PushRecordRequest)
