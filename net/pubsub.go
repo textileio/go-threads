@@ -175,23 +175,15 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordRequest, err error) {
 	from, err = peer.IDFromBytes(m.From)
 	if err != nil {
-		return
+		return "", nil, err
 	}
 	if from.String() == s.host.String() {
-		return
+		return "", nil, err
 	}
 
 	req := new(pb.PushRecordRequest)
 	if err = proto.Unmarshal(m.Data, req); err != nil {
-		return
-	}
-	pid, err := peer.IDFromPublicKey(req.Header.PubKey)
-	if err != nil {
-		return
-	}
-	if from.String() != pid.String() {
-		log.Warnf("multicast sender does not match record header (%s != %s)", from, pid)
-		return
+		return "", nil, err
 	}
 	return from, req, nil
 }
