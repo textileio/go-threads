@@ -18,46 +18,6 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-func BenchmarkHeaderProtoMarshal(b *testing.B) {
-	popr := math_rand.New(math_rand.NewSource(616))
-	total := 0
-	pops := make([]*Header, 10000)
-	for i := 0; i < 10000; i++ {
-		pops[i] = NewPopulatedHeader(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(pops[i%10000])
-		if err != nil {
-			panic(err)
-		}
-		total += len(dAtA)
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkHeaderProtoUnmarshal(b *testing.B) {
-	popr := math_rand.New(math_rand.NewSource(616))
-	total := 0
-	datas := make([][]byte, 10000)
-	for i := 0; i < 10000; i++ {
-		dAtA, err := github_com_gogo_protobuf_proto.Marshal(NewPopulatedHeader(popr, false))
-		if err != nil {
-			panic(err)
-		}
-		datas[i] = dAtA
-	}
-	msg := &Header{}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += len(datas[i%10000])
-		if err := github_com_gogo_protobuf_proto.Unmarshal(datas[i%10000], msg); err != nil {
-			panic(err)
-		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
 func BenchmarkLogProtoMarshal(b *testing.B) {
 	popr := math_rand.New(math_rand.NewSource(616))
 	total := 0
@@ -894,20 +854,6 @@ func BenchmarkExchangeEdgesReply_ThreadEdgesProtoUnmarshal(b *testing.B) {
 		if err := github_com_gogo_protobuf_proto.Unmarshal(datas[i%10000], msg); err != nil {
 			panic(err)
 		}
-	}
-	b.SetBytes(int64(total / b.N))
-}
-
-func BenchmarkHeaderSize(b *testing.B) {
-	popr := math_rand.New(math_rand.NewSource(616))
-	total := 0
-	pops := make([]*Header, 1000)
-	for i := 0; i < 1000; i++ {
-		pops[i] = NewPopulatedHeader(popr, false)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		total += pops[i%1000].Size()
 	}
 	b.SetBytes(int64(total / b.N))
 }
