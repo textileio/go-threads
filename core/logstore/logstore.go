@@ -3,7 +3,6 @@ package logstore
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -15,19 +14,22 @@ import (
 )
 
 // ErrThreadExists indicates a thread already exists.
-var ErrThreadExists = fmt.Errorf("thread already exists")
+var ErrThreadExists = errors.New("thread already exists")
 
 // ErrThreadNotFound indicates a requested thread was not found.
-var ErrThreadNotFound = fmt.Errorf("thread not found")
+var ErrThreadNotFound = errors.New("thread not found")
 
 // ErrLogNotFound indicates a requested log was not found.
-var ErrLogNotFound = fmt.Errorf("log not found")
+var ErrLogNotFound = errors.New("log not found")
 
 // ErrLogExists indicates a requested log already exists.
-var ErrLogExists = fmt.Errorf("log already exists")
+var ErrLogExists = errors.New("log already exists")
 
 // ErrEmptyDump indicates an attempt to restore from empty dump.
 var ErrEmptyDump = errors.New("empty dump")
+
+// ErrEdgeUnavailable indicates failed concurrent edge computation.
+var ErrEdgeUnavailable = errors.New("edge unavailable")
 
 // Logstore stores log keys, addresses, heads and thread meta data.
 type Logstore interface {
@@ -175,6 +177,9 @@ type AddrBook interface {
 
 	// ThreadsFromAddrs returns a list of threads referenced in the book.
 	ThreadsFromAddrs() (thread.IDSlice, error)
+
+	// AddrsEdge returns deterministic hash of all peer addresses of a given thread.
+	AddrsEdge(t thread.ID) (uint64, error)
 
 	// DumpHeads packs all stored addresses.
 	DumpAddrs() (DumpAddrBook, error)

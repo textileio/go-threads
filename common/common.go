@@ -59,7 +59,6 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	if err != nil {
 		return nil, fin.Cleanup(err)
 	}
-	fin.Add(litestore)
 
 	pstore, err := pstoreds.NewPeerstore(ctx, litestore, pstoreds.DefaultOpts())
 	if err != nil {

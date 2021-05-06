@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -19,6 +19,12 @@ import (
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	grpcpeer "google.golang.org/grpc/peer"
+)
+
+var (
+	errNoAddrsEdge = errors.New("no addresses to compute edge")
+	errNoHeadsEdge = errors.New("no heads to compute edge")
 )
 
 // server implements the net gRPC server.
@@ -83,8 +89,8 @@ func (s *server) pubsubHandler(ctx context.Context, req *pb.PushRecordRequest) {
 }
 
 // GetLogs receives a get logs request.
-func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+func (s *server) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +101,7 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 		return pblgs, err
 	}
 
-	info, err := s.net.store.GetThread(req.Body.ThreadID.ID) // Safe since putRecord will change head when fully-available
+	info, err := s.net.store.GetThread(req.Body.ThreadID.ID) // Safe since putRecords will change head when fully-available
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -112,8 +118,8 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 
 // PushLog receives a push log request.
 // @todo: Don't overwrite info from non-owners
-func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+func (s *server) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -141,18 +147,19 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 	}
 
 	lg := logFromProto(req.Body.Log)
-	err = s.net.createExternalLogIfNotExist(req.Body.ThreadID.ID, lg.ID, lg.PubKey, lg.PrivKey, lg.Addrs)
-	if err != nil {
+	if err = s.net.createExternalLogsIfNotExist(req.Body.ThreadID.ID, []thread.LogInfo{lg}); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	go s.net.updateRecordsFromLog(req.Body.ThreadID.ID, lg.ID)
+	if s.net.queueGetRecords.Schedule(pid, req.Body.ThreadID.ID, callPriorityLow, s.net.updateRecordsFromPeer) {
+		log.Debugf("record update for thread %s from %s scheduled", req.Body.ThreadID.ID, pid)
+	}
 	return &pb.PushLogReply{}, nil
 }
 
 // GetRecords receives a get records request.
 func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -177,21 +184,23 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	info, err := s.net.store.GetThread(req.Body.ThreadID.ID)
 	if err != nil {
 		return nil, err
+	} else if len(info.Logs) == 0 {
+		return pbrecs, nil
 	}
-	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, len(info.Logs))
+	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, 0, len(info.Logs))
 
-	var recordLimit = MaxPullLimit
-	for i, lg := range info.Logs {
+	var (
+		logRecordLimit = MaxPullLimit / len(info.Logs)
+		mx             sync.Mutex
+		wg             sync.WaitGroup
+	)
+
+	for _, lg := range info.Logs {
 		var (
 			offset cid.Cid
 			limit  int
 			pblg   *pb.Log
-
-			// correct records-per-log limit
-			logsRemain     = len(info.Logs) - i
-			logRecordLimit = recordLimit / logsRemain
 		)
-
 		if opts, ok := reqd[lg.ID]; ok {
 			offset = opts.Offset.Cid
 			limit = minInt(int(opts.Limit), logRecordLimit)
@@ -200,36 +209,49 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			limit = logRecordLimit
 			pblg = logToProto(lg)
 		}
-		recs, err := s.net.getLocalRecords(ctx, req.Body.ThreadID.ID, lg.ID, offset, limit)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
 
-		entry := &pb.GetRecordsReply_LogEntry{
-			LogID:   &pb.ProtoPeerID{ID: lg.ID},
-			Records: make([]*pb.Log_Record, len(recs)),
-			Log:     pblg,
-		}
-		for j, r := range recs {
-			entry.Records[j], err = cbor.RecordToProto(ctx, s.net, r)
+		wg.Add(1)
+		go func(tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
+			defer wg.Done()
+
+			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim)
 			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+				log.Errorf("getting local records (thread %s, log %s): %v", tid, lid, err)
 			}
-		}
-		pbrecs.Logs[i] = entry
 
-		// update remaining records limit
-		recordLimit -= len(recs)
+			var prs = make([]*pb.Log_Record, 0, len(recs))
+			for _, r := range recs {
+				pr, err := cbor.RecordToProto(ctx, s.net, r)
+				if err != nil {
+					log.Errorf("constructing proto-record %s (thread %s, log %s): %v", r.Cid(), tid, lid, err)
+					break
+				}
+				prs = append(prs, pr)
+			}
+			if pblg == nil && len(prs) == 0 {
+				// do not include empty logs in reply
+				return
+			}
 
-		log.Debugf("sending %d records in log %s to %s", len(recs), lg.ID, pid)
+			mx.Lock()
+			pbrecs.Logs = append(pbrecs.Logs, &pb.GetRecordsReply_LogEntry{
+				LogID:   &pb.ProtoPeerID{ID: lid},
+				Records: prs,
+				Log:     pblg,
+			})
+			mx.Unlock()
+
+			log.Debugf("sending %d records in log %s to %s", len(recs), lid, pid)
+		}(req.Body.ThreadID.ID, lg.ID, offset, limit)
 	}
 
+	wg.Wait()
 	return pbrecs, nil
 }
 
 // PushRecord receives a push record request.
 func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb.PushRecordReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -267,6 +289,80 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	return &pb.PushRecordReply{}, nil
 }
 
+// ExchangeEdges receives an exchange edges request.
+func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest) (*pb.ExchangeEdgesReply, error) {
+	pid, err := peerIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("received exchange edges request from %s", pid)
+
+	var reply pb.ExchangeEdgesReply
+	for _, entry := range req.Body.Threads {
+		var tid = entry.ThreadID.ID
+		switch addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid); err {
+		case nil:
+			var (
+				addrsEdgeRemote = entry.AddressEdge
+				headsEdgeRemote = entry.HeadsEdge
+			)
+
+			if addrsEdgeLocal != addrsEdgeRemote {
+				if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
+					log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
+				}
+			}
+			if headsEdgeLocal != headsEdgeRemote {
+				if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
+					log.Debugf("record update for thread %s from %s scheduled", tid, pid)
+				}
+			}
+
+			reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+				ThreadID:    &pb.ProtoThreadID{ID: tid},
+				Exists:      true,
+				AddressEdge: addrsEdgeLocal,
+				HeadsEdge:   headsEdgeLocal,
+			})
+
+		case errNoAddrsEdge:
+			// requested thread doesn't exist locally
+			log.Warnf("addresses for requested thread %s not found", tid)
+			s.net.queueGetLogs.Schedule(
+				pid,
+				tid,
+				callPriorityHigh, // we have to add thread in pubsub, not just update its logs
+				func(ctx context.Context, p peer.ID, t thread.ID) error {
+					if err := s.net.updateLogsFromPeer(ctx, p, t); err != nil {
+						return err
+					}
+					if s.net.server.ps != nil {
+						return s.net.server.ps.Add(t)
+					}
+					return nil
+				})
+			reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+				ThreadID: &pb.ProtoThreadID{ID: tid},
+				Exists:   false,
+			})
+
+		case errNoHeadsEdge:
+			// thread exists locally and contains addresses, but not heads - pull records for update
+			log.Debugf("heads for requested thread %s not found", tid)
+			s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer)
+			reply.Edges = append(reply.Edges, &pb.ExchangeEdgesReply_ThreadEdges{
+				ThreadID: &pb.ProtoThreadID{ID: tid},
+				Exists:   false,
+			})
+
+		default:
+			return nil, fmt.Errorf("getting edges for %s: %w", tid, err)
+		}
+	}
+
+	return &reply, nil
+}
+
 // checkServiceKey compares a key with the one stored under thread.
 func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 	if k == nil || k.Key == nil {
@@ -292,32 +388,48 @@ func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 		reqHeads[i] = util.LogHead{Head: l.Offset.Cid, LogID: l.LogID.ID}
 	}
 	var currEdge, err = s.net.store.HeadsEdge(req.Body.ThreadID.ID)
-	if err != nil {
+	switch {
+	case err == nil:
+		return util.ComputeHeadsEdge(reqHeads) != currEdge, nil
+	case errors.Is(err, lstore.ErrThreadNotFound):
+		// no local heads, but there could be missing logs info in reply
+		return true, nil
+	default:
 		return false, err
 	}
-	return util.ComputeHeadsEdge(reqHeads) != currEdge, nil
 }
 
-// verifyRequest verifies that the signature associated with a request is valid.
-func verifyRequest(header *pb.Header, body proto.Marshaler) (pid peer.ID, err error) {
-	if header == nil || body == nil {
-		err = status.Error(codes.InvalidArgument, "bad request")
-		return
-	}
-	payload, err := body.Marshal()
+// localEdges returns values of local addresses/heads edges for the thread.
+func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err error) {
+	addrsEdge, err = s.net.store.AddrsEdge(tid)
 	if err != nil {
-		err = status.Error(codes.Internal, err.Error())
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			err = errNoAddrsEdge
+		} else {
+			err = fmt.Errorf("address edge: %w", err)
+		}
 		return
 	}
-	ok, err := header.PubKey.Verify(payload, header.Signature)
-	if !ok || err != nil {
-		err = status.Error(codes.Unauthenticated, "bad signature")
-		return
-	}
-	pid, err = peer.IDFromPublicKey(header.PubKey)
+	headsEdge, err = s.net.store.HeadsEdge(tid)
 	if err != nil {
-		err = status.Error(codes.InvalidArgument, err.Error())
-		return
+		if errors.Is(err, lstore.ErrThreadNotFound) {
+			err = errNoHeadsEdge
+		} else {
+			err = fmt.Errorf("heads edge: %w", err)
+		}
+	}
+	return
+}
+
+// peerIDFromContext returns peer ID from the GRPC context
+func peerIDFromContext(ctx context.Context) (peer.ID, error) {
+	ctxPeer, ok := grpcpeer.FromContext(ctx)
+	if !ok {
+		return "", errors.New("unable to identify stream peer")
+	}
+	pid, err := peer.Decode(ctxPeer.Addr.String())
+	if err != nil {
+		return "", fmt.Errorf("parsing stream peer id: %v", err)
 	}
 	return pid, nil
 }

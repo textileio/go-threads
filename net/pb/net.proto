@@ -6,14 +6,6 @@ import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 option (gogoproto.benchgen_all) = true;
 option (gogoproto.populate_all) = true;
 
-// Header holds a key and signature for a request.
-message Header {
-    // pubKey is the author's public key.
-    bytes pubKey = 1 [(gogoproto.customtype) = "ProtoPubKey"];
-    // signature is the message signature.
-    bytes signature = 2;
-}
-
 // Log represents a thread log.
 message Log {
     // ID of the log.
@@ -40,8 +32,8 @@ message Log {
 
 // GetLogsRequest is used to request thread logs.
 message GetLogsRequest {
-    // header is the message header.
-    Header header = 1;
+    // this was the message header.
+    reserved 1;
     // body is the message body.
     Body body = 2;
 
@@ -61,8 +53,8 @@ message GetLogsReply {
 
 // PushLogRequest is used to push a thread log to a peer.
 message PushLogRequest {
-    // header is the message header.
-    Header header = 1;
+    // this was the message header.
+    reserved 1;
     // body is the message body.
     Body body = 2;
 
@@ -83,8 +75,8 @@ message PushLogReply {}
 
 // GetRecordsRequest is used to request records from a log address.
 message GetRecordsRequest {
-    // header is the message header.
-    Header header = 1;
+    // this was the message header.
+    reserved 1;
     // body is the message body.
     Body body = 2;
 
@@ -126,8 +118,8 @@ message GetRecordsReply {
 
 // PushRecordRequest is used to push a log record to a peer.
 message PushRecordRequest {
-    // header is the message header.
-    Header header = 1;
+    // this was the message header.
+    reserved 1;
     // body is the message body.
     Body body = 2;
 
@@ -144,6 +136,45 @@ message PushRecordRequest {
 // PushRecordReply is the response from a PushRecordRequest.
 message PushRecordReply {}
 
+// ExchangeEdgesRequest is used to exchange address/heads edges with a peer.
+message ExchangeEdgesRequest {
+    // this was the message header.
+    reserved 1;
+    // body is the message body.
+    Body body = 2;
+
+    message Body {
+        // threads is a list of requested thread IDs with its local edges.
+        repeated ThreadEntry threads = 1;
+
+        message ThreadEntry {
+            // threadID is the target thread's ID.
+            bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+            // addressEdge is the current hash of peers addresses stored on a requester.
+            uint64 addressEdge = 2;
+            // headsEdge is the current hash of the log's heads stored on a requester.
+            uint64 headsEdge = 3;
+        }
+    }
+}
+
+// ExchangeEdgesReply contains edges requested with an ExchangeEdgesRequest.
+message ExchangeEdgesReply {
+    // edges contains edge information about requested threads.
+    repeated ThreadEdges edges = 1;
+
+    message ThreadEdges {
+        // threadID is the requested thread's ID.
+        bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
+        // exists is the flag indicating whether the requested thread exists on a respondent.
+        bool exists = 2;
+        // addressEdge is the current hash of peers addresses stored on a respondent.
+        uint64 addressEdge = 3;
+        // headsEdge is the current hash of the log's heads stored on a respondent.
+        uint64 headsEdge = 4;
+    }
+}
+
 // Service is the peer-to-peer network API for thread orchestration.
 service Service {
     // GetLogs from a peer.
@@ -154,4 +185,6 @@ service Service {
     rpc GetRecords(GetRecordsRequest) returns (GetRecordsReply) {}
     // PushRecord to a peer.
     rpc PushRecord(PushRecordRequest) returns (PushRecordReply) {}
+    // ExchangeEdges with a peer.
+    rpc ExchangeEdges(ExchangeEdgesRequest) returns (ExchangeEdgesReply) {}
 }

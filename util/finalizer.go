@@ -21,12 +21,14 @@ func (r *Finalizer) Add(cs ...io.Closer) {
 }
 
 func (r *Finalizer) Cleanup(err error) error {
-	// release resources in a reverse order
+	var errs []error
 	for i := len(r.resources) - 1; i >= 0; i-- {
-		err = multierror.Append(r.resources[i].Close())
+		// release resources in a reverse order
+		if e := r.resources[i].Close(); e != nil {
+			errs = append(errs, e)
+		}
 	}
-
-	return err.(*multierror.Error).ErrorOrNil()
+	return multierror.Append(err, errs...).ErrorOrNil()
 }
 
 // Transform context cancellation function to be used with finalizer.
