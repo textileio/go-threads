@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -20,6 +19,7 @@ import (
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	grpcpeer "google.golang.org/grpc/peer"
 )
 
 var (
@@ -89,8 +89,8 @@ func (s *server) pubsubHandler(ctx context.Context, req *pb.PushRecordRequest) {
 }
 
 // GetLogs receives a get logs request.
-func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+func (s *server) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLogsReply, error) {
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +118,8 @@ func (s *server) GetLogs(_ context.Context, req *pb.GetLogsRequest) (*pb.GetLogs
 
 // PushLog receives a push log request.
 // @todo: Don't overwrite info from non-owners
-func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+func (s *server) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (s *server) PushLog(_ context.Context, req *pb.PushLogRequest) (*pb.PushLog
 
 // GetRecords receives a get records request.
 func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb.GetRecordsReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 
 // PushRecord receives a push record request.
 func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb.PushRecordReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 
 // ExchangeEdges receives an exchange edges request.
 func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest) (*pb.ExchangeEdgesReply, error) {
-	pid, err := verifyRequest(req.Header, req.Body)
+	pid, err := peerIDFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -421,26 +421,15 @@ func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err err
 	return
 }
 
-// verifyRequest verifies that the signature associated with a request is valid.
-func verifyRequest(header *pb.Header, body proto.Marshaler) (pid peer.ID, err error) {
-	if header == nil || body == nil {
-		err = status.Error(codes.InvalidArgument, "bad request")
-		return
+// peerIDFromContext returns peer ID from the GRPC context
+func peerIDFromContext(ctx context.Context) (peer.ID, error) {
+	ctxPeer, ok := grpcpeer.FromContext(ctx)
+	if !ok {
+		return "", errors.New("unable to identify stream peer")
 	}
-	payload, err := body.Marshal()
+	pid, err := peer.Decode(ctxPeer.Addr.String())
 	if err != nil {
-		err = status.Error(codes.Internal, err.Error())
-		return
-	}
-	ok, err := header.PubKey.Verify(payload, header.Signature)
-	if !ok || err != nil {
-		err = status.Error(codes.Unauthenticated, "bad signature")
-		return
-	}
-	pid, err = peer.IDFromPublicKey(header.PubKey)
-	if err != nil {
-		err = status.Error(codes.InvalidArgument, err.Error())
-		return
+		return "", fmt.Errorf("parsing stream peer id: %v", err)
 	}
 	return pid, nil
 }

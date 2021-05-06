@@ -2,7 +2,7 @@ package net
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -115,7 +115,7 @@ func (s *PubSub) Publish(ctx context.Context, id thread.ID, req *pb.PushRecordRe
 	defer s.RUnlock()
 	topic, ok := s.m[id]
 	if !ok {
-		return fmt.Errorf("thread topic not found")
+		return errors.New("thread topic not found")
 	}
 
 	data, err := req.Marshal()
@@ -175,23 +175,15 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordRequest, err error) {
 	from, err = peer.IDFromBytes(m.From)
 	if err != nil {
-		return
+		return "", nil, err
 	}
 	if from.String() == s.host.String() {
-		return
+		return "", nil, errors.New("pubsub message can not be from the host itself")
 	}
 
 	req := new(pb.PushRecordRequest)
 	if err = proto.Unmarshal(m.Data, req); err != nil {
-		return
-	}
-	pid, err := peer.IDFromPublicKey(req.Header.PubKey)
-	if err != nil {
-		return
-	}
-	if from.String() != pid.String() {
-		log.Warnf("multicast sender does not match record header (%s != %s)", from, pid)
-		return
+		return "", nil, err
 	}
 	return from, req, nil
 }
