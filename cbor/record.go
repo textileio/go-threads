@@ -1,3 +1,4 @@
+// Package cbor provides utilities to create or convert data to and from CBOR format (https://cbor.io/).
 package cbor
 
 import (
@@ -142,7 +143,7 @@ func RecordToProto(ctx context.Context, dag format.DAGService, rec net.Record) (
 	}, nil
 }
 
-// Unmarshal returns a node from a serialized version that contains link data.
+// RecordFromProto returns a node from a serialized version that contains link data.
 func RecordFromProto(rec *pb.Log_Record, key crypto.DecryptionKey) (net.Record, error) {
 	if key == nil {
 		return nil, fmt.Errorf("decryption key is required")

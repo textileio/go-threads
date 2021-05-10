@@ -1,3 +1,4 @@
+// Package common provides utilities to set network options.
 package common
 
 import (
