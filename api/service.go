@@ -1,3 +1,4 @@
+// Package api is all about the DB API. It contains the protobuf definition (under /pb), a Go client (under /client) and a gRPC service for the API backed by the actual DB manager.
 package api
 
 import (
@@ -27,7 +28,7 @@ var (
 	log = logging.Logger("threadsapi")
 )
 
-// Service is a gRPC service for a DB manager.
+// Service is a gRPC DB API service backed by a DB manager.
 type Service struct {
 	manager *db.Manager
 }
@@ -61,6 +62,7 @@ func (s *Service) Close() error {
 	return s.manager.Close()
 }
 
+// remoteIdentity implements core.thread.Identify.
 type remoteIdentity struct {
 	pk     thread.PubKey
 	server pb.API_GetTokenServer

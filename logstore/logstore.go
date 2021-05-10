@@ -1,3 +1,4 @@
+//Package logstore provides local store for thread logs. The subpackages provide creators for different types of store implementations.
 package logstore
 
 import (

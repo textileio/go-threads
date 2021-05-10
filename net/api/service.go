@@ -1,3 +1,4 @@
+// Package api is all about the Network API. It contains the protobuf definition (under /pb), a Go client (under /client) and a gRPC service for the API backed by the threads network.
 package api
 
 import (

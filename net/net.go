@@ -1,3 +1,4 @@
+//Package net implements the network layer for go-threads. Nodes exchange messages with each other via gRPC, and the format is defined under /pb.
 package net
 
 import (
@@ -87,7 +88,7 @@ func (t semaThreadUpdate) Key() string {
 	return "tu:" + string(t)
 }
 
-// net is an implementation of core.DBNet.
+// net is an implementation of app.Net.
 type net struct {
 	format.DAGService
 	host   host.Host
