@@ -3,13 +3,7 @@ package client_test
 import (
 	"context"
 	crand "crypto/rand"
-	"errors"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"math/rand"
-	"net"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -20,15 +14,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mh "github.com/multiformats/go-multihash"
-	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/cbor"
-	"github.com/textileio/go-threads/common"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 	"github.com/textileio/go-threads/net/api"
 	. "github.com/textileio/go-threads/net/api/client"
-	pb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
@@ -376,7 +367,10 @@ func TestClient_Subscribe(t *testing.T) {
 
 func TestClient_Close(t *testing.T) {
 	t.Parallel()
-	_, addr, shutdown := makeServer(t)
+	_, addr, shutdown, err := api.CreateTestService(true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer shutdown()
 	target, err := util.TCPAddrFromMultiAddr(addr)
 	if err != nil {
@@ -395,7 +389,10 @@ func TestClient_Close(t *testing.T) {
 }
 
 func setup(t *testing.T) (ma.Multiaddr, *Client, func()) {
-	host, addr, shutdown := makeServer(t)
+	host, addr, shutdown, err := api.CreateTestService(true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	target, err := util.TCPAddrFromMultiAddr(addr)
 	if err != nil {
 		t.Fatal(err)
@@ -408,58 +405,6 @@ func setup(t *testing.T) (ma.Multiaddr, *Client, func()) {
 	return host, client, func() {
 		shutdown()
 		_ = client.Close()
-	}
-}
-
-func makeServer(t *testing.T) (ma.Multiaddr, ma.Multiaddr, func()) {
-	time.Sleep(time.Second * time.Duration(rand.Intn(5)))
-	dir, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	hostAddr := util.FreeLocalAddr()
-	n, err := common.DefaultNetwork(
-		common.WithNetBadgerPersistence(dir),
-		common.WithNetHostAddr(hostAddr),
-		common.WithNetPubSub(true),
-		common.WithNetDebug(true),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	service, err := api.NewService(n, api.Config{
-		Debug: true,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	port, err := freeport.GetFreePort()
-	if err != nil {
-		t.Fatal(err)
-	}
-	addr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
-	target, err := util.TCPAddrFromMultiAddr(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := grpc.NewServer()
-	listener, err := net.Listen("tcp", target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	go func() {
-		pb.RegisterAPIServer(server, service)
-		if err := server.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Fatalf("serve error: %v", err)
-		}
-	}()
-
-	return hostAddr, addr, func() {
-		server.GracefulStop()
-		if err := n.Close(); err != nil {
-			t.Fatal(err)
-		}
-		_ = os.RemoveAll(dir)
 	}
 }
 
