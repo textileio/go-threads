@@ -478,7 +478,7 @@ threadInfo1, err := net1.CreateThread(context.Background(), threadID)
 ...
 
 // net2 is a different client (this would normally be done on a different machine)
-threadInfo2, err := net2.AddThread(context.Background(), threadInfo.Addrs[0], core.WithThreadKey(threadInfo1.Key))
+threadInfo2, err := net2.AddThread(context.Background(), threadInfo1.Addrs[0], core.WithThreadKey(threadInfo1.Key))
 ```
 
 #### Adding a thread replicator
