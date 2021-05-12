@@ -1,0 +1,25 @@
+name = "network-api"
+
+[defaults]
+builder = "exec:go"
+runner = "local:exec"
+
+[builders]
+"docker:go" = {enabled = true}
+"exec:go" = { enabled = true }
+
+[runners]
+"local:docker"  = { enabled = true }
+"local:exec"    = { enabled = true }
+"cluster:k8s"   = { enabled = true }
+
+[global.build_config]
+  enable_go_build_cache = true
+
+[[testcases]]
+name= "sync-threads"
+instances = { min = 1, max = 500, default = 1 }
+  [testcases.params]
+    records = { type = "int", desc = "random records to be created for each thread", default = 10 }
+    pprof = { type = "boolean", desc = "start pprof on random port", default = true }
+    debug = { type = "boolean", desc = "print debug log", default = false }
