@@ -7,23 +7,29 @@ import (
 	_ "net/http/pprof"
 	"sync"
 
+	ipldcbor "github.com/ipfs/go-ipld-cbor"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
 	tgsync "github.com/testground/sdk-go/sync"
-	"google.golang.org/grpc"
-
-	ipldcbor "github.com/ipfs/go-ipld-cbor"
 	corenet "github.com/textileio/go-threads/core/net"
 	corethread "github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/net/api"
 	"github.com/textileio/go-threads/net/api/client"
 	"github.com/textileio/go-threads/util"
+	"google.golang.org/grpc"
 )
 
 func main() {
+	logging.SetupLogging(logging.Config{
+		Format: logging.ColorizedOutput,
+		Stdout: true,
+		Level:  logging.LevelError,
+	})
+
 	run.InvokeMap(map[string]interface{}{
 		"sync-threads": SyncThreads,
 	})
