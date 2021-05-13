@@ -166,7 +166,7 @@ db, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
 
 #### Getting a thread token
 
-Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _indentity_ of the caller. Most APIs take a thread token as an optional argument, since whether or not they are needed usually depends on how the target collection is configured (see [Write Validation](#write-validation) and [Read Filtering](#read-filtering)). These tokens are obtained by performing a signing challenge with the daemon using a libp2p private key.
+Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _identity_ of the caller. Most APIs take a thread token as an optional argument, since whether or not they are needed usually depends on how the target collection is configured (see [Write Validation](#write-validation) and [Read Filtering](#read-filtering)). These tokens are obtained by performing a signing challenge with the daemon using a libp2p private key.
 
 ```go
 privateKey, _, err := crypto.GenerateEd25519Key(rand.Reader) // Private key is kept locally
@@ -453,7 +453,7 @@ net, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
 
 #### Getting a thread token
 
-Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _indentity_ of the caller. Most APIs take a thread token as an optional argument.
+Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _identity_ of the caller. Most APIs take a thread token as an optional argument.
 
 ```go
 privateKey, _, err := crypto.GenerateEd25519Key(rand.Reader) // Private key is kept locally

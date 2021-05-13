@@ -83,7 +83,7 @@ func SyncThreads(runenv *runtime.RunEnv) (err error) {
 				ri.Msg("failed to add thread %v: %v", addr, err)
 				return err
 			}
-			ri.Msg("added thread %v", id)
+			ri.Msg("added thread %v from %v", id, addr)
 		}
 		records := make([]corenet.ThreadRecord, 0)
 		go func() {
