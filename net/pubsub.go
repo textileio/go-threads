@@ -7,9 +7,11 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	gostream "github.com/libp2p/go-libp2p-gostream"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/textileio/go-threads/core/thread"
 	pb "github.com/textileio/go-threads/net/pb"
+	grpcpeer "google.golang.org/grpc/peer"
 )
 
 // Handler receives all pushed thread records.
@@ -168,6 +170,9 @@ func (s *PubSub) subscribe(ctx context.Context, id thread.ID, topic *topic) {
 		}
 		log.Debugf("received multicast record from %s", from)
 
+		ctx = grpcpeer.NewContext(ctx, &grpcpeer.Peer{
+			Addr: &addr{id: from},
+		})
 		s.handler(ctx, req)
 	}
 }
@@ -178,7 +183,7 @@ func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordR
 		return "", nil, err
 	}
 	if from.String() == s.host.String() {
-		return "", nil, errors.New("pubsub message can not be from the host itself")
+		return "", nil, nil
 	}
 
 	req := new(pb.PushRecordRequest)
@@ -187,3 +192,13 @@ func (s *PubSub) handleMsg(m *pubsub.Message) (from peer.ID, rec *pb.PushRecordR
 	}
 	return from, req, nil
 }
+
+// addr implements net.Addr and holds a libp2p peer ID.
+type addr struct{ id peer.ID }
+
+// Network returns the name of the network that this address belongs to (libp2p).
+func (a *addr) Network() string { return gostream.Network }
+
+// String returns the peer ID of this address in string form
+// (B58-encoded).
+func (a *addr) String() string { return a.id.Pretty() }
