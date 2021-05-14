@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net"
@@ -10,21 +9,25 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/phayes/freeport"
 	"github.com/textileio/go-threads/common"
 	pb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
 
-// CreateTestService creates a test network API gRPC service for test purpose
-func CreateTestService(debug bool) (hostAddr ma.Multiaddr, gRPCAddr ma.Multiaddr, stop func(), err error) {
+// CreateTestService creates a test network API gRPC service for test purpose.
+// It uses either the addr passed in as host addr, or pick an available local addr if it is empty
+func CreateTestService(addr string, debug bool) (hostAddr ma.Multiaddr, gRPCAddr ma.Multiaddr, stop func(), err error) {
 	time.Sleep(time.Second * time.Duration(rand.Intn(5)))
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return
 	}
-	hostAddr = util.FreeLocalAddr()
+	if addr == "" {
+		hostAddr = util.FreeLocalAddr()
+	} else {
+		hostAddr, _ = ma.NewMultiaddr(addr)
+	}
 	n, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(dir),
 		common.WithNetHostAddr(hostAddr),
@@ -40,12 +43,8 @@ func CreateTestService(debug bool) (hostAddr ma.Multiaddr, gRPCAddr ma.Multiaddr
 	if err != nil {
 		return
 	}
-	port, err := freeport.GetFreePort()
-	if err != nil {
-		return
-	}
-	addr := util.MustParseAddr(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port))
-	target, err := util.TCPAddrFromMultiAddr(addr)
+	gRPCAddr = util.FreeLocalAddr()
+	target, err := util.TCPAddrFromMultiAddr(gRPCAddr)
 	if err != nil {
 		return
 	}
@@ -61,7 +60,7 @@ func CreateTestService(debug bool) (hostAddr ma.Multiaddr, gRPCAddr ma.Multiaddr
 		}
 	}()
 
-	return hostAddr, addr, func() {
+	return hostAddr, gRPCAddr, func() {
 		server.GracefulStop()
 		if err := n.Close(); err != nil {
 			return

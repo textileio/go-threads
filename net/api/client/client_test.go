@@ -367,7 +367,7 @@ func TestClient_Subscribe(t *testing.T) {
 
 func TestClient_Close(t *testing.T) {
 	t.Parallel()
-	_, addr, shutdown, err := api.CreateTestService(true)
+	_, addr, shutdown, err := api.CreateTestService("", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func TestClient_Close(t *testing.T) {
 }
 
 func setup(t *testing.T) (ma.Multiaddr, *Client, func()) {
-	host, addr, shutdown, err := api.CreateTestService(true)
+	host, addr, shutdown, err := api.CreateTestService("", true)
 	if err != nil {
 		t.Fatal(err)
 	}
