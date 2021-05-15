@@ -258,7 +258,7 @@ func (ab *DsAddrBook) AddrsEdge(t thread.ID) (uint64, error) {
 		}
 	}
 	if len(as) == 0 {
-		return 0, core.ErrThreadNotFound
+		return EmptyEdgeValue, core.ErrThreadNotFound
 	}
 
 	var (

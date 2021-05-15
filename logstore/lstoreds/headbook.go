@@ -207,7 +207,7 @@ func (hb *dsHeadBook) getEdge(tid thread.ID, key ds.Key) (uint64, error) {
 		}
 	}
 	if len(hs) == 0 {
-		return 0, core.ErrThreadNotFound
+		return EmptyEdgeValue, core.ErrThreadNotFound
 	}
 
 	var (

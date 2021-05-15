@@ -18,6 +18,7 @@ import (
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/logstore/lstoreds"
 	pb "github.com/textileio/go-threads/net/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -349,11 +350,8 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 	// fill local edges
 	for _, tid := range tids {
 		switch addrsEdge, headsEdge, err := s.localEdges(tid); err {
-		case errNoAddrsEdge:
-			log.Warnf("cannot compute edges for %s: no addresses", tid)
-		case errNoHeadsEdge:
-			log.Debugf("cannot compute edges for %s: no heads", tid)
-		case nil:
+		// we have lstoreds.EmptyEdgeValue for headsEdge and addrsEdge if we get errors below
+		case errNoAddrsEdge, errNoHeadsEdge, nil:
 			body.Threads = append(body.Threads, &pb.ExchangeEdgesRequest_Body_ThreadEntry{
 				ThreadID:    &pb.ProtoThreadID{ID: tid},
 				HeadsEdge:   headsEdge,
@@ -398,26 +396,30 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 		return err
 	}
 
-	for i, e := range reply.GetEdges() {
-		tid := tids[i]
-		if !e.GetExists() {
-			// invariant: respondent itself must request missing thread info
-			continue
-		}
+	for _, e := range reply.GetEdges() {
+		tid := e.ThreadID.ID
 
 		// get local edges potentially updated by another process
 		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
-		if err != nil {
+		// we allow local edges to be empty, because the other peer can still have more information
+		if err != nil && err != errNoHeadsEdge && err != errNoAddrsEdge {
 			log.Errorf("second retrieval of local edges for %s failed: %v", tid, err)
 			continue
 		}
 
-		if e.GetAddressEdge() != addrsEdgeLocal {
+		responseEdge := e.GetAddressEdge()
+		// We only update the logs if we got non empty values and different hashes for addresses
+		// Note that previous versions also sent 0 (aka EmptyEdgeValue) values when the addresses
+		// were non-existent, so it shouldn't break backwards compatibility
+		if responseEdge != lstoreds.EmptyEdgeValue && responseEdge != addrsEdgeLocal {
 			if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
 				log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
 			}
 		}
-		if e.GetHeadsEdge() != headsEdgeLocal {
+
+		responseEdge = e.GetHeadsEdge()
+		// We only update the records if we got non empty values and different hashes for heads
+		if responseEdge != lstoreds.EmptyEdgeValue && responseEdge != headsEdgeLocal {
 			if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
 				log.Debugf("record update for thread %s from %s scheduled", tid, pid)
 			}
