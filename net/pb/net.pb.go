@@ -987,7 +987,7 @@ func (m *ExchangeEdgesReply) GetEdges() []*ExchangeEdgesReply_ThreadEdges {
 type ExchangeEdgesReply_ThreadEdges struct {
 	// threadID is the requested thread's ID.
 	ThreadID *ProtoThreadID `protobuf:"bytes,1,opt,name=threadID,proto3,customtype=ProtoThreadID" json:"threadID,omitempty"`
-	// exists is the flag indicating whether the requested thread exists on a respondent.
+	// deprecated, use default values for addressEdge and headsEdge
 	Exists bool `protobuf:"varint,2,opt,name=exists,proto3" json:"exists,omitempty"`
 	// addressEdge is the current hash of peers addresses stored on a respondent.
 	AddressEdge uint64 `protobuf:"varint,3,opt,name=addressEdge,proto3" json:"addressEdge,omitempty"`

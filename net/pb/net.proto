@@ -166,7 +166,7 @@ message ExchangeEdgesReply {
     message ThreadEdges {
         // threadID is the requested thread's ID.
         bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
-        // exists is the flag indicating whether the requested thread exists on a respondent.
+        // deprecated, use default values for addressEdge and headsEdge
         bool exists = 2;
         // addressEdge is the current hash of peers addresses stored on a respondent.
         uint64 addressEdge = 3;
