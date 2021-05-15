@@ -16,6 +16,8 @@ import (
 // Define if storage will accept empty dumps.
 var AllowEmptyRestore = false
 
+const EmptyEdgeValue uint64 = 0
+
 // Configuration object for datastores
 type Options struct {
 	// The size of the in-memory cache. A value of 0 or lower disables the cache.
