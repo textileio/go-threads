@@ -44,14 +44,17 @@ var (
 	}
 	netLowBW = network.LinkShape{
 		Latency:   100 * time.Millisecond,
-		Bandwidth: 1 << 10, // 1Kib
+		Bandwidth: 1 << 16, // 64Kib
 	}
-	netConditions = map[string]network.LinkShape{
-		"normal":    network.LinkShape{},
-		"slow":      netSlow,
-		"long-fat":  netLongFat,
-		"congested": netCongested,
-		"low-bw":    netLowBW,
+	netConditions = []struct {
+		simulation string
+		shape      network.LinkShape
+	}{
+		{"normal", network.LinkShape{}},
+		{"slow", netSlow},
+		{"long-fat", netLongFat},
+		{"low-bw", netLowBW},
+		{"congested", netCongested},
 	}
 )
 
@@ -174,19 +177,17 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		return nil
 	}
 
-	i := 0
-	for simulation, shape := range netConditions {
-		i++
+	for i, pair := range netConditions {
 		round := strconv.Itoa(i)
 		readyState := tgsync.State("ready-" + round)
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		if ic.GlobalSeq == 1 {
-			msg("################### Round %s: %s network ###################", round, simulation)
+			msg("################### Round %s: %s network ###################", round, pair.simulation)
 			// peer 1: reconfigure network, then signal others to continue
 			ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
 				Network:       "default",
 				Enable:        true,
-				Default:       shape,
+				Default:       pair.shape,
 				CallbackState: tgsync.State("network-configured-" + round),
 				RoutingPolicy: network.AllowAll,
 			})
