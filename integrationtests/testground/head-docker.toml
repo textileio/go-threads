@@ -1,0 +1,14 @@
+[global]
+plan    = "go-threads"
+case    = "sync-threads"
+builder = "docker:go"
+runner  = "local:docker"
+total_instances = 5
+
+[[groups]]
+id = "head"
+instances = { count = 5 }
+  [groups.build]
+  dependencies = [
+      { module = "github.com/textileio/go-threads", version = "master"},
+  ]
