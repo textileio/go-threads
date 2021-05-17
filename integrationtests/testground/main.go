@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"strconv"
 	"sync"
 	"time"
 
@@ -30,22 +29,28 @@ import (
 var (
 	netSlow = network.LinkShape{
 		Latency:   time.Second,
-		Bandwidth: 1 << 20, // 1Mib
 		Jitter:    100 * time.Millisecond,
+		Bandwidth: 1 << 20, // 1Mib
 	}
 	netLongFat = network.LinkShape{
 		Latency:   time.Second,
 		Bandwidth: 1 << 30, // 1Gib
 	}
-	netCongested = network.LinkShape{
-		Latency:   100 * time.Millisecond,
-		Bandwidth: 1 << 30, // 1Gib
-		Loss:      40,
-	}
 	netLowBW = network.LinkShape{
 		Latency:   100 * time.Millisecond,
 		Bandwidth: 1 << 16, // 64Kib
 	}
+	netMildlyCongested = network.LinkShape{
+		Latency:   100 * time.Millisecond,
+		Bandwidth: 1 << 30, // 1Gib
+		Loss:      10,
+	}
+	netTerriblyCongested = network.LinkShape{
+		Latency:   100 * time.Millisecond,
+		Bandwidth: 1 << 30, // 1Gib
+		Loss:      40,
+	}
+
 	netConditions = []struct {
 		simulation string
 		shape      network.LinkShape
@@ -54,7 +59,8 @@ var (
 		{"slow", netSlow},
 		{"long-fat", netLongFat},
 		{"low-bw", netLowBW},
-		{"congested", netCongested},
+		{"mildly-congested", netMildlyCongested},
+		{"terribly-congested", netTerriblyCongested},
 	}
 )
 
@@ -69,7 +75,6 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		numRecords = env.IntParam("records")
 		numPeers   = env.TestInstanceCount
 	)
-	setup(env)
 	msg := func(msg string, args ...interface{}) {
 		env.RecordMessage(msg, args...)
 	}
@@ -79,21 +84,14 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		}
 	}
 
-	addr := ""
-	if ip := ic.NetClient.MustGetDataNetworkIP().String(); ip != "127.0.0.1" {
-		// listen on public IP when running in container, so the numPeers can
-		// communicate with each other
-		addr = fmt.Sprintf("/ip4/%s/tcp/8765", ip)
-	} else {
-		debug("Running locally, use random local port to avoid port conflict")
-	}
+	addr := setup(env, ic)
 	// starts the API server and client
 	hostAddr, gRPCAddr, shutdown, err := api.CreateTestService(addr, env.BooleanParam("debug"))
 	if err != nil {
 		return err
 	}
-	msg("Peer #%d, p2p started listening on %v", ic.GlobalSeq, hostAddr)
 	defer shutdown()
+	msg("Peer #%d, p2p started listening on %v", ic.GlobalSeq, hostAddr)
 	target, err := util.TCPAddrFromMultiAddr(gRPCAddr)
 	if err != nil {
 		return err
@@ -105,8 +103,10 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	defer client.Close()
 
 	doTest := func(round string) error {
+		start := time.Now()
 		doneState := tgsync.State("done-" + round)
-		ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
 		theThread, err := client.CreateThread(ctx, corethread.NewIDV1(corethread.Raw, 32))
 		if err != nil {
 			return err
@@ -122,6 +122,7 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		wg.Add(numPeers)
 		go func() {
 			wg.Wait()
+			env.R().RecordPoint("round-"+round+"-elapsed-seconds", time.Since(start).Seconds())
 			ic.SyncClient.MustSignalEntry(ctx, doneState)
 		}()
 		for i := 0; i < numPeers; i++ {
@@ -170,19 +171,20 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 				return err
 			}
 		}
-		msg("Peer %d shoot out %d records", ic.GlobalSeq, numRecords)
+		msg("Peer #%d shoot out %d records", ic.GlobalSeq, numRecords)
 
 		// wait until all instances get correct results
 		<-ic.SyncClient.MustBarrier(ctx, doneState, numPeers).C
 		return nil
 	}
 
-	for i, pair := range netConditions {
-		round := strconv.Itoa(i)
+	for _, pair := range netConditions {
+		round := pair.simulation
+		self := ic.GlobalSeq
 		readyState := tgsync.State("ready-" + round)
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		if ic.GlobalSeq == 1 {
-			msg("################### Round %s: %s network ###################", round, pair.simulation)
+		if self == 1 {
+			msg("################### Round %s network ###################", round)
 			// peer 1: reconfigure network, then signal others to continue
 			ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
 				Network:       "default",
@@ -195,9 +197,9 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		} else {
 			<-ic.SyncClient.MustBarrier(ctx, readyState, 1).C
 		}
-		msg("Peer %d starting round %s", ic.GlobalSeq, round)
+		msg("Peer #%d starting round %s", self, round)
 		if err := doTest(round); err != nil {
-			msg("################### Round %s failed: %v ###################", round, err)
+			msg("################### Peer #%d round %s failed: %v ###################", self, round, err)
 			return err
 		}
 	}
@@ -210,7 +212,7 @@ type SharedInfo struct {
 	Key       string // corethread.Key
 }
 
-func setup(env *runtime.RunEnv) {
+func setup(env *runtime.RunEnv, ic *run.InitContext) (hostAddr string) {
 	debug := env.BooleanParam("debug")
 	logLevel := logging.LevelError
 	if debug {
@@ -221,12 +223,17 @@ func setup(env *runtime.RunEnv) {
 		Stdout: true,
 		Level:  logLevel,
 	})
-
-	if env.BooleanParam("pprof") {
+	if ip := ic.NetClient.MustGetDataNetworkIP().String(); ip != "127.0.0.1" {
+		// listen on public IP when running in container, so the numPeers can
+		// communicate with each other
+		return fmt.Sprintf("/ip4/%s/tcp/8765", ip)
+	} else {
 		go func() {
 			l, _ := net.Listen("tcp", ":")
 			env.RecordMessage("starting pprof at %s/debug/pprof", l.Addr().String())
 			_ = http.Serve(l, nil)
 		}()
+		// running locally, use random local port to avoid port conflict
+		return ""
 	}
 }

@@ -1,0 +1,10 @@
+[global]
+plan    = "go-threads"
+case    = "sync-threads"
+builder = "docker:go"
+runner  = "local:docker"
+total_instances = 5
+
+[[groups]]
+id = "current"
+instances = { count = 5 }

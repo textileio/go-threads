@@ -1,4 +1,4 @@
-name = "network-api"
+name = "go-threads"
 
 [defaults]
 builder = "exec:go"
@@ -21,5 +21,4 @@ name= "sync-threads"
 instances = { min = 1, max = 500, default = 1 }
   [testcases.params]
     records = { type = "int", desc = "random records to be created for each thread", default = 10 }
-    pprof = { type = "boolean", desc = "start pprof on random port", default = true }
     debug = { type = "boolean", desc = "print debug log", default = false }
