@@ -28,17 +28,17 @@ testground run composition --wait -f head-docker.toml
 testground run composition --wait -f current-docker.toml
 ```
 
-You can also run individual test case and pass test parameters in command line. For example, below builds the test as native executables, runs 2 instances, with debug log printed to the console. See manifest.toml for all test parameters.
+You can also run individual test case and pass test parameters in command line. For example, below builds the test as native executables, runs 2 instances, with very verbose logs printed to the console. See manifest.toml for all test parameters.
 ```
-testground run single --wait -p go-threads -t sync-threads -b exec:go -r local:exec -i 2 -tp debug=true
+testground run single --wait -p go-threads -t sync-threads -b exec:go -r local:exec -i 2 -tp verbose=2
 ```
 
 # Analysize
 
 1. Check for errors running the tests
-1. Check the recorded metrics and compare them with a baseline run
+1. Check the recorded metrics and compare them with a baseline run. `run_id` is shown at both the begining and the end of the run.
 ```
-cd $HOME/testground/data/outputs/local_docker/go-threads/<runner-id>
+cd $HOME/testground/data/outputs/local_docker/go-threads/<run_id>
 find . -name "results.out" | xargs grep elapsed-seconds | sort -t ':' -k 4
 ```
 
