@@ -105,7 +105,7 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		return err
 	}
 	defer shutdown()
-	msg("Peer #%d, p2p started listening on %v", ic.GlobalSeq, hostAddr)
+	msg("Peer #%d, p2p listening on %v, gRPC listening on %v", ic.GlobalSeq, hostAddr, gRPCAddr)
 	target, err := util.TCPAddrFromMultiAddr(gRPCAddr)
 	if err != nil {
 		return err
@@ -116,16 +116,15 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	}
 	defer client.Close()
 
-	doTest := func(round string, topic *sync.Topic, chThreadsToBeAdded chan SharedInfo) error {
+	doTest := func(round string, topic *sync.Topic, chThreadToBeJoin chan SharedInfo) error {
 		start := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		shared := <-chThreadsToBeAdded
+		ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+		shared := <-chThreadToBeJoin
 		thr, err := joinThread(ctx, client, &shared)
 		if err != nil {
 			return fmt.Errorf("failed to join thread: %w", err)
 		}
-		msg("joined thread")
+		msg("Joined thread")
 
 		doneStep1 := sync.State("done-" + round + "-step1")
 		var logRecords map[libp2ppeer.ID][]corenet.Record
@@ -138,7 +137,7 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 				}
 			}
 			env.R().RecordPoint("round-"+round+"-step-1-elapsed-seconds", time.Since(start).Seconds())
-			msg("Finished round %s step 1", round)
+			msg("Peer #%d done round %s step 1", ic.GlobalSeq, round)
 			ic.SyncClient.MustSignalAndWait(ctx, doneStep1, env.TestInstanceCount)
 		}()
 
@@ -151,14 +150,15 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 			prev = rec.Cid()
 		}
 		msg("Peer #%d shoot out %d records", ic.GlobalSeq, numRecords)
-		// wait until all instances get correct results
+		// wait until all peers get correct results
 		<-ic.SyncClient.MustBarrier(ctx, doneStep1, numPeers).C
 
 		doneStep2 := sync.State("done-" + round + "-step2")
 		start = time.Now()
 		go func() {
 			_ = thr.waitForRecords(ctx, numRecords*env.TestInstanceCount*env.TestInstanceCount)
-			msg("Finished round %s step 2", round)
+			env.R().RecordPoint("round-"+round+"-step-2-elapsed-seconds", time.Since(start).Seconds())
+			msg("Peer #%d done round %s step 2", ic.GlobalSeq, round)
 			ic.SyncClient.MustSignalAndWait(ctx, doneStep2, env.TestInstanceCount)
 		}()
 		// now add records pointing to each other's previous records
@@ -171,15 +171,13 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 			}
 		}
 		<-ic.SyncClient.MustBarrier(ctx, doneStep2, numPeers).C
-		env.R().RecordPoint("round-"+round+"-step-2-elapsed-seconds", time.Since(start).Seconds())
-		msg("Peer #%d done round %s", ic.GlobalSeq, round)
 		return nil
 	}
 
 	for _, pair := range netConditions {
 		round := pair.simulation
 		ctx, _ := context.WithTimeout(context.Background(), time.Minute)
-		chThreadsToBeAdded := make(chan SharedInfo, 1)
+		chThreadToBeJoin := make(chan SharedInfo, 1)
 		topic := sync.NewTopic("thread-"+round, SharedInfo{})
 		self := ic.GlobalSeq
 		if self == 1 {
@@ -192,26 +190,28 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 				CallbackState: sync.State("network-configured-" + round),
 				RoutingPolicy: network.AllowAll,
 			})
+			msg("Done configuring network")
 			// create this "root" thread and broadcast, then each
 			// instance (include this one itself) creates its own
 			// log in this thread.
 			rootThread, err := createThread(ctx, client)
 			if err != nil {
-				msg("failed to create the thread: %v", err)
+				msg("Failed to create the thread: %v", err)
 				return err
 			}
+			msg("Created thread")
 			ic.SyncClient.MustPublishSubscribe(ctx,
 				topic,
 				rootThread.Sharable(),
-				chThreadsToBeAdded)
+				chThreadToBeJoin)
 		} else {
-			ic.SyncClient.MustSubscribe(ctx, topic, chThreadsToBeAdded)
+			ic.SyncClient.MustSubscribe(ctx, topic, chThreadToBeJoin)
 		}
 
 		// make sure all peers start the test at the same time
 		ic.SyncClient.MustSignalAndWait(ctx, sync.State("ready-"+round), env.TestInstanceCount)
 		msg("Peer #%d starting round %s", self, round)
-		if err := doTest(round, topic, chThreadsToBeAdded); err != nil {
+		if err := doTest(round, topic, chThreadToBeJoin); err != nil {
 			msg("################### Peer #%d round %s failed: %v ###################", self, round, err)
 			return err
 		}

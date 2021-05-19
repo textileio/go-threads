@@ -5,7 +5,7 @@ builder = "exec:go"
 runner = "local:exec"
 
 [builders]
-"docker:go" = {enabled = true}
+"docker:go" = {enabled = true, enable_go_build_cache = true}
 "exec:go" = { enabled = true }
 
 [runners]
