@@ -1,0 +1,12 @@
+[global]
+plan    = "go-threads"
+case    = "sync-threads"
+builder = "exec:go"
+runner  = "local:exec"
+total_instances = 2
+
+[[groups]]
+id = "current"
+instances = { count = 2 }
+  [groups.run]
+  test_params = {records="2", verbose="1"}
