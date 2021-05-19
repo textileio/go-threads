@@ -2,28 +2,33 @@ package main
 
 import (
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"sync"
 	"time"
 
+	fuzz "github.com/google/gofuzz"
+	cid "github.com/ipfs/go-cid"
+	ipldcbor "github.com/ipfs/go-ipld-cbor"
+	logging "github.com/ipfs/go-log/v2"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
+	libp2ppeer "github.com/libp2p/go-libp2p-peer"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/multiformats/go-multihash"
 	"github.com/testground/sdk-go/network"
 	"github.com/testground/sdk-go/run"
 	"github.com/testground/sdk-go/runtime"
-	tgsync "github.com/testground/sdk-go/sync"
+	sync "github.com/testground/sdk-go/sync"
+	"google.golang.org/grpc"
 
-	ipldcbor "github.com/ipfs/go-ipld-cbor"
-	logging "github.com/ipfs/go-log/v2"
-	"github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multihash"
+	"github.com/textileio/go-threads/cbor"
 	corenet "github.com/textileio/go-threads/core/net"
-	corethread "github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/net/api"
 	"github.com/textileio/go-threads/net/api/client"
 	"github.com/textileio/go-threads/util"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -62,6 +67,12 @@ var (
 		{"mildly-congested", netMildlyCongested},
 		{"terribly-congested", netTerriblyCongested},
 	}
+
+	fuzzer = fuzz.New()
+
+	msg   func(msg string, args ...interface{})
+	debug func(msg string, args ...interface{})
+	fail  func(msg string, args ...interface{})
 )
 
 func main() {
@@ -75,18 +86,21 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		numRecords = env.IntParam("records")
 		numPeers   = env.TestInstanceCount
 	)
-	msg := func(msg string, args ...interface{}) {
+	msg = func(msg string, args ...interface{}) {
 		env.RecordMessage(msg, args...)
 	}
-	debug := func(msg string, args ...interface{}) {
-		if env.BooleanParam("debug") {
+	debug = func(msg string, args ...interface{}) {
+		if env.IntParam("verbose") > 0 {
 			env.RecordMessage(msg, args...)
 		}
+	}
+	fail = func(msg string, args ...interface{}) {
+		env.RecordFailure(fmt.Errorf(msg, args...))
 	}
 
 	addr := setup(env, ic)
 	// starts the API server and client
-	hostAddr, gRPCAddr, shutdown, err := api.CreateTestService(addr, env.BooleanParam("debug"))
+	hostAddr, gRPCAddr, shutdown, err := api.CreateTestService(addr, env.IntParam("verbose") > 1)
 	if err != nil {
 		return err
 	}
@@ -96,109 +110,108 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	if err != nil {
 		return err
 	}
-	client, err := client.NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(corethread.Credentials{}))
+	client, err := client.NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	doTest := func(round string) error {
+	doTest := func(round string, topic *sync.Topic, chThreadsToBeAdded chan SharedInfo) error {
 		start := time.Now()
-		doneState := tgsync.State("done-" + round)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		theThread, err := client.CreateThread(ctx, corethread.NewIDV1(corethread.Raw, 32))
+		shared := <-chThreadsToBeAdded
+		thr, err := joinThread(ctx, client, &shared)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to join thread: %w", err)
 		}
+		msg("joined thread")
 
-		ch := make(chan SharedInfo)
-		ic.SyncClient.MustPublishSubscribe(ctx,
-			tgsync.NewTopic("thread-"+round, SharedInfo{}),
-			SharedInfo{ic.GlobalSeq, theThread.Addrs[0].String(), theThread.Key.String()},
-			ch)
-		// wait until the records from all threads are received
-		var wg sync.WaitGroup
-		wg.Add(numPeers)
+		doneStep1 := sync.State("done-" + round + "-step1")
+		var logRecords map[libp2ppeer.ID][]corenet.Record
 		go func() {
-			wg.Wait()
-			env.R().RecordPoint("round-"+round+"-elapsed-seconds", time.Since(start).Seconds())
-			ic.SyncClient.MustSignalEntry(ctx, doneState)
-		}()
-		for i := 0; i < numPeers; i++ {
-			shared := <-ch
-			addr, _ := multiaddr.NewMultiaddr(shared.Addr)
-			id, _ := corethread.FromAddr(addr)
-			peer := shared.GlobalSeq
-			if id != theThread.ID {
-				key, _ := corethread.KeyFromString(shared.Key)
-				debug("adding thread %v from peer #%d...", addr, peer)
-				_, err := client.AddThread(ctx, addr, corenet.WithThreadKey(key))
-				if err != nil {
-					msg("failed to add thread %v from peer #%d: %v", addr, peer, err)
-					return err
-				}
-				debug("added thread %v from peer #%d, addr %v", id, peer, addr)
-			}
-			records := make([]corenet.ThreadRecord, 0, numRecords)
-			go func() {
-				ch, err := client.Subscribe(ctx, corenet.WithSubFilter(id))
-				if err != nil {
-					msg("Error subscribing thread %v from peer #%d: %v", id, peer, err)
+			logRecords = thr.waitForRecords(ctx, numRecords*env.TestInstanceCount)
+			for logID, records := range logRecords {
+				if len(records) < numRecords {
+					fail("Expect %d records from log %v, got %d", numRecords, logID, len(records))
 					return
 				}
-				debug("Subscribed to thread from peer #%d", peer)
-				for record := range ch {
-					records = append(records, record)
-					debug("Records from peer #%d so far: %d", peer, len(records))
-					if len(records) >= numRecords {
-						msg("Got all %d records from peer #%d", len(records), peer)
-						wg.Done()
-						return
-					}
-				}
-			}()
+			}
+			env.R().RecordPoint("round-"+round+"-step-1-elapsed-seconds", time.Since(start).Seconds())
+			msg("Finished round %s step 1", round)
+			ic.SyncClient.MustSignalAndWait(ctx, doneStep1, env.TestInstanceCount)
+		}()
 
-		}
-
+		prev := cid.Undef
 		for i := 0; i < numRecords; i++ {
-			body, err := ipldcbor.WrapObject(map[string]interface{}{
-				"foo": "bar",
-				"baz": []byte("howdy"),
-			}, multihash.SHA2_256, -1)
-			_, err = client.CreateRecord(ctx, theThread.ID, body)
+			rec, err := thr.addRecord(ctx, prev)
 			if err != nil {
 				return err
 			}
+			prev = rec.Cid()
 		}
 		msg("Peer #%d shoot out %d records", ic.GlobalSeq, numRecords)
-
 		// wait until all instances get correct results
-		<-ic.SyncClient.MustBarrier(ctx, doneState, numPeers).C
+		<-ic.SyncClient.MustBarrier(ctx, doneStep1, numPeers).C
+
+		doneStep2 := sync.State("done-" + round + "-step2")
+		start = time.Now()
+		go func() {
+			_ = thr.waitForRecords(ctx, numRecords*env.TestInstanceCount*env.TestInstanceCount)
+			msg("Finished round %s step 2", round)
+			ic.SyncClient.MustSignalAndWait(ctx, doneStep2, env.TestInstanceCount)
+		}()
+		// now add records pointing to each other's previous records
+		for _, records := range logRecords {
+			for _, rec := range records {
+				_, err := thr.addRecord(ctx, rec.Cid())
+				if err != nil {
+					return fmt.Errorf("Error creating new record: %w", err)
+				}
+			}
+		}
+		<-ic.SyncClient.MustBarrier(ctx, doneStep2, numPeers).C
+		env.R().RecordPoint("round-"+round+"-step-2-elapsed-seconds", time.Since(start).Seconds())
+		msg("Peer #%d done round %s", ic.GlobalSeq, round)
 		return nil
 	}
 
 	for _, pair := range netConditions {
 		round := pair.simulation
+		ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+		chThreadsToBeAdded := make(chan SharedInfo, 1)
+		topic := sync.NewTopic("thread-"+round, SharedInfo{})
 		self := ic.GlobalSeq
-		readyState := tgsync.State("ready-" + round)
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 		if self == 1 {
 			msg("################### Round %s network ###################", round)
-			// peer 1: reconfigure network, then signal others to continue
+			// peer 1: reconfigure network, create the thread shared by all peers, then signal others to continue
 			ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
 				Network:       "default",
 				Enable:        true,
 				Default:       pair.shape,
-				CallbackState: tgsync.State("network-configured-" + round),
+				CallbackState: sync.State("network-configured-" + round),
 				RoutingPolicy: network.AllowAll,
 			})
-			ic.SyncClient.MustSignalEntry(ctx, readyState)
+			// create this "root" thread and broadcast, then each
+			// instance (include this one itself) creates its own
+			// log in this thread.
+			rootThread, err := createThread(ctx, client)
+			if err != nil {
+				msg("failed to create the thread: %v", err)
+				return err
+			}
+			ic.SyncClient.MustPublishSubscribe(ctx,
+				topic,
+				rootThread.Sharable(),
+				chThreadsToBeAdded)
 		} else {
-			<-ic.SyncClient.MustBarrier(ctx, readyState, 1).C
+			ic.SyncClient.MustSubscribe(ctx, topic, chThreadsToBeAdded)
 		}
+
+		// make sure all peers start the test at the same time
+		ic.SyncClient.MustSignalAndWait(ctx, sync.State("ready-"+round), env.TestInstanceCount)
 		msg("Peer #%d starting round %s", self, round)
-		if err := doTest(round); err != nil {
+		if err := doTest(round, topic, chThreadsToBeAdded); err != nil {
 			msg("################### Peer #%d round %s failed: %v ###################", self, round, err)
 			return err
 		}
@@ -206,17 +219,14 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	return nil
 }
 
-type SharedInfo struct {
-	GlobalSeq int64
-	Addr      string // multiaddr.Multiaddr
-	Key       string // corethread.Key
-}
-
 func setup(env *runtime.RunEnv, ic *run.InitContext) (hostAddr string) {
-	debug := env.BooleanParam("debug")
 	logLevel := logging.LevelError
-	if debug {
+	switch env.IntParam("verbose") {
+	case 1:
+		logLevel = logging.LevelInfo
+	case 2:
 		logLevel = logging.LevelDebug
+	default:
 	}
 	logging.SetupLogging(logging.Config{
 		Format: logging.ColorizedOutput,
@@ -236,4 +246,138 @@ func setup(env *runtime.RunEnv, ic *run.InitContext) (hostAddr string) {
 		// running locally, use random local port to avoid port conflict
 		return ""
 	}
+}
+
+// info shared among peers via testground pubsub
+type SharedInfo struct {
+	Addr      string // multiaddr.Multiaddr
+	ThreadKey string // thread.Key
+}
+
+type ThreadWithKeys struct {
+	thread.Info
+	identity thread.Identity
+	logSk    crypto.PrivKey
+	logPk    crypto.PubKey
+	cli      *client.Client
+}
+
+func createThread(ctx context.Context, cli *client.Client) (thr *ThreadWithKeys, err error) {
+	// Create a thread, keeping read key and log private key on the client
+	id := thread.NewIDV1(thread.Raw, 32)
+	tk := thread.NewRandomKey()
+	logSk, logPk, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	sk, _, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	identity := thread.NewLibp2pIdentity(sk)
+	tok, err := cli.GetToken(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := cli.CreateThread(ctx, id,
+		corenet.WithThreadKey(tk),
+		corenet.WithLogKey(logPk),
+		corenet.WithNewThreadToken(tok))
+	if err != nil {
+		return nil, err
+	}
+	return &ThreadWithKeys{info, identity, logSk, logPk, cli}, nil
+}
+
+// joinThread joins to a thread created by another peer. It allows reading records created by the peer, also creates its own log to the thread.
+func joinThread(ctx context.Context, cli *client.Client, shared *SharedInfo) (*ThreadWithKeys, error) {
+	addr, err := multiaddr.NewMultiaddr(shared.Addr)
+	if err != nil {
+		return nil, err
+	}
+	key, err := thread.KeyFromString(shared.ThreadKey)
+	if err != nil {
+		return nil, err
+	}
+	logSk, logPk, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	sk, _, err := crypto.GenerateEd25519Key(crand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	identity := thread.NewLibp2pIdentity(sk)
+	tok, err := cli.GetToken(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	info, err := cli.AddThread(ctx, addr, corenet.WithThreadKey(key), corenet.WithLogKey(logSk), corenet.WithNewThreadToken(tok))
+	if err != nil {
+		return nil, err
+	}
+	return &ThreadWithKeys{info, identity, logSk, logPk, cli}, nil
+}
+
+func emptyThread(cli *client.Client) (thr *ThreadWithKeys) {
+	return &ThreadWithKeys{cli: cli}
+}
+
+func (t *ThreadWithKeys) Sharable() *SharedInfo {
+	return &SharedInfo{t.Addrs[0].String(), t.Key.String()}
+}
+
+// waitForRecords blocks until it receives nRecords, then return them classified by log ID
+func (t *ThreadWithKeys) waitForRecords(ctx context.Context, nRecords int) (logRecords map[libp2ppeer.ID][]corenet.Record) {
+	logRecords = make(map[libp2ppeer.ID][]corenet.Record)
+	ch, err := t.cli.Subscribe(ctx, corenet.WithSubFilter(t.Info.ID))
+	if err != nil {
+		msg("Error subscribing thread: %v", err)
+		return
+	}
+	debug("Subscribed to thread")
+	totalRecords := 0
+	for record := range ch {
+		totalRecords++
+		logID := record.LogID()
+		records := logRecords[logID]
+		records = append(records, record.Value())
+		debug("Records of log %v so far: %d", logID, len(records))
+		logRecords[logID] = records
+		if totalRecords >= nRecords {
+			msg("Got all %d records", nRecords)
+			return
+		}
+	}
+	return
+}
+
+func (t *ThreadWithKeys) addRecord(ctx context.Context, prev cid.Cid) (rec corenet.Record, err error) {
+	obj := make(map[string][]byte)
+	fuzzer.Fuzz(&obj)
+	body, err := ipldcbor.WrapObject(obj, multihash.SHA2_256, -1)
+	event, err := cbor.CreateEvent(ctx, nil, body, t.Key.Read())
+	if err != nil {
+		return nil, err
+	}
+	rec, err = cbor.CreateRecord(ctx, nil, cbor.CreateRecordConfig{
+		Block:      event,
+		Prev:       prev,
+		Key:        t.logSk,
+		PubKey:     t.identity.GetPublic(),
+		ServiceKey: t.Key.Service(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	logID, err := libp2ppeer.IDFromPublicKey(t.logPk)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = t.cli.AddRecord(ctx, t.ID, logID, rec); err != nil {
+		return nil, err
+	}
+	return rec, nil
 }

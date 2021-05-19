@@ -20,5 +20,5 @@ runner = "local:exec"
 name= "sync-threads"
 instances = { min = 1, max = 500, default = 1 }
   [testcases.params]
-    records = { type = "int", desc = "random records to be created for each thread", default = 10 }
-    debug = { type = "boolean", desc = "print debug log", default = false }
+    records = { type = "int", desc = "number of random records to be created for each thread", default = 10 }
+    verbose = { type = "int", desc = "verbose level of on screen logs, 0-2", default = 0 }

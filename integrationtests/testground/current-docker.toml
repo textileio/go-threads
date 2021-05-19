@@ -8,3 +8,5 @@ total_instances = 5
 [[groups]]
 id = "current"
 instances = { count = 5 }
+  [groups.run]
+  test_params = {}
