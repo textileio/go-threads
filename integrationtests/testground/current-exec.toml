@@ -9,4 +9,4 @@ total_instances = 2
 id = "current"
 instances = { count = 2 }
   [groups.run]
-  test_params = {records="2", verbose="1"}
+  test_params = {records="3", verbose="1"}

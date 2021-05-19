@@ -21,4 +21,6 @@ name= "sync-threads"
 instances = { min = 1, max = 500, default = 1 }
   [testcases.params]
     records = { type = "int", desc = "number of random records to be created for each thread", default = 10 }
-    verbose = { type = "int", desc = "verbose level of on screen logs, 0-2", default = 0 }
+    verbose = { type = "int", desc = "verbose level of on screen logs, 0-3", default = 0 }
+    late-start = { type = "boolean", desc = "start client in a later stage, used by composition", default = false }
+    early-stop = { type = "boolean", desc = "stop client in an early stage, used by composition", default = false }

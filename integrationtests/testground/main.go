@@ -97,30 +97,11 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	fail = func(msg string, args ...interface{}) {
 		env.RecordFailure(fmt.Errorf(msg, args...))
 	}
-
-	addr := setup(env, ic)
-	// starts the API server and client
-	hostAddr, gRPCAddr, shutdown, err := api.CreateTestService(addr, env.IntParam("verbose") > 1)
-	if err != nil {
-		return err
-	}
-	defer shutdown()
-	msg("Peer #%d, p2p listening on %v, gRPC listening on %v", ic.GlobalSeq, hostAddr, gRPCAddr)
-	target, err := util.TCPAddrFromMultiAddr(gRPCAddr)
-	if err != nil {
-		return err
-	}
-	client, err := client.NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	doTest := func(round string, topic *sync.Topic, chThreadToBeJoin chan SharedInfo) error {
+	doTest := func(round string, cli *client.Client, topic *sync.Topic, chThreadToBeJoin chan SharedInfo) error {
 		start := time.Now()
 		ctx, _ := context.WithTimeout(context.Background(), time.Minute)
 		shared := <-chThreadToBeJoin
-		thr, err := joinThread(ctx, client, &shared)
+		thr, err := joinThread(ctx, cli, &shared)
 		if err != nil {
 			return fmt.Errorf("failed to join thread: %w", err)
 		}
@@ -174,13 +155,25 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		return nil
 	}
 
-	for _, pair := range netConditions {
+	setup(env, ic)
+	for i, pair := range netConditions {
 		round := pair.simulation
 		ctx, _ := context.WithTimeout(context.Background(), time.Minute)
 		chThreadToBeJoin := make(chan SharedInfo, 1)
 		topic := sync.NewTopic("thread-"+round, SharedInfo{})
-		self := ic.GlobalSeq
-		if self == 1 {
+
+		desiredAddr := ""
+		if env.TestSidecar {
+			// listen on non-local interface when running in container, so the peers can communicate with each other
+			ip := ic.NetClient.MustGetDataNetworkIP().String()
+			desiredAddr = fmt.Sprintf("/ip4/%s/tcp/%d", ip, 3000+i)
+		}
+		cli, stop, err := startClient(desiredAddr, env, ic)
+		if err != nil {
+			return err
+		}
+
+		if !env.BooleanParam("late-start") && ic.GroupSeq == 1 {
 			msg("################### Round %s network ###################", round)
 			// peer 1: reconfigure network, create the thread shared by all peers, then signal others to continue
 			ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
@@ -191,10 +184,8 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 				RoutingPolicy: network.AllowAll,
 			})
 			msg("Done configuring network")
-			// create this "root" thread and broadcast, then each
-			// instance (include this one itself) creates its own
-			// log in this thread.
-			rootThread, err := createThread(ctx, client)
+			// create this "root" thread and broadcast, then each instance (include this one itself) creates its own log in this thread.
+			rootThread, err := createThread(ctx, cli)
 			if err != nil {
 				msg("Failed to create the thread: %v", err)
 				return err
@@ -210,21 +201,27 @@ func syncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 
 		// make sure all peers start the test at the same time
 		ic.SyncClient.MustSignalAndWait(ctx, sync.State("ready-"+round), env.TestInstanceCount)
+		self := ic.GlobalSeq
 		msg("Peer #%d starting round %s", self, round)
-		if err := doTest(round, topic, chThreadToBeJoin); err != nil {
+		if err := doTest(round, cli, topic, chThreadToBeJoin); err != nil {
 			msg("################### Peer #%d round %s failed: %v ###################", self, round, err)
+
 			return err
 		}
+		stop()
+		time.Sleep(10 * time.Second)
 	}
 	return nil
 }
 
-func setup(env *runtime.RunEnv, ic *run.InitContext) (hostAddr string) {
+func setup(env *runtime.RunEnv, ic *run.InitContext) {
 	logLevel := logging.LevelError
 	switch env.IntParam("verbose") {
 	case 1:
-		logLevel = logging.LevelInfo
+		logLevel = logging.LevelWarn
 	case 2:
+		logLevel = logging.LevelInfo
+	case 3:
 		logLevel = logging.LevelDebug
 	default:
 	}
@@ -233,19 +230,34 @@ func setup(env *runtime.RunEnv, ic *run.InitContext) (hostAddr string) {
 		Stdout: true,
 		Level:  logLevel,
 	})
-	if ip := ic.NetClient.MustGetDataNetworkIP().String(); ip != "127.0.0.1" {
-		// listen on public IP when running in container, so the numPeers can
-		// communicate with each other
-		return fmt.Sprintf("/ip4/%s/tcp/8765", ip)
-	} else {
+	if env.TestSidecar {
 		go func() {
 			l, _ := net.Listen("tcp", ":")
 			env.RecordMessage("starting pprof at %s/debug/pprof", l.Addr().String())
 			_ = http.Serve(l, nil)
 		}()
-		// running locally, use random local port to avoid port conflict
-		return ""
 	}
+}
+
+func startClient(desiredAddr string, env *runtime.RunEnv, ic *run.InitContext) (*client.Client, func(), error) {
+	// starts the API server and client
+	hostAddr, gRPCAddr, shutdown, err := api.CreateTestService(desiredAddr, env.IntParam("verbose") > 1)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	msg("Peer #%d, p2p listening on %v, gRPC listening on %v", ic.GlobalSeq, hostAddr, gRPCAddr)
+	target, err := util.TCPAddrFromMultiAddr(gRPCAddr)
+	if err != nil {
+		return nil, shutdown, err
+	}
+	cli, err := client.NewClient(target, grpc.WithInsecure(), grpc.WithPerRPCCredentials(thread.Credentials{}))
+	if err != nil {
+		return nil, shutdown, err
+	}
+	return cli, func() {
+		cli.Close()
+		shutdown()
+	}, nil
 }
 
 // info shared among peers via testground pubsub
