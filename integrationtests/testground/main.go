@@ -140,7 +140,9 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 	ctx, _ := context.WithTimeout(context.Background(), time.Minute)
 	var cli *client.Client
 	var stop func()
-	if !env.BooleanParam("late-start") {
+	isLateStart := env.BooleanParam("late-start")
+	isEarlyStop := env.BooleanParam("early-stop")
+	if !isLateStart {
 		var err error
 		cli, stop, err = startClient(desiredAddr, env, ic)
 		if err != nil {
@@ -151,7 +153,7 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 	chThreadToJoin := make(chan *SharedInfo, 1)
 	topic := sync.NewTopic("thread-"+round, &SharedInfo{})
 	// choose a single peer to create the thread and broadcast, then each peer (include this one itself) creates its own log on this thread.
-	if !env.BooleanParam("late-start") && !env.BooleanParam("early-stop") && ic.GroupSeq == 1 {
+	if !isLateStart && !isEarlyStop && ic.GroupSeq == 1 {
 		thr, err := createThread(ctx, cli)
 		if err != nil {
 			msg("Failed to create the thread: %v", err)
@@ -178,7 +180,7 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 	}
 	myRecords := env.IntParam("records")
 	meLive := 1
-	if env.BooleanParam("late-start") {
+	if isLateStart {
 		myRecords = 0
 		meLive = 0
 	}
@@ -188,7 +190,7 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 	msg("Peer #%d starting %s network test", ic.GlobalSeq, round)
 	var receivedRecords []corenet.Record
 	var thr *threadWithKeys
-	if !env.BooleanParam("late-start") {
+	if !isLateStart {
 		var err error
 		thr, err = joinThread(ctx, cli, <-chThreadToJoin)
 		if err != nil {
@@ -219,13 +221,13 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 
 	myRecords = expectedRecords
 	meLive = 1
-	if env.BooleanParam("early-stop") {
+	if isEarlyStop {
 		meLive = 0
 		myRecords = 0
 	}
 	livePeers = publishAndGetTotal(sync.NewTopic("livePeers-"+round+"-step-2", 0), meLive)
 	expectedRecords = publishAndGetTotal(sync.NewTopic("expectedRecords-"+round+"-step-2", 0), myRecords)
-	if env.BooleanParam("early-stop") {
+	if isEarlyStop {
 		stop()
 		return nil
 	}
