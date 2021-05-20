@@ -397,10 +397,6 @@ func joinThread(ctx context.Context, cli *client.Client, shared *SharedInfo) (*t
 	return &threadWithKeys{info, identity, logSk, logPk, cli}, nil
 }
 
-func emptyThread(cli *client.Client) (thr *threadWithKeys) {
-	return &threadWithKeys{cli: cli}
-}
-
 func (t *threadWithKeys) Sharable() *SharedInfo {
 	return &SharedInfo{t.Addrs[0].String(), t.Key.String()}
 }
