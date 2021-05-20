@@ -26,6 +26,8 @@ testground run composition --wait -f baseline-docker.toml
 testground run composition --wait -f head-docker.toml
 #  This one uses whatever version specified by go.mod in the current directory. Do check/update dependencies before running this.
 testground run composition --wait -f current-docker.toml
+#  This one is good for local test while developing.
+testground run composition --wait -f current-exec.toml
 ```
 
 You can also run individual test case and pass test parameters in command line. For example, below builds the test as native executables, runs 2 instances, with very verbose logs printed to the console. See manifest.toml for all test parameters.

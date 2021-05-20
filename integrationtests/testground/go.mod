@@ -12,6 +12,6 @@ require (
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/testground/sdk-go v0.2.7
-	github.com/textileio/go-threads v1.1.0-rc1.0.20210519155701-3f7c9b101144
+	github.com/textileio/go-threads v1.1.0-rc1.0.20210520152008-24378b724bb1
 	google.golang.org/grpc v1.37.0
 )
