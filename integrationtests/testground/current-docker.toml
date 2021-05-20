@@ -6,7 +6,17 @@ runner  = "local:docker"
 total_instances = 5
 
 [[groups]]
-id = "current"
-instances = { count = 5 }
+id = "always-on"
+instances = { count = 3 }
+
+[[groups]]
+id = "early-stopper"
+instances = { count = 1 }
   [groups.run]
-  test_params = {}
+  test_params = {early-stop="true"}
+
+[[groups]]
+id = "later-joiner"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {late-start="true"}

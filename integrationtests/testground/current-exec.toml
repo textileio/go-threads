@@ -3,10 +3,22 @@ plan    = "go-threads"
 case    = "sync-threads"
 builder = "exec:go"
 runner  = "local:exec"
-total_instances = 2
+total_instances = 3
+  [global.run]
+  test_params = {records="3", verbose="1"}
 
 [[groups]]
-id = "current"
-instances = { count = 2 }
+id = "always-on"
+instances = { count = 1 }
+
+[[groups]]
+id = "early-stopper"
+instances = { count = 1 }
   [groups.run]
-  test_params = {records="3", verbose="1"}
+  test_params = {early-stop="true"}
+
+[[groups]]
+id = "later-joiner"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {late-start="true"}
