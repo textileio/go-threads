@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
@@ -107,12 +105,11 @@ func TestManager_NewDB(t *testing.T) {
 	})
 }
 
-func TestManager_GetDB(t *testing.T) {
+func TestManager_ReloadDBs(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	dir, err := ioutil.TempDir("", "")
-	checkErr(t, err)
+	dir := t.TempDir()
 	n, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(dir),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
@@ -125,7 +122,47 @@ func TestManager_GetDB(t *testing.T) {
 	checkErr(t, err)
 	defer func() {
 		store.Close()
-		_ = os.RemoveAll(dir)
+	}()
+
+	for i := 0; i < 2000; i++ {
+		_ = createDBAndAddData(t, ctx, man)
+	}
+	time.Sleep(time.Second)
+
+	// Close manager
+	err = man.Close()
+	checkErr(t, err)
+	err = n.Close()
+	checkErr(t, err)
+
+	// Restart mananger
+	n, err = common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
+	checkErr(t, err)
+	man, err = NewManager(store, n, WithNewDebug(true))
+	checkErr(t, err)
+}
+
+func TestManager_GetDB(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	dir := t.TempDir()
+	n, err := common.DefaultNetwork(
+		common.WithNetBadgerPersistence(dir),
+		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetDebug(true),
+	)
+	checkErr(t, err)
+	store, err := util.NewBadgerDatastore(dir, "eventstore", false)
+	checkErr(t, err)
+	man, err := NewManager(store, n, WithNewDebug(true))
+	checkErr(t, err)
+	defer func() {
+		store.Close()
 	}()
 
 	id := thread.NewIDV1(thread.Raw, 32)
@@ -248,8 +285,7 @@ func TestManager_DeleteDB(t *testing.T) {
 }
 
 func createTestManager(t *testing.T) (*Manager, func()) {
-	dir, err := ioutil.TempDir("", "")
-	checkErr(t, err)
+	dir := t.TempDir()
 	n, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(dir),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
@@ -270,6 +306,19 @@ func createTestManager(t *testing.T) (*Manager, func()) {
 		if err := store.Close(); err != nil {
 			panic(err)
 		}
-		_ = os.RemoveAll(dir)
 	}
+}
+
+func createDBAndAddData(t *testing.T, ctx context.Context, man *Manager) *DB {
+	db, err := man.NewDB(ctx, thread.NewIDV1(thread.Raw, 32))
+	checkErr(t, err)
+
+	collection, err := db.NewCollection(CollectionConfig{Name: "Person", Schema: util.SchemaFromSchemaString(jsonSchema)})
+	checkErr(t, err)
+
+	person1 := []byte(`{"_id": "", "name": "foo", "age": 21}`)
+	_, err = collection.Create(person1)
+	checkErr(t, err)
+
+	return db
 }
