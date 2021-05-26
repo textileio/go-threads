@@ -3,8 +3,10 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/keytransform"
@@ -16,6 +18,7 @@ import (
 	"github.com/textileio/go-threads/core/thread"
 	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/textileio/go-threads/util"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -23,6 +26,9 @@ var (
 	ErrDBNotFound = errors.New("db not found")
 	// ErrDBExists indicates that the specified db alrady exists in the manager.
 	ErrDBExists = errors.New("db already exists")
+
+	// MaxLoadConcurrency is the max number of dbs that will be concurrently loaded when the manager starts.
+	MaxLoadConcurrency = 100
 
 	dsManagerBaseKey = ds.NewKey("/manager")
 )
@@ -67,44 +73,69 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 		return nil, err
 	}
 	defer results.Close()
-	invalids := make(map[thread.ID]struct{})
+
+	log.Info("loading dbs")
+	eg, gctx := errgroup.WithContext(context.Background())
+	loaded := make(map[thread.ID]struct{})
+	lim := make(chan struct{}, MaxLoadConcurrency)
+	var lk sync.Mutex
+	var i int
 	for res := range results.Next() {
 		if res.Error != nil {
 			return nil, err
 		}
-		parts := strings.Split(ds.RawKey(res.Key).String(), "/")
-		if len(parts) < 3 {
-			continue
-		}
-		id, err := thread.Decode(parts[2])
-		if err != nil {
-			continue
-		}
-		if _, ok := m.dbs[id]; ok {
-			continue
-		}
-		if _, ok := invalids[id]; ok {
-			continue
-		}
-		s, opts, err := wrapDB(store, id, m.opts, "")
-		if err != nil {
-			return nil, err
-		}
-		d, err := newDB(s, m.network, id, opts)
-		if err != nil {
-			log.Errorf("unable to reload db %s: %s (marked for deletion)", id, err)
-			invalids[id] = struct{}{}
-			continue
-		}
-		m.dbs[id] = d
+
+		lim <- struct{}{}
+		res := res
+		eg.Go(func() error {
+			defer func() { <-lim }()
+			if gctx.Err() != nil {
+				return nil
+			}
+
+			parts := strings.Split(ds.RawKey(res.Key).String(), "/")
+			if len(parts) < 3 {
+				return nil
+			}
+			id, err := thread.Decode(parts[2])
+			if err != nil {
+				return nil
+			}
+			lk.Lock()
+			if _, ok := loaded[id]; ok {
+				lk.Unlock()
+				return nil
+			}
+			loaded[id] = struct{}{}
+			lk.Unlock()
+
+			s, opts, err := wrapDB(store, id, m.opts, "")
+			if err != nil {
+				return fmt.Errorf("wrapping db: %v", err)
+			}
+			d, err := newDB(s, m.network, id, opts)
+			if err != nil {
+				return fmt.Errorf("unable to reload db %s: %s", id, err)
+			}
+
+			lk.Lock()
+			m.dbs[id] = d
+			i++
+			if i%MaxLoadConcurrency == 0 {
+				log.Infof("loaded %d dbs", i)
+			}
+			lk.Unlock()
+			return nil
+		})
+	}
+	for i := 0; i < cap(lim); i++ {
+		lim <- struct{}{}
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
-	// Cleanup invalids
-	for id := range invalids {
-		if err := m.deleteThreadNamespace(id); err != nil {
-			return nil, err
-		}
-	}
+	log.Infof("finished loading %d dbs", len(m.dbs))
 	return m, nil
 }
 
