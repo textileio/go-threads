@@ -383,7 +383,6 @@ ThreadDB transactions come in two flavors: `WriteTransaction` and `ReadTransacti
 
 txn, err := db.WriteTransaction(context.Background(), threadID, "Persons")
 end, err := txn.Start()
-defer end()
 
 alice.Age = 32
 err = txn.Save(alice)
