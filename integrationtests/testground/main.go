@@ -109,14 +109,16 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	setup(env, ic)
 	for i, pair := range simulatedNetworks {
 		round := pair.simulation
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		if ic.GlobalSeq == 1 {
 			msg("################### Round %s network ###################", round)
-			ic.NetClient.MustConfigureNetwork(context.Background(), &network.Config{
-				Network:       "default",
-				Enable:        true,
-				Default:       pair.shape,
-				CallbackState: sync.State("network-configured-" + round),
-				RoutingPolicy: network.AllowAll,
+			ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
+				Network:        "default",
+				Enable:         true,
+				Default:        pair.shape,
+				CallbackState:  sync.State("network-configured-" + round),
+				CallbackTarget: 1,
+				RoutingPolicy:  network.AllowAll,
 			})
 			msg("Done configuring %s network", round)
 		}
@@ -127,17 +129,18 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 			ip := ic.NetClient.MustGetDataNetworkIP().String()
 			desiredAddr = fmt.Sprintf("/ip4/%s/tcp/%d", ip, 3000+i)
 		}
-		if err := testRound(env, ic, round, desiredAddr); err != nil {
+		if err := testRound(ctx, env, ic, round, desiredAddr); err != nil {
 			msg("################### Peer #%d with %s network failed: %v ###################", ic.GlobalSeq, round, err)
 
+			cancel()
 			return err
 		}
+		cancel()
 	}
 	return nil
 }
 
-func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
-	ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
 	var cli *client.Client
 	var stop func()
 	isLateStart := env.BooleanParam("late-start")
@@ -178,16 +181,15 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 		}
 		return
 	}
-	myRecords := env.IntParam("records")
+	recordsToSend := env.IntParam("records")
 	meLive := 1
 	if isLateStart {
-		myRecords = 0
+		recordsToSend = 0
 		meLive = 0
 	}
-	expectedRecords := publishAndGetTotal(sync.NewTopic("expectedRecords-"+round+"-step-1", 0), myRecords)
+	recordsToReceive := publishAndGetTotal(sync.NewTopic("recordsToReceive-"+round+"-step-1", 0), recordsToSend)
 	livePeers := publishAndGetTotal(sync.NewTopic("livePeers-"+round+"-step-1", 0), meLive)
 
-	msg("Peer #%d starting %s network test", ic.GlobalSeq, round)
 	var receivedRecords []corenet.Record
 	var thr *threadWithKeys
 	if !isLateStart {
@@ -198,35 +200,37 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 		}
 		msg("Joined thread")
 
+		ic.SyncClient.MustSignalAndWait(ctx, sync.State("ready-"+round+"-step1"), livePeers)
 		start := time.Now()
 		doneStep1 := sync.State("done-" + round + "-step1")
 		go func() {
-			receivedRecords = thr.WaitForRecords(ctx, expectedRecords)
+			receivedRecords = thr.WaitForRecords(ctx, recordsToReceive)
 			env.R().RecordPoint("round-"+round+"-step-1-elapsed-seconds", time.Since(start).Seconds())
-			msg("Peer #%d done %s network step 1", ic.GlobalSeq, round)
+			msg("Peer #%d done %s network step 1, received %d records", ic.GlobalSeq, round, len(receivedRecords))
 			ic.SyncClient.MustSignalAndWait(ctx, doneStep1, livePeers)
 		}()
 
-		for i, prev := 0, cid.Undef; i < myRecords; i++ {
+		for i, prev := 0, cid.Undef; i < recordsToSend; i++ {
 			rec, err := thr.AddRecord(ctx, prev)
 			if err != nil {
 				return err
 			}
+			debug("Added record #%d: %v", i+1, rec)
 			prev = rec.Cid()
 		}
-		msg("Peer #%d added %d records", ic.GlobalSeq, myRecords)
+		msg("Peer #%d added %d records", ic.GlobalSeq, recordsToSend)
 		// wait until all live peers get correct results
 		<-ic.SyncClient.MustBarrier(ctx, doneStep1, livePeers).C
 	}
 
-	myRecords = expectedRecords
+	recordsToSend = recordsToReceive
 	meLive = 1
 	if isEarlyStop {
 		meLive = 0
-		myRecords = 0
+		recordsToSend = 0
 	}
 	livePeers = publishAndGetTotal(sync.NewTopic("livePeers-"+round+"-step-2", 0), meLive)
-	expectedRecords = publishAndGetTotal(sync.NewTopic("expectedRecords-"+round+"-step-2", 0), myRecords)
+	recordsToReceive = publishAndGetTotal(sync.NewTopic("recordsToReceive-"+round+"-step-2", 0), recordsToSend)
 	if isEarlyStop {
 		stop()
 		return nil
@@ -246,11 +250,12 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 		msg("Joined thread")
 	}
 
+	ic.SyncClient.MustSignalAndWait(ctx, sync.State("ready-"+round+"-step2"), livePeers)
 	start := time.Now()
 	doneState := sync.State("done-" + round + "-step2")
 	go func() {
 		var err error
-		allRecords := thr.WaitForRecords(ctx, expectedRecords)
+		allRecords := thr.WaitForRecords(ctx, recordsToReceive)
 		for _, rec := range allRecords {
 			// trace back to all previous records, include the ones created by inactive peers
 			for rec.PrevID() != cid.Undef {
@@ -262,15 +267,17 @@ func testRound(env *runtime.RunEnv, ic *run.InitContext, round string, desiredAd
 			}
 		}
 		env.R().RecordPoint("round-"+round+"-step-2-elapsed-seconds", time.Since(start).Seconds())
-		msg("Peer #%d done %s network step 2", ic.GlobalSeq, round)
+		msg("Peer #%d done %s network step 2, received %d records", ic.GlobalSeq, round, len(allRecords))
 		ic.SyncClient.MustSignalAndWait(ctx, doneState, livePeers)
 	}()
 	// now create the same amount of records as received, use the received ones as prev.
-	for _, rec := range receivedRecords {
-		_, err := thr.AddRecord(ctx, rec.Cid())
+	msg("Adding %d records", len(receivedRecords))
+	for i, rec := range receivedRecords {
+		rec2, err := thr.AddRecord(ctx, rec.Cid())
 		if err != nil {
 			return fmt.Errorf("Error creating new record: %w", err)
 		}
+		debug("Added record #%d: %v", i+1, rec2)
 	}
 
 	<-ic.SyncClient.MustBarrier(ctx, doneState, livePeers).C
@@ -325,7 +332,7 @@ func startClient(desiredAddr string, env *runtime.RunEnv, ic *run.InitContext) (
 	}, nil
 }
 
-// info shared among peers via testground pubsub
+// SharedInfo includes info shared among peers via testground pubsub
 type SharedInfo struct {
 	Addr      string // multiaddr.Multiaddr
 	ThreadKey string // thread.Key
@@ -333,10 +340,13 @@ type SharedInfo struct {
 
 type threadWithKeys struct {
 	thread.Info
-	identity thread.Identity
-	logSk    crypto.PrivKey
-	logPk    crypto.PubKey
-	cli      *client.Client
+	identity    thread.Identity
+	logSk       crypto.PrivKey
+	logPk       crypto.PubKey
+	cli         *client.Client
+	subscribeCh <-chan corenet.ThreadRecord
+	// to deduplicate records when subscribing
+	seenRecords map[cid.Cid]bool
 }
 
 func createThread(ctx context.Context, cli *client.Client) (thr *threadWithKeys, err error) {
@@ -364,7 +374,11 @@ func createThread(ctx context.Context, cli *client.Client) (thr *threadWithKeys,
 	if err != nil {
 		return nil, err
 	}
-	return &threadWithKeys{info, identity, logSk, logPk, cli}, nil
+	ch, err := cli.Subscribe(ctx, corenet.WithSubFilter(info.ID))
+	if err != nil {
+		return nil, err
+	}
+	return &threadWithKeys{info, identity, logSk, logPk, cli, ch, make(map[cid.Cid]bool)}, nil
 }
 
 // joinThread joins to a thread created by another peer. It allows reading records created by the peer, also creates its own log to the thread.
@@ -394,7 +408,11 @@ func joinThread(ctx context.Context, cli *client.Client, shared *SharedInfo) (*t
 	if err != nil {
 		return nil, err
 	}
-	return &threadWithKeys{info, identity, logSk, logPk, cli}, nil
+	ch, err := cli.Subscribe(ctx, corenet.WithSubFilter(info.ID))
+	if err != nil {
+		return nil, err
+	}
+	return &threadWithKeys{info, identity, logSk, logPk, cli, ch, make(map[cid.Cid]bool)}, nil
 }
 
 func (t *threadWithKeys) Sharable() *SharedInfo {
@@ -403,15 +421,16 @@ func (t *threadWithKeys) Sharable() *SharedInfo {
 
 // WaitForRecords blocks until it receives nRecords, then return them
 func (t *threadWithKeys) WaitForRecords(ctx context.Context, nRecords int) (records []corenet.Record) {
-	ch, err := t.cli.Subscribe(ctx, corenet.WithSubFilter(t.Info.ID))
-	if err != nil {
-		msg("Error subscribing thread: %v", err)
-		return
-	}
-	debug("Subscribed to thread")
+	msg("Waiting for %d unique records", nRecords)
 	total := 0
-	for record := range ch {
+	for record := range t.subscribeCh {
+		rec := record.Value()
+		if _, exists := t.seenRecords[rec.Cid()]; exists {
+			continue
+		}
+		t.seenRecords[rec.Cid()] = true
 		total++
+		debug("Got record #%d: %v", total, rec)
 		records = append(records, record.Value())
 		if total == nRecords {
 			msg("Got all %d records", nRecords)
