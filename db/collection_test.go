@@ -952,7 +952,7 @@ func TestModifiedSince(t *testing.T) {
 		if len(mods) != 2 {
 			t.Fatalf("should have had %d modified instances", 2)
 		}
-		if mods[0] != res[0] {
+		if mods[0] != res[0] && mods[1] != res[0] {
 			t.Fatalf("should have modfied id %s", res[0])
 		}
 	})
