@@ -34,7 +34,6 @@
 package broadcast
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -79,8 +78,7 @@ func (b *Broadcaster) SendWithTimeout(v interface{}, timeout time.Duration) erro
 		case l <- v:
 			// Success!
 		case <-time.After(timeout):
-			err := fmt.Sprintf("unable to send to listener '%d'", id)
-			result = multierror.Append(result, errors.New(err))
+			result = multierror.Append(result, fmt.Errorf("timeout sending to listener '%d'", id))
 		}
 	}
 	if result != nil {

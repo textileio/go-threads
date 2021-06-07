@@ -279,9 +279,11 @@ func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec
 	// Push to each address
 	for _, p := range peers {
 		go func(pid peer.ID) {
+			log.Debugf("===========pushing record %v to %v", rec, pid)
 			if err := s.pushRecordToPeer(req, pid, tid, lid); err != nil {
 				log.Errorf("pushing record to %s (thread: %s, log: %s) failed: %v", pid, tid, lid, err)
 			}
+			log.Debugf("===========pushed record %v to %v", rec, pid)
 		}(p)
 	}
 

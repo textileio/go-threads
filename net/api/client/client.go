@@ -301,7 +301,7 @@ func (c *Client) Subscribe(ctx context.Context, opts ...core.SubOption) (<-chan 
 			if err != nil {
 				stat := status.Convert(err)
 				if stat.Code() != codes.Canceled {
-					log.Fatalf("error in subscription stream: %v", err)
+					panic(fmt.Errorf("error in subscription stream: %w", err))
 				}
 				return
 			}

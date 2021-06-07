@@ -287,6 +287,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	log.Debugf("==========added record %v from %s", rec, pid)
 	return &pb.PushRecordReply{}, nil
 }
 

@@ -807,11 +807,14 @@ func (n *net) subscribe(ctx context.Context, filter map[thread.ID]struct{}) (<-c
 				}
 				if rec, ok := i.(*Record); ok {
 					if len(filter) > 0 {
-						if _, ok := filter[rec.threadID]; ok {
-							channel <- rec
+						if _, ok := filter[rec.threadID]; !ok {
+							continue
 						}
-					} else {
-						channel <- rec
+					}
+					select {
+					case channel <- rec:
+					case <-time.After(10 * time.Millisecond):
+						log.Warnf("skipped sending to subscriber: %v", rec)
 					}
 				} else {
 					log.Warn("listener received a non-record value")
@@ -889,28 +892,34 @@ func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs [
 	} else if len(chain) == 0 {
 		return nil
 	}
-
 	ts := n.semaphores.Get(semaThreadUpdate(tid))
+	log.Debugf("==========put records of %v: %v", lid, recs)
+	log.Debugf("acquiring lock of %v for %v", lid, recs)
+	log.Debugf("entire chain of %v for %v: %v", lid, recs, chain)
 	ts.Acquire()
 	defer ts.Release()
+	log.Debugf("acquired lock of %v for %v", lid, recs)
 
 	// check the head again, as some other process could change the log concurrently
 	if current, err := n.currentHead(tid, lid); err != nil {
 		return fmt.Errorf("fetching head failed: %w", err)
 	} else if !current.Equals(head) {
-		// fast-forward the chain up to the updated head
-		var headReached bool
+		// fast-forward to skip known records
 		for i := 0; i < len(chain); i++ {
-			if chain[i].Value().Cid().Equals(current) {
+			if exist, err := n.isKnown(chain[i].Value().Cid()); err != nil {
+				return err
+			} else if exist {
 				chain = chain[i+1:]
-				headReached = true
-				break
 			}
 		}
-		if !headReached {
-			// entire chain already processed
-			return nil
-		}
+		log.Debugf("previous head of %v for %+v: %v", lid, recs, head)
+		log.Debugf("current head of %v for %+v: %v", lid, recs, current)
+		log.Debugf("entire chain of %v after fast-forward for %v: %v", lid, recs, chain)
+		// if !headReached {
+		// 	// entire chain already processed
+		// 	log.Debugf("==========!headReached of %v for %v", lid, recs)
+		// 	return nil
+		// }
 	}
 
 	connector, appConnected := n.getConnector(tid)
@@ -918,7 +927,6 @@ func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs [
 		if err := n.store.SetHead(tid, lid, record.Value().Cid()); err != nil {
 			return fmt.Errorf("setting log head failed: %w", err)
 		}
-
 		if appConnected {
 			if err := connector.HandleNetRecord(ctx, record); err != nil {
 				// Future improvement notes.
@@ -994,11 +1002,13 @@ func (n *net) loadRecords(
 				break
 			}
 
+			log.Debugf("getting record for %v: %v", recs, c)
 			r, err := n.getRecord(ctx, tid, c)
 			if err != nil {
 				return nil, head, err
 			}
 
+			log.Debugf("got record for %v: %v", recs, c)
 			chain = append(chain, r)
 			c = r.PrevID()
 		}

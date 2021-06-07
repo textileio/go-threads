@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	rdebug "runtime/debug"
 	"time"
 
 	fuzz "github.com/google/gofuzz"
@@ -131,7 +132,6 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		}
 		if err := testRound(ctx, env, ic, round, desiredAddr); err != nil {
 			msg("################### Peer #%d with %s network failed: %v ###################", ic.GlobalSeq, round, err)
-
 			cancel()
 			return err
 		}
@@ -140,13 +140,20 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	return nil
 }
 
-func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
+func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) (err error) {
+	//  dump stack of goroutines on error to help debugging
+	rdebug.SetTraceback("all")
+	defer func() {
+		if err != nil {
+			panic(err)
+		}
+	}()
+
 	var cli *client.Client
 	var stop func()
 	isLateStart := env.BooleanParam("late-start")
 	isEarlyStop := env.BooleanParam("early-stop")
 	if !isLateStart {
-		var err error
 		cli, stop, err = startClient(desiredAddr, env, ic)
 		if err != nil {
 			return err
@@ -213,7 +220,7 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 		for i, prev := 0, cid.Undef; i < recordsToSend; i++ {
 			rec, err := thr.AddRecord(ctx, prev)
 			if err != nil {
-				return err
+				panic(err)
 			}
 			debug("Added record #%d: %v", i+1, rec)
 			prev = rec.Cid()
@@ -275,7 +282,7 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 	for i, rec := range receivedRecords {
 		rec2, err := thr.AddRecord(ctx, rec.Cid())
 		if err != nil {
-			return fmt.Errorf("Error creating new record: %w", err)
+			panic(fmt.Errorf("Error creating new record: %w", err))
 		}
 		debug("Added record #%d: %v", i+1, rec2)
 	}
@@ -374,7 +381,7 @@ func createThread(ctx context.Context, cli *client.Client) (thr *threadWithKeys,
 	if err != nil {
 		return nil, err
 	}
-	ch, err := cli.Subscribe(ctx, corenet.WithSubFilter(info.ID))
+	ch, err := cli.Subscribe(context.Background(), corenet.WithSubFilter(info.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +415,7 @@ func joinThread(ctx context.Context, cli *client.Client, shared *SharedInfo) (*t
 	if err != nil {
 		return nil, err
 	}
-	ch, err := cli.Subscribe(ctx, corenet.WithSubFilter(info.ID))
+	ch, err := cli.Subscribe(context.Background(), corenet.WithSubFilter(info.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -426,6 +433,7 @@ func (t *threadWithKeys) WaitForRecords(ctx context.Context, nRecords int) (reco
 	for record := range t.subscribeCh {
 		rec := record.Value()
 		if _, exists := t.seenRecords[rec.Cid()]; exists {
+			debug("Got duplicated %v", rec)
 			continue
 		}
 		t.seenRecords[rec.Cid()] = true
