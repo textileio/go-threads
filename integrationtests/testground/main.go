@@ -226,10 +226,12 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 		recordsToSend = 0
 	}
 	livePeers = publishAndGetTotal(sync.NewTopic("livePeers-"+round+"-phase-2", 0), meLive)
+	// note: this adds the to-be-created records to already created ones
 	recordsToReceive = publishAndGetTotal(sync.NewTopic("recordsToReceive-"+round+"-phase-2", 0), recordsToSend) + recordsToReceive
 	chCurrentHead := make(chan cid.Cid, 1)
 	topic = sync.NewTopic("current-head-"+round, cid.Cid{})
 	if isEarlyStop {
+		// Even though the instance stops early, we still publish its head so other instances will get the log indirectly.
 		ic.SyncClient.MustPublish(ctx, topic, thr.logHead)
 		stop()
 		return nil
@@ -260,17 +262,17 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 	msg("Created %d records", recordsToSend)
 	ic.SyncClient.MustPublishSubscribe(ctx, topic, thr.logHead, chCurrentHead)
 
-	headsGot := 0
+	logsGot := 0
 	totalRecords := 0
 	for head := range chCurrentHead {
 		records, err := thr.GetRecords(ctx, head)
 		if err != nil {
 			return fmt.Errorf("Error getting records: %w", err)
 		}
-		headsGot++
-		debug("the chain of head %v has %d records", head, len(records))
+		logsGot++
+		debug("the log with head %v has %d records", head, len(records))
 		totalRecords = totalRecords + len(records)
-		if headsGot >= env.TestInstanceCount {
+		if logsGot >= env.TestInstanceCount {
 			break
 		}
 	}
@@ -343,7 +345,7 @@ type threadWithKeys struct {
 	identity    thread.Identity
 	logSk       crypto.PrivKey
 	logPk       crypto.PubKey
-	logHead     cid.Cid // the head of the records
+	logHead     cid.Cid // the head of the records created by the current instance
 	cli         *client.Client
 	subscribeCh <-chan corenet.ThreadRecord
 	// to deduplicate records when subscribing
