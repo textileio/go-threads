@@ -20,7 +20,7 @@ instances = { count = 1 }
   test_params = {early-stop="true"}
 
 [[groups]]
-id = "later-joiner"
+id = "late-joiner"
 instances = { count = 1 }
   [groups.run]
   test_params = {late-start="true"}

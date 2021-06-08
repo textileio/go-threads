@@ -5,7 +5,7 @@ builder = "exec:go"
 runner  = "local:exec"
 total_instances = 3
   [global.run]
-  test_params = {records="3", verbose="1"}
+  test_params = {records="3", verbose="2"}
 
 [[groups]]
 id = "always-on"
@@ -18,7 +18,7 @@ instances = { count = 1 }
   test_params = {early-stop="true"}
 
 [[groups]]
-id = "later-joiner"
+id = "late-joiner"
 instances = { count = 1 }
   [groups.run]
   test_params = {late-start="true"}
