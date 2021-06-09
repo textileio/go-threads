@@ -26,7 +26,6 @@ import (
 	ipldcbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multihash"
 	"github.com/testground/sdk-go/network"
@@ -35,7 +34,6 @@ import (
 	sync "github.com/testground/sdk-go/sync"
 	"google.golang.org/grpc"
 
-	"github.com/textileio/go-threads/cbor"
 	corenet "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/net/api"
@@ -262,19 +260,42 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 	msg("Created %d records", recordsToSend)
 	ic.SyncClient.MustPublishSubscribe(ctx, topic, thr.logHead, chCurrentHead)
 
-	logsGot := 0
+	expectedHeads := make(map[cid.Cid]bool)
+	for i := 0; i < env.TestInstanceCount; i++ {
+		expectedHeads[<-chCurrentHead] = true
+	}
+	var heads []cid.Cid
+	tk := time.NewTicker(10 * time.Millisecond)
+	defer tk.Stop()
+	for {
+		<-tk.C
+		var err error
+		heads, err = thr.GetHeads(ctx)
+		if err != nil {
+			return err
+		}
+		if len(heads) < len(expectedHeads) {
+			debug("expect %d logs, got %d, continuing", len(expectedHeads), len(heads))
+			continue
+		}
+		for _, head := range heads {
+			if !expectedHeads[head] {
+				debug("log not up-to-date, continuing")
+				continue
+			}
+		}
+		break
+	}
+
+	// now all logs are up-to-date, read records from all
 	totalRecords := 0
-	for head := range chCurrentHead {
+	for _, head := range heads {
 		records, err := thr.GetRecords(ctx, head)
 		if err != nil {
 			return fmt.Errorf("Error getting records: %w", err)
 		}
-		logsGot++
 		debug("the log with head %v has %d records", head, len(records))
 		totalRecords = totalRecords + len(records)
-		if logsGot >= env.TestInstanceCount {
-			break
-		}
 	}
 
 	env.R().RecordPoint("round-"+round+"-phase-2-elapsed-seconds", time.Since(start).Seconds())
@@ -447,32 +468,28 @@ func (t *threadWithKeys) CreateRecords(ctx context.Context, num int) error {
 		obj := make(map[string][]byte)
 		fuzzer.Fuzz(&obj)
 		body, err := ipldcbor.WrapObject(obj, multihash.SHA2_256, -1)
-		event, err := cbor.CreateEvent(ctx, nil, body, t.Key.Read())
 		if err != nil {
 			return err
 		}
-		rec, err := cbor.CreateRecord(ctx, nil, cbor.CreateRecordConfig{
-			Block:      event,
-			Prev:       t.logHead,
-			Key:        t.logSk,
-			PubKey:     t.identity.GetPublic(),
-			ServiceKey: t.Key.Service(),
-		})
+		rec, err := t.cli.CreateRecord(ctx, t.ID, body)
 		if err != nil {
-			return err
-		}
-		logID, err := peer.IDFromPublicKey(t.logPk)
-		if err != nil {
-			return err
-		}
-
-		if err = t.cli.AddRecord(ctx, t.ID, logID, rec); err != nil {
 			return err
 		}
 		debug("Created record #%d: %v", i+1, rec)
-		t.logHead = rec.Cid()
+		t.logHead = rec.Value().Cid()
 	}
 	return nil
+}
+
+func (t *threadWithKeys) GetHeads(ctx context.Context) (heads []cid.Cid, err error) {
+	info, err := t.cli.GetThread(ctx, t.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, log := range info.Logs {
+		heads = append(heads, log.Head)
+	}
+	return
 }
 
 func (t *threadWithKeys) GetRecords(ctx context.Context, head cid.Cid) (recs []corenet.Record, err error) {
