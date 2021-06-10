@@ -87,6 +87,11 @@ var (
 )
 
 func main() {
+	m, err := startMeasure(runtime.CurrentRunEnv())
+	if err != nil {
+		panic(err)
+	}
+	defer m.stopAndPrint()
 	run.InvokeMap(map[string]interface{}{
 		"sync-threads": run.InitializedTestCaseFn(testSyncThreads),
 	})
@@ -105,40 +110,56 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		env.RecordFailure(fmt.Errorf(msg, args...))
 	}
 	setup(env, ic)
-	for i, pair := range simulatedNetworks {
-		round := pair.simulation
-		timeout, err := time.ParseDuration(env.StringParam("test-timeout"))
-		if err != nil {
-			timeout = time.Minute
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		if ic.GlobalSeq == 1 {
-			msg("################### Round %s network ###################", round)
-			ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
-				Network:        "default",
-				Enable:         true,
-				Default:        pair.shape,
-				CallbackState:  sync.State("network-configured-" + round),
-				CallbackTarget: 1,
-				RoutingPolicy:  network.AllowAll,
-			})
-			msg("Done configuring %s network", round)
-		}
+	successState := sync.State("testSyncThreads-success")
+	failState := sync.State("testSyncThreads-fail")
+	barrierSuccess := ic.SyncClient.MustBarrier(context.Background(), successState, env.TestInstanceCount)
+	barrierFail := ic.SyncClient.MustBarrier(context.Background(), failState, 1)
+	go func() {
+		for i, pair := range simulatedNetworks {
+			round := pair.simulation
+			timeout, err := time.ParseDuration(env.StringParam("test-timeout"))
+			if err != nil {
+				timeout = time.Minute
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			if ic.GlobalSeq == 1 {
+				msg("################### Round %s network ###################", round)
+				ic.NetClient.MustConfigureNetwork(ctx, &network.Config{
+					Network:        "default",
+					Enable:         true,
+					Default:        pair.shape,
+					CallbackState:  sync.State("network-configured-" + round),
+					CallbackTarget: 1,
+					RoutingPolicy:  network.AllowAll,
+				})
+				msg("Done configuring %s network", round)
+			}
 
-		desiredAddr := ""
-		if env.TestSidecar {
-			// listen on non-local interface when running in container, so the peers can communicate with each other
-			ip := ic.NetClient.MustGetDataNetworkIP().String()
-			desiredAddr = fmt.Sprintf("/ip4/%s/tcp/%d", ip, 3000+i)
-		}
-		if err := testRound(ctx, env, ic, round, desiredAddr); err != nil {
-			msg("################### Peer #%d with %s network failed: %v ###################", ic.GlobalSeq, round, err)
+			desiredAddr := ""
+			if env.TestSidecar {
+				// listen on non-local interface when running in container, so the peers can communicate with each other
+				ip := ic.NetClient.MustGetDataNetworkIP().String()
+				desiredAddr = fmt.Sprintf("/ip4/%s/tcp/%d", ip, 3000+i)
+			}
+			if err = testRound(ctx, env, ic, round, desiredAddr); err != nil {
+				msg("################### Peer #%d with %s network failed: %v ###################", ic.GlobalSeq, round, err)
+				ic.SyncClient.MustSignalEntry(ctx, failState)
+				cancel()
+				// fail the test soundly, or testground will show "run finished successfully"
+				panic(err)
+			}
 			cancel()
-			return err
 		}
-		cancel()
+		ic.SyncClient.MustSignalEntry(context.Background(), successState)
+	}()
+
+	// wait for either all instances to succeed, or any instance to fail
+	select {
+	case <-barrierSuccess.C:
+		return
+	case <-barrierFail.C:
+		return
 	}
-	return nil
 }
 
 func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
@@ -299,10 +320,10 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 	}
 
 	env.R().RecordPoint("round-"+round+"-phase-2-elapsed-seconds", time.Since(start).Seconds())
-	msg("Peer #%d done %s network phase 2, received %d records", ic.GlobalSeq, round, totalRecords)
 	if totalRecords != recordsToReceive {
-		fail("Peer #%d received %d records, expect %d", ic.GlobalSeq, totalRecords, recordsToReceive)
+		return fmt.Errorf("Peer #%d received %d records, expect %d", ic.GlobalSeq, totalRecords, recordsToReceive)
 	}
+	msg("Peer #%d done %s network phase 2, received %d records", ic.GlobalSeq, round, totalRecords)
 	ic.SyncClient.MustSignalAndWait(ctx, doneState, livePeers)
 	stop()
 	return nil
