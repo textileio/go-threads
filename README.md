@@ -161,7 +161,7 @@ As described in the [paper](https://docsend.com/view/gu3ywqi), ThreadDB's networ
 import "github.com/textileio/go-threads/api/client"
 ...
 
-db, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
+db, err := client.NewClient("127.0.0.1:6006", grpc.WithInsecure())
 ```
 
 #### Getting a thread token
@@ -447,7 +447,7 @@ The full API spec is available [here](https://pkg.go.dev/github.com/textileio/go
 import "github.com/textileio/go-threads/net/api/client"
 ...
 
-net, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
+net, err := client.NewClient("127.0.0.1:6006", grpc.WithInsecure())
 ```
 
 #### Getting a thread token
