@@ -13,7 +13,6 @@ import (
 	"github.com/alecthomas/jsonschema"
 	"github.com/dgraph-io/badger/options"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
-	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -21,6 +20,7 @@ import (
 	"github.com/phayes/freeport"
 	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
+	"github.com/textileio/go-threads/core/logstore"
 	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap/zapcore"
@@ -203,21 +203,21 @@ func MakeToken(n int) string {
 
 type LogHead struct {
 	LogID peer.ID
-	Head  cid.Cid
+	Head  logstore.Head
 }
 
 func ComputeHeadsEdge(hs []LogHead) uint64 {
 	// sort heads for deterministic edge computation
 	sort.Slice(hs, func(i, j int) bool {
 		if hs[i].LogID == hs[j].LogID {
-			return hs[i].Head.KeyString() < hs[j].Head.KeyString()
+			return hs[i].Head.ID.KeyString() < hs[j].Head.ID.KeyString()
 		}
 		return hs[i].LogID < hs[j].LogID
 	})
 	hasher := fnv.New64a()
 	for i := 0; i < len(hs); i++ {
 		_, _ = hasher.Write([]byte(hs[i].LogID))
-		_, _ = hasher.Write(hs[i].Head.Bytes())
+		_, _ = hasher.Write(hs[i].Head.ID.Bytes())
 	}
 	return hasher.Sum64()
 }

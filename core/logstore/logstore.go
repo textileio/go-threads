@@ -197,10 +197,10 @@ type HeadBook interface {
 	AddHeads(thread.ID, peer.ID, []cid.Cid) error
 
 	// SetHead sets a log's head as cid.
-	SetHead(thread.ID, peer.ID, cid.Cid) error
+	SetHead(thread.ID, peer.ID, Head) error
 
 	// SetHeads sets a log's head as cids.
-	SetHeads(thread.ID, peer.ID, []cid.Cid) error
+	SetHeads(thread.ID, peer.ID, []Head) error
 
 	// Heads retrieves head values for a log.
 	Heads(thread.ID, peer.ID) ([]cid.Cid, error)
@@ -220,7 +220,7 @@ type HeadBook interface {
 
 type (
 	DumpHeadBook struct {
-		Data map[thread.ID]map[peer.ID][]cid.Cid
+		Data map[thread.ID]map[peer.ID][]Head
 	}
 
 	ExpiredAddress struct {
@@ -253,5 +253,10 @@ type (
 			String map[MetadataKey]string
 			Bytes  map[MetadataKey][]byte
 		}
+	}
+
+	Head struct {
+		ID      cid.Cid
+		Counter int64
 	}
 )
