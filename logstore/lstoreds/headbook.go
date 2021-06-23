@@ -42,13 +42,13 @@ func NewHeadBook(ds ds.TxnDatastore) core.HeadBook {
 	}
 }
 
-// TODO: Delete that or add counters
+// TODO: Add counters
 // AddHead addes a new head to a log.
 func (hb *dsHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
 	return hb.AddHeads(t, p, []cid.Cid{head})
 }
 
-// TODO: Delete that or add counters
+// TODO: Add counters
 // AddHeads adds multiple heads to a log.
 func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	txn, err := hb.ds.NewTransaction(false)

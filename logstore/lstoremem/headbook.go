@@ -55,15 +55,13 @@ func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) err
 	defer mhb.Unlock()
 	defer mhb.updateEdge(t)
 
-	// TODO: Change or insert actual implementation
-	panic("Not implemented")
-	//hmap := mhb.getHeads(t, p, true)
+	hmap := mhb.getHeads(t, p, true)
 	for _, h := range heads {
 		if !h.Defined() {
 			log.Warnf("was passed nil head for %s", p)
 			continue
 		}
-		//hmap[h] = logstore.CounterUndef
+		hmap[h] = thread.CounterUndef
 	}
 	return nil
 }
