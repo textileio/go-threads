@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/ipfs/go-cid"
@@ -455,12 +456,15 @@ func threadInfoToProto(info thread.Info) (*pb.ThreadInfoReply, error) {
 		for j, addr := range lg.Addrs {
 			addrs[j] = addr.Bytes()
 		}
+		counter := make([]byte, 8)
+		binary.PutVarint(counter, lg.Head.Counter)
 		logs[i] = &pb.LogInfo{
 			ID:      marshalPeerID(lg.ID),
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Head:    lg.Head.Bytes(),
+			Head:    lg.Head.ID.Bytes(),
+			Counter: counter,
 		}
 	}
 	addrs := make([][]byte, len(info.Addrs))

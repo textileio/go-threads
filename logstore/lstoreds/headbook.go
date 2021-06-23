@@ -130,7 +130,7 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []core.Head) error 
 	return txn.Commit()
 }
 
-func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
+func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]core.Head, error) {
 	key := dsLogKey(t, p, hbBase)
 	v, err := hb.ds.Get(key)
 	if err == ds.ErrNotFound {
@@ -143,9 +143,12 @@ func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 	if err := proto.Unmarshal(v, &hr); err != nil {
 		return nil, fmt.Errorf("error unmarshaling headbookrecord proto: %v", err)
 	}
-	ret := make([]cid.Cid, len(hr.Heads))
+	ret := make([]core.Head, len(hr.Heads))
 	for i := range hr.Heads {
-		ret[i] = hr.Heads[i].Cid.Cid
+		ret[i] = core.Head{
+			ID:      hr.Heads[i].Cid.Cid,
+			Counter: hr.Heads[i].Counter,
+		}
 	}
 	return ret, nil
 }

@@ -198,16 +198,19 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 
 	for _, lg := range info.Logs {
 		var (
-			offset cid.Cid
-			limit  int
-			pblg   *pb.Log
+			offset  cid.Cid
+			limit   int
+			counter int64
+			pblg    *pb.Log
 		)
 		if opts, ok := reqd[lg.ID]; ok {
 			offset = opts.Offset.Cid
+			counter = opts.Counter
 			limit = minInt(int(opts.Limit), logRecordLimit)
 		} else {
 			offset = cid.Undef
 			limit = logRecordLimit
+			counter = 0
 			pblg = logToProto(lg)
 		}
 
@@ -215,7 +218,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		go func(tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
 			defer wg.Done()
 
-			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim)
+			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim, counter)
 			if err != nil {
 				log.Errorf("getting local records (thread %s, log %s): %v", tid, lid, err)
 			}
@@ -275,6 +278,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	// TODO: replace with counter check (if possible)
 	if knownRecord, err := s.net.isKnown(rec.Cid()); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	} else if knownRecord {
@@ -284,7 +288,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
-	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec); err != nil {
+	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, req.Counter); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.PushRecordReply{}, nil
@@ -381,7 +385,13 @@ func (s *server) checkServiceKey(id thread.ID, k *pb.ProtoKey) error {
 func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 	var reqHeads = make([]util.LogHead, len(req.Body.Logs))
 	for i, l := range req.Body.GetLogs() {
-		reqHeads[i] = util.LogHead{Head: l.Offset.Cid, LogID: l.LogID.ID}
+		reqHeads[i] = util.LogHead{
+			Head: lstore.Head{
+				ID:      l.Offset.Cid,
+				Counter: l.Counter,
+			},
+			LogID: l.LogID.ID,
+		}
 	}
 	var currEdge, err = s.net.store.HeadsEdge(req.Body.ThreadID.ID)
 	switch {
@@ -434,10 +444,11 @@ func peerIDFromContext(ctx context.Context) (peer.ID, error) {
 // logToProto returns a proto log from a thread log.
 func logToProto(l thread.LogInfo) *pb.Log {
 	return &pb.Log{
-		ID:     &pb.ProtoPeerID{ID: l.ID},
-		PubKey: &pb.ProtoPubKey{PubKey: l.PubKey},
-		Addrs:  addrsToProto(l.Addrs),
-		Head:   &pb.ProtoCid{Cid: l.Head},
+		ID:      &pb.ProtoPeerID{ID: l.ID},
+		PubKey:  &pb.ProtoPubKey{PubKey: l.PubKey},
+		Addrs:   addrsToProto(l.Addrs),
+		Head:    &pb.ProtoCid{Cid: l.Head.ID},
+		Counter: l.Head.Counter,
 	}
 }
 
@@ -447,7 +458,10 @@ func logFromProto(l *pb.Log) thread.LogInfo {
 		ID:     l.ID.ID,
 		PubKey: l.PubKey.PubKey,
 		Addrs:  addrsFromProto(l.Addrs),
-		Head:   l.Head.Cid,
+		Head:   lstore.Head{
+			ID:      l.Head.Cid,
+			Counter: l.Counter,
+		},
 	}
 }
 

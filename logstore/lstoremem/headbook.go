@@ -13,23 +13,23 @@ import (
 type memoryHeadBook struct {
 	sync.RWMutex
 	threads map[thread.ID]struct {
-		heads map[peer.ID]map[cid.Cid]struct{}
+		heads map[peer.ID]map[cid.Cid]int64
 		edge  uint64
 	}
 }
 
-func (mhb *memoryHeadBook) getHeads(t thread.ID, p peer.ID, createEmpty bool) map[cid.Cid]struct{} {
+func (mhb *memoryHeadBook) getHeads(t thread.ID, p peer.ID, createEmpty bool) map[cid.Cid]int64 {
 	lmap := mhb.threads[t]
 	if lmap.heads == nil {
 		if !createEmpty {
 			return nil
 		}
-		lmap.heads = make(map[peer.ID]map[cid.Cid]struct{}, 1)
+		lmap.heads = make(map[peer.ID]map[cid.Cid]int64, 1)
 		mhb.threads[t] = lmap
 	}
 	hmap := lmap.heads[p]
 	if hmap == nil && createEmpty {
-		hmap = make(map[cid.Cid]struct{})
+		hmap = make(map[cid.Cid]int64)
 		lmap.heads[p] = hmap
 	}
 	return hmap
@@ -40,7 +40,7 @@ var _ core.HeadBook = (*memoryHeadBook)(nil)
 func NewHeadBook() core.HeadBook {
 	return &memoryHeadBook{
 		threads: make(map[thread.ID]struct {
-			heads map[peer.ID]map[cid.Cid]struct{}
+			heads map[peer.ID]map[cid.Cid]int64
 			edge  uint64
 		}),
 	}
@@ -55,46 +55,48 @@ func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) err
 	defer mhb.Unlock()
 	defer mhb.updateEdge(t)
 
-	hmap := mhb.getHeads(t, p, true)
+	// TODO: Change or insert actual implementation
+	panic("Not implemented")
+	//hmap := mhb.getHeads(t, p, true)
 	for _, h := range heads {
 		if !h.Defined() {
 			log.Warnf("was passed nil head for %s", p)
 			continue
 		}
-		hmap[h] = struct{}{}
+		//hmap[h] = logstore.CounterUndef
 	}
 	return nil
 }
 
-func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head cid.Cid) error {
-	return mhb.SetHeads(t, p, []cid.Cid{head})
+func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head core.Head) error {
+	return mhb.SetHeads(t, p, []core.Head{head})
 }
 
-func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
+func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []core.Head) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 	defer mhb.updateEdge(t)
 
-	var hset = make(map[cid.Cid]struct{}, len(heads))
+	var hset = make(map[cid.Cid]int64, len(heads))
 	for _, h := range heads {
-		if !h.Defined() {
+		if !h.ID.Defined() {
 			log.Warnf("was passed nil head for %s", p)
 			continue
 		}
-		hset[h] = struct{}{}
+		hset[h.ID] = h.Counter
 	}
 	// replace heads
 	if mhb.threads[t].heads == nil {
 		mhb.threads[t] = struct {
-			heads map[peer.ID]map[cid.Cid]struct{}
+			heads map[peer.ID]map[cid.Cid]int64
 			edge  uint64
-		}{heads: make(map[peer.ID]map[cid.Cid]struct{})}
+		}{heads: make(map[peer.ID]map[cid.Cid]int64)}
 	}
 	mhb.threads[t].heads[p] = hset
 	return nil
 }
 
-func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
+func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]core.Head, error) {
 	mhb.RLock()
 	defer mhb.RUnlock()
 
@@ -103,9 +105,9 @@ func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]cid.Cid, error) {
 		return nil, nil
 	}
 
-	var heads = make([]cid.Cid, 0, len(hset))
-	for h := range hset {
-		heads = append(heads, h)
+	var heads = make([]core.Head, 0, len(hset))
+	for h, c := range hset {
+		heads = append(heads, core.Head{h, c})
 	}
 	return heads, nil
 }
@@ -146,10 +148,10 @@ func (mhb *memoryHeadBook) updateEdge(t thread.ID) {
 		heads = make([]util.LogHead, 0, len(lset.heads))
 	)
 	for lid, hs := range lset.heads {
-		for head := range hs {
+		for head, counter := range hs {
 			heads = append(heads, util.LogHead{
 				LogID: lid,
-				Head:  head,
+				Head:  core.Head{head, counter},
 			})
 		}
 	}
@@ -159,15 +161,15 @@ func (mhb *memoryHeadBook) updateEdge(t thread.ID) {
 
 func (mhb *memoryHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 	var dump = core.DumpHeadBook{
-		Data: make(map[thread.ID]map[peer.ID][]cid.Cid, len(mhb.threads)),
+		Data: make(map[thread.ID]map[peer.ID][]core.Head, len(mhb.threads)),
 	}
 
 	for tid, lset := range mhb.threads {
-		lm := make(map[peer.ID][]cid.Cid, len(lset.heads))
+		lm := make(map[peer.ID][]core.Head, len(lset.heads))
 		for lid, hs := range lset.heads {
-			heads := make([]cid.Cid, 0, len(hs))
-			for head := range hs {
-				heads = append(heads, head)
+			heads := make([]core.Head, 0, len(hs))
+			for head, counter := range hs {
+				heads = append(heads, core.Head{head, counter})
 			}
 			lm[lid] = heads
 		}
@@ -184,21 +186,21 @@ func (mhb *memoryHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
 
 	// reset stored
 	mhb.threads = make(map[thread.ID]struct {
-		heads map[peer.ID]map[cid.Cid]struct{}
+		heads map[peer.ID]map[cid.Cid]int64
 		edge  uint64
 	}, len(dump.Data))
 
 	for tid, logs := range dump.Data {
-		lm := make(map[peer.ID]map[cid.Cid]struct{}, len(logs))
+		lm := make(map[peer.ID]map[cid.Cid]int64, len(logs))
 		for lid, hs := range logs {
-			hm := make(map[cid.Cid]struct{}, len(hs))
+			hm := make(map[cid.Cid]int64, len(hs))
 			for _, head := range hs {
-				hm[head] = struct{}{}
+				hm[head.ID] = head.Counter
 			}
 			lm[lid] = hm
 		}
 		mhb.threads[tid] = struct {
-			heads map[peer.ID]map[cid.Cid]struct{}
+			heads map[peer.ID]map[cid.Cid]int64
 			edge  uint64
 		}{heads: lm}
 		mhb.updateEdge(tid)
