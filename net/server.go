@@ -212,8 +212,8 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			offset = cid.Undef
 			limit = logRecordLimit
 			counter = 0
-			pblg = logToProto(lg)
 		}
+		pblg = logToProto(lg)
 
 		wg.Add(1)
 		go func(tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
