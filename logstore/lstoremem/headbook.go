@@ -68,11 +68,11 @@ func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) err
 	return nil
 }
 
-func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head core.Head) error {
-	return mhb.SetHeads(t, p, []core.Head{head})
+func (mhb *memoryHeadBook) SetHead(t thread.ID, p peer.ID, head thread.Head) error {
+	return mhb.SetHeads(t, p, []thread.Head{head})
 }
 
-func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []core.Head) error {
+func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []thread.Head) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 	defer mhb.updateEdge(t)
@@ -96,7 +96,7 @@ func (mhb *memoryHeadBook) SetHeads(t thread.ID, p peer.ID, heads []core.Head) e
 	return nil
 }
 
-func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]core.Head, error) {
+func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]thread.Head, error) {
 	mhb.RLock()
 	defer mhb.RUnlock()
 
@@ -105,9 +105,9 @@ func (mhb *memoryHeadBook) Heads(t thread.ID, p peer.ID) ([]core.Head, error) {
 		return nil, nil
 	}
 
-	var heads = make([]core.Head, 0, len(hset))
+	var heads = make([]thread.Head, 0, len(hset))
 	for h, c := range hset {
-		heads = append(heads, core.Head{h, c})
+		heads = append(heads, thread.Head{h, c})
 	}
 	return heads, nil
 }
@@ -151,7 +151,7 @@ func (mhb *memoryHeadBook) updateEdge(t thread.ID) {
 		for head, counter := range hs {
 			heads = append(heads, util.LogHead{
 				LogID: lid,
-				Head:  core.Head{head, counter},
+				Head:  thread.Head{head, counter},
 			})
 		}
 	}
@@ -161,15 +161,15 @@ func (mhb *memoryHeadBook) updateEdge(t thread.ID) {
 
 func (mhb *memoryHeadBook) DumpHeads() (core.DumpHeadBook, error) {
 	var dump = core.DumpHeadBook{
-		Data: make(map[thread.ID]map[peer.ID][]core.Head, len(mhb.threads)),
+		Data: make(map[thread.ID]map[peer.ID][]thread.Head, len(mhb.threads)),
 	}
 
 	for tid, lset := range mhb.threads {
-		lm := make(map[peer.ID][]core.Head, len(lset.heads))
+		lm := make(map[peer.ID][]thread.Head, len(lset.heads))
 		for lid, hs := range lset.heads {
-			heads := make([]core.Head, 0, len(hs))
+			heads := make([]thread.Head, 0, len(hs))
 			for head, counter := range hs {
-				heads = append(heads, core.Head{head, counter})
+				heads = append(heads, thread.Head{head, counter})
 			}
 			lm[lid] = heads
 		}

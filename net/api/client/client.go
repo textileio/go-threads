@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	lstore "github.com/textileio/go-threads/core/logstore"
 	"io"
 	"log"
 
@@ -394,14 +393,14 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 		if lg.Counter != nil {
 			counter, _ = binary.Varint(lg.Counter)
 		} else {
-			counter = lstore.CounterUndef
+			counter = thread.CounterUndef
 		}
 		logs[i] = thread.LogInfo{
 			ID:      id,
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Head:    lstore.Head{
+			Head:    thread.Head{
 				ID:      head,
 				Counter: counter,
 			},

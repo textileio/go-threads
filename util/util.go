@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"github.com/textileio/go-threads/core/thread"
 	"hash/fnv"
 	"os"
 	"path/filepath"
@@ -20,7 +21,6 @@ import (
 	"github.com/phayes/freeport"
 	badger "github.com/textileio/go-ds-badger"
 	core "github.com/textileio/go-threads/core/db"
-	"github.com/textileio/go-threads/core/logstore"
 	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap/zapcore"
@@ -203,7 +203,7 @@ func MakeToken(n int) string {
 
 type LogHead struct {
 	LogID peer.ID
-	Head  logstore.Head
+	Head  thread.Head
 }
 
 func ComputeHeadsEdge(hs []LogHead) uint64 {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	lstore "github.com/textileio/go-threads/core/logstore"
 	nnet "net"
 	"sync"
 	"time"
@@ -109,7 +108,7 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 func (s *server) getRecords(
 	peers []peer.ID,
 	tid thread.ID,
-	offsets map[peer.ID]lstore.Head,
+	offsets map[peer.ID]thread.Head,
 	limit int,
 ) (map[peer.ID]peerRecords, error) {
 	req, sk, err := s.buildGetRecordsRequest(tid, offsets, limit)
@@ -151,7 +150,7 @@ func (s *server) getRecords(
 
 func (s *server) buildGetRecordsRequest(
 	tid thread.ID,
-	offsets map[peer.ID]lstore.Head,
+	offsets map[peer.ID]thread.Head,
 	limit int,
 ) (req *pb.GetRecordsRequest, serviceKey *sym.Key, err error) {
 	serviceKey, err = s.net.store.ServiceKey(tid)
