@@ -288,7 +288,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
-	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, req.Counter); err != nil {
+	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, lstore.CounterUndef); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.PushRecordReply{}, nil
