@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	lstore "github.com/textileio/go-threads/core/logstore"
 	nnet "net"
 	"sync"
 	"time"
 
 	"github.com/gogo/status"
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
@@ -109,9 +109,9 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 func (s *server) getRecords(
 	peers []peer.ID,
 	tid thread.ID,
-	offsets map[peer.ID]cid.Cid,
+	offsets map[peer.ID]lstore.Head,
 	limit int,
-) (map[peer.ID][]core.Record, error) {
+) (map[peer.ID]peerRecords, error) {
 	req, sk, err := s.buildGetRecordsRequest(tid, offsets, limit)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,8 @@ func (s *server) getRecords(
 					return err
 				}
 				for lid, rs := range recs {
-					for _, rec := range rs {
+					rc.UpdateHeadCounter(lid, rs.counter)
+					for _, rec := range rs.records {
 						rc.Store(lid, rec)
 					}
 				}
@@ -150,7 +151,7 @@ func (s *server) getRecords(
 
 func (s *server) buildGetRecordsRequest(
 	tid thread.ID,
-	offsets map[peer.ID]cid.Cid,
+	offsets map[peer.ID]lstore.Head,
 	limit int,
 ) (req *pb.GetRecordsRequest, serviceKey *sym.Key, err error) {
 	serviceKey, err = s.net.store.ServiceKey(tid)
@@ -165,9 +166,10 @@ func (s *server) buildGetRecordsRequest(
 	var pblgs = make([]*pb.GetRecordsRequest_Body_LogEntry, 0, len(offsets))
 	for lid, offset := range offsets {
 		pblgs = append(pblgs, &pb.GetRecordsRequest_Body_LogEntry{
-			LogID:  &pb.ProtoPeerID{ID: lid},
-			Offset: &pb.ProtoCid{Cid: offset},
-			Limit:  int32(limit),
+			LogID:   &pb.ProtoPeerID{ID: lid},
+			Offset:  &pb.ProtoCid{Cid: offset.ID},
+			Limit:   int32(limit),
+			Counter: offset.Counter,
 		})
 	}
 
@@ -183,6 +185,11 @@ func (s *server) buildGetRecordsRequest(
 	return
 }
 
+type peerRecords struct {
+	records []core.Record
+	counter int64
+}
+
 // Send GetRecords request to a certain peer.
 func (s *server) getRecordsFromPeer(
 	ctx context.Context,
@@ -190,14 +197,14 @@ func (s *server) getRecordsFromPeer(
 	pid peer.ID,
 	req *pb.GetRecordsRequest,
 	serviceKey *sym.Key,
-) (map[peer.ID][]core.Record, error) {
+) (map[peer.ID]peerRecords, error) {
 	log.Debugf("getting records from %s...", pid)
 	client, err := s.dial(pid)
 	if err != nil {
 		return nil, fmt.Errorf("dial %s failed: %w", pid, err)
 	}
 
-	recs := make(map[peer.ID][]core.Record)
+	recs := make(map[peer.ID]peerRecords)
 	cctx, cancel := context.WithTimeout(ctx, PullTimeout)
 	defer cancel()
 	reply, err := client.GetRecords(cctx, req)
@@ -231,7 +238,7 @@ func (s *server) getRecordsFromPeer(
 			}
 			pk = l.Log.PubKey
 		}
-
+		var records []core.Record
 		for _, r := range l.Records {
 			rec, err := cbor.RecordFromProto(r, serviceKey)
 			if err != nil {
@@ -240,7 +247,11 @@ func (s *server) getRecordsFromPeer(
 			if err = rec.Verify(pk); err != nil {
 				return nil, err
 			}
-			recs[logID] = append(recs[logID], rec)
+			records = append(records, rec)
+		}
+		recs[logID] = peerRecords{
+			records: records,
+			counter: l.Log.Counter,
 		}
 	}
 

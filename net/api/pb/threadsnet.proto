@@ -49,6 +49,7 @@ message LogInfo {
     bytes privKey = 3;
     repeated bytes addrs = 4;
     bytes head = 5;
+    bytes counter = 6;
 }
 
 message AddThreadRequest {

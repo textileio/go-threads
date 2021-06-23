@@ -257,21 +257,21 @@ func (l *lstore) AddHeads(tid thread.ID, lid peer.ID, cids []cid.Cid) error {
 	return l.inMem.AddHeads(tid, lid, cids)
 }
 
-func (l *lstore) SetHead(tid thread.ID, lid peer.ID, cid cid.Cid) error {
-	if err := l.persist.SetHead(tid, lid, cid); err != nil {
+func (l *lstore) SetHead(tid thread.ID, lid peer.ID, head core.Head) error {
+	if err := l.persist.SetHead(tid, lid, head); err != nil {
 		return err
 	}
-	return l.inMem.SetHead(tid, lid, cid)
+	return l.inMem.SetHead(tid, lid, head)
 }
 
-func (l *lstore) SetHeads(tid thread.ID, lid peer.ID, cids []cid.Cid) error {
-	if err := l.persist.SetHeads(tid, lid, cids); err != nil {
+func (l *lstore) SetHeads(tid thread.ID, lid peer.ID, heads []core.Head) error {
+	if err := l.persist.SetHeads(tid, lid, heads); err != nil {
 		return err
 	}
-	return l.inMem.SetHeads(tid, lid, cids)
+	return l.inMem.SetHeads(tid, lid, heads)
 }
 
-func (l *lstore) Heads(tid thread.ID, lid peer.ID) ([]cid.Cid, error) {
+func (l *lstore) Heads(tid thread.ID, lid peer.ID) ([]core.Head, error) {
 	return l.inMem.Heads(tid, lid)
 }
 

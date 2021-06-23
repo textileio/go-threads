@@ -16,12 +16,16 @@ type linkedRecord interface {
 
 // Collector maintains an ordered list of records from multiple sources (thread-safe)
 type recordCollector struct {
-	rs   map[peer.ID]*recordSequence
-	lock sync.Mutex
+	rs       map[peer.ID]*recordSequence
+	counters map[peer.ID]int64
+	lock     sync.Mutex
 }
 
 func newRecordCollector() *recordCollector {
-	return &recordCollector{rs: make(map[peer.ID]*recordSequence)}
+	return &recordCollector{
+		rs:       make(map[peer.ID]*recordSequence),
+		counters: make(map[peer.ID]int64),
+	}
 }
 
 // Store the record of the log.
@@ -38,22 +42,43 @@ func (r *recordCollector) Store(lid peer.ID, rec core.Record) {
 	seq.Store(rec)
 }
 
-// List all previously stored records in a proper order if the latter exists.
-func (r *recordCollector) List() (map[peer.ID][]core.Record, error) {
+func (r *recordCollector) UpdateHeadCounter(lid peer.ID, counter int64) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	logSeqs := make(map[peer.ID][]core.Record, len(r.rs))
+	val, found := r.counters[lid]
+	if !found {
+		r.counters[lid] = counter
+	} else if val < counter {
+		r.counters[lid] = counter
+	}
+}
+
+// List all previously stored records in a proper order if the latter exists.
+func (r *recordCollector) List() (map[peer.ID]peerRecords, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	logSeqs := make(map[peer.ID]peerRecords, len(r.rs))
 	for id, seq := range r.rs {
 		ordered, ok := seq.List()
 		if !ok {
 			return nil, fmt.Errorf("disjoint record sequence in log %s", id)
 		}
+
+		counter, found := r.counters[id]
+		if !found {
+			return nil, fmt.Errorf("did not found log counter in log %s", id)
+		}
+
 		casted := make([]core.Record, len(ordered))
 		for i := 0; i < len(ordered); i++ {
 			casted[i] = ordered[i].(core.Record)
 		}
-		logSeqs[id] = casted
+		logSeqs[id] = peerRecords{
+			records: casted,
+			counter: counter,
+		}
 	}
 
 	return logSeqs, nil
