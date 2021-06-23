@@ -668,7 +668,7 @@ func (n *net) CreateRecord(
 		return
 	}
 	tr = NewRecord(r, id, lg.ID)
-	head := lstore.Head{
+	head := thread.Head{
 		ID:      tr.Value().Cid(),
 		Counter: lg.Head.Counter + 1,
 	}
@@ -717,7 +717,7 @@ func (n *net) AddRecord(
 	if err = rec.Verify(logpk); err != nil {
 		return err
 	}
-	if err = n.putRecords(ctx, id, lid, []core.Record{rec}, lstore.CounterUndef); err != nil {
+	if err = n.putRecords(ctx, id, lid, []core.Record{rec}, thread.CounterUndef); err != nil {
 		return err
 	}
 	return n.server.pushRecord(ctx, id, lid, rec)
@@ -925,7 +925,7 @@ func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs [
 		if err := n.store.SetHead(
 			tid,
 			lid,
-			lstore.Head{
+			thread.Head{
 				ID:      record.Value().Cid(),
 				Counter: updatedCounter,
 			}); err != nil {
@@ -969,22 +969,22 @@ func (n *net) loadRecords(
 	lid peer.ID,
 	recs []core.Record,
 	counter int64,
-) ([]core.ThreadRecord, lstore.Head, error) {
+) ([]core.ThreadRecord, thread.Head, error) {
 	if len(recs) == 0 {
-		return nil, lstore.HeadUndef, errors.New("cannot load empty record chain")
+		return nil, thread.HeadUndef, errors.New("cannot load empty record chain")
 	}
 	head, err := n.currentHead(tid, lid)
 	if err != nil {
-		return nil, lstore.HeadUndef, err
+		return nil, thread.HeadUndef, err
 	}
 
 	// check if the last record was already loaded and processed
 	var last = recs[len(recs)-1]
-	if counter == lstore.CounterUndef {
+	if counter == thread.CounterUndef {
 		if exist, err := n.isKnown(last.Cid()); err != nil {
-			return nil, lstore.HeadUndef, err
+			return nil, thread.HeadUndef, err
 		} else if exist || !last.Cid().Defined() {
-			return nil, lstore.HeadUndef, nil
+			return nil, thread.HeadUndef, nil
 		}
 	} else if counter <= head.Counter {
 		return nil, head, nil
@@ -1099,8 +1099,8 @@ func (n *net) isKnown(rec cid.Cid) (bool, error) {
 	return n.bstore.Has(rec)
 }
 
-func (n *net) currentHead(tid thread.ID, lid peer.ID) (lstore.Head, error) {
-	var head lstore.Head
+func (n *net) currentHead(tid thread.ID, lid peer.ID) (thread.Head, error) {
+	var head thread.Head
 	heads, err := n.store.Heads(tid, lid)
 	if err != nil {
 		return head, err
@@ -1109,7 +1109,7 @@ func (n *net) currentHead(tid thread.ID, lid peer.ID) (lstore.Head, error) {
 	if len(heads) > 0 {
 		head = heads[0]
 	} else {
-		head = lstore.HeadUndef
+		head = thread.HeadUndef
 	}
 
 	return head, nil
@@ -1388,7 +1388,7 @@ func (n *net) createExternalLogsIfNotExist(
 		if currHeads, err := n.Store().Heads(tid, li.ID); err != nil {
 			return err
 		} else if len(currHeads) == 0 {
-			li.Head = lstore.HeadUndef
+			li.Head = thread.HeadUndef
 			if err = n.Store().AddLog(tid, li); err != nil {
 				return err
 			}
@@ -1489,13 +1489,13 @@ func (n *net) updateLogsFromPeer(ctx context.Context, pid peer.ID, tid thread.ID
 }
 
 // returns offsets and involved peers for all known thread's logs.
-func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]lstore.Head, []peer.ID, error) {
+func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]thread.Head, []peer.ID, error) {
 	info, err := n.store.GetThread(tid)
 	if err != nil {
 		return nil, nil, err
 	}
 	var (
-		offsets = make(map[peer.ID]lstore.Head, len(info.Logs))
+		offsets = make(map[peer.ID]thread.Head, len(info.Logs))
 		addrs   []ma.Multiaddr
 	)
 	for _, lg := range info.Logs {
@@ -1509,7 +1509,7 @@ func (n *net) threadOffsets(tid thread.ID) (map[peer.ID]lstore.Head, []peer.ID, 
 		if has {
 			offsets[lg.ID] = lg.Head
 		} else {
-			offsets[lg.ID] = lstore.HeadUndef
+			offsets[lg.ID] = thread.HeadUndef
 		}
 		addrs = append(addrs, lg.Addrs...)
 	}

@@ -92,11 +92,11 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 	return txn.Commit()
 }
 
-func (hb *dsHeadBook) SetHead(t thread.ID, p peer.ID, c core.Head) error {
-	return hb.SetHeads(t, p, []core.Head{c})
+func (hb *dsHeadBook) SetHead(t thread.ID, p peer.ID, c thread.Head) error {
+	return hb.SetHeads(t, p, []thread.Head{c})
 }
 
-func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []core.Head) error {
+func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []thread.Head) error {
 	txn, err := hb.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("error when creating txn in datastore: %w", err)
@@ -130,7 +130,7 @@ func (hb *dsHeadBook) SetHeads(t thread.ID, p peer.ID, heads []core.Head) error 
 	return txn.Commit()
 }
 
-func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]core.Head, error) {
+func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]thread.Head, error) {
 	key := dsLogKey(t, p, hbBase)
 	v, err := hb.ds.Get(key)
 	if err == ds.ErrNotFound {
@@ -143,9 +143,9 @@ func (hb *dsHeadBook) Heads(t thread.ID, p peer.ID) ([]core.Head, error) {
 	if err := proto.Unmarshal(v, &hr); err != nil {
 		return nil, fmt.Errorf("error unmarshaling headbookrecord proto: %v", err)
 	}
-	ret := make([]core.Head, len(hr.Heads))
+	ret := make([]thread.Head, len(hr.Heads))
 	for i := range hr.Heads {
-		ret[i] = core.Head{
+		ret[i] = thread.Head{
 			ID:      hr.Heads[i].Cid.Cid,
 			Counter: hr.Heads[i].Counter,
 		}
@@ -275,8 +275,8 @@ func (hb *dsHeadBook) RestoreHeads(dump core.DumpHeadBook) error {
 	return nil
 }
 
-func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]core.Head, error) {
-	var data = make(map[thread.ID]map[peer.ID][]core.Head)
+func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]thread.Head, error) {
+	var data = make(map[thread.ID]map[peer.ID][]thread.Head)
 	result, err := hb.ds.Query(query.Query{Prefix: hbBase.String(), KeysOnly: !withHeads})
 	if err != nil {
 		return nil, err
@@ -291,7 +291,7 @@ func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]core
 
 		lh, exist := data[tid]
 		if !exist {
-			lh = make(map[peer.ID][]core.Head)
+			lh = make(map[peer.ID][]thread.Head)
 			data[tid] = lh
 		}
 
@@ -304,7 +304,7 @@ func (hb *dsHeadBook) traverse(withHeads bool) (map[thread.ID]map[peer.ID][]core
 func (hb *dsHeadBook) decodeHeadEntry(
 	entry query.Result,
 	withHeads bool,
-) (tid thread.ID, lid peer.ID, heads []core.Head, err error) {
+) (tid thread.ID, lid peer.ID, heads []thread.Head, err error) {
 	kns := ds.RawKey(entry.Key).Namespaces()
 	if len(kns) < 3 {
 		err = fmt.Errorf("bad headbook key detected: %s", entry.Key)
@@ -326,9 +326,9 @@ func (hb *dsHeadBook) decodeHeadEntry(
 			err = fmt.Errorf("cannot decode headbook record: %w", err)
 			return
 		}
-		heads = make([]core.Head, len(hr.Heads))
+		heads = make([]thread.Head, len(hr.Heads))
 		for i := range hr.Heads {
-			heads[i] = core.Head{
+			heads[i] = thread.Head{
 				ID:      hr.Heads[i].Cid.Cid,
 				Counter: hr.Heads[i].Counter,
 			}

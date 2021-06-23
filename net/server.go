@@ -197,6 +197,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	)
 
 	for _, lg := range info.Logs {
+		fmt.Printf("head counter is %d for %s\n", lg.Head.Counter, lg.ID.String())
 		var (
 			offset  cid.Cid
 			limit   int
@@ -288,7 +289,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
-	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, lstore.CounterUndef); err != nil {
+	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, thread.CounterUndef); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.PushRecordReply{}, nil
@@ -386,7 +387,7 @@ func (s *server) headsChanged(req *pb.GetRecordsRequest) (bool, error) {
 	var reqHeads = make([]util.LogHead, len(req.Body.Logs))
 	for i, l := range req.Body.GetLogs() {
 		reqHeads[i] = util.LogHead{
-			Head: lstore.Head{
+			Head: thread.Head{
 				ID:      l.Offset.Cid,
 				Counter: l.Counter,
 			},
@@ -458,7 +459,7 @@ func logFromProto(l *pb.Log) thread.LogInfo {
 		ID:     l.ID.ID,
 		PubKey: l.PubKey.PubKey,
 		Addrs:  addrsFromProto(l.Addrs),
-		Head:   lstore.Head{
+		Head:   thread.Head{
 			ID:      l.Head.Cid,
 			Counter: l.Counter,
 		},

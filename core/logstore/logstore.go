@@ -13,13 +13,6 @@ import (
 	sym "github.com/textileio/go-threads/crypto/symmetric"
 )
 
-const CounterUndef int64 = -1
-
-var HeadUndef = Head{
-	ID:      cid.Undef,
-	Counter: CounterUndef,
-}
-
 // ErrThreadExists indicates a thread already exists.
 var ErrThreadExists = errors.New("thread already exists")
 
@@ -204,13 +197,13 @@ type HeadBook interface {
 	AddHeads(thread.ID, peer.ID, []cid.Cid) error
 
 	// SetHead sets a log's head
-	SetHead(thread.ID, peer.ID, Head) error
+	SetHead(thread.ID, peer.ID, thread.Head) error
 
 	// SetHeads sets a log's head
-	SetHeads(thread.ID, peer.ID, []Head) error
+	SetHeads(thread.ID, peer.ID, []thread.Head) error
 
 	// Heads retrieves head values for a log.
-	Heads(thread.ID, peer.ID) ([]Head, error)
+	Heads(thread.ID, peer.ID) ([]thread.Head, error)
 
 	// ClearHeads deletes the head entry for a log.
 	ClearHeads(thread.ID, peer.ID) error
@@ -227,7 +220,7 @@ type HeadBook interface {
 
 type (
 	DumpHeadBook struct {
-		Data map[thread.ID]map[peer.ID][]Head
+		Data map[thread.ID]map[peer.ID][]thread.Head
 	}
 
 	ExpiredAddress struct {
@@ -260,10 +253,5 @@ type (
 			String map[MetadataKey]string
 			Bytes  map[MetadataKey][]byte
 		}
-	}
-
-	Head struct {
-		ID      cid.Cid
-		Counter int64
 	}
 )
