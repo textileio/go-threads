@@ -7,7 +7,7 @@ type Head struct {
 	Counter int64
 }
 
-const CounterUndef int64 = -1
+const CounterUndef int64 = 0
 
 var HeadUndef = Head{
 	ID:      cid.Undef,
