@@ -154,6 +154,11 @@ func NewNetwork(
 		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, PullInterval),
 	}
 
+	err = t.migrateHeadsIfNeeded(ctx, ls)
+	if err != nil {
+		return nil, err
+	}
+
 	t.server, err = newServer(t, conf.PubSub, dialOptions...)
 	if err != nil {
 		return nil, err
@@ -172,6 +177,73 @@ func NewNetwork(
 
 	go t.startPulling()
 	return t, nil
+}
+
+func (n *net) countRecords(ctx context.Context, tid thread.ID, rid cid.Cid) (int64, error) {
+	var (
+		cursor  = rid
+		counter int64 = 0
+	)
+	sk, err := n.store.ServiceKey(tid)
+	if err != nil {
+		return 0, err
+	}
+
+	for cursor.Defined() {
+		r, err := cbor.GetRecord(ctx, n, cursor, sk)
+		if err != nil {
+			return 0, err
+		}
+		cursor = r.PrevID()
+		counter += 1
+	}
+	return counter, nil
+}
+
+func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err error) {
+	threadIds, err := ls.Threads()
+	if err != nil {
+		return err
+	}
+
+	log.Info("Starting migrating heads")
+
+	for _, tid := range threadIds {
+		tInfo, err := ls.GetThread(tid)
+		if err != nil {
+			return err
+		}
+
+		for _, l := range tInfo.Logs {
+			heads, err := ls.Heads(tid, l.ID)
+			if err != nil {
+				return err
+			}
+			hslice := make([]thread.Head, 0)
+			for _, h := range heads {
+				// In this case we didn't migrate the thread
+				if h.Counter == thread.CounterUndef && h.ID != cid.Undef {
+					counter, err := n.countRecords(ctx, tid, h.ID)
+					if err != nil {
+						return err
+					}
+					log.Debugf("counter for thread %s, log %s, head %s is %d", tid, l.ID, h.ID, counter)
+
+					hslice = append(hslice, thread.Head{ID: h.ID, Counter: counter})
+				} else {
+					hslice = append(hslice, h)
+				}
+			}
+			err = ls.SetHeads(tid, l.ID, hslice)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	log.Info("Finished migrating heads")
+
+	return nil
 }
 
 func (n *net) Close() (err error) {
@@ -1174,6 +1246,7 @@ func (n *net) getLocalRecords(
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Add backward compatibility logic
 	// if we have less or equal records
 	if lg.Head.Counter <= counter {
 		return []core.Record{}, nil
