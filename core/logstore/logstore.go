@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -191,10 +190,10 @@ type AddrBook interface {
 // HeadBook stores log heads.
 type HeadBook interface {
 	// AddHead stores cid in a log's head.
-	AddHead(thread.ID, peer.ID, cid.Cid) error
+	AddHead(thread.ID, peer.ID, thread.Head) error
 
 	// AddHeads stores cids in a log's head.
-	AddHeads(thread.ID, peer.ID, []cid.Cid) error
+	AddHeads(thread.ID, peer.ID, []thread.Head) error
 
 	// SetHead sets a log's head
 	SetHead(thread.ID, peer.ID, thread.Head) error

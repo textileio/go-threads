@@ -46,22 +46,22 @@ func NewHeadBook() core.HeadBook {
 	}
 }
 
-func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
-	return mhb.AddHeads(t, p, []cid.Cid{head})
+func (mhb *memoryHeadBook) AddHead(t thread.ID, p peer.ID, head thread.Head) error {
+	return mhb.AddHeads(t, p, []thread.Head{head})
 }
 
-func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
+func (mhb *memoryHeadBook) AddHeads(t thread.ID, p peer.ID, heads []thread.Head) error {
 	mhb.Lock()
 	defer mhb.Unlock()
 	defer mhb.updateEdge(t)
 
 	hmap := mhb.getHeads(t, p, true)
 	for _, h := range heads {
-		if !h.Defined() {
+		if !h.ID.Defined() {
 			log.Warnf("was passed nil head for %s", p)
 			continue
 		}
-		hmap[h] = thread.CounterUndef
+		hmap[h.ID] = h.Counter
 	}
 	return nil
 }
