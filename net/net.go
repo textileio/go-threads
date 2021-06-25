@@ -751,7 +751,7 @@ func (n *net) CreateRecord(
 	if err = n.bus.SendWithTimeout(tr, notifyTimeout); err != nil {
 		return
 	}
-	if err = n.server.pushRecord(ctx, id, lg.ID, tr.Value()); err != nil {
+	if err = n.server.pushRecord(ctx, id, lg.ID, tr.Value(), lg.Head.Counter + 1); err != nil {
 		return
 	}
 	return tr, nil
@@ -792,7 +792,7 @@ func (n *net) AddRecord(
 	if err = n.putRecords(ctx, id, lid, []core.Record{rec}, thread.CounterUndef); err != nil {
 		return err
 	}
-	return n.server.pushRecord(ctx, id, lid, rec)
+	return n.server.pushRecord(ctx, id, lid, rec, thread.CounterUndef)
 }
 
 func (n *net) GetRecord(
@@ -1246,9 +1246,18 @@ func (n *net) getLocalRecords(
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Add backward compatibility logic
-	// if we have less or equal records
-	if lg.Head.Counter <= counter {
+	// reverting to old logic if the new one is not supported
+	if counter == thread.CounterUndef && offset != cid.Undef {
+		if offset.Defined() {
+			// ensure that we know about requested offset
+			if knownRecord, err := n.isKnown(offset); err != nil {
+				return nil, err
+			} else if !knownRecord {
+				return nil, nil
+			}
+		}
+		// if we have less or equal records
+	} else if lg.Head.Counter <= counter {
 		return []core.Record{}, nil
 	}
 	sk, err := n.store.ServiceKey(id)

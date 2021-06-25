@@ -211,13 +211,17 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 		} else {
 			offset = cid.Undef
 			limit = logRecordLimit
-			counter = 0
+			counter = thread.CounterUndef
 		}
 		pblg = logToProto(lg)
 
 		wg.Add(1)
 		go func(tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
 			defer wg.Done()
+			// if we don't have records in the log then skipping it
+			if pblg.Counter == thread.CounterUndef {
+				return
+			}
 
 			recs, err := s.net.getLocalRecords(ctx, tid, lid, off, lim, counter)
 			if err != nil {
@@ -233,8 +237,9 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 				}
 				prs = append(prs, pr)
 			}
-			if pblg == nil && len(prs) == 0 {
-				// do not include empty logs in reply
+
+			if len(prs) == 0 {
+				// do not include logs with no records in reply
 				return
 			}
 
@@ -289,7 +294,7 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
 	}
-	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, thread.CounterUndef); err != nil {
+	if err = s.net.PutRecord(ctx, req.Body.ThreadID.ID, req.Body.LogID.ID, rec, req.Counter); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &pb.PushRecordReply{}, nil

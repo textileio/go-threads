@@ -42,15 +42,13 @@ func NewHeadBook(ds ds.TxnDatastore) core.HeadBook {
 	}
 }
 
-// TODO: Add counters
 // AddHead addes a new head to a log.
-func (hb *dsHeadBook) AddHead(t thread.ID, p peer.ID, head cid.Cid) error {
-	return hb.AddHeads(t, p, []cid.Cid{head})
+func (hb *dsHeadBook) AddHead(t thread.ID, p peer.ID, head thread.Head) error {
+	return hb.AddHeads(t, p, []thread.Head{head})
 }
 
-// TODO: Add counters
 // AddHeads adds multiple heads to a log.
-func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
+func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []thread.Head) error {
 	txn, err := hb.ds.NewTransaction(false)
 	if err != nil {
 		return fmt.Errorf("error when creating txn in datastore: %w", err)
@@ -73,12 +71,12 @@ func (hb *dsHeadBook) AddHeads(t thread.ID, p peer.ID, heads []cid.Cid) error {
 		set[hr.Heads[i].Cid.Cid] = struct{}{}
 	}
 	for i := range heads {
-		if !heads[i].Defined() {
+		if !heads[i].ID.Defined() {
 			log.Warnf("ignoring head %s is is undefined for %s", heads[i], key)
 			continue
 		}
-		if _, ok := set[heads[i]]; !ok {
-			entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.ProtoCid{Cid: heads[i]}}
+		if _, ok := set[heads[i].ID]; !ok {
+			entry := &pb.HeadBookRecord_HeadEntry{Cid: &pb.ProtoCid{Cid: heads[i].ID}, Counter: heads[i].Counter}
 			hr.Heads = append(hr.Heads, entry)
 		}
 	}

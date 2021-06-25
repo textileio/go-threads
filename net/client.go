@@ -258,7 +258,7 @@ func (s *server) getRecordsFromPeer(
 }
 
 // pushRecord to log addresses and thread topic.
-func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record) error {
+func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record, counter int64) error {
 	// Collect known writers
 	addrs := make([]ma.Multiaddr, 0)
 	info, err := s.net.store.GetThread(tid)
@@ -283,7 +283,8 @@ func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec
 		Record:   pbrec,
 	}
 	req := &pb.PushRecordRequest{
-		Body: body,
+		Body:    body,
+		Counter: counter,
 	}
 
 	// Push to each address

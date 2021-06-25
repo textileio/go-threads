@@ -156,20 +156,20 @@ func testHeadBookEdge(hb core.HeadBook) func(t *testing.T) {
 			numLogs  = 3
 			numHeads = 2
 
-			genHeadSets = func(cases int) (thread.ID, []map[peer.ID][]cid.Cid) {
+			genHeadSets = func(cases int) (thread.ID, []map[peer.ID][]thread.Head) {
 				tid, logs := genHeads(numLogs, cases*numHeads)
-				splitted := make([]map[peer.ID][]cid.Cid, cases)
+				splitted := make([]map[peer.ID][]thread.Head, cases)
 				for i := 0; i < cases; i++ {
-					hs := make(map[peer.ID][]cid.Cid)
-					for lid, cids := range logs {
-						hs[lid] = append(hs[lid], cids[i*numHeads:(i+1)*numHeads]...)
+					hs := make(map[peer.ID][]thread.Head)
+					for lid, heads := range logs {
+						hs[lid] = append(hs[lid], heads[i*numHeads:(i+1)*numHeads]...)
 					}
 					splitted[i] = hs
 				}
 				return tid, splitted
 			}
 
-			equalEdges = func(edge uint64, logs map[peer.ID][]cid.Cid) bool {
+			equalEdges = func(edge uint64, logs map[peer.ID][]thread.Head) bool {
 				var heads []util.LogHead
 				for lid, cids := range logs {
 					for _, c := range cids {
@@ -382,9 +382,9 @@ func benchmarkClearHeads(hb core.HeadBook) func(*testing.B) {
 	}
 }
 
-func genHeads(numLogs, numHeads int) (thread.ID, map[peer.ID][]cid.Cid) {
+func genHeads(numLogs, numHeads int) (thread.ID, map[peer.ID][]thread.Head) {
 	var (
-		logs = make(map[peer.ID][]cid.Cid)
+		logs = make(map[peer.ID][]thread.Head)
 		tid  = thread.NewIDV1(thread.Raw, 32)
 	)
 
@@ -392,10 +392,13 @@ func genHeads(numLogs, numHeads int) (thread.ID, map[peer.ID][]cid.Cid) {
 		_, pub, _ := pt.RandTestKeyPair(crypto.RSA, crypto.MinRsaKeyBits)
 		lid, _ := peer.IDFromPublicKey(pub)
 
-		heads := make([]cid.Cid, numHeads)
+		heads := make([]thread.Head, numHeads)
 		for j := 0; j < numHeads; j++ {
 			hash, _ := mh.Encode([]byte("h:"+strconv.Itoa(i)+":"+strconv.Itoa(j)), mh.SHA2_256)
-			heads[j] = cid.NewCidV1(cid.DagCBOR, hash)
+			heads[j] = thread.Head{
+				ID:      cid.NewCidV1(cid.DagCBOR, hash),
+				Counter: 1,
+			}
 		}
 
 		logs[lid] = heads
@@ -404,16 +407,16 @@ func genHeads(numLogs, numHeads int) (thread.ID, map[peer.ID][]cid.Cid) {
 	return tid, logs
 }
 
-func equalHeads(h1, h2 []cid.Cid) bool {
+func equalHeads(h1, h2 []thread.Head) bool {
 	if len(h1) != len(h2) {
 		return false
 	}
 
-	sort.Slice(h1, func(i, j int) bool { return h1[i].String() < h1[j].String() })
-	sort.Slice(h2, func(i, j int) bool { return h2[i].String() < h2[j].String() })
+	sort.Slice(h1, func(i, j int) bool { return h1[i].ID.String() < h1[j].ID.String() })
+	sort.Slice(h2, func(i, j int) bool { return h2[i].ID.String() < h2[j].ID.String() })
 
 	for i := 0; i < len(h1); i++ {
-		if !h1[i].Equals(h2[i]) {
+		if !h1[i].ID.Equals(h2[i].ID) || h1[i].Counter != h2[i].Counter {
 			return false
 		}
 	}
