@@ -197,7 +197,6 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	)
 
 	for _, lg := range info.Logs {
-		fmt.Printf("head counter is %d for %s\n", lg.Head.Counter, lg.ID.String())
 		var (
 			offset  cid.Cid
 			limit   int

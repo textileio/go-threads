@@ -94,10 +94,23 @@ func main() {
 	defer m.stopAndPrint()
 	run.InvokeMap(map[string]interface{}{
 		"sync-threads": run.InitializedTestCaseFn(testSyncThreads),
+		"bitswap-sync-race": run.InitializedTestCaseFn(testBitswapSyncRace),
 	})
 }
 
 func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
+	return testMultipleRounds("testSyncThreads", env, ic, testSyncThreadsRound)
+}
+
+func testBitswapSyncRace(env *runtime.RunEnv, ic *run.InitContext) (err error) {
+	return testMultipleRounds("testBitswapSyncRace", env, ic, testBitswapSyncRaceRound)
+}
+
+func testMultipleRounds(
+	stateName string,
+	env *runtime.RunEnv,
+	ic *run.InitContext,
+	testRound func (context.Context, *runtime.RunEnv, *run.InitContext, string, string) error) (err error) {
 	msg = func(msg string, args ...interface{}) {
 		env.RecordMessage(msg, args...)
 	}
@@ -110,8 +123,8 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 		env.RecordFailure(fmt.Errorf(msg, args...))
 	}
 	setup(env, ic)
-	successState := sync.State("testSyncThreads-success")
-	failState := sync.State("testSyncThreads-fail")
+	successState := sync.State(stateName+"-success")
+	failState := sync.State(stateName+"-fail")
 	barrierSuccess := ic.SyncClient.MustBarrier(context.Background(), successState, env.TestInstanceCount)
 	barrierFail := ic.SyncClient.MustBarrier(context.Background(), failState, 1)
 	go func() {
@@ -162,7 +175,104 @@ func testSyncThreads(env *runtime.RunEnv, ic *run.InitContext) (err error) {
 	}
 }
 
-func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
+func testBitswapSyncRaceRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
+	var cli *client.Client
+	var stop func()
+
+	isFirst := env.BooleanParam("first")
+	isSecond := env.BooleanParam("second")
+
+	var err error
+
+	chThreadToJoin := make(chan *SharedInfo, 1)
+	topic := sync.NewTopic("thread-"+round, &SharedInfo{})
+	var thr *threadWithKeys
+	recordsToSend := env.IntParam("records")
+
+	// creating thread only on first peer
+	if isFirst {
+		cli, stop, err = startClient(desiredAddr, env, ic)
+		if err != nil {
+			return err
+		}
+		thr, err = createThread(ctx, cli)
+		if err != nil {
+			msg("Failed to create the thread: %v", err)
+			return err
+		}
+		msg("Created thread")
+		if err := thr.CreateRecords(ctx, recordsToSend); err != nil {
+			return err
+		}
+		msg("Peer #%d created %d records", ic.GlobalSeq, recordsToSend)
+		ic.SyncClient.MustPublishSubscribe(ctx,
+			topic,
+			thr.Sharable(),
+			chThreadToJoin)
+		msg("Published thread")
+	} else {
+		ic.SyncClient.MustSubscribe(ctx, topic, chThreadToJoin)
+	}
+
+	livePeers := 2
+	if isSecond {
+		shareable := <-chThreadToJoin
+		cli, stop, err = startClient(desiredAddr, env, ic)
+		if err != nil {
+			return err
+		}
+		// when we call AddThreads we call getRecords, so the second instance will try to get all records
+		// from the first instance
+		thr, err = joinThread(ctx, cli, shareable)
+		if err != nil {
+			return fmt.Errorf("failed to join thread: %w", err)
+		}
+
+		// this is a bit of a hack, because we are using it just to save the head of the log which the thread received
+		thr.logHead = shareable.LogHead
+		msg("Joined thread")
+		msg("Getting record with id %s", shareable.LogHead.String())
+		// at the same time we will try to get the head through bitswap
+		_, err = cli.GetRecord(ctx, shareable.ThreadId, shareable.LogHead)
+		msg("Finished getting record")
+		if err != nil {
+			return err
+		}
+	}
+	ic.SyncClient.MustSignalAndWait(ctx, sync.State("ready-"+round+"-phase1"), livePeers)
+	donePhase1 := sync.State("done-" + round + "-phase1")
+
+	// Adding a little timeout to make sure that records are finished syncing
+	tk := time.NewTicker(3 * time.Second)
+	defer tk.Stop()
+	<-tk.C
+	if isSecond {
+		heads, err := thr.GetHeads(ctx)
+		if err != nil {
+			return err
+		}
+		// trying to find head from the log of the first instance to see if it was synchronized
+		headFound := false
+		for _, head := range heads {
+			if head.ID == thr.logHead {
+				if head.Counter != int64(recordsToSend) {
+					return fmt.Errorf("head found but counter is incorrect")
+				}
+				headFound = true
+			}
+		}
+		if !headFound {
+			return fmt.Errorf("could not find head")
+		}
+		msg("Found log with correct number records")
+	}
+
+	ic.SyncClient.MustSignalAndWait(ctx, donePhase1, livePeers)
+	stop()
+	return nil
+}
+
+func testSyncThreadsRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, round string, desiredAddr string) error {
 	var cli *client.Client
 	var stop func()
 	isLateStart := env.BooleanParam("late-start")
@@ -285,7 +395,7 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 	for i := 0; i < env.TestInstanceCount; i++ {
 		expectedHeads[<-chCurrentHead] = true
 	}
-	var heads []cid.Cid
+	var heads []thread.Head
 	tk := time.NewTicker(10 * time.Millisecond)
 	defer tk.Stop()
 	for {
@@ -300,7 +410,7 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 			continue
 		}
 		for _, head := range heads {
-			if !expectedHeads[head] {
+			if !expectedHeads[head.ID] {
 				debug("log not up-to-date, continuing")
 				continue
 			}
@@ -311,7 +421,7 @@ func testRound(ctx context.Context, env *runtime.RunEnv, ic *run.InitContext, ro
 	// now all logs are up-to-date, read records from all
 	totalRecords := 0
 	for _, head := range heads {
-		records, err := thr.GetRecords(ctx, head)
+		records, err := thr.GetRecords(ctx, head.ID)
 		if err != nil {
 			return fmt.Errorf("Error getting records: %w", err)
 		}
@@ -380,6 +490,8 @@ func startClient(desiredAddr string, env *runtime.RunEnv, ic *run.InitContext) (
 type SharedInfo struct {
 	Addr      string // multiaddr.Multiaddr
 	ThreadKey string // thread.Key
+	LogHead   cid.Cid
+	ThreadId  thread.ID
 }
 
 type threadWithKeys struct {
@@ -461,7 +573,7 @@ func joinThread(ctx context.Context, cli *client.Client, shared *SharedInfo) (*t
 }
 
 func (t *threadWithKeys) Sharable() *SharedInfo {
-	return &SharedInfo{t.Addrs[0].String(), t.Key.String()}
+	return &SharedInfo{t.Addrs[0].String(), t.Key.String(), t.logHead, t.ID}
 }
 
 // WaitForRecords blocks until it receives nRecords, then return them
@@ -502,7 +614,7 @@ func (t *threadWithKeys) CreateRecords(ctx context.Context, num int) error {
 	return nil
 }
 
-func (t *threadWithKeys) GetHeads(ctx context.Context) (heads []cid.Cid, err error) {
+func (t *threadWithKeys) GetHeads(ctx context.Context) (heads []thread.Head, err error) {
 	info, err := t.cli.GetThread(ctx, t.ID)
 	if err != nil {
 		return nil, err
