@@ -19,6 +19,9 @@ const ThreadIdsFilename = "thread_ids"
 const NumRecords = 10
 
 func TestMigration(t *testing.T) {
+	if os.Getenv("RUN_MIGRATION_TEST") == "" {
+		t.Skip("Skipping migration test")
+	}
 	// reading environment
 	repoPath := os.Getenv("ENV_REPO_PATH")
 	if repoPath == "" {
