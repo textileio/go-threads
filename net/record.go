@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/net"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 type linkedRecord interface {
@@ -46,9 +47,14 @@ func (r *recordCollector) UpdateHeadCounter(lid peer.ID, counter int64) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	// we update the counter only if we have some records
 	val, found := r.counters[lid]
 	if !found {
 		r.counters[lid] = counter
+		// if a peer does not support the new logic we cannot rely on counter comparison
+	} else if val == thread.CounterUndef || counter == thread.CounterUndef {
+		r.counters[lid] = thread.CounterUndef
+		// setting the counter to have the maximum value of all the logs we got
 	} else if val < counter {
 		r.counters[lid] = counter
 	}
@@ -67,6 +73,7 @@ func (r *recordCollector) List() (map[peer.ID]peerRecords, error) {
 		}
 
 		counter, found := r.counters[id]
+		// this should never happen because we do this for every log
 		if !found {
 			return nil, fmt.Errorf("did not found log counter in log %s", id)
 		}
