@@ -55,11 +55,10 @@ func genStore(repoPath string, fileName string, numThreads int, numRecords int) 
 
 	filePath := repoPath + "/" + fileName
 	file, err := os.Create(filePath)
-	defer file.Close()
-
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	for i := 0; i < numThreads; i++ {
 		id, err := createThreadWithRecords(ctx, net, numRecords)

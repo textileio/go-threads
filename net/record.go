@@ -51,8 +51,8 @@ func (r *recordCollector) UpdateHeadCounter(lid peer.ID, counter int64) {
 	val, found := r.counters[lid]
 	if !found {
 		r.counters[lid] = counter
-		// if a peer does not support the new logic we cannot rely on counter comparison
 	} else if val == thread.CounterUndef || counter == thread.CounterUndef {
+		// if a peer does not support the new logic we cannot rely on counter comparison
 		r.counters[lid] = thread.CounterUndef
 		// setting the counter to have the maximum value of all the logs we got
 	} else if val < counter {
