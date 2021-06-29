@@ -16,9 +16,7 @@ require (
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/node_exporter v1.1.2
 	github.com/testground/sdk-go v0.2.7
-	github.com/textileio/go-threads v1.1.0-rc1.0.20210609142634-18b4ea73088f
+	github.com/textileio/go-threads v1.1.0-rc1.0.20210629205351-b69fecf6a82b
 	google.golang.org/grpc v1.37.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
-
-replace github.com/textileio/go-threads v1.1.0-rc1.0.20210609142634-18b4ea73088f => github.com/mcrakhman/go-threads v1.1.0-rc1.0.20210626214637-1a88e4ef1d3b
