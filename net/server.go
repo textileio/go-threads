@@ -283,12 +283,6 @@ func (s *server) PushRecord(ctx context.Context, req *pb.PushRecordRequest) (*pb
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// TODO: replace with counter check (if possible)
-	if knownRecord, err := s.net.isKnown(rec.Cid()); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	} else if knownRecord {
-		return &pb.PushRecordReply{}, nil
-	}
 
 	if err = rec.Verify(logpk); err != nil {
 		return nil, status.Error(codes.Unauthenticated, err.Error())
