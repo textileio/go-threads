@@ -991,9 +991,10 @@ func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs [
 	}
 
 	// setting new counters for heads
-	updatedCounter := head.Counter + 1
+	updatedCounter := head.Counter
 	connector, appConnected := n.getConnector(tid)
 	for _, record := range chain {
+		updatedCounter++
 		if err := n.store.SetHead(
 			tid,
 			lid,
@@ -1028,7 +1029,6 @@ func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs [
 		if err = n.bus.SendWithTimeout(record, notifyTimeout); err != nil {
 			return err
 		}
-		updatedCounter += 1
 	}
 
 	return nil
@@ -1052,6 +1052,7 @@ func (n *net) loadRecords(
 
 	// check if the last record was already loaded and processed
 	var last = recs[len(recs)-1]
+	// if we don't have the counter (but have some recs) then we were communicating with old version peer
 	if counter == thread.CounterUndef {
 		if exist, err := n.isKnown(last.Cid()); err != nil {
 			return nil, thread.HeadUndef, err
