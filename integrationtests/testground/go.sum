@@ -879,8 +879,6 @@ github.com/mattn/go-xmlrpc v0.0.3 h1:Y6WEMLEsqs3RviBrAa1/7qmbGB7DVD3brZIbqMbQdGY
 github.com/mattn/go-xmlrpc v0.0.3/go.mod h1:mqc2dz7tP5x5BKlCahN/n+hs7OSZKJkS9JsHNBRlrxA=
 github.com/matttproud/golang_protobuf_extensions v1.0.1 h1:4hp9jkHxhMHkqkrB3Ix0jegS5sx/RkqARlsWZ6pIwiU=
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
-github.com/mcrakhman/go-threads v1.1.0-rc1.0.20210626214637-1a88e4ef1d3b h1:uGQydjf1uoGqJO1vwFGdQp0FRaK56yoP9rC/PU1osPA=
-github.com/mcrakhman/go-threads v1.1.0-rc1.0.20210626214637-1a88e4ef1d3b/go.mod h1:O7G/oTjIZfQmB6ZoeU42IdRxWEY9D+HZuLzF6wMk4jI=
 github.com/mdlayher/genetlink v1.0.0 h1:OoHN1OdyEIkScEmRgxLEe2M9U8ClMytqA5niynLtfj0=
 github.com/mdlayher/genetlink v1.0.0/go.mod h1:0rJ0h4itni50A86M2kHcgS85ttZazNt7a8H2a2cw0Gc=
 github.com/mdlayher/netlink v0.0.0-20190409211403-11939a169225/go.mod h1:eQB3mZE4aiYnlUsyGGCOpPETfdQq4Jhsgf1fk3cwQaA=
@@ -1199,6 +1197,8 @@ github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2 h1:VIWkcc
 github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2/go.mod h1:qEZ/z1KyoRhGS5MYEbIcWUCCPd/0HxCkFDVeJgP1RcI=
 github.com/textileio/go-ds-mongo v0.1.4 h1:5PPMEmqCfeCySzadtuBXMEJVDGP1Cga/CQXo3GWetmE=
 github.com/textileio/go-ds-mongo v0.1.4/go.mod h1:Zf6JlMPiIQUUmGlFFn5Z65C9p9LAvPg7XvX+qdGmTsU=
+github.com/textileio/go-threads v1.1.0-rc1.0.20210629205351-b69fecf6a82b h1:pKETkexs7gX2hhGkeZfeS0ffoJkHfL2P03r4+QZQJz8=
+github.com/textileio/go-threads v1.1.0-rc1.0.20210629205351-b69fecf6a82b/go.mod h1:O7G/oTjIZfQmB6ZoeU42IdRxWEY9D+HZuLzF6wMk4jI=
 github.com/tidwall/gjson v1.3.5 h1:2oW9FBNu8qt9jy5URgrzsVx/T/KSn3qn/smJQ0crlDQ=
 github.com/tidwall/gjson v1.3.5/go.mod h1:P256ACg0Mn+j1RXIDXoss50DeIABTYK1PULOJHhxOls=
 github.com/tidwall/match v1.0.1 h1:PnKP62LPNxHKTwvHHZZzdOAOCtsJTjo6dZLCwpKm5xc=
