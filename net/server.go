@@ -201,7 +201,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			offset  cid.Cid
 			limit   int
 			counter int64
-			pblg    *pb.Log
+			pblg    = logToProto(lg)
 		)
 		if opts, ok := reqd[lg.ID]; ok {
 			offset = opts.Offset.Cid
@@ -212,7 +212,6 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 			limit = logRecordLimit
 			counter = thread.CounterUndef
 		}
-		pblg = logToProto(lg)
 
 		wg.Add(1)
 		go func(tid thread.ID, lid peer.ID, off cid.Cid, lim int) {
@@ -457,7 +456,7 @@ func logFromProto(l *pb.Log) thread.LogInfo {
 		ID:     l.ID.ID,
 		PubKey: l.PubKey.PubKey,
 		Addrs:  addrsFromProto(l.Addrs),
-		Head:   thread.Head{
+		Head: thread.Head{
 			ID:      l.Head.Cid,
 			Counter: l.Counter,
 		},

@@ -75,7 +75,7 @@ func (r *recordCollector) List() (map[peer.ID]peerRecords, error) {
 		counter, found := r.counters[id]
 		// this should never happen because we do this for every log
 		if !found {
-			return nil, fmt.Errorf("did not found log counter in log %s", id)
+			return nil, fmt.Errorf("did not find log counter in log %s", id)
 		}
 
 		casted := make([]core.Record, len(ordered))

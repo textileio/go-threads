@@ -181,7 +181,7 @@ func NewNetwork(
 
 func (n *net) countRecords(ctx context.Context, tid thread.ID, rid cid.Cid) (int64, error) {
 	var (
-		cursor  = rid
+		cursor        = rid
 		counter int64 = 0
 	)
 	sk, err := n.store.ServiceKey(tid)
@@ -206,7 +206,8 @@ func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err
 		return err
 	}
 
-	log.Info("Starting migrating heads")
+	log.Info("Checking for heads migration")
+	isMigrationNeeded := false
 
 	for _, tid := range threadIds {
 		tInfo, err := ls.GetThread(tid)
@@ -223,6 +224,10 @@ func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err
 			for _, h := range heads {
 				// In this case we didn't migrate the thread
 				if h.Counter == thread.CounterUndef && h.ID != cid.Undef {
+					if !isMigrationNeeded {
+						log.Info("Starting migrating heads")
+						isMigrationNeeded = true
+					}
 					counter, err := n.countRecords(ctx, tid, h.ID)
 					if err != nil {
 						return err
@@ -241,7 +246,9 @@ func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err
 		}
 	}
 
-	log.Info("Finished migrating heads")
+	if isMigrationNeeded {
+		log.Info("Finished migrating heads")
+	}
 
 	return nil
 }
@@ -751,7 +758,7 @@ func (n *net) CreateRecord(
 	if err = n.bus.SendWithTimeout(tr, notifyTimeout); err != nil {
 		return
 	}
-	if err = n.server.pushRecord(ctx, id, lg.ID, tr.Value(), lg.Head.Counter + 1); err != nil {
+	if err = n.server.pushRecord(ctx, id, lg.ID, tr.Value(), lg.Head.Counter+1); err != nil {
 		return
 	}
 	return tr, nil
