@@ -248,9 +248,16 @@ func (s *server) getRecordsFromPeer(
 			}
 			records = append(records, rec)
 		}
+		counter := thread.CounterUndef
+		// Old version may still send nil Logs, because of how
+		// old server GetRecords method worked, now it is fixed
+		// but we can still have crashes if we don't check this for backwards compatibility
+		if l.Log != nil {
+			counter = l.Log.Counter
+		}
 		recs[logID] = peerRecords{
 			records: records,
-			counter: l.Log.Counter,
+			counter: counter,
 		}
 	}
 
