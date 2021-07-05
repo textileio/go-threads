@@ -175,7 +175,7 @@ func NewNetwork(
 		}
 	}()
 
-	go t.startPulling()
+	//go t.startPulling()
 	return t, nil
 }
 
