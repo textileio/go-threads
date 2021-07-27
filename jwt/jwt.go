@@ -1,7 +1,7 @@
 package jwted25519
 
 import (
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 	"github.com/libp2p/go-libp2p-core/crypto"
 )
 
