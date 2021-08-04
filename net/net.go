@@ -1,4 +1,5 @@
-//Package net implements the network layer for go-threads. Nodes exchange messages with each other via gRPC, and the format is defined under /pb.
+// Package net implements the network layer for go-threads.
+// Nodes exchange messages with each other via gRPC, and the format is defined under /pb.
 package net
 
 import (
@@ -997,10 +998,70 @@ func (n *net) putRecords(ctx context.Context, tid thread.ID, lid peer.ID, recs [
 		}
 	}
 
-	// setting new counters for heads
-	updatedCounter := head.Counter
-	connector, appConnected := n.getConnector(tid)
+	var (
+		connector, appConnected = n.getConnector(tid)
+		identity                = &thread.Libp2pPubKey{}
+		readKey                 *sym.Key
+		validate                bool
+		// setting new counters for heads
+		updatedCounter = head.Counter
+	)
+
+	if appConnected {
+		var err error
+		if readKey, err = n.store.ReadKey(tid); err != nil {
+			return err
+		} else if readKey != nil {
+			validate = true
+		}
+	}
+
 	for _, record := range chain {
+		if validate {
+			block, err := record.Value().GetBlock(ctx, n)
+			if err != nil {
+				return err
+			}
+
+			event, ok := block.(*cbor.Event)
+			if !ok {
+				event, err = cbor.EventFromNode(block)
+				if err != nil {
+					return fmt.Errorf("invalid event: %w", err)
+				}
+			}
+
+			dbody, err := event.GetBody(ctx, n, readKey)
+			if err != nil {
+				return err
+			}
+
+			if err = identity.UnmarshalBinary(record.Value().PubKey()); err != nil {
+				return err
+			}
+
+			if err = connector.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
+				userErr := err
+
+				// remove stored internal blocks
+				header, err := event.GetHeader(ctx, n, nil)
+				if err != nil {
+					return err
+				}
+
+				body, err := event.GetBody(ctx, n, nil)
+				if err != nil {
+					return err
+				}
+
+				if err := n.RemoveMany(ctx, []cid.Cid{event.Cid(), header.Cid(), body.Cid()}); err != nil {
+					return fmt.Errorf("removing invalid blocks: %w", err)
+				}
+
+				return userErr
+			}
+		}
+
 		updatedCounter++
 		if err := n.store.SetHead(
 			tid,
@@ -1107,23 +1168,7 @@ func (n *net) loadRecords(
 		return nil, head, nil
 	}
 
-	var (
-		connector, appConnected = n.getConnector(tid)
-		identity                = &thread.Libp2pPubKey{}
-		tRecords                = make([]core.ThreadRecord, 0, len(chain))
-		readKey                 *sym.Key
-		validate                bool
-	)
-
-	if appConnected {
-		var err error
-		if readKey, err = n.store.ReadKey(tid); err != nil {
-			return nil, head, err
-		} else if readKey != nil {
-			validate = true
-		}
-	}
-
+	tRecords := make([]core.ThreadRecord, 0, len(chain))
 	for i := len(chain) - 1; i >= 0; i-- {
 		var r = chain[i]
 		block, err := r.GetBlock(ctx, n)
@@ -1147,21 +1192,6 @@ func (n *net) loadRecords(
 		body, err := event.GetBody(ctx, n, nil)
 		if err != nil {
 			return nil, head, err
-		}
-
-		if validate {
-			dbody, err := event.GetBody(ctx, n, readKey)
-			if err != nil {
-				return nil, head, err
-			}
-
-			if err = identity.UnmarshalBinary(r.PubKey()); err != nil {
-				return nil, head, err
-			}
-
-			if err = connector.ValidateNetRecordBody(ctx, dbody, identity); err != nil {
-				return nil, head, err
-			}
 		}
 
 		// store internal blocks locally, record envelope will be added by the caller after successful processing
