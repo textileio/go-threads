@@ -41,8 +41,8 @@ type Manager struct {
 	store   kt.TxnDatastoreExtended
 	network app.Net
 
-	lock sync.Mutex
-	dbs  map[thread.ID]*DB
+	lk  sync.RWMutex
+	dbs map[thread.ID]*DB
 }
 
 // NewManager hydrates and starts dbs from prefixes.
@@ -148,12 +148,12 @@ func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (threa
 
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOption) (*DB, error) {
-	m.lock.Lock()
+	m.lk.RLock()
 	if _, ok := m.dbs[id]; ok {
-		m.lock.Unlock()
+		m.lk.RUnlock()
 		return nil, ErrDBExists
 	}
-	m.lock.Unlock()
+	m.lk.RUnlock()
 
 	args := &NewManagedOptions{}
 	for _, opt := range opts {
@@ -184,9 +184,9 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 	if err != nil {
 		return nil, err
 	}
-	m.lock.Lock()
+	m.lk.Lock()
 	m.dbs[id] = db
-	m.lock.Unlock()
+	m.lk.Unlock()
 	return db, nil
 }
 
@@ -203,12 +203,14 @@ func (m *Manager) NewDBFromAddr(
 	if err != nil {
 		return nil, err
 	}
-	m.lock.Lock()
+
+	m.lk.RLock()
 	if _, ok := m.dbs[id]; ok {
-		m.lock.Unlock()
+		m.lk.RUnlock()
 		return nil, ErrDBExists
 	}
-	m.lock.Unlock()
+	m.lk.RUnlock()
+
 	args := &NewManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -238,9 +240,9 @@ func (m *Manager) NewDBFromAddr(
 	if err != nil {
 		return nil, err
 	}
-	m.lock.Lock()
+	m.lk.Lock()
 	m.dbs[id] = db
-	m.lock.Unlock()
+	m.lk.Unlock()
 
 	if args.Block {
 		if err = m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
@@ -260,13 +262,13 @@ func (m *Manager) NewDBFromAddr(
 
 // ListDBs returns a list of all dbs.
 func (m *Manager) ListDBs(ctx context.Context, opts ...ManagedOption) (map[thread.ID]*DB, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	args := &ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 
+	m.lk.RLock()
+	defer m.lk.RUnlock()
 	dbs := make(map[thread.ID]*DB)
 	for id, db := range m.dbs {
 		if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
@@ -283,11 +285,13 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedOption
 	for _, opt := range opts {
 		opt(args)
 	}
+
 	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
-	m.lock.Lock()
-	defer m.lock.Unlock()
+
+	m.lk.RLock()
+	defer m.lk.RUnlock()
 	db, ok := m.dbs[id]
 	if !ok {
 		return nil, ErrDBNotFound
@@ -301,16 +305,18 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	for _, opt := range opts {
 		opt(args)
 	}
+
 	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return err
 	}
-	m.lock.Lock()
+
+	m.lk.RLock()
 	db, ok := m.dbs[id]
 	if !ok {
-		m.lock.Unlock()
+		m.lk.RUnlock()
 		return ErrDBNotFound
 	}
-	m.lock.Unlock()
+	m.lk.RUnlock()
 
 	if err := db.Close(); err != nil {
 		return err
@@ -332,9 +338,9 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 		return err
 	}
 
-	m.lock.Lock()
+	m.lk.Lock()
 	delete(m.dbs, id)
-	m.lock.Unlock()
+	m.lk.Unlock()
 	return nil
 }
 
@@ -361,8 +367,8 @@ func (m *Manager) Net() net.Net {
 
 // Close all dbs.
 func (m *Manager) Close() error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.lk.Lock()
+	defer m.lk.Unlock()
 	for _, s := range m.dbs {
 		if err := s.Close(); err != nil {
 			log.Error("error when closing manager datastore: %v", err)
