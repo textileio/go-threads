@@ -1,0 +1,24 @@
+[global]
+plan    = "go-threads"
+case    = "sync-threads"
+builder = "exec:go"
+runner  = "local:exec"
+total_instances = 3
+  [global.run]
+  test_params = {records="3", verbose="2"}
+
+[[groups]]
+id = "always-on"
+instances = { count = 1 }
+
+[[groups]]
+id = "early-stopper"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {early-stop="true"}
+
+[[groups]]
+id = "late-joiner"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {late-start="true"}

@@ -11,7 +11,7 @@ import (
 const (
 	N       = 3
 	testStr = "Test"
-	timeout = time.Second * 2
+	timeout = time.Second * 4
 )
 
 type ListenFunc func(int, *Broadcaster, *sync.WaitGroup)

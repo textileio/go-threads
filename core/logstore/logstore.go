@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -191,19 +190,19 @@ type AddrBook interface {
 // HeadBook stores log heads.
 type HeadBook interface {
 	// AddHead stores cid in a log's head.
-	AddHead(thread.ID, peer.ID, cid.Cid) error
+	AddHead(thread.ID, peer.ID, thread.Head) error
 
 	// AddHeads stores cids in a log's head.
-	AddHeads(thread.ID, peer.ID, []cid.Cid) error
+	AddHeads(thread.ID, peer.ID, []thread.Head) error
 
-	// SetHead sets a log's head as cid.
-	SetHead(thread.ID, peer.ID, cid.Cid) error
+	// SetHead sets a log's head
+	SetHead(thread.ID, peer.ID, thread.Head) error
 
-	// SetHeads sets a log's head as cids.
-	SetHeads(thread.ID, peer.ID, []cid.Cid) error
+	// SetHeads sets a log's head
+	SetHeads(thread.ID, peer.ID, []thread.Head) error
 
 	// Heads retrieves head values for a log.
-	Heads(thread.ID, peer.ID) ([]cid.Cid, error)
+	Heads(thread.ID, peer.ID) ([]thread.Head, error)
 
 	// ClearHeads deletes the head entry for a log.
 	ClearHeads(thread.ID, peer.ID) error
@@ -220,7 +219,7 @@ type HeadBook interface {
 
 type (
 	DumpHeadBook struct {
-		Data map[thread.ID]map[peer.ID][]cid.Cid
+		Data map[thread.ID]map[peer.ID][]thread.Head
 	}
 
 	ExpiredAddress struct {

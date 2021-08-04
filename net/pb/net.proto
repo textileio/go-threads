@@ -16,6 +16,8 @@ message Log {
     repeated bytes addrs = 3 [(gogoproto.customtype) = "ProtoAddr"];
     // head of the log.
     bytes head = 4 [(gogoproto.customtype) = "ProtoCid"];
+    // position of the log
+    int64 counter = 5;
 
     // Record is a thread record containing link data.
     message Record {
@@ -96,6 +98,8 @@ message GetRecordsRequest {
             bytes offset = 2 [(gogoproto.customtype) = "ProtoCid"];
             // limit indicates the max number of records to return.
             int32 limit = 3;
+            // counter indicates the position of record
+            int64 counter = 4;
         }
     }
 }
@@ -122,6 +126,8 @@ message PushRecordRequest {
     reserved 1;
     // body is the message body.
     Body body = 2;
+    // position of the record
+    int64 counter = 3;
 
     message Body {
         // threadID is the target thread's ID.
@@ -166,7 +172,7 @@ message ExchangeEdgesReply {
     message ThreadEdges {
         // threadID is the requested thread's ID.
         bytes threadID = 1 [(gogoproto.customtype) = "ProtoThreadID"];
-        // exists is the flag indicating whether the requested thread exists on a respondent.
+        // deprecated, use default values for addressEdge and headsEdge
         bool exists = 2;
         // addressEdge is the current hash of peers addresses stored on a respondent.
         uint64 addressEdge = 3;

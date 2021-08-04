@@ -66,6 +66,7 @@ type API interface {
 	GetRecord(ctx context.Context, id thread.ID, rid cid.Cid, opts ...ThreadOption) (Record, error)
 
 	// Subscribe returns a read-only channel that receives newly created / added thread records.
+	// Cancelling the context effectively unsubscribes and releases the resources.
 	Subscribe(ctx context.Context, opts ...SubOption) (<-chan ThreadRecord, error)
 }
 

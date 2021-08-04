@@ -1,0 +1,20 @@
+[global]
+plan    = "go-threads"
+case    = "bitswap-sync-race"
+builder = "exec:go"
+runner  = "local:exec"
+total_instances = 2
+  [global.run]
+  test_params = {records="200", verbose="2"}
+
+[[groups]]
+id = "first-instance"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {first="true"}
+
+[[groups]]
+id = "second-instance"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {second="true"}

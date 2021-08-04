@@ -4,8 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -376,7 +374,7 @@ type LogInfo struct {
 	// Addrs are the addresses associated with the given log.
 	Addrs []ma.Multiaddr
 	// Head is the log's current head.
-	Head cid.Cid
+	Head Head
 	// Managed logs are any logs directly added/created by the host, and/or logs for which we have the private key
 	Managed bool
 }

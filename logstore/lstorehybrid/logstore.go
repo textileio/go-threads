@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -243,35 +242,35 @@ func (l *lstore) AddrsEdge(t thread.ID) (uint64, error) {
 	return l.inMem.AddrsEdge(t)
 }
 
-func (l *lstore) AddHead(tid thread.ID, lid peer.ID, cid cid.Cid) error {
-	if err := l.persist.AddHead(tid, lid, cid); err != nil {
+func (l *lstore) AddHead(tid thread.ID, lid peer.ID, head thread.Head) error {
+	if err := l.persist.AddHead(tid, lid, head); err != nil {
 		return err
 	}
-	return l.inMem.AddHead(tid, lid, cid)
+	return l.inMem.AddHead(tid, lid, head)
 }
 
-func (l *lstore) AddHeads(tid thread.ID, lid peer.ID, cids []cid.Cid) error {
-	if err := l.persist.AddHeads(tid, lid, cids); err != nil {
+func (l *lstore) AddHeads(tid thread.ID, lid peer.ID, heads []thread.Head) error {
+	if err := l.persist.AddHeads(tid, lid, heads); err != nil {
 		return err
 	}
-	return l.inMem.AddHeads(tid, lid, cids)
+	return l.inMem.AddHeads(tid, lid, heads)
 }
 
-func (l *lstore) SetHead(tid thread.ID, lid peer.ID, cid cid.Cid) error {
-	if err := l.persist.SetHead(tid, lid, cid); err != nil {
+func (l *lstore) SetHead(tid thread.ID, lid peer.ID, head thread.Head) error {
+	if err := l.persist.SetHead(tid, lid, head); err != nil {
 		return err
 	}
-	return l.inMem.SetHead(tid, lid, cid)
+	return l.inMem.SetHead(tid, lid, head)
 }
 
-func (l *lstore) SetHeads(tid thread.ID, lid peer.ID, cids []cid.Cid) error {
-	if err := l.persist.SetHeads(tid, lid, cids); err != nil {
+func (l *lstore) SetHeads(tid thread.ID, lid peer.ID, heads []thread.Head) error {
+	if err := l.persist.SetHeads(tid, lid, heads); err != nil {
 		return err
 	}
-	return l.inMem.SetHeads(tid, lid, cids)
+	return l.inMem.SetHeads(tid, lid, heads)
 }
 
-func (l *lstore) Heads(tid thread.ID, lid peer.ID) ([]cid.Cid, error) {
+func (l *lstore) Heads(tid thread.ID, lid peer.ID) ([]thread.Head, error) {
 	return l.inMem.Heads(tid, lid)
 }
 

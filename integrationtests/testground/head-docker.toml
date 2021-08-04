@@ -1,0 +1,26 @@
+[global]
+plan    = "go-threads"
+case    = "sync-threads"
+builder = "docker:go"
+runner  = "local:docker"
+total_instances = 5
+  [global.build]
+  dependencies = [
+      { module = "github.com/textileio/go-threads", version = "master"},
+  ]
+
+[[groups]]
+id = "always-on"
+instances = { count = 3 }
+
+[[groups]]
+id = "early-stopper"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {early-stop="true"}
+
+[[groups]]
+id = "late-joiner"
+instances = { count = 1 }
+  [groups.run]
+  test_params = {late-start="true"}

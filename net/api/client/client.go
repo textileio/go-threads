@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -388,12 +389,21 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 		} else {
 			head = cid.Undef
 		}
+		var counter int64
+		if lg.Counter != nil {
+			counter, _ = binary.Varint(lg.Counter)
+		} else {
+			counter = thread.CounterUndef
+		}
 		logs[i] = thread.LogInfo{
 			ID:      id,
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Head:    head,
+			Head:    thread.Head{
+				ID:      head,
+				Counter: counter,
+			},
 		}
 	}
 	addrs := make([]ma.Multiaddr, len(reply.Addrs))

@@ -103,7 +103,7 @@ The `threadsd` daemon can be run as a server or alongside desktop apps or comman
 Create an `.env` file and add the following values:  
 
 ```bash
-REPO_PATH=~/myrepo
+THRDS_REPO=~/myrepo
 THRDS_DEBUG=true
 ```
 
@@ -136,7 +136,7 @@ Congrats! Now you have ThreadDB running locally.
 
 Note the various configuration values shown in the output above. These can be modified with environment variables show below.
 
--   ***`THRDS_REPO`***: Repo location. `.threads` by default.
+-   ***`THRDS_REPO`***: Repo location. Mandatory when launching from docker compose.
 -   ***`THRDS_HOSTADDR`***: Libp2p host bind address. `/ip4/0.0.0.0/tcp/4006` by default.
 -   ***`THRDS_APIADDR`***: gRPC API bind address. `/ip4/0.0.0.0/tcp/6006` by default.
 -   ***`THRDS_APIPROXYADDR`***: gRPC API web proxy bind address. `/ip4/0.0.0.0/tcp/6007` by default.
@@ -161,12 +161,12 @@ As described in the [paper](https://docsend.com/view/gu3ywqi), ThreadDB's networ
 import "github.com/textileio/go-threads/api/client"
 ...
 
-db, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
+db, err := client.NewClient("127.0.0.1:6006", grpc.WithInsecure())
 ```
 
 #### Getting a thread token
 
-Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _indentity_ of the caller. Most APIs take a thread token as an optional argument, since whether or not they are needed usually depends on how the target collection is configured (see [Write Validation](#write-validation) and [Read Filtering](#read-filtering)). These tokens are obtained by performing a signing challenge with the daemon using a libp2p private key.
+Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _identity_ of the caller. Most APIs take a thread token as an optional argument, since whether or not they are needed usually depends on how the target collection is configured (see [Write Validation](#write-validation) and [Read Filtering](#read-filtering)). These tokens are obtained by performing a signing challenge with the daemon using a libp2p private key.
 
 ```go
 privateKey, _, err := crypto.GenerateEd25519Key(rand.Reader) // Private key is kept locally
@@ -211,7 +211,7 @@ Collections are groups of documents or _instances_ and are analogous to tables i
 The `WriteValidator` function receives three arguments:
 
 -   `writer`: The multibase-encoded public key identity of the writer.
--   `event`: An object describing the update event (see [`core.Event`](https://pkg.go.dev/github.com/textileio/go-threads/core/db#Event)).
+-   `event`: An object describing the update event (see [`core.db.Event`](https://pkg.go.dev/github.com/textileio/go-threads/core/db#Event)).
 -   `instance`: The current instance as a JavaScript object before the update event is applied.
 
 A [falsy](https://developer.mozilla.org/en-US/docs/Glossary/Falsy) return value indicates a failed validation.
@@ -383,7 +383,6 @@ ThreadDB transactions come in two flavors: `WriteTransaction` and `ReadTransacti
 
 txn, err := db.WriteTransaction(context.Background(), threadID, "Persons")
 end, err := txn.Start()
-defer end()
 
 alice.Age = 32
 err = txn.Save(alice)
@@ -448,12 +447,12 @@ The full API spec is available [here](https://pkg.go.dev/github.com/textileio/go
 import "github.com/textileio/go-threads/net/api/client"
 ...
 
-net, err := client.NewClient("/ip4/127.0.0.1/tcp/6006", grpc.WithInsecure())
+net, err := client.NewClient("127.0.0.1:6006", grpc.WithInsecure())
 ```
 
 #### Getting a thread token
 
-Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _indentity_ of the caller. Most APIs take a thread token as an optional argument.
+Thread _tokens_ ([JWTs](https://jwt.io/)) are used by the daemon to determine the _identity_ of the caller. Most APIs take a thread token as an optional argument.
 
 ```go
 privateKey, _, err := crypto.GenerateEd25519Key(rand.Reader) // Private key is kept locally
@@ -479,7 +478,7 @@ threadInfo1, err := net1.CreateThread(context.Background(), threadID)
 ...
 
 // net2 is a different client (this would normally be done on a different machine)
-threadInfo2, err := net2.AddThread(context.Background(), threadInfo.Addrs[0], core.WithThreadKey(threadInfo1.Key))
+threadInfo2, err := net2.AddThread(context.Background(), threadInfo1.Addrs[0], core.WithThreadKey(threadInfo1.Key))
 ```
 
 #### Adding a thread replicator
@@ -512,7 +511,7 @@ record, err := net.CreateRecord(context.Background(), threadID, body)
 
 #### Adding a thread record
 
-We can add also retain control over the _read_ portion of the thread key and the log private key and create records _locally_.
+We can also retain control over the _read_ portion of the thread key and the log private key and create records _locally_.
 
 ```go
 import ipldcbor "github.com/ipfs/go-ipld-cbor"

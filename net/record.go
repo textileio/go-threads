@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	core "github.com/textileio/go-threads/core/net"
+	"github.com/textileio/go-threads/core/thread"
 )
 
 type linkedRecord interface {
@@ -16,12 +17,16 @@ type linkedRecord interface {
 
 // Collector maintains an ordered list of records from multiple sources (thread-safe)
 type recordCollector struct {
-	rs   map[peer.ID]*recordSequence
-	lock sync.Mutex
+	rs       map[peer.ID]*recordSequence
+	counters map[peer.ID]int64
+	lock     sync.Mutex
 }
 
 func newRecordCollector() *recordCollector {
-	return &recordCollector{rs: make(map[peer.ID]*recordSequence)}
+	return &recordCollector{
+		rs:       make(map[peer.ID]*recordSequence),
+		counters: make(map[peer.ID]int64),
+	}
 }
 
 // Store the record of the log.
@@ -38,22 +43,49 @@ func (r *recordCollector) Store(lid peer.ID, rec core.Record) {
 	seq.Store(rec)
 }
 
-// List all previously stored records in a proper order if the latter exists.
-func (r *recordCollector) List() (map[peer.ID][]core.Record, error) {
+func (r *recordCollector) UpdateHeadCounter(lid peer.ID, counter int64) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	logSeqs := make(map[peer.ID][]core.Record, len(r.rs))
+	// we update the counter only if we have some records
+	val, found := r.counters[lid]
+	if !found {
+		r.counters[lid] = counter
+	} else if val == thread.CounterUndef || counter == thread.CounterUndef {
+		// if a peer does not support the new logic we cannot rely on counter comparison
+		r.counters[lid] = thread.CounterUndef
+		// setting the counter to have the maximum value of all the logs we got
+	} else if val < counter {
+		r.counters[lid] = counter
+	}
+}
+
+// List all previously stored records in a proper order if the latter exists.
+func (r *recordCollector) List() (map[peer.ID]peerRecords, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	logSeqs := make(map[peer.ID]peerRecords, len(r.rs))
 	for id, seq := range r.rs {
 		ordered, ok := seq.List()
 		if !ok {
 			return nil, fmt.Errorf("disjoint record sequence in log %s", id)
 		}
+
+		counter, found := r.counters[id]
+		// this should never happen because we do this for every log
+		if !found {
+			return nil, fmt.Errorf("did not find log counter in log %s", id)
+		}
+
 		casted := make([]core.Record, len(ordered))
 		for i := 0; i < len(ordered); i++ {
 			casted[i] = ordered[i].(core.Record)
 		}
-		logSeqs[id] = casted
+		logSeqs[id] = peerRecords{
+			records: casted,
+			counter: counter,
+		}
 	}
 
 	return logSeqs, nil

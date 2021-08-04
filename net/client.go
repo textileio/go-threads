@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gogo/status"
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
@@ -18,6 +17,7 @@ import (
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
 	sym "github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/go-threads/logstore/lstoreds"
 	pb "github.com/textileio/go-threads/net/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -108,9 +108,9 @@ func (s *server) pushLog(ctx context.Context, id thread.ID, lg thread.LogInfo, p
 func (s *server) getRecords(
 	peers []peer.ID,
 	tid thread.ID,
-	offsets map[peer.ID]cid.Cid,
+	offsets map[peer.ID]thread.Head,
 	limit int,
-) (map[peer.ID][]core.Record, error) {
+) (map[peer.ID]peerRecords, error) {
 	req, sk, err := s.buildGetRecordsRequest(tid, offsets, limit)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,8 @@ func (s *server) getRecords(
 					return err
 				}
 				for lid, rs := range recs {
-					for _, rec := range rs {
+					rc.UpdateHeadCounter(lid, rs.counter)
+					for _, rec := range rs.records {
 						rc.Store(lid, rec)
 					}
 				}
@@ -149,7 +150,7 @@ func (s *server) getRecords(
 
 func (s *server) buildGetRecordsRequest(
 	tid thread.ID,
-	offsets map[peer.ID]cid.Cid,
+	offsets map[peer.ID]thread.Head,
 	limit int,
 ) (req *pb.GetRecordsRequest, serviceKey *sym.Key, err error) {
 	serviceKey, err = s.net.store.ServiceKey(tid)
@@ -164,9 +165,10 @@ func (s *server) buildGetRecordsRequest(
 	var pblgs = make([]*pb.GetRecordsRequest_Body_LogEntry, 0, len(offsets))
 	for lid, offset := range offsets {
 		pblgs = append(pblgs, &pb.GetRecordsRequest_Body_LogEntry{
-			LogID:  &pb.ProtoPeerID{ID: lid},
-			Offset: &pb.ProtoCid{Cid: offset},
-			Limit:  int32(limit),
+			LogID:   &pb.ProtoPeerID{ID: lid},
+			Offset:  &pb.ProtoCid{Cid: offset.ID},
+			Limit:   int32(limit),
+			Counter: offset.Counter,
 		})
 	}
 
@@ -182,6 +184,11 @@ func (s *server) buildGetRecordsRequest(
 	return
 }
 
+type peerRecords struct {
+	records []core.Record
+	counter int64
+}
+
 // Send GetRecords request to a certain peer.
 func (s *server) getRecordsFromPeer(
 	ctx context.Context,
@@ -189,14 +196,14 @@ func (s *server) getRecordsFromPeer(
 	pid peer.ID,
 	req *pb.GetRecordsRequest,
 	serviceKey *sym.Key,
-) (map[peer.ID][]core.Record, error) {
+) (map[peer.ID]peerRecords, error) {
 	log.Debugf("getting records from %s...", pid)
 	client, err := s.dial(pid)
 	if err != nil {
 		return nil, fmt.Errorf("dial %s failed: %w", pid, err)
 	}
 
-	recs := make(map[peer.ID][]core.Record)
+	recs := make(map[peer.ID]peerRecords)
 	cctx, cancel := context.WithTimeout(ctx, PullTimeout)
 	defer cancel()
 	reply, err := client.GetRecords(cctx, req)
@@ -230,7 +237,7 @@ func (s *server) getRecordsFromPeer(
 			}
 			pk = l.Log.PubKey
 		}
-
+		var records []core.Record
 		for _, r := range l.Records {
 			rec, err := cbor.RecordFromProto(r, serviceKey)
 			if err != nil {
@@ -239,7 +246,18 @@ func (s *server) getRecordsFromPeer(
 			if err = rec.Verify(pk); err != nil {
 				return nil, err
 			}
-			recs[logID] = append(recs[logID], rec)
+			records = append(records, rec)
+		}
+		counter := thread.CounterUndef
+		// Old version may still send nil Logs, because of how
+		// old server GetRecords method worked, now it is fixed
+		// but we can still have crashes if we don't check this for backwards compatibility
+		if l.Log != nil {
+			counter = l.Log.Counter
+		}
+		recs[logID] = peerRecords{
+			records: records,
+			counter: counter,
 		}
 	}
 
@@ -247,7 +265,7 @@ func (s *server) getRecordsFromPeer(
 }
 
 // pushRecord to log addresses and thread topic.
-func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record) error {
+func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec core.Record, counter int64) error {
 	// Collect known writers
 	addrs := make([]ma.Multiaddr, 0)
 	info, err := s.net.store.GetThread(tid)
@@ -272,7 +290,8 @@ func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec
 		Record:   pbrec,
 	}
 	req := &pb.PushRecordRequest{
-		Body: body,
+		Body:    body,
+		Counter: counter,
 	}
 
 	// Push to each address
@@ -349,11 +368,8 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 	// fill local edges
 	for _, tid := range tids {
 		switch addrsEdge, headsEdge, err := s.localEdges(tid); err {
-		case errNoAddrsEdge:
-			log.Warnf("cannot compute edges for %s: no addresses", tid)
-		case errNoHeadsEdge:
-			log.Debugf("cannot compute edges for %s: no heads", tid)
-		case nil:
+		// we have lstoreds.EmptyEdgeValue for headsEdge and addrsEdge if we get errors below
+		case errNoAddrsEdge, errNoHeadsEdge, nil:
 			body.Threads = append(body.Threads, &pb.ExchangeEdgesRequest_Body_ThreadEntry{
 				ThreadID:    &pb.ProtoThreadID{ID: tid},
 				HeadsEdge:   headsEdge,
@@ -398,26 +414,30 @@ func (s *server) exchangeEdges(ctx context.Context, pid peer.ID, tids []thread.I
 		return err
 	}
 
-	for i, e := range reply.GetEdges() {
-		tid := tids[i]
-		if !e.GetExists() {
-			// invariant: respondent itself must request missing thread info
-			continue
-		}
+	for _, e := range reply.GetEdges() {
+		tid := e.ThreadID.ID
 
 		// get local edges potentially updated by another process
 		addrsEdgeLocal, headsEdgeLocal, err := s.localEdges(tid)
-		if err != nil {
+		// we allow local edges to be empty, because the other peer can still have more information
+		if err != nil && err != errNoHeadsEdge && err != errNoAddrsEdge {
 			log.Errorf("second retrieval of local edges for %s failed: %v", tid, err)
 			continue
 		}
 
-		if e.GetAddressEdge() != addrsEdgeLocal {
+		responseEdge := e.GetAddressEdge()
+		// We only update the logs if we got non empty values and different hashes for addresses
+		// Note that previous versions also sent 0 (aka EmptyEdgeValue) values when the addresses
+		// were non-existent, so it shouldn't break backwards compatibility
+		if responseEdge != lstoreds.EmptyEdgeValue && responseEdge != addrsEdgeLocal {
 			if s.net.queueGetLogs.Schedule(pid, tid, callPriorityLow, s.net.updateLogsFromPeer) {
 				log.Debugf("log information update for thread %s from %s scheduled", tid, pid)
 			}
 		}
-		if e.GetHeadsEdge() != headsEdgeLocal {
+
+		responseEdge = e.GetHeadsEdge()
+		// We only update the records if we got non empty values and different hashes for heads
+		if responseEdge != lstoreds.EmptyEdgeValue && responseEdge != headsEdgeLocal {
 			if s.net.queueGetRecords.Schedule(pid, tid, callPriorityLow, s.net.updateRecordsFromPeer) {
 				log.Debugf("record update for thread %s from %s scheduled", tid, pid)
 			}

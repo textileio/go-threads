@@ -37,5 +37,7 @@ message HeadBookRecord {
 	// HeadEntry represents a single cid.
 	message HeadEntry {
 		bytes cid = 1 [(gogoproto.customtype) = "ProtoCid"];
+
+		int64 counter = 2;
 	}
 }
