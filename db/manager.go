@@ -149,11 +149,11 @@ func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (threa
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOption) (*DB, error) {
 	m.lk.RLock()
-	if _, ok := m.dbs[id]; ok {
-		m.lk.RUnlock()
+	_, ok := m.dbs[id]
+	m.lk.RUnlock()
+	if ok {
 		return nil, ErrDBExists
 	}
-	m.lk.RUnlock()
 
 	args := &NewManagedOptions{}
 	for _, opt := range opts {
@@ -205,11 +205,11 @@ func (m *Manager) NewDBFromAddr(
 	}
 
 	m.lk.RLock()
-	if _, ok := m.dbs[id]; ok {
-		m.lk.RUnlock()
+	_, ok := m.dbs[id]
+	m.lk.RUnlock()
+	if ok {
 		return nil, ErrDBExists
 	}
-	m.lk.RUnlock()
 
 	args := &NewManagedOptions{}
 	for _, opt := range opts {
@@ -312,11 +312,10 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 
 	m.lk.RLock()
 	db, ok := m.dbs[id]
+	m.lk.RUnlock()
 	if !ok {
-		m.lk.RUnlock()
 		return ErrDBNotFound
 	}
-	m.lk.RUnlock()
 
 	if err := db.Close(); err != nil {
 		return err

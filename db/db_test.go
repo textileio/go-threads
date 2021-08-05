@@ -183,6 +183,7 @@ func TestWithNewName(t *testing.T) {
 	id := thread.NewIDV1(thread.Raw, 32)
 	d, err := NewDB(context.Background(), store, n, id, WithNewName(name))
 	checkErr(t, err)
+	defer d.Close()
 	if d.name != name {
 		t.Fatalf("expected name %s, got %s", name, d.name)
 	}
