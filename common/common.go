@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	ma "github.com/multiformats/go-multiaddr"
+	badger "github.com/textileio/go-ds-badger"
 	mongods "github.com/textileio/go-ds-mongo"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/logstore"
@@ -30,13 +31,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-// DefaultNetwork is a boostrapable default Net with sane defaults.
 type NetBoostrapper interface {
 	app.Net
 	GetIpfsLite() *ipfslite.Peer
 	Bootstrap(addrs []peer.AddrInfo)
 }
 
+// DefaultNetwork is a boostrapable default Net with sane defaults.
 func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	var (
 		config NetConfig
@@ -155,7 +156,7 @@ func badgerStore(repoPath string, fin *util.Finalizer) (ds.Batching, error) {
 		return nil, err
 	}
 
-	dstore, err := ipfslite.BadgerDatastore(repoPath)
+	dstore, err := badger.NewDatastore(repoPath, &badger.DefaultOptions)
 	if err != nil {
 		return nil, err
 	}
