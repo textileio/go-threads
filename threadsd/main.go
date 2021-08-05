@@ -50,6 +50,7 @@ func main() {
 	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
 	badgerLowMem := fs.Bool("badgerLowMem", false, "Use Badger's low memory settings")
 	debug := fs.Bool("debug", false, "Enables debug logging")
+	logFile := fs.String("logFile", "", "File to write logs to")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
 	}
@@ -67,22 +68,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *keepAliveInterval < time.Second {
-		log.Fatal("keepAliveInterval must be greater than or equal to 1s")
-	}
-	if *pullThreadsLimit <= 0 {
-		log.Fatal("pullThreadsLimit must be greater than zero")
-	}
-	if *pullThreadsStartAfter <= 0 {
-		log.Fatal("pullThreadsStartAfter must be greater than zero")
-	}
-	if *pullThreadsInitialInterval <= 0 {
-		log.Fatal("pullThreadsInitialInterval must be greater than zero")
-	}
-	if *pullThreadsInterval <= 0 {
-		log.Fatal("pullThreadsInterval must be greater than zero")
-	}
-
 	var parsedMongoUri *url.URL
 	if len(*mongoUri) != 0 {
 		parsedMongoUri, err = url.Parse(*mongoUri)
@@ -96,13 +81,13 @@ func main() {
 		log.Debugf("badgerLowMem: %v", *badgerLowMem)
 	}
 
-	if err := util.SetupDefaultLoggingConfig(*repo); err != nil {
+	if err := util.SetupDefaultLoggingConfig(*logFile); err != nil {
 		log.Fatal(err)
 	}
-	if *debug {
-		if err := logging.SetLogLevel("threadsd", "debug"); err != nil {
-			log.Fatal(err)
-		}
+	if err := util.SetLogLevels(map[string]logging.LogLevel{
+		"threadsd": util.LevelFromDebugFlag(*debug),
+	}); err != nil {
+		log.Fatal(err)
 	}
 
 	log.Debugf("repo: %v", *repo)

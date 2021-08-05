@@ -306,7 +306,7 @@ func (c *client) ensureCID(fullPath, cidStr string) error {
 		return err
 	}
 
-	log.Infof("Fetching file %s", fullPath)
+	log.Infof("fetching file %s", fullPath)
 	d1 := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -328,7 +328,7 @@ func (c *client) ensureCID(fullPath, cidStr string) error {
 	}
 	d2 := time.Now()
 	d := d2.Sub(d1)
-	log.Infof("Done fetching %s in %dms", fullPath, d.Milliseconds())
+	log.Infof("done fetching %s in %dms", fullPath, d.Milliseconds())
 	return nil
 }
 

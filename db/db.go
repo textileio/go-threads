@@ -104,12 +104,10 @@ func NewDB(
 	for _, opt := range opts {
 		opt(args)
 	}
-	if args.Debug {
-		if err := util.SetLogLevels(map[string]logging.LogLevel{
-			"db": logging.LevelDebug,
-		}); err != nil {
-			return nil, err
-		}
+	if err := util.SetLogLevels(map[string]logging.LogLevel{
+		"db": util.LevelFromDebugFlag(args.Debug),
+	}); err != nil {
+		return nil, err
 	}
 
 	if args.Key.Defined() && !args.Key.CanRead() {
@@ -142,12 +140,10 @@ func NewDBFromAddr(
 	for _, opt := range opts {
 		opt(args)
 	}
-	if args.Debug {
-		if err := util.SetLogLevels(map[string]logging.LogLevel{
-			"db": logging.LevelDebug,
-		}); err != nil {
-			return nil, err
-		}
+	if err := util.SetLogLevels(map[string]logging.LogLevel{
+		"db": util.LevelFromDebugFlag(args.Debug),
+	}); err != nil {
+		return nil, err
 	}
 
 	if key.Defined() && !key.CanRead() {

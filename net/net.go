@@ -48,9 +48,6 @@ var (
 	// QueuePollInterval is the polling interval for the call queue.
 	QueuePollInterval = time.Millisecond * 500
 
-	// QueueSpawnDeadline is used to purge the call queue of overdue requests.
-	QueueSpawnDeadline = time.Second * 10
-
 	// EventBusCapacity is the buffer size of local event bus listeners.
 	EventBusCapacity = 1
 
@@ -116,6 +113,22 @@ type Config struct {
 	Debug                      bool
 }
 
+func (c Config) Validate() error {
+	if c.PullThreadsLimit <= 0 {
+		return errors.New("PullThreadsLimit must be greater than zero")
+	}
+	if c.PullThreadsStartAfter <= 0 {
+		return errors.New("PullThreadsStartAfter must be greater than zero")
+	}
+	if c.PullThreadsInitialInterval <= 0 {
+		return errors.New("PullThreadsInitialInterval must be greater than zero")
+	}
+	if c.PullThreadsInterval <= 0 {
+		return errors.New("PullThreadsInterval must be greater than zero")
+	}
+	return nil
+}
+
 // NewNetwork creates an instance of net from the given host and thread store.
 func NewNetwork(
 	ctx context.Context,
@@ -127,14 +140,15 @@ func NewNetwork(
 	serverOptions []grpc.ServerOption,
 	dialOptions []grpc.DialOption,
 ) (app.Net, error) {
-	var err error
-	if conf.Debug {
-		if err = tu.SetLogLevels(map[string]logging.LogLevel{
-			"net":      logging.LevelDebug,
-			"logstore": logging.LevelDebug,
-		}); err != nil {
-			return nil, err
-		}
+	if err := conf.Validate(); err != nil {
+		return nil, fmt.Errorf("validating config: %v", err)
+	}
+
+	if err := tu.SetLogLevels(map[string]logging.LogLevel{
+		"net":      tu.LevelFromDebugFlag(conf.Debug),
+		"logstore": tu.LevelFromDebugFlag(conf.Debug),
+	}); err != nil {
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -150,11 +164,11 @@ func NewNetwork(
 		ctx:             ctx,
 		cancel:          cancel,
 		semaphores:      util.NewSemaphorePool(1),
-		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, QueueSpawnDeadline),
-		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, QueueSpawnDeadline),
+		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, conf.PullThreadsInterval),
+		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, conf.PullThreadsInterval),
 	}
 
-	err = n.migrateHeadsIfNeeded(ctx, ls)
+	err := n.migrateHeadsIfNeeded(ctx, ls)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +220,7 @@ func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err
 		return err
 	}
 
-	log.Info("Checking for heads migration")
+	log.Info("checking for heads migration")
 	isMigrationNeeded := false
 
 	for _, tid := range threadIds {
@@ -225,7 +239,7 @@ func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err
 				// In this case we didn't migrate the thread
 				if h.Counter == thread.CounterUndef && h.ID != cid.Undef {
 					if !isMigrationNeeded {
-						log.Info("Starting migrating heads")
+						log.Info("starting migrating heads")
 						isMigrationNeeded = true
 					}
 					counter, err := n.countRecords(ctx, tid, h.ID)
@@ -247,7 +261,7 @@ func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err
 	}
 
 	if isMigrationNeeded {
-		log.Info("Finished migrating heads")
+		log.Info("finished migrating heads")
 	}
 
 	return nil
@@ -1371,6 +1385,7 @@ PullCycle:
 			log.Errorf("error listing threads: %s", err)
 			return
 		}
+		log.Infof("pulling %d threads", len(ts))
 
 		if len(ts) == 0 {
 			// if there are no threads served, just wait and retry

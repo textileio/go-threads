@@ -41,14 +41,10 @@ type Config struct {
 // NewService starts and returns a new service with the given network.
 // The network is *not* managed by the server.
 func NewService(store kt.TxnDatastoreExtended, network app.Net, conf Config) (*Service, error) {
-	var err error
-	if conf.Debug {
-		err = util.SetLogLevels(map[string]logging.LogLevel{
-			"threadsapi": logging.LevelDebug,
-		})
-		if err != nil {
-			return nil, err
-		}
+	if err := util.SetLogLevels(map[string]logging.LogLevel{
+		"threadsapi": util.LevelFromDebugFlag(conf.Debug),
+	}); err != nil {
+		return nil, err
 	}
 
 	manager, err := db.NewManager(store, network, db.WithNewDebug(conf.Debug))

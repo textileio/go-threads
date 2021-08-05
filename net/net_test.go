@@ -445,8 +445,12 @@ func makeNetwork(t *testing.T) core.Net {
 		dag.NewDAGService(bsrv),
 		tstore.NewLogstore(),
 		Config{
-			Debug:  true,
-			PubSub: true,
+			PullThreadsLimit:           10000,
+			PullThreadsStartAfter:      time.Second,
+			PullThreadsInitialInterval: time.Second,
+			PullThreadsInterval:        time.Second * 10,
+			PubSub:                     true,
+			Debug:                      true,
 		}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
