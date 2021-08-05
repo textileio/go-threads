@@ -40,6 +40,11 @@ func main() {
 	connHighWater := fs.Int("connHighWater", 400, "High watermark of libp2p connections that'll be maintained")
 	connGracePeriod := fs.Duration("connGracePeriod", time.Second*20, "Duration a new opened connection is not subject to pruning")
 	keepAliveInterval := fs.Duration("keepAliveInterval", time.Second*5, "Websocket keepalive interval (must be >= 1s)")
+	pullThreadsDisabled := fs.Bool("pullThreadsDisabled", false, "Disables automatic thread record and log pulling from peers")
+	pullThreadsLimit := fs.Int("pullThreadsLimit", 10000, "Maximum number of records to request from peers during a single pull (must be > 0)")
+	pullThreadsStartAfter := fs.Duration("pullThreadsStartAfter", time.Second, "Delay after which thread pulling from peers starts (must be > 0)")
+	pullThreadsInitialInterval := fs.Duration("pullThreadsInitialInterval", time.Second, "Initial (first run) interval at threads are pulled from peers (must be > 0)")
+	pullThreadsInterval := fs.Duration("pullThreadsInterval", time.Second*10, "Interval at which threads are pulled from peers (must be > 0)")
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
 	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
 	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
@@ -60,6 +65,22 @@ func main() {
 	apiProxyAddr, err := ma.NewMultiaddr(*apiProxyAddrStr)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if *keepAliveInterval < time.Second {
+		log.Fatal("keepAliveInterval must be greater than or equal to 1s")
+	}
+	if *pullThreadsLimit <= 0 {
+		log.Fatal("pullThreadsLimit must be greater than zero")
+	}
+	if *pullThreadsStartAfter <= 0 {
+		log.Fatal("pullThreadsStartAfter must be greater than zero")
+	}
+	if *pullThreadsInitialInterval <= 0 {
+		log.Fatal("pullThreadsInitialInterval must be greater than zero")
+	}
+	if *pullThreadsInterval <= 0 {
+		log.Fatal("pullThreadsInterval must be greater than zero")
 	}
 
 	var parsedMongoUri *url.URL
@@ -104,7 +125,15 @@ func main() {
 	opts := []common.NetOption{
 		common.WithNetHostAddr(hostAddr),
 		common.WithConnectionManager(connmgr.NewConnManager(*connLowWater, *connHighWater, *connGracePeriod)),
+		common.WithNetPulling(
+			*pullThreadsDisabled,
+			*pullThreadsLimit,
+			*pullThreadsStartAfter,
+			*pullThreadsInitialInterval,
+			*pullThreadsInterval,
+		),
 		common.WithNetPubSub(*enableNetPubsub),
+		common.WithNetLogstore(common.LogstoreHybrid),
 		common.WithNetDebug(*debug),
 	}
 	if parsedMongoUri != nil {

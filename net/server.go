@@ -38,7 +38,7 @@ type server struct {
 }
 
 // newServer creates a new network server.
-func newServer(n *net, enablePubSub bool, opts ...grpc.DialOption) (*server, error) {
+func newServer(n *net, opts ...grpc.DialOption) (*server, error) {
 	var (
 		s = &server{
 			net:   n,
@@ -53,7 +53,7 @@ func newServer(n *net, enablePubSub bool, opts ...grpc.DialOption) (*server, err
 
 	s.opts = append(defaultOpts, opts...)
 
-	if enablePubSub {
+	if n.conf.PubSub {
 		ps, err := pubsub.NewGossipSub(
 			n.ctx,
 			n.host,
@@ -191,7 +191,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, 0, len(info.Logs))
 
 	var (
-		logRecordLimit = MaxPullLimit / len(info.Logs)
+		logRecordLimit = s.net.conf.PullThreadsLimit / len(info.Logs)
 		mx             sync.Mutex
 		wg             sync.WaitGroup
 	)
