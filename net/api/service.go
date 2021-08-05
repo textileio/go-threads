@@ -39,14 +39,10 @@ type Config struct {
 
 // NewService starts and returns a new service.
 func NewService(network net.Net, conf Config) (*Service, error) {
-	var err error
-	if conf.Debug {
-		err = tutil.SetLogLevels(map[string]logging.LogLevel{
-			"netapi": logging.LevelDebug,
-		})
-		if err != nil {
-			return nil, err
-		}
+	if err := tutil.SetLogLevels(map[string]logging.LogLevel{
+		"netapi": tutil.LevelFromDebugFlag(conf.Debug),
+	}); err != nil {
+		return nil, err
 	}
 	return &Service{net: network}, nil
 }

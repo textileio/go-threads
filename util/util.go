@@ -56,19 +56,19 @@ func NewBadgerDatastore(dirPath, name string, lowMem bool) (kt.TxnDatastoreExten
 }
 
 // SetupDefaultLoggingConfig sets up a standard logging configuration.
-func SetupDefaultLoggingConfig(repoPath string) error {
-	folder := filepath.Join(repoPath, "log")
-	if err := os.MkdirAll(folder, os.ModePerm); err != nil {
-		return err
-	}
+func SetupDefaultLoggingConfig(file string) error {
 	c := logging.Config{
 		Format: logging.ColorizedOutput,
 		Stderr: true,
-		File:   filepath.Join(folder, "threads.log"),
 		Level:  logging.LevelError,
 	}
+	if file != "" {
+		if err := os.MkdirAll(file, os.ModePerm); err != nil {
+			return err
+		}
+		c.File = file
+	}
 	logging.SetupLogging(c)
-
 	return nil
 }
 
@@ -88,6 +88,15 @@ func SetLogLevels(systems map[string]logging.LogLevel) error {
 		}
 	}
 	return nil
+}
+
+// LevelFromDebugFlag returns the debug or info log level.
+func LevelFromDebugFlag(debug bool) logging.LogLevel {
+	if debug {
+		return logging.LevelDebug
+	} else {
+		return logging.LevelInfo
+	}
 }
 
 func DefaultBoostrapPeers() []peer.AddrInfo {
