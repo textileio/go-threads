@@ -99,8 +99,13 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 
 	// Build a network
 	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, net.Config{
-		Debug:  config.Debug,
-		PubSub: config.PubSub,
+		PullThreadsDisabled:        config.PullThreadsDisabled,
+		PullThreadsLimit:           config.PullThreadsLimit,
+		PullThreadsStartAfter:      config.PullThreadsStartAfter,
+		PullThreadsInitialInterval: config.PullThreadsInitialInterval,
+		PullThreadsInterval:        config.PullThreadsInterval,
+		PubSub:                     config.PubSub,
+		Debug:                      config.Debug,
 	}, config.GRPCServerOptions, config.GRPCDialOptions)
 	if err != nil {
 		return nil, fin.Cleanup(err)
@@ -241,19 +246,27 @@ func setDefaults(config *NetConfig) error {
 		}
 		config.HostAddr = addr
 	}
-
 	if config.ConnManager == nil {
 		config.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
 	}
-
 	if len(config.LSType) == 0 {
 		config.LSType = LogstorePersistent
 	}
-
 	if len(config.MongoDB) == 0 {
 		config.MongoDB = "threadnet"
 	}
-
+	if config.PullThreadsLimit <= 0 {
+		config.PullThreadsLimit = 10000
+	}
+	if config.PullThreadsStartAfter <= 0 {
+		config.PullThreadsStartAfter = time.Second
+	}
+	if config.PullThreadsInitialInterval <= 0 {
+		config.PullThreadsInitialInterval = time.Second
+	}
+	if config.PullThreadsInterval <= 0 {
+		config.PullThreadsInterval = time.Second * 10
+	}
 	return nil
 }
 
@@ -266,16 +279,21 @@ const (
 )
 
 type NetConfig struct {
-	HostAddr          ma.Multiaddr
-	ConnManager       cconnmgr.ConnManager
-	GRPCServerOptions []grpc.ServerOption
-	GRPCDialOptions   []grpc.DialOption
-	LSType            LogstoreType
-	BadgerRepoPath    string
-	MongoUri          string
-	MongoDB           string
-	PubSub            bool
-	Debug             bool
+	HostAddr                   ma.Multiaddr
+	ConnManager                cconnmgr.ConnManager
+	GRPCServerOptions          []grpc.ServerOption
+	GRPCDialOptions            []grpc.DialOption
+	LSType                     LogstoreType
+	BadgerRepoPath             string
+	MongoUri                   string
+	MongoDB                    string
+	PullThreadsDisabled        bool
+	PullThreadsLimit           int
+	PullThreadsStartAfter      time.Duration
+	PullThreadsInitialInterval time.Duration
+	PullThreadsInterval        time.Duration
+	PubSub                     bool
+	Debug                      bool
 }
 
 type NetOption func(c *NetConfig) error
@@ -325,6 +343,17 @@ func WithNetPubSub(enabled bool) NetOption {
 func WithNetLogstore(lt LogstoreType) NetOption {
 	return func(c *NetConfig) error {
 		c.LSType = lt
+		return nil
+	}
+}
+
+func WithNetPulling(disabled bool, threadLimit int, startAfter, initialInterval, interval time.Duration) NetOption {
+	return func(c *NetConfig) error {
+		c.PullThreadsDisabled = disabled
+		c.PullThreadsLimit = threadLimit
+		c.PullThreadsStartAfter = startAfter
+		c.PullThreadsInitialInterval = initialInterval
+		c.PullThreadsInterval = interval
 		return nil
 	}
 }

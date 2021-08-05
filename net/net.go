@@ -39,18 +39,6 @@ import (
 var (
 	log = logging.Logger("net")
 
-	// MaxPullLimit is the maximum page size for pulling records.
-	MaxPullLimit = 10000
-
-	// PullStartAfter is the pause before exchange edges starts.
-	PullStartAfter = time.Second
-
-	// InitialPullInterval is the interval for the first iteration of edge exchange.
-	InitialPullInterval = time.Second
-
-	// PullInterval is the interval between automatic edge exchanges.
-	PullInterval = time.Second * 10
-
 	// MaxThreadsExchanged is the maximum number of threads for the single edge exchange.
 	MaxThreadsExchanged = 10
 
@@ -59,6 +47,9 @@ var (
 
 	// QueuePollInterval is the polling interval for the call queue.
 	QueuePollInterval = time.Millisecond * 500
+
+	// QueueSpawnDeadline is used to purge the call queue of overdue requests.
+	QueueSpawnDeadline = time.Second * 10
 
 	// EventBusCapacity is the buffer size of local event bus listeners.
 	EventBusCapacity = 1
@@ -91,6 +82,8 @@ func (t semaThreadUpdate) Key() string {
 
 // net is an implementation of app.Net.
 type net struct {
+	conf Config
+
 	format.DAGService
 	host   host.Host
 	bstore bs.Blockstore
@@ -114,8 +107,13 @@ type net struct {
 
 // Config is used to specify thread instance options.
 type Config struct {
-	Debug  bool
-	PubSub bool
+	PullThreadsDisabled        bool
+	PullThreadsLimit           int
+	PullThreadsStartAfter      time.Duration
+	PullThreadsInitialInterval time.Duration
+	PullThreadsInterval        time.Duration
+	PubSub                     bool
+	Debug                      bool
 }
 
 // NewNetwork creates an instance of net from the given host and thread store.
@@ -140,7 +138,8 @@ func NewNetwork(
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	t := &net{
+	n := &net{
+		conf:            conf,
 		DAGService:      ds,
 		host:            h,
 		bstore:          bstore,
@@ -151,16 +150,16 @@ func NewNetwork(
 		ctx:             ctx,
 		cancel:          cancel,
 		semaphores:      util.NewSemaphorePool(1),
-		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, PullInterval),
-		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, PullInterval),
+		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, QueueSpawnDeadline),
+		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, QueueSpawnDeadline),
 	}
 
-	err = t.migrateHeadsIfNeeded(ctx, ls)
+	err = n.migrateHeadsIfNeeded(ctx, ls)
 	if err != nil {
 		return nil, err
 	}
 
-	t.server, err = newServer(t, conf.PubSub, dialOptions...)
+	n.server, err = newServer(n, dialOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -170,14 +169,14 @@ func NewNetwork(
 		return nil, err
 	}
 	go func() {
-		pb.RegisterServiceServer(t.rpc, t.server)
-		if err := t.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+		pb.RegisterServiceServer(n.rpc, n.server)
+		if err := n.rpc.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Fatalf("serve error: %v", err)
 		}
 	}()
 
-	go t.startPulling()
-	return t, nil
+	go n.startPulling()
+	return n, nil
 }
 
 func (n *net) countRecords(ctx context.Context, tid thread.ID, rid cid.Cid) (int64, error) {
@@ -500,7 +499,7 @@ func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
 	}
 
 	// Pull from peers
-	recs, err := n.server.getRecords(peers, tid, offsets, MaxPullLimit)
+	recs, err := n.server.getRecords(peers, tid, offsets, n.conf.PullThreadsLimit)
 	if err != nil {
 		return err
 	}
@@ -1348,15 +1347,18 @@ func (n *net) deleteRecord(ctx context.Context, rid cid.Cid, sk *sym.Key) (prev 
 
 // startPulling periodically pulls on all threads.
 func (n *net) startPulling() {
+	if n.conf.PullThreadsDisabled {
+		return
+	}
 	select {
-	case <-time.After(PullStartAfter):
+	case <-time.After(n.conf.PullThreadsStartAfter):
 	case <-n.ctx.Done():
 		return
 	}
 
 	// set pull cycle interval into initial value,
 	// it will be redefined on the next iteration
-	var interval = InitialPullInterval
+	var interval = n.conf.PullThreadsInitialInterval
 
 	// group threads by peers and exchange edges efficiently
 	var compressor = queue.NewThreadPacker(n.ctx, MaxThreadsExchanged, ExchangeCompressionTimeout)
@@ -1374,7 +1376,7 @@ PullCycle:
 			// if there are no threads served, just wait and retry
 			select {
 			case <-time.After(interval):
-				interval = PullInterval
+				interval = n.conf.PullThreadsInterval
 				continue PullCycle
 			case <-n.ctx.Done():
 				return
@@ -1403,7 +1405,7 @@ PullCycle:
 				idx++
 				if idx >= len(ts) {
 					ticker.Stop()
-					interval = PullInterval
+					interval = n.conf.PullThreadsInterval
 					continue PullCycle
 				}
 
@@ -1583,7 +1585,7 @@ func (n *net) updateRecordsFromPeer(ctx context.Context, pid peer.ID, tid thread
 	if err != nil {
 		return fmt.Errorf("getting offsets for thread %s failed: %w", tid, err)
 	}
-	req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, MaxPullLimit)
+	req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, n.conf.PullThreadsLimit)
 	if err != nil {
 		return fmt.Errorf("building GetRecords request for thread %s failed: %w", tid, err)
 	}
