@@ -63,7 +63,7 @@ func SetupDefaultLoggingConfig(file string) error {
 		Level:  logging.LevelError,
 	}
 	if file != "" {
-		if err := os.MkdirAll(file, os.ModePerm); err != nil {
+		if err := os.MkdirAll(filepath.Dir(file), os.ModePerm); err != nil {
 			return err
 		}
 		c.File = file

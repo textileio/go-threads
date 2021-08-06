@@ -191,7 +191,7 @@ func (s *server) GetRecords(ctx context.Context, req *pb.GetRecordsRequest) (*pb
 	pbrecs.Logs = make([]*pb.GetRecordsReply_LogEntry, 0, len(info.Logs))
 
 	var (
-		logRecordLimit = s.net.conf.PullThreadsLimit / len(info.Logs)
+		logRecordLimit = int(s.net.conf.NetPullingLimit) / len(info.Logs)
 		mx             sync.Mutex
 		wg             sync.WaitGroup
 	)
