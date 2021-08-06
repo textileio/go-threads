@@ -109,7 +109,7 @@ func (s *server) getRecords(
 	peers []peer.ID,
 	tid thread.ID,
 	offsets map[peer.ID]thread.Head,
-	limit int,
+	limit uint,
 ) (map[peer.ID]peerRecords, error) {
 	req, sk, err := s.buildGetRecordsRequest(tid, offsets, limit)
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *server) getRecords(
 func (s *server) buildGetRecordsRequest(
 	tid thread.ID,
 	offsets map[peer.ID]thread.Head,
-	limit int,
+	limit uint,
 ) (req *pb.GetRecordsRequest, serviceKey *sym.Key, err error) {
 	serviceKey, err = s.net.store.ServiceKey(tid)
 	if err != nil {

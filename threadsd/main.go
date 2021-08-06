@@ -36,15 +36,15 @@ func main() {
 	hostAddrStr := fs.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Libp2p host bind address")
 	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "gRPC API bind address")
 	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "gRPC API web proxy bind address")
-	connLowWater := fs.Int("connLowWater", 100, "Low watermark of libp2p connections that'll be maintained")
-	connHighWater := fs.Int("connHighWater", 400, "High watermark of libp2p connections that'll be maintained")
+	connLowWater := fs.Uint("connLowWater", 100, "Low watermark of libp2p connections that'll be maintained")
+	connHighWater := fs.Uint("connHighWater", 400, "High watermark of libp2p connections that'll be maintained")
 	connGracePeriod := fs.Duration("connGracePeriod", time.Second*20, "Duration a new opened connection is not subject to pruning")
 	keepAliveInterval := fs.Duration("keepAliveInterval", time.Second*5, "Websocket keepalive interval (must be >= 1s)")
-	pullThreadsDisabled := fs.Bool("pullThreadsDisabled", false, "Disables automatic thread record and log pulling from peers")
-	pullThreadsLimit := fs.Int("pullThreadsLimit", 10000, "Maximum number of records to request from peers during a single pull (must be > 0)")
-	pullThreadsStartAfter := fs.Duration("pullThreadsStartAfter", time.Second, "Delay after which thread pulling from peers starts (must be > 0)")
-	pullThreadsInitialInterval := fs.Duration("pullThreadsInitialInterval", time.Second, "Initial (first run) interval at threads are pulled from peers (must be > 0)")
-	pullThreadsInterval := fs.Duration("pullThreadsInterval", time.Second*10, "Interval at which threads are pulled from peers (must be > 0)")
+	disableNetPulling := fs.Bool("disableNetPulling", false, "Disables automatic thread record and log pulling from network peers")
+	netPullingLimit := fs.Uint("netPullingLimit", 10000, "Maximum number of records to request from network peers during a single pull (must be > 0)")
+	netPullingStartAfter := fs.Duration("netPullingStartAfter", time.Second, "Delay after which thread pulling from network peers starts (must be > 0)")
+	netPullingInitialInterval := fs.Duration("netPullingInitialInterval", time.Second, "Initial (first run) interval at which threads are pulled from network peers (must be > 0)")
+	netPullingInterval := fs.Duration("netPullingInterval", time.Second*10, "Interval at which threads are pulled from network peers (must be > 0)")
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
 	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
 	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
@@ -109,14 +109,14 @@ func main() {
 
 	opts := []common.NetOption{
 		common.WithNetHostAddr(hostAddr),
-		common.WithConnectionManager(connmgr.NewConnManager(*connLowWater, *connHighWater, *connGracePeriod)),
+		common.WithConnectionManager(connmgr.NewConnManager(int(*connLowWater), int(*connHighWater), *connGracePeriod)),
 		common.WithNetPulling(
-			*pullThreadsDisabled,
-			*pullThreadsLimit,
-			*pullThreadsStartAfter,
-			*pullThreadsInitialInterval,
-			*pullThreadsInterval,
+			*netPullingLimit,
+			*netPullingStartAfter,
+			*netPullingInitialInterval,
+			*netPullingInterval,
 		),
+		common.WithNoNetPulling(*disableNetPulling),
 		common.WithNetPubSub(*enableNetPubsub),
 		common.WithNetLogstore(common.LogstoreHybrid),
 		common.WithNetDebug(*debug),

@@ -99,13 +99,13 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 
 	// Build a network
 	api, err := net.NewNetwork(ctx, h, lite.BlockStore(), lite, tstore, net.Config{
-		PullThreadsDisabled:        config.PullThreadsDisabled,
-		PullThreadsLimit:           config.PullThreadsLimit,
-		PullThreadsStartAfter:      config.PullThreadsStartAfter,
-		PullThreadsInitialInterval: config.PullThreadsInitialInterval,
-		PullThreadsInterval:        config.PullThreadsInterval,
-		PubSub:                     config.PubSub,
-		Debug:                      config.Debug,
+		NetPullingLimit:           config.NetPullingLimit,
+		NetPullingStartAfter:      config.NetPullingStartAfter,
+		NetPullingInitialInterval: config.NetPullingInitialInterval,
+		NetPullingInterval:        config.NetPullingInterval,
+		NoNetPulling:              config.NoNetPulling,
+		PubSub:                    config.PubSub,
+		Debug:                     config.Debug,
 	}, config.GRPCServerOptions, config.GRPCDialOptions)
 	if err != nil {
 		return nil, fin.Cleanup(err)
@@ -239,6 +239,24 @@ func newIPFSHostKey() (crypto.PrivKey, []byte, error) {
 }
 
 func setDefaults(config *NetConfig) error {
+	if len(config.LSType) == 0 {
+		config.LSType = LogstorePersistent
+	}
+	if len(config.MongoDB) == 0 {
+		config.MongoDB = "threadnet"
+	}
+	if config.NetPullingLimit <= 0 {
+		config.NetPullingLimit = 10000
+	}
+	if config.NetPullingStartAfter <= 0 {
+		config.NetPullingStartAfter = time.Second
+	}
+	if config.NetPullingInitialInterval <= 0 {
+		config.NetPullingInitialInterval = time.Second
+	}
+	if config.NetPullingInterval <= 0 {
+		config.NetPullingInterval = time.Second * 10
+	}
 	if config.HostAddr == nil {
 		addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
 		if err != nil {
@@ -248,24 +266,6 @@ func setDefaults(config *NetConfig) error {
 	}
 	if config.ConnManager == nil {
 		config.ConnManager = connmgr.NewConnManager(100, 400, time.Second*20)
-	}
-	if len(config.LSType) == 0 {
-		config.LSType = LogstorePersistent
-	}
-	if len(config.MongoDB) == 0 {
-		config.MongoDB = "threadnet"
-	}
-	if config.PullThreadsLimit <= 0 {
-		config.PullThreadsLimit = 10000
-	}
-	if config.PullThreadsStartAfter <= 0 {
-		config.PullThreadsStartAfter = time.Second
-	}
-	if config.PullThreadsInitialInterval <= 0 {
-		config.PullThreadsInitialInterval = time.Second
-	}
-	if config.PullThreadsInterval <= 0 {
-		config.PullThreadsInterval = time.Second * 10
 	}
 	return nil
 }
@@ -279,56 +279,38 @@ const (
 )
 
 type NetConfig struct {
-	HostAddr                   ma.Multiaddr
-	ConnManager                cconnmgr.ConnManager
-	GRPCServerOptions          []grpc.ServerOption
-	GRPCDialOptions            []grpc.DialOption
-	LSType                     LogstoreType
-	BadgerRepoPath             string
-	MongoUri                   string
-	MongoDB                    string
-	PullThreadsDisabled        bool
-	PullThreadsLimit           int
-	PullThreadsStartAfter      time.Duration
-	PullThreadsInitialInterval time.Duration
-	PullThreadsInterval        time.Duration
-	PubSub                     bool
-	Debug                      bool
+	NetPullingLimit           uint
+	NetPullingStartAfter      time.Duration
+	NetPullingInitialInterval time.Duration
+	NetPullingInterval        time.Duration
+	NoNetPulling              bool
+	PubSub                    bool
+	LSType                    LogstoreType
+	BadgerRepoPath            string
+	MongoUri                  string
+	MongoDB                   string
+	HostAddr                  ma.Multiaddr
+	ConnManager               cconnmgr.ConnManager
+	GRPCServerOptions         []grpc.ServerOption
+	GRPCDialOptions           []grpc.DialOption
+	Debug                     bool
 }
 
 type NetOption func(c *NetConfig) error
 
-func WithNetHostAddr(addr ma.Multiaddr) NetOption {
+func WithNetPulling(threadLimit uint, startAfter, initialInterval, interval time.Duration) NetOption {
 	return func(c *NetConfig) error {
-		c.HostAddr = addr
+		c.NetPullingLimit = threadLimit
+		c.NetPullingStartAfter = startAfter
+		c.NetPullingInitialInterval = initialInterval
+		c.NetPullingInterval = interval
 		return nil
 	}
 }
 
-func WithConnectionManager(cm cconnmgr.ConnManager) NetOption {
+func WithNoNetPulling(disable bool) NetOption {
 	return func(c *NetConfig) error {
-		c.ConnManager = cm
-		return nil
-	}
-}
-
-func WithNetDebug(enabled bool) NetOption {
-	return func(c *NetConfig) error {
-		c.Debug = enabled
-		return nil
-	}
-}
-
-func WithNetGRPCServerOptions(opts ...grpc.ServerOption) NetOption {
-	return func(c *NetConfig) error {
-		c.GRPCServerOptions = opts
-		return nil
-	}
-}
-
-func WithNetGRPCDialOptions(opts ...grpc.DialOption) NetOption {
-	return func(c *NetConfig) error {
-		c.GRPCDialOptions = opts
+		c.NoNetPulling = disable
 		return nil
 	}
 }
@@ -347,17 +329,6 @@ func WithNetLogstore(lt LogstoreType) NetOption {
 	}
 }
 
-func WithNetPulling(disabled bool, threadLimit int, startAfter, initialInterval, interval time.Duration) NetOption {
-	return func(c *NetConfig) error {
-		c.PullThreadsDisabled = disabled
-		c.PullThreadsLimit = threadLimit
-		c.PullThreadsStartAfter = startAfter
-		c.PullThreadsInitialInterval = initialInterval
-		c.PullThreadsInterval = interval
-		return nil
-	}
-}
-
 func WithNetBadgerPersistence(repoPath string) NetOption {
 	return func(c *NetConfig) error {
 		c.BadgerRepoPath = repoPath
@@ -369,6 +340,41 @@ func WithNetMongoPersistence(uri, db string) NetOption {
 	return func(c *NetConfig) error {
 		c.MongoUri = uri
 		c.MongoDB = db
+		return nil
+	}
+}
+
+func WithNetHostAddr(addr ma.Multiaddr) NetOption {
+	return func(c *NetConfig) error {
+		c.HostAddr = addr
+		return nil
+	}
+}
+
+func WithConnectionManager(cm cconnmgr.ConnManager) NetOption {
+	return func(c *NetConfig) error {
+		c.ConnManager = cm
+		return nil
+	}
+}
+
+func WithNetGRPCServerOptions(opts ...grpc.ServerOption) NetOption {
+	return func(c *NetConfig) error {
+		c.GRPCServerOptions = opts
+		return nil
+	}
+}
+
+func WithNetGRPCDialOptions(opts ...grpc.DialOption) NetOption {
+	return func(c *NetConfig) error {
+		c.GRPCDialOptions = opts
+		return nil
+	}
+}
+
+func WithNetDebug(enabled bool) NetOption {
+	return func(c *NetConfig) error {
+		c.Debug = enabled
 		return nil
 	}
 }

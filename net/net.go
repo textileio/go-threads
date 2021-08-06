@@ -104,27 +104,27 @@ type net struct {
 
 // Config is used to specify thread instance options.
 type Config struct {
-	PullThreadsDisabled        bool
-	PullThreadsLimit           int
-	PullThreadsStartAfter      time.Duration
-	PullThreadsInitialInterval time.Duration
-	PullThreadsInterval        time.Duration
-	PubSub                     bool
-	Debug                      bool
+	NetPullingLimit           uint
+	NetPullingStartAfter      time.Duration
+	NetPullingInitialInterval time.Duration
+	NetPullingInterval        time.Duration
+	NoNetPulling              bool
+	PubSub                    bool
+	Debug                     bool
 }
 
 func (c Config) Validate() error {
-	if c.PullThreadsLimit <= 0 {
-		return errors.New("PullThreadsLimit must be greater than zero")
+	if c.NetPullingLimit <= 0 {
+		return errors.New("NetPullingLimit must be greater than zero")
 	}
-	if c.PullThreadsStartAfter <= 0 {
-		return errors.New("PullThreadsStartAfter must be greater than zero")
+	if c.NetPullingStartAfter <= 0 {
+		return errors.New("NetPullingStartAfter must be greater than zero")
 	}
-	if c.PullThreadsInitialInterval <= 0 {
-		return errors.New("PullThreadsInitialInterval must be greater than zero")
+	if c.NetPullingInitialInterval <= 0 {
+		return errors.New("NetPullingInitialInterval must be greater than zero")
 	}
-	if c.PullThreadsInterval <= 0 {
-		return errors.New("PullThreadsInterval must be greater than zero")
+	if c.NetPullingInterval <= 0 {
+		return errors.New("NetPullingInterval must be greater than zero")
 	}
 	return nil
 }
@@ -164,8 +164,8 @@ func NewNetwork(
 		ctx:             ctx,
 		cancel:          cancel,
 		semaphores:      util.NewSemaphorePool(1),
-		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, conf.PullThreadsInterval),
-		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, conf.PullThreadsInterval),
+		queueGetLogs:    queue.NewFFQueue(ctx, QueuePollInterval, conf.NetPullingInterval),
+		queueGetRecords: queue.NewFFQueue(ctx, QueuePollInterval, conf.NetPullingInterval),
 	}
 
 	err := n.migrateHeadsIfNeeded(ctx, ls)
@@ -513,7 +513,7 @@ func (n *net) pullThread(ctx context.Context, tid thread.ID) error {
 	}
 
 	// Pull from peers
-	recs, err := n.server.getRecords(peers, tid, offsets, n.conf.PullThreadsLimit)
+	recs, err := n.server.getRecords(peers, tid, offsets, n.conf.NetPullingLimit)
 	if err != nil {
 		return err
 	}
@@ -1361,18 +1361,18 @@ func (n *net) deleteRecord(ctx context.Context, rid cid.Cid, sk *sym.Key) (prev 
 
 // startPulling periodically pulls on all threads.
 func (n *net) startPulling() {
-	if n.conf.PullThreadsDisabled {
+	if n.conf.NoNetPulling {
 		return
 	}
 	select {
-	case <-time.After(n.conf.PullThreadsStartAfter):
+	case <-time.After(n.conf.NetPullingStartAfter):
 	case <-n.ctx.Done():
 		return
 	}
 
 	// set pull cycle interval into initial value,
 	// it will be redefined on the next iteration
-	var interval = n.conf.PullThreadsInitialInterval
+	var interval = n.conf.NetPullingInitialInterval
 
 	// group threads by peers and exchange edges efficiently
 	var compressor = queue.NewThreadPacker(n.ctx, MaxThreadsExchanged, ExchangeCompressionTimeout)
@@ -1391,7 +1391,7 @@ PullCycle:
 			// if there are no threads served, just wait and retry
 			select {
 			case <-time.After(interval):
-				interval = n.conf.PullThreadsInterval
+				interval = n.conf.NetPullingInterval
 				continue PullCycle
 			case <-n.ctx.Done():
 				return
@@ -1420,7 +1420,7 @@ PullCycle:
 				idx++
 				if idx >= len(ts) {
 					ticker.Stop()
-					interval = n.conf.PullThreadsInterval
+					interval = n.conf.NetPullingInterval
 					continue PullCycle
 				}
 
@@ -1600,7 +1600,7 @@ func (n *net) updateRecordsFromPeer(ctx context.Context, pid peer.ID, tid thread
 	if err != nil {
 		return fmt.Errorf("getting offsets for thread %s failed: %w", tid, err)
 	}
-	req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, n.conf.PullThreadsLimit)
+	req, sk, err := n.server.buildGetRecordsRequest(tid, offsets, n.conf.NetPullingLimit)
 	if err != nil {
 		return fmt.Errorf("building GetRecords request for thread %s failed: %w", tid, err)
 	}
