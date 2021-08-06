@@ -27,7 +27,6 @@ import (
 )
 
 func TestNet_GetToken(t *testing.T) {
-	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()
 	ctx := context.Background()
@@ -46,7 +45,6 @@ func TestNet_GetToken(t *testing.T) {
 }
 
 func TestNet_CreateRecord(t *testing.T) {
-	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()
 	ctx := context.Background()
@@ -110,7 +108,6 @@ func TestNet_CreateRecord(t *testing.T) {
 }
 
 func TestNet_AddThread(t *testing.T) {
-	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
 	n2 := makeNetwork(t)
@@ -175,7 +172,6 @@ func TestNet_AddThread(t *testing.T) {
 }
 
 func TestNet_CreateThreadManaged(t *testing.T) {
-	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()
 
@@ -210,7 +206,6 @@ func TestNet_CreateThreadManaged(t *testing.T) {
 }
 
 func TestNet_AddThreadManaged(t *testing.T) {
-	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
 	n2 := makeNetwork(t)
@@ -268,7 +263,6 @@ func TestNet_AddThreadManaged(t *testing.T) {
 }
 
 func TestNet_AddReplicator(t *testing.T) {
-	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
 	n2 := makeNetwork(t)
@@ -322,7 +316,6 @@ func TestNet_AddReplicator(t *testing.T) {
 }
 
 func TestNet_AddReplicatorManaged(t *testing.T) {
-	t.Parallel()
 	n1 := makeNetwork(t)
 	defer n1.Close()
 	n2 := makeNetwork(t)
@@ -380,7 +373,6 @@ func TestNet_AddReplicatorManaged(t *testing.T) {
 }
 
 func TestNet_DeleteThread(t *testing.T) {
-	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()
 
@@ -410,7 +402,6 @@ func TestNet_DeleteThread(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	t.Parallel()
 	n := makeNetwork(t)
 	defer n.Close()
 
@@ -449,7 +440,7 @@ func makeNetwork(t *testing.T) core.Net {
 			NetPullingStartAfter:      time.Second,
 			NetPullingInitialInterval: time.Second,
 			NetPullingInterval:        time.Second * 10,
-			PubSub:                    true,
+			PubSub:                    false,
 			Debug:                     true,
 		}, nil, nil)
 	if err != nil {
