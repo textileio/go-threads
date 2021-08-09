@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/status"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p-core/peer"
+	gostream "github.com/libp2p/go-libp2p-gostream"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
+	rpc "github.com/textileio/go-libp2p-pubsub-rpc"
 	"github.com/textileio/go-threads/cbor"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
@@ -30,19 +33,23 @@ var (
 
 // server implements the net gRPC server.
 type server struct {
-	sync.Mutex
 	net   *net
-	ps    *PubSub
 	opts  []grpc.DialOption
 	conns map[peer.ID]*grpc.ClientConn
+
+	ps     *pubsub.PubSub
+	topics map[thread.ID]*rpc.Topic
+
+	sync.Mutex
 }
 
 // newServer creates a new network server.
 func newServer(n *net, opts ...grpc.DialOption) (*server, error) {
 	var (
 		s = &server{
-			net:   n,
-			conns: make(map[peer.ID]*grpc.ClientConn),
+			net:    n,
+			conns:  make(map[peer.ID]*grpc.ClientConn),
+			topics: make(map[thread.ID]*rpc.Topic),
 		}
 
 		defaultOpts = []grpc.DialOption{
@@ -54,39 +61,29 @@ func newServer(n *net, opts ...grpc.DialOption) (*server, error) {
 	s.opts = append(defaultOpts, opts...)
 
 	if n.conf.PubSub {
-		ps, err := pubsub.NewGossipSub(
+		var err error
+		s.ps, err = pubsub.NewGossipSub(
 			n.ctx,
 			n.host,
-			pubsub.WithMessageSigning(false),
-			pubsub.WithStrictSignatureVerification(false))
+			pubsub.WithPeerExchange(true),
+			pubsub.WithFloodPublish(true),
+		)
 		if err != nil {
 			return nil, err
 		}
-		s.ps = NewPubSub(n.ctx, n.host.ID(), ps, s.pubsubHandler)
 
 		ts, err := n.store.Threads()
 		if err != nil {
 			return nil, err
 		}
 		for _, id := range ts {
-			if err := s.ps.Add(id); err != nil {
+			if err := s.addPubsubTopic(id); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	return s, nil
-}
-
-// pubsubHandler receives records over pubsub.
-func (s *server) pubsubHandler(ctx context.Context, req *pb.PushRecordRequest) {
-	if _, err := s.PushRecord(ctx, req); err != nil {
-		// This error will be "log not found" if the record sent over pubsub
-		// beat the log, which has to be sent directly via the normal API.
-		// In this case, the record will arrive directly after the log via
-		// the normal API.
-		log.Debugf("error handling pubsub record: %s", err)
-	}
 }
 
 // GetLogs receives a get logs request.
@@ -118,7 +115,6 @@ func (s *server) GetLogs(ctx context.Context, req *pb.GetLogsRequest) (*pb.GetLo
 }
 
 // PushLog receives a push log request.
-// @todo: Don't overwrite info from non-owners
 func (s *server) PushLog(ctx context.Context, req *pb.PushLogRequest) (*pb.PushLogReply, error) {
 	pid, err := peerIDFromContext(ctx)
 	if err != nil {
@@ -322,7 +318,7 @@ func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest
 							return err
 						}
 						if s.net.server.ps != nil {
-							return s.net.server.ps.Add(t)
+							return s.net.server.addPubsubTopic(t)
 						}
 						return nil
 					}
@@ -424,6 +420,107 @@ func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err err
 		}
 	}
 	return
+}
+
+// addPubSubTopic subscribes to a thread topic.
+func (s *server) addPubsubTopic(id thread.ID) error {
+	s.Lock()
+	defer s.Unlock()
+	if _, ok := s.topics[id]; ok {
+		return nil
+	}
+
+	t, err := rpc.NewTopic(s.net.ctx, s.ps, s.net.host.ID(), id.String(), true)
+	if err != nil {
+		return err
+	}
+	t.SetEventHandler(s.pubSubEventHandler)
+	t.SetMessageHandler(s.pubSubRecordHandler)
+	s.topics[id] = t
+	return nil
+}
+
+// addPubSubTopic subscribes to a thread topic.
+func (s *server) removePubsubTopic(id thread.ID) error {
+	s.Lock()
+	defer s.Unlock()
+	if t, ok := s.topics[id]; ok {
+		delete(s.topics, id)
+		return t.Close()
+	}
+	return nil
+}
+
+// addPubSubTopic subscribes to a thread topic.
+func (s *server) removeAllPubsubTopics() error {
+	s.Lock()
+	defer s.Unlock()
+	for id, t := range s.topics {
+		delete(s.topics, id)
+		if err := t.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// publishRecord publishes a record request to a thread topic.
+func (s *server) publishRecord(ctx context.Context, topic thread.ID, req *pb.PushRecordRequest) error {
+	if s.ps == nil {
+		return nil
+	}
+	s.Lock()
+	t, ok := s.topics[topic]
+	s.Unlock()
+	if !ok {
+		return fmt.Errorf("publish to unknown thread %s", topic)
+	}
+
+	data, err := req.Marshal()
+	if err != nil {
+		return fmt.Errorf("marshaling pubsub message: %v", err)
+	}
+
+	if _, err := t.Publish(ctx, data, rpc.WithIgnoreResponse(true)); err != nil {
+		return fmt.Errorf("publishing to thread %s: %v", topic, err)
+	}
+	return nil
+}
+
+// addr implements net.Addr and holds a libp2p peer ID.
+type addr struct{ id peer.ID }
+
+// Network returns the name of the network that this address belongs to (libp2p).
+func (a *addr) Network() string { return gostream.Network }
+
+// String returns the peer ID of this address in string form (B58-encoded).
+func (a *addr) String() string { return a.id.Pretty() }
+
+// pubSubRecordHandler receives records over pubsub.
+func (s *server) pubSubRecordHandler(from peer.ID, topic string, msg []byte) ([]byte, error) {
+	req := new(pb.PushRecordRequest)
+	if err := proto.Unmarshal(msg, req); err != nil {
+		return nil, err
+	}
+
+	ctx := grpcpeer.NewContext(s.net.ctx, &grpcpeer.Peer{
+		Addr: &addr{id: from},
+	})
+	if _, err := s.PushRecord(ctx, req); status.Code(err) == codes.NotFound {
+		// This error will be "log not found" if the record sent over pubsub
+		// beat the log, which has to be sent directly via the normal API.
+		// In this case, the record will arrive directly after the log via
+		// the normal API.
+		log.Debugf("error handling pubsub record: %v", err)
+	} else if err != nil {
+		return nil, fmt.Errorf("pushing record to thread %s: %v", topic, err)
+	}
+	return nil, nil
+}
+
+// pubSubEventHandler logs pubsub peer events.
+func (s *server) pubSubEventHandler(from peer.ID, topic string, msg []byte) {
+	log.Debugf("%s peer event: %s %s", topic, from, msg)
 }
 
 // peerIDFromContext returns peer ID from the GRPC context

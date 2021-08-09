@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/alecthomas/jsonschema"
 	"github.com/dgraph-io/badger/options"
@@ -24,6 +25,7 @@ import (
 	kt "github.com/textileio/go-threads/db/keytransform"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -250,4 +252,19 @@ func ComputeAddrsEdge(as []PeerAddr) uint64 {
 		_, _ = hasher.Write(as[i].Addr.Bytes())
 	}
 	return hasher.Sum64()
+}
+
+func StopGRPCServer(server *grpc.Server) {
+	stopped := make(chan struct{})
+	go func() {
+		server.GracefulStop()
+		close(stopped)
+	}()
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-timer.C:
+		server.Stop()
+	case <-stopped:
+		timer.Stop()
+	}
 }

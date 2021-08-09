@@ -271,6 +271,11 @@ func (n *net) Close() (err error) {
 	// Wait for all thread pulls to finish
 	n.semaphores.Stop()
 
+	// Close all pubsub topics
+	if err := n.server.removeAllPubsubTopics(); err != nil {
+		log.Errorf("closing pubsub topics: %v", err)
+	}
+
 	// Close peer connections and shutdown the server
 	n.server.Lock()
 	defer n.server.Unlock()
@@ -279,7 +284,7 @@ func (n *net) Close() (err error) {
 			log.Errorf("error closing connection: %v", err)
 		}
 	}
-	n.rpc.GracefulStop()
+	tu.StopGRPCServer(n.rpc)
 
 	var errs []error
 	weakClose := func(name string, c interface{}) {
@@ -368,11 +373,10 @@ func (n *net) CreateThread(
 	if _, err = n.createLog(id, args.LogKey, identity); err != nil {
 		return
 	}
-	if n.server.ps != nil {
-		if err = n.server.ps.Add(id); err != nil {
-			return
-		}
+	if err = n.server.addPubsubTopic(id); err != nil {
+		return
 	}
+
 	return n.getThreadWithAddrs(id)
 }
 
@@ -447,10 +451,7 @@ func (n *net) AddThread(
 			if err := n.updateLogsFromPeer(ctx, p, t); err != nil {
 				return err
 			}
-			if n.server.ps != nil {
-				return n.server.ps.Add(id)
-			}
-			return nil
+			return n.server.addPubsubTopic(id)
 		}); err != nil {
 			return
 		}
@@ -558,7 +559,7 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
 	if n.server.ps != nil {
-		if err := n.server.ps.Remove(id); err != nil {
+		if err := n.server.removePubsubTopic(id); err != nil {
 			return err
 		}
 	}
@@ -635,8 +636,6 @@ func (n *net) AddReplicator(
 		dialable, err = getDialable(paddr)
 		if err == nil {
 			n.host.Peerstore().AddAddr(pid, dialable, pstore.PermanentAddrTTL)
-		} else {
-			log.Warnf("peer %s address requires a DHT lookup", pid)
 		}
 
 		// Send all logs to the new replicator

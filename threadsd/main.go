@@ -213,7 +213,7 @@ func main() {
 		if err := proxy.Shutdown(ctx); err != nil {
 			log.Fatal(err)
 		}
-		server.GracefulStop()
+		util.StopGRPCServer(server)
 		if err := n.Close(); err != nil {
 			log.Fatal(err)
 		}

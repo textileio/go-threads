@@ -1043,7 +1043,7 @@ func makeServer(t *testing.T) (ma.Multiaddr, func()) {
 
 	return addr, func() {
 		time.Sleep(time.Second) // Give threads a chance to finish work
-		server.GracefulStop()
+		util.StopGRPCServer(server)
 		if err := n.Close(); err != nil {
 			t.Fatal(err)
 		}
