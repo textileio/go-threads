@@ -440,7 +440,7 @@ func makeNetwork(t *testing.T) core.Net {
 			NetPullingStartAfter:      time.Second,
 			NetPullingInitialInterval: time.Second,
 			NetPullingInterval:        time.Second * 10,
-			PubSub:                    false,
+			PubSub:                    true,
 			Debug:                     true,
 		}, nil, nil)
 	if err != nil {

@@ -61,7 +61,7 @@ func CreateTestService(addr string, debug bool) (hostAddr ma.Multiaddr, gRPCAddr
 	}()
 
 	return hostAddr, gRPCAddr, func() {
-		server.GracefulStop()
+		util.StopGRPCServer(server)
 		if err := n.Close(); err != nil {
 			return
 		}

@@ -304,10 +304,8 @@ func (s *server) pushRecord(ctx context.Context, tid thread.ID, lid peer.ID, rec
 	}
 
 	// Finally, publish to the thread's topic
-	if s.ps != nil {
-		if err = s.ps.Publish(ctx, tid, req); err != nil {
-			log.Errorf("error publishing record: %s", err)
-		}
+	if err = s.publishRecord(ctx, tid, req); err != nil {
+		log.Errorf("error publishing record: %s", err)
 	}
 
 	return nil
