@@ -32,6 +32,7 @@ func TestE2EWithThreads(t *testing.T) {
 	n1, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir1),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetPubSub(true),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)
@@ -80,6 +81,7 @@ func TestE2EWithThreads(t *testing.T) {
 	n2, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(tmpDir2),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetPubSub(true),
 		common.WithNetDebug(true),
 	)
 	checkErr(t, err)

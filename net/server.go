@@ -317,10 +317,7 @@ func (s *server) ExchangeEdges(ctx context.Context, req *pb.ExchangeEdgesRequest
 						if err := s.net.updateLogsFromPeer(ctx, p, t); err != nil {
 							return err
 						}
-						if s.net.server.ps != nil {
-							return s.net.server.addPubsubTopic(t)
-						}
-						return nil
+						return s.net.server.addPubsubTopic(t)
 					}
 				}
 				if s.net.queueGetLogs.Schedule(pid, tid, prt, updateLogs) {
@@ -424,6 +421,9 @@ func (s *server) localEdges(tid thread.ID) (addrsEdge, headsEdge uint64, err err
 
 // addPubSubTopic subscribes to a thread topic.
 func (s *server) addPubsubTopic(id thread.ID) error {
+	if s.ps == nil {
+		return nil
+	}
 	s.Lock()
 	defer s.Unlock()
 	if _, ok := s.topics[id]; ok {
@@ -442,6 +442,9 @@ func (s *server) addPubsubTopic(id thread.ID) error {
 
 // addPubSubTopic subscribes to a thread topic.
 func (s *server) removePubsubTopic(id thread.ID) error {
+	if s.ps == nil {
+		return nil
+	}
 	s.Lock()
 	defer s.Unlock()
 	if t, ok := s.topics[id]; ok {
@@ -453,6 +456,9 @@ func (s *server) removePubsubTopic(id thread.ID) error {
 
 // addPubSubTopic subscribes to a thread topic.
 func (s *server) removeAllPubsubTopics() error {
+	if s.ps == nil {
+		return nil
+	}
 	s.Lock()
 	defer s.Unlock()
 	for id, t := range s.topics {

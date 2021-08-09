@@ -267,6 +267,12 @@ func (je patchEvent) time() (t time.Time) {
 		t = ts
 	case int:
 		t = time.Unix(0, int64(ts))
+	case uint:
+		t = time.Unix(0, int64(ts))
+	case int64:
+		t = time.Unix(0, ts)
+	case uint64:
+		t = time.Unix(0, int64(ts))
 	}
 	return t
 }
