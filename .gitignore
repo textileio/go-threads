@@ -36,4 +36,5 @@ tags
 
 # Other
 .threads*/
+integrationtests/migration/generated/
 .env

@@ -131,6 +131,7 @@ func newNetwork(repoPath string) (common.NetBoostrapper, error) {
 	network, err := common.DefaultNetwork(
 		common.WithNetBadgerPersistence(repoPath),
 		common.WithNetHostAddr(util.FreeLocalAddr()),
+		common.WithNetPubSub(true),
 		common.WithNetDebug(true),
 	)
 	if err != nil {

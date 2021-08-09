@@ -558,10 +558,8 @@ func (n *net) DeleteThread(ctx context.Context, id thread.ID, opts ...core.Threa
 // Local subscriptions will not be cancelled and will simply stop reporting.
 // This method is internal and *not* thread-safe. It assumes we currently own the thread-lock.
 func (n *net) deleteThread(ctx context.Context, id thread.ID) error {
-	if n.server.ps != nil {
-		if err := n.server.removePubsubTopic(id); err != nil {
-			return err
-		}
+	if err := n.server.removePubsubTopic(id); err != nil {
+		return err
 	}
 
 	info, err := n.store.GetThread(id)
