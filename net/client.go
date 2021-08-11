@@ -452,7 +452,7 @@ func (s *server) dial(peerID peer.ID) (pb.ServiceClient, error) {
 	conn, ok := s.conns[peerID]
 	if ok {
 		if conn.GetState() == connectivity.Shutdown {
-			if err := conn.Close(); err != nil {
+			if err := conn.Close(); err != nil && status.Code(err) != codes.Canceled {
 				log.Errorf("error closing connection: %v", err)
 			}
 		} else {
