@@ -23,7 +23,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15
+          go-version: 1.16
       - name: Setup env
         env:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: true
@@ -38,11 +38,11 @@ jobs:
       - name: Install protoc
         uses: arduino/setup-protoc@master
         with:
-          version: '3.11.2'
+          version: '3.17.3'
       - name: Install Go protoc plugins
         run: |
-          export GO111MODULE=off
-          go get github.com/golang/protobuf/protoc-gen-go
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
       - name: Get JS dependencies
         run: |
           cd api/pb/javascript && npm install

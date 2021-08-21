@@ -29,6 +29,7 @@ var (
 
 // Service is a gRPC service for a thread network.
 type Service struct {
+	pb.UnimplementedAPIServer
 	net net.Net
 }
 

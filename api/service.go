@@ -30,6 +30,7 @@ var (
 
 // Service is a gRPC DB API service backed by a DB manager.
 type Service struct {
+	pb.UnimplementedAPIServer
 	manager *db.Manager
 }
 
