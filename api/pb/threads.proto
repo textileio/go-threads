@@ -1,6 +1,7 @@
 syntax = "proto3";
 package threads.pb;
 
+option go_package = "github.com/go-threads/api/pb/threads_pb";
 option java_multiple_files = true;
 option java_package = "io.textile.threads_grpc";
 option java_outer_classname = "Threads";

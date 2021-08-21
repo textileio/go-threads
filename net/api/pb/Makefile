@@ -7,9 +7,9 @@ all: $(GO)
 %.pb.go: %.proto
 	protoc -I=. \
 	--plugin="protoc-gen-ts=${PROTOC_GEN_TS_PATH}" --js_out="import_style=commonjs,binary:javascript/." --ts_out="service=grpc-web:javascript/." \
-	--go_out=\
-	plugins=grpc:\
-	. $<
+	--go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	$<
 
 clean:
 	rm -f *.pb.go
