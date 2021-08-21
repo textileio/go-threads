@@ -53,13 +53,13 @@ require (
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
 	github.com/textileio/go-ds-mongo v0.1.4
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.4
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
 	github.com/tidwall/gjson v1.8.1
 	github.com/tidwall/sjson v1.0.4
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0
-	go.uber.org/zap v1.18.1
+	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210506145944-38f3c27a63bf
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c

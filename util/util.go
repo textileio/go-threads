@@ -264,6 +264,7 @@ func StopGRPCServer(server *grpc.Server) {
 	select {
 	case <-timer.C:
 		server.Stop()
+		fmt.Println("warn: server was shutdown ungracefully")
 	case <-stopped:
 		timer.Stop()
 	}

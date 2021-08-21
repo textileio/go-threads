@@ -21,13 +21,13 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	badger "github.com/textileio/go-ds-badger"
 	mongods "github.com/textileio/go-ds-mongo"
+	"github.com/textileio/go-libp2p-pubsub-rpc/finalizer"
 	"github.com/textileio/go-threads/core/app"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/logstore/lstoreds"
 	"github.com/textileio/go-threads/logstore/lstorehybrid"
 	"github.com/textileio/go-threads/logstore/lstoremem"
 	"github.com/textileio/go-threads/net"
-	"github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 )
 
@@ -41,7 +41,7 @@ type NetBoostrapper interface {
 func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	var (
 		config NetConfig
-		fin    = util.NewFinalizer()
+		fin    = finalizer.NewFinalizer()
 	)
 
 	for _, opt := range opts {
@@ -55,7 +55,7 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	fin.Add(util.NewContextCloser(cancel))
+	fin.Add(finalizer.NewContextCloser(cancel))
 
 	litestore, err := persistentStore(ctx, config, "ipfslite", fin)
 	if err != nil {
@@ -119,7 +119,7 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 	}, nil
 }
 
-func buildLogstore(ctx context.Context, config NetConfig, fin *util.Finalizer) (core.Logstore, error) {
+func buildLogstore(ctx context.Context, config NetConfig, fin *finalizer.Finalizer) (core.Logstore, error) {
 	switch config.LSType {
 	case LogstoreInMemory:
 		return lstoremem.NewLogstore(), nil
@@ -140,7 +140,7 @@ func buildLogstore(ctx context.Context, config NetConfig, fin *util.Finalizer) (
 	}
 }
 
-func persistentLogstore(ctx context.Context, config NetConfig, fin *util.Finalizer) (core.Logstore, error) {
+func persistentLogstore(ctx context.Context, config NetConfig, fin *finalizer.Finalizer) (core.Logstore, error) {
 	pds, err := persistentStore(ctx, config, "logstore", fin)
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func persistentLogstore(ctx context.Context, config NetConfig, fin *util.Finaliz
 	return lstoreds.NewLogstore(ctx, pds, lstoreds.DefaultOpts())
 }
 
-func persistentStore(ctx context.Context, config NetConfig, name string, fin *util.Finalizer) (ds.Batching, error) {
+func persistentStore(ctx context.Context, config NetConfig, name string, fin *finalizer.Finalizer) (ds.Batching, error) {
 	if len(config.MongoUri) != 0 {
 		return mongoStore(ctx, config.MongoUri, config.MongoDB, name, fin)
 	} else {
@@ -156,7 +156,7 @@ func persistentStore(ctx context.Context, config NetConfig, name string, fin *ut
 	}
 }
 
-func badgerStore(repoPath string, fin *util.Finalizer) (ds.Batching, error) {
+func badgerStore(repoPath string, fin *finalizer.Finalizer) (ds.Batching, error) {
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func badgerStore(repoPath string, fin *util.Finalizer) (ds.Batching, error) {
 	return dstore, nil
 }
 
-func mongoStore(ctx context.Context, uri, db, collection string, fin *util.Finalizer) (ds.Batching, error) {
+func mongoStore(ctx context.Context, uri, db, collection string, fin *finalizer.Finalizer) (ds.Batching, error) {
 	dstore, err := mongods.New(ctx, uri, db, mongods.WithCollName(collection))
 	if err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func WithNetDebug(enabled bool) NetOption {
 type netBoostrapper struct {
 	app.Net
 	litepeer  *ipfslite.Peer
-	finalizer *util.Finalizer
+	finalizer *finalizer.Finalizer
 }
 
 var _ NetBoostrapper = (*netBoostrapper)(nil)
