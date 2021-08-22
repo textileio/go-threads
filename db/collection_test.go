@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	core "github.com/textileio/go-threads/core/db"
 	"github.com/textileio/go-threads/util"
 	"github.com/xeipuuv/gojsonschema"

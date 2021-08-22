@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -329,7 +330,7 @@ func (i ID) KeyString() string {
 }
 
 // Loggable returns a Loggable (as defined by
-// https://godoc.org/github.com/ipfs/go-log).
+// https://godoc.org/github.com/ipfs/go-log/v2).
 func (i ID) Loggable() map[string]interface{} {
 	return map[string]interface{}{
 		"id": i,

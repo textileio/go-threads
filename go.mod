@@ -32,7 +32,6 @@ require (
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-ipld-format v0.2.0
-	github.com/ipfs/go-log v1.0.5
 	github.com/ipfs/go-log/v2 v2.3.0
 	github.com/ipfs/go-merkledag v0.3.2
 	github.com/libp2p/go-libp2p v0.14.4
@@ -51,7 +50,7 @@ require (
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/textileio/go-datastore-extensions v1.0.1
 	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
-	github.com/textileio/go-ds-mongo v0.1.4
+	github.com/textileio/go-ds-mongo v0.1.5
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
 	github.com/tidwall/gjson v1.8.1
 	github.com/tidwall/sjson v1.0.4
