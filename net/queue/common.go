@@ -3,7 +3,7 @@ package queue
 import (
 	"context"
 
-	logging "github.com/ipfs/go-log"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/textileio/go-threads/core/thread"
 )
