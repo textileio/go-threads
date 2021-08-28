@@ -1433,7 +1433,7 @@ func (n *net) startExchange(compressor queue.ThreadPacker) {
 	for pack := range compressor.Run() {
 		go func(p queue.ThreadPack) {
 			if err := n.server.exchangeEdges(n.ctx, p.Peer, p.Threads); err != nil {
-				log.Errorf("exchangeEdges with %s failed: %v", p.Peer, err)
+				log.Debugf("exchangeEdges with %s failed: %v", p.Peer, err)
 			}
 		}(pack)
 	}
