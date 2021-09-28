@@ -13,7 +13,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	mbase "github.com/multiformats/go-multibase"
-	"github.com/textileio/go-threads/crypto/asymmetric"
+	"github.com/textileio/crypto/asymmetric"
 	jwted25519 "github.com/textileio/go-threads/jwt"
 	"google.golang.org/grpc/codes"
 )

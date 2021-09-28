@@ -13,7 +13,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/crypto/symmetric"
 )
 
 var threadstoreSuite = map[string]func(core.Logstore) func(*testing.T){

@@ -9,8 +9,8 @@ import (
 	"github.com/ipfs/go-ipld-format"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/core/net"
-	"github.com/textileio/go-threads/crypto"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	"github.com/textileio/crypto"
+	sym "github.com/textileio/crypto/symmetric"
 )
 
 func init() {

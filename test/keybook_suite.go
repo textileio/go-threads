@@ -12,7 +12,7 @@ import (
 	pt "github.com/libp2p/go-libp2p-core/test"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/crypto/symmetric"
 )
 
 var keyBookSuite = map[string]func(kb core.KeyBook) func(*testing.T){
