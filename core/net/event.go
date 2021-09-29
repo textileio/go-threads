@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipld-format"
-	"github.com/textileio/go-threads/crypto"
+	"github.com/textileio/crypto"
 )
 
 // Event is the Block format used by threads

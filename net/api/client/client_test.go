@@ -17,7 +17,7 @@ import (
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/crypto/symmetric"
 	"github.com/textileio/go-threads/net/api"
 	. "github.com/textileio/go-threads/net/api/client"
 	"github.com/textileio/go-threads/util"

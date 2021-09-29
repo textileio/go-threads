@@ -28,7 +28,7 @@ import (
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/net/queue"
 	"github.com/textileio/go-threads/net/util"

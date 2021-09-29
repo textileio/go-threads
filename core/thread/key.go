@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	mbase "github.com/multiformats/go-multibase"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/crypto/symmetric"
 )
 
 var (

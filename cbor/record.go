@@ -13,7 +13,7 @@ import (
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/textileio/go-threads/core/net"
-	"github.com/textileio/go-threads/crypto"
+	"github.com/textileio/crypto"
 	pb "github.com/textileio/go-threads/net/pb"
 )
 

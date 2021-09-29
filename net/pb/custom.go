@@ -12,7 +12,7 @@ import (
 	mh "github.com/multiformats/go-multihash"
 	varint "github.com/multiformats/go-varint"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/go-threads/crypto/symmetric"
+	sym "github.com/textileio/crypto/symmetric"
 )
 
 // customGogoType aggregates the interfaces that custom Gogo types need to implement.
