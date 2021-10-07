@@ -73,7 +73,7 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 	}
 	defer results.Close()
 
-	log.Info("loading dbs")
+	log.Info("manager: loading dbs")
 	eg, gctx := errgroup.WithContext(context.Background())
 	loaded := make(map[thread.ID]struct{})
 	lim := make(chan struct{}, MaxLoadConcurrency)
@@ -121,7 +121,7 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 			m.dbs[id] = d
 			i++
 			if i%MaxLoadConcurrency == 0 {
-				log.Infof("loaded %d dbs", i)
+				log.Infof("manager: loaded %d dbs", i)
 			}
 			lk.Unlock()
 			return nil
@@ -134,17 +134,19 @@ func NewManager(store kt.TxnDatastoreExtended, network app.Net, opts ...NewOptio
 		return nil, err
 	}
 
-	log.Infof("finished loading %d dbs", len(m.dbs))
+	log.Infof("manager: finished loading %d dbs", len(m.dbs))
 	return m, nil
 }
 
 // GetToken provides access to thread network tokens.
 func (m *Manager) GetToken(ctx context.Context, identity thread.Identity) (thread.Token, error) {
+	log.Debug("manager: getting token")
 	return m.network.GetToken(ctx, identity)
 }
 
 // NewDB creates a new db and prefixes its datastore with base key.
 func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOption) (*DB, error) {
+	log.Debugf("manager: creating new db with id %s", id)
 	m.lk.RLock()
 	_, ok := m.dbs[id]
 	m.lk.RUnlock()
@@ -163,6 +165,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 	if args.Key.Defined() && !args.Key.CanRead() {
 		return nil, ErrThreadReadKeyRequired
 	}
+	log.Debugf("manager: creating thread with net %s", id)
 	if _, err := m.network.CreateThread(
 		ctx,
 		id,
@@ -172,6 +175,7 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 	); err != nil {
 		return nil, err
 	}
+	log.Debugf("manager: created thread with net %s", id)
 
 	store, dbOpts, err := wrapDB(m.store, id, m.opts, args.Name, args.Collections...)
 	if err != nil {
@@ -184,6 +188,8 @@ func (m *Manager) NewDB(ctx context.Context, id thread.ID, opts ...NewManagedOpt
 	m.lk.Lock()
 	m.dbs[id] = db
 	m.lk.Unlock()
+
+	log.Debugf("manager: created new db with id %s", id)
 	return db, nil
 }
 
@@ -196,6 +202,7 @@ func (m *Manager) NewDBFromAddr(
 	key thread.Key,
 	opts ...NewManagedOption,
 ) (*DB, error) {
+	log.Debugf("manager: creating new db from address %s", addr)
 	id, err := thread.FromAddr(addr)
 	if err != nil {
 		return nil, err
@@ -219,6 +226,7 @@ func (m *Manager) NewDBFromAddr(
 	if key.Defined() && !key.CanRead() {
 		return nil, ErrThreadReadKeyRequired
 	}
+	log.Debugf("manager: adding thread to net %s", id)
 	if _, err := m.network.AddThread(
 		ctx,
 		addr,
@@ -228,6 +236,7 @@ func (m *Manager) NewDBFromAddr(
 	); err != nil {
 		return nil, err
 	}
+	log.Debugf("manager: added thread to net %s", id)
 
 	store, dbOpts, err := wrapDB(m.store, id, m.opts, args.Name, args.Collections...)
 	if err != nil {
@@ -242,23 +251,30 @@ func (m *Manager) NewDBFromAddr(
 	m.lk.Unlock()
 
 	if args.Block {
+		log.Debugf("manager: pulling thread %s", id)
 		if err = m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 			return nil, err
 		}
+		log.Debugf("manager: pulled thread %s", id)
 	} else {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), pullThreadBackgroundTimeout)
 			defer cancel()
+			log.Debugf("manager: pulling thread %s", id)
 			if err := m.network.PullThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 				log.Errorf("error pulling thread %s", id)
 			}
+			log.Debugf("manager: pulled thread %s", id)
 		}()
 	}
+
+	log.Debugf("manager: created new db from address %s", addr)
 	return db, nil
 }
 
 // ListDBs returns a list of all dbs.
 func (m *Manager) ListDBs(ctx context.Context, opts ...ManagedOption) (map[thread.ID]*DB, error) {
+	log.Debug("manager: listing dbs")
 	args := &ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -268,27 +284,35 @@ func (m *Manager) ListDBs(ctx context.Context, opts ...ManagedOption) (map[threa
 	defer m.lk.RUnlock()
 	dbs := make(map[thread.ID]*DB)
 	for id, db := range m.dbs {
+		log.Debugf("manager: getting thread %s from net", id)
 		if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 			return nil, err
 		}
+		log.Debugf("manager: got thread %s from net", id)
 		dbs[id] = db
 	}
+
+	log.Debug("manager: listed dbs")
 	return dbs, nil
 }
 
 // GetDB returns a db by id.
 func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedOption) (*DB, error) {
+	log.Debugf("manager: getting db %s", id)
 	args := &ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 
+	log.Debugf("manager: getting thread %s from net", id)
 	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return nil, err
 	}
+	log.Debugf("manager: got thread %s from net", id)
 
 	m.lk.RLock()
 	defer m.lk.RUnlock()
+	log.Debugf("manager: getting db %s from map", id)
 	db, ok := m.dbs[id]
 	if !ok {
 		return nil, ErrDBNotFound
@@ -298,14 +322,17 @@ func (m *Manager) GetDB(ctx context.Context, id thread.ID, opts ...ManagedOption
 
 // DeleteDB deletes a db by id.
 func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOption) error {
+	log.Debugf("manager: deleting db %s", id)
 	args := &ManagedOptions{}
 	for _, opt := range opts {
 		opt(args)
 	}
 
+	log.Debugf("manager: getting thread %s from net", id)
 	if _, err := m.network.GetThread(ctx, id, net.WithThreadToken(args.Token)); err != nil {
 		return err
 	}
+	log.Debugf("manager: got thread %s from net", id)
 
 	m.lk.RLock()
 	db, ok := m.dbs[id]
@@ -317,6 +344,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	if err := db.Close(); err != nil {
 		return err
 	}
+	log.Debugf("manager: deleting thread %s from net", id)
 	if err := m.network.DeleteThread(
 		ctx,
 		id,
@@ -325,6 +353,7 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	); err != nil {
 		return err
 	}
+	log.Debugf("manager: deleted thread %s from net", id)
 
 	// Cleanup keys used by the db
 	if err := id.Validate(); err != nil {
@@ -337,6 +366,8 @@ func (m *Manager) DeleteDB(ctx context.Context, id thread.ID, opts ...ManagedOpt
 	m.lk.Lock()
 	delete(m.dbs, id)
 	m.lk.Unlock()
+
+	log.Debugf("manager: deleted db %s", id)
 	return nil
 }
 

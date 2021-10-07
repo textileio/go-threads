@@ -100,6 +100,7 @@ func NewDB(
 	id thread.ID,
 	opts ...NewOption,
 ) (*DB, error) {
+	log.Debugf("creating db %s", id)
 	args := &NewOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -136,6 +137,7 @@ func NewDBFromAddr(
 	key thread.Key,
 	opts ...NewOption,
 ) (*DB, error) {
+	log.Debugf("creating db from address %s", addr)
 	args := &NewOptions{}
 	for _, opt := range opts {
 		opt(args)
@@ -252,6 +254,7 @@ func (d *DB) loadName() error {
 func (d *DB) reCreateCollections() error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	log.Debugf("recreating collections in %s", d.name)
 
 	results, err := d.datastore.Query(query.Query{
 		Prefix: dsSchemas.String(),
@@ -309,6 +312,7 @@ type Info struct {
 
 // GetDBInfo returns the addresses and key that can be used to join the DB thread.
 func (d *DB) GetDBInfo(opts ...Option) (info Info, err error) {
+	log.Debugf("getting db info in %s", d.name)
 	options := &Options{}
 	for _, opt := range opts {
 		opt(options)
@@ -359,6 +363,7 @@ type CollectionConfig struct {
 func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	log.Debugf("creating collection %s in %s", config.Name, d.name)
 	args := &Options{}
 	for _, opt := range opts {
 		opt(args)
@@ -388,6 +393,7 @@ func (d *DB) NewCollection(config CollectionConfig, opts ...Option) (*Collection
 func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collection, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	log.Debugf("updating collection %s in %s", config.Name, d.name)
 	args := &Options{}
 	for _, opt := range opts {
 		opt(args)
@@ -423,6 +429,7 @@ func (d *DB) UpdateCollection(config CollectionConfig, opts ...Option) (*Collect
 }
 
 func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Index, opts ...Option) error {
+	log.Debugf("adding indexes to collection %s in %s", c.name, d.name)
 	for _, index := range indexes {
 		if index.Path == idFieldName {
 			return ErrCannotIndexIDField
@@ -435,6 +442,7 @@ func (d *DB) addIndexes(c *Collection, schema *jsonschema.Schema, indexes []Inde
 }
 
 func (d *DB) saveCollection(c *Collection) error {
+	log.Debugf("saving collection %s in %s", c.name, d.name)
 	if err := d.datastore.Put(dsSchemas.ChildString(c.name), c.GetSchema()); err != nil {
 		return err
 	}
@@ -456,6 +464,7 @@ func (d *DB) saveCollection(c *Collection) error {
 func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	log.Debugf("getting collection %s in %s", name, d.name)
 	args := &Options{}
 	for _, opt := range opts {
 		opt(args)
@@ -470,6 +479,7 @@ func (d *DB) GetCollection(name string, opts ...Option) *Collection {
 func (d *DB) ListCollections(opts ...Option) []*Collection {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	log.Debugf("listing collections in %s", d.name)
 	args := &Options{}
 	for _, opt := range opts {
 		opt(args)
@@ -490,6 +500,7 @@ func (d *DB) ListCollections(opts ...Option) []*Collection {
 func (d *DB) DeleteCollection(name string, opts ...Option) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
+	log.Debugf("deleting collection %s in %s", name, d.name)
 	args := &Options{}
 	for _, opt := range opts {
 		opt(args)
@@ -525,6 +536,7 @@ func (d *DB) DeleteCollection(name string, opts ...Option) error {
 }
 
 func (d *DB) Close() error {
+	log.Debugf("closing %s", d.name)
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	d.txnlock.Lock()
@@ -540,6 +552,7 @@ func (d *DB) Close() error {
 }
 
 func (d *DB) Reduce(events []core.Event) error {
+	log.Debugf("reducing events in %s", d.name)
 	codecActions, err := d.eventcodec.Reduce(events, d.datastore, baseKey, defaultIndexFunc(d))
 	if err != nil {
 		return err
@@ -580,6 +593,7 @@ func defaultIndexFunc(d *DB) func(collection string, key ds.Key, oldData, newDat
 }
 
 func (d *DB) ValidateNetRecordBody(_ context.Context, body format.Node, identity thread.PubKey) error {
+	log.Debugf("validating net record body in %s", d.name)
 	events, err := d.eventcodec.EventsFromBytes(body.RawData())
 	if err != nil {
 		return err
@@ -604,6 +618,7 @@ func parseJSON(vm *goja.Runtime, val []byte) (goja.Value, error) {
 }
 
 func (d *DB) HandleNetRecord(ctx context.Context, rec net.ThreadRecord, key thread.Key) error {
+	log.Debugf("handling net record %s", rec.Value().Cid())
 	event, err := threadcbor.EventFromRecord(ctx, d.connector.Net, rec.Value())
 	if err != nil {
 		block, err := d.getBlockWithRetry(ctx, rec.Value())
@@ -646,12 +661,18 @@ func (d *DB) getBlockWithRetry(ctx context.Context, rec net.Record) (format.Node
 // dispatch applies external events to the db. This function guarantee
 // no interference with registered collection states, and viceversa.
 func (d *DB) dispatch(events []core.Event) error {
+	log.Debugf("dispatching events in %s", d.name)
 	d.txnlock.Lock()
 	defer d.txnlock.Unlock()
-	return d.dispatcher.Dispatch(events)
+	if err := d.dispatcher.Dispatch(events); err != nil {
+		return err
+	}
+	log.Debugf("dispatched events in %s", d.name)
+	return nil
 }
 
 func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
+	log.Debugf("starting read txn in %s", d.name)
 	d.txnlock.RLock()
 	defer d.txnlock.RUnlock()
 
@@ -664,10 +685,12 @@ func (d *DB) readTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) e
 	if err := f(txn); err != nil {
 		return err
 	}
+	log.Debugf("ending read txn in %s", d.name)
 	return nil
 }
 
 func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) error {
+	log.Debugf("starting write txn in %s", d.name)
 	d.txnlock.Lock()
 	defer d.txnlock.Unlock()
 
@@ -680,5 +703,9 @@ func (d *DB) writeTxn(c *Collection, f func(txn *Txn) error, opts ...TxnOption) 
 	if err := f(txn); err != nil {
 		return err
 	}
-	return txn.Commit()
+	if err := txn.Commit(); err != nil {
+		return err
+	}
+	log.Debugf("ending write txn in %s", d.name)
+	return nil
 }

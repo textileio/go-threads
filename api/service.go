@@ -74,6 +74,7 @@ func (i *remoteIdentity) UnmarshalBinary([]byte) error {
 }
 
 func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
+	log.Debug("sending token challenge")
 	if err := i.server.Send(&pb.GetTokenReply{
 		Payload: &pb.GetTokenReply_Challenge{
 			Challenge: msg,
@@ -100,6 +101,7 @@ func (i *remoteIdentity) Sign(ctx context.Context, msg []byte) ([]byte, error) {
 		if ok {
 			return nil, err
 		}
+		log.Debug("received token challenge response")
 	}
 
 	var sig []byte
@@ -125,7 +127,7 @@ func (i *remoteIdentity) Equals(thread.Identity) bool {
 }
 
 func (s *Service) GetToken(server pb.API_GetTokenServer) error {
-	log.Debugf("received get token request")
+	log.Debug("received get token request")
 
 	req, err := server.Recv()
 	if err != nil {
@@ -150,6 +152,8 @@ func (s *Service) GetToken(server pb.API_GetTokenServer) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debug("sending get token response")
 	return server.Send(&pb.GetTokenReply{
 		Payload: &pb.GetTokenReply_Token{
 			Token: string(tok),
@@ -158,7 +162,7 @@ func (s *Service) GetToken(server pb.API_GetTokenServer) error {
 }
 
 func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBReply, error) {
-	log.Debugf("received new db request")
+	log.Debug("received new db request")
 
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
@@ -202,7 +206,7 @@ func (s *Service) NewDB(ctx context.Context, req *pb.NewDBRequest) (*pb.NewDBRep
 }
 
 func (s *Service) NewDBFromAddr(ctx context.Context, req *pb.NewDBFromAddrRequest) (*pb.NewDBReply, error) {
-	log.Debugf("received new db from address request")
+	log.Debug("received new db from address request")
 
 	addr, err := ma.NewMultiaddrBytes(req.Addr)
 	if err != nil {
@@ -279,6 +283,7 @@ func collectionConfigFromPb(pbc *pb.CollectionConfig) (db.CollectionConfig, erro
 }
 
 func (s *Service) ListDBs(ctx context.Context, _ *pb.ListDBsRequest) (*pb.ListDBsReply, error) {
+	log.Debug("received list dbs request")
 	token, err := thread.NewTokenFromMD(ctx)
 	if err != nil {
 		return nil, err
@@ -305,6 +310,7 @@ func (s *Service) ListDBs(ctx context.Context, _ *pb.ListDBsRequest) (*pb.ListDB
 }
 
 func (s *Service) GetDBInfo(ctx context.Context, req *pb.GetDBInfoRequest) (*pb.GetDBInfoReply, error) {
+	log.Debug("received get db info request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -338,6 +344,7 @@ func dBInfoToPb(d *db.DB, token thread.Token) (*pb.GetDBInfoReply, error) {
 }
 
 func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.DeleteDBReply, error) {
+	log.Debug("received delete db request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -358,6 +365,7 @@ func (s *Service) DeleteDB(ctx context.Context, req *pb.DeleteDBRequest) (*pb.De
 }
 
 func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionRequest) (*pb.NewCollectionReply, error) {
+	log.Debug("received new collection request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -381,6 +389,7 @@ func (s *Service) NewCollection(ctx context.Context, req *pb.NewCollectionReques
 }
 
 func (s *Service) UpdateCollection(ctx context.Context, req *pb.UpdateCollectionRequest) (*pb.UpdateCollectionReply, error) {
+	log.Debug("received update collection request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -404,6 +413,7 @@ func (s *Service) UpdateCollection(ctx context.Context, req *pb.UpdateCollection
 }
 
 func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollectionRequest) (*pb.DeleteCollectionReply, error) {
+	log.Debug("received delete collection request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -423,6 +433,7 @@ func (s *Service) DeleteCollection(ctx context.Context, req *pb.DeleteCollection
 }
 
 func (s *Service) GetCollectionInfo(ctx context.Context, req *pb.GetCollectionInfoRequest) (*pb.GetCollectionInfoReply, error) {
+	log.Debug("received get collection info request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -456,6 +467,7 @@ func indexesToPb(indexes []db.Index) []*pb.Index {
 }
 
 func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectionIndexesRequest) (*pb.GetCollectionIndexesReply, error) {
+	log.Debug("received get collection indexes request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -474,6 +486,7 @@ func (s *Service) GetCollectionIndexes(ctx context.Context, req *pb.GetCollectio
 }
 
 func (s *Service) ListCollections(ctx context.Context, req *pb.ListCollectionsRequest) (*pb.ListCollectionsReply, error) {
+	log.Debug("received list collections request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -501,6 +514,7 @@ func (s *Service) ListCollections(ctx context.Context, req *pb.ListCollectionsRe
 }
 
 func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.CreateReply, error) {
+	log.Debug("received create request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -517,6 +531,7 @@ func (s *Service) Create(ctx context.Context, req *pb.CreateRequest) (*pb.Create
 }
 
 func (s *Service) Verify(ctx context.Context, req *pb.VerifyRequest) (*pb.VerifyReply, error) {
+	log.Debug("received verify request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -533,6 +548,7 @@ func (s *Service) Verify(ctx context.Context, req *pb.VerifyRequest) (*pb.Verify
 }
 
 func (s *Service) Save(ctx context.Context, req *pb.SaveRequest) (*pb.SaveReply, error) {
+	log.Debug("received save request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -549,6 +565,7 @@ func (s *Service) Save(ctx context.Context, req *pb.SaveRequest) (*pb.SaveReply,
 }
 
 func (s *Service) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteReply, error) {
+	log.Debug("received delete request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -565,6 +582,7 @@ func (s *Service) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.Delete
 }
 
 func (s *Service) Has(ctx context.Context, req *pb.HasRequest) (*pb.HasReply, error) {
+	log.Debug("received has request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -581,6 +599,7 @@ func (s *Service) Has(ctx context.Context, req *pb.HasRequest) (*pb.HasReply, er
 }
 
 func (s *Service) Find(ctx context.Context, req *pb.FindRequest) (*pb.FindReply, error) {
+	log.Debug("received find request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -597,6 +616,7 @@ func (s *Service) Find(ctx context.Context, req *pb.FindRequest) (*pb.FindReply,
 }
 
 func (s *Service) FindByID(ctx context.Context, req *pb.FindByIDRequest) (*pb.FindByIDReply, error) {
+	log.Debug("received find by id request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -613,6 +633,7 @@ func (s *Service) FindByID(ctx context.Context, req *pb.FindByIDRequest) (*pb.Fi
 }
 
 func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
+	log.Debug("received read txn request")
 	firstReq, err := stream.Recv()
 	if err != nil {
 		return err
@@ -698,6 +719,7 @@ func (s *Service) ReadTransaction(stream pb.API_ReadTransactionServer) error {
 }
 
 func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
+	log.Debug("received write txn request")
 	firstReq, err := stream.Recv()
 	if err != nil {
 		return err
@@ -833,6 +855,7 @@ func (s *Service) WriteTransaction(stream pb.API_WriteTransactionServer) error {
 }
 
 func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) error {
+	log.Debug("received listen request")
 	id, err := thread.Cast(req.DbID)
 	if err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
@@ -900,6 +923,8 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 			if err != nil {
 				return err
 			}
+
+			log.Debugf("sending listen response: %s %s in %s", replyAction, action.ID, action.Collection)
 			reply := &pb.ListenReply{
 				CollectionName: action.Collection,
 				InstanceID:     action.ID.String(),
@@ -914,6 +939,7 @@ func (s *Service) Listen(req *pb.ListenRequest, server pb.API_ListenServer) erro
 }
 
 func (s *Service) instanceForAction(d *db.DB, action db.Action, token thread.Token) ([]byte, error) {
+	log.Debug("getting instance for action")
 	collection := d.GetCollection(action.Collection, db.WithToken(token))
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
@@ -926,6 +952,7 @@ func (s *Service) instanceForAction(d *db.DB, action db.Action, token thread.Tok
 }
 
 func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token, createFunc func([][]byte, ...db.TxnOption) ([]core.InstanceID, error)) (*pb.CreateReply, error) {
+	log.Debug("handling create request")
 	res, err := createFunc(req.Instances, db.WithTxnToken(token))
 	if err != nil {
 		return &pb.CreateReply{}, err
@@ -938,16 +965,19 @@ func (s *Service) processCreateRequest(req *pb.CreateRequest, token thread.Token
 }
 
 func (s *Service) processVerifyRequest(req *pb.VerifyRequest, token thread.Token, verifyFunc func([][]byte, ...db.TxnOption) error) (*pb.VerifyReply, error) {
+	log.Debug("handling verify request")
 	err := verifyFunc(req.Instances, db.WithTxnToken(token))
 	return &pb.VerifyReply{}, err
 }
 
 func (s *Service) processSaveRequest(req *pb.SaveRequest, token thread.Token, saveFunc func([][]byte, ...db.TxnOption) error) (*pb.SaveReply, error) {
+	log.Debug("handling save request")
 	err := saveFunc(req.Instances, db.WithTxnToken(token))
 	return &pb.SaveReply{}, err
 }
 
 func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token, deleteFunc func([]core.InstanceID, ...db.TxnOption) error) (*pb.DeleteReply, error) {
+	log.Debug("handling delete request")
 	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
@@ -957,6 +987,7 @@ func (s *Service) processDeleteRequest(req *pb.DeleteRequest, token thread.Token
 }
 
 func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasFunc func([]core.InstanceID, ...db.TxnOption) (bool, error)) (*pb.HasReply, error) {
+	log.Debug("handling has request")
 	instanceIDs := make([]core.InstanceID, len(req.InstanceIDs))
 	for i, ID := range req.InstanceIDs {
 		instanceIDs[i] = core.InstanceID(ID)
@@ -966,12 +997,14 @@ func (s *Service) processHasRequest(req *pb.HasRequest, token thread.Token, hasF
 }
 
 func (s *Service) processFindByIDRequest(req *pb.FindByIDRequest, token thread.Token, findFunc func(id core.InstanceID, opts ...db.TxnOption) ([]byte, error)) (*pb.FindByIDReply, error) {
+	log.Debug("handling find by id request")
 	instanceID := core.InstanceID(req.InstanceID)
 	found, err := findFunc(instanceID, db.WithTxnToken(token))
 	return &pb.FindByIDReply{Instance: found}, err
 }
 
 func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, findFunc func(q *db.Query, opts ...db.TxnOption) (ret [][]byte, err error)) (*pb.FindReply, error) {
+	log.Debug("handling find request")
 	q := &db.Query{}
 	if err := json.Unmarshal(req.QueryJSON, q); err != nil {
 		return &pb.FindReply{}, err
@@ -981,6 +1014,7 @@ func (s *Service) processFindRequest(req *pb.FindRequest, token thread.Token, fi
 }
 
 func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (*db.DB, error) {
+	log.Debugf("getting db %s", id)
 	d, err := s.manager.GetDB(ctx, id, db.WithManagedToken(token))
 	if err != nil {
 		if errors.Is(err, lstore.ErrThreadNotFound) || errors.Is(err, db.ErrDBNotFound) {
@@ -989,10 +1023,12 @@ func (s *Service) getDB(ctx context.Context, id thread.ID, token thread.Token) (
 			return nil, err
 		}
 	}
+	log.Debugf("got db %s", id)
 	return d, nil
 }
 
 func (s *Service) getCollection(ctx context.Context, collectionName string, id thread.ID, token thread.Token) (*db.Collection, error) {
+	log.Debugf("getting collection %s", collectionName)
 	d, err := s.getDB(ctx, id, token)
 	if err != nil {
 		return nil, err
@@ -1001,5 +1037,6 @@ func (s *Service) getCollection(ctx context.Context, collectionName string, id t
 	if collection == nil {
 		return nil, status.Error(codes.NotFound, db.ErrCollectionNotFound.Error())
 	}
+	log.Debugf("got collection %s", collectionName)
 	return collection, nil
 }
