@@ -104,6 +104,7 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 		NetPullingInitialInterval: config.NetPullingInitialInterval,
 		NetPullingInterval:        config.NetPullingInterval,
 		NoNetPulling:              config.NoNetPulling,
+		NoExchangeEdgesMigration:  config.NoExchangeEdgesMigration,
 		PubSub:                    config.PubSub,
 		Debug:                     config.Debug,
 	}, config.GRPCServerOptions, config.GRPCDialOptions)
@@ -284,6 +285,7 @@ type NetConfig struct {
 	NetPullingInitialInterval time.Duration
 	NetPullingInterval        time.Duration
 	NoNetPulling              bool
+	NoExchangeEdgesMigration  bool
 	PubSub                    bool
 	LSType                    LogstoreType
 	BadgerRepoPath            string
@@ -311,6 +313,13 @@ func WithNetPulling(threadLimit uint, startAfter, initialInterval, interval time
 func WithNoNetPulling(disable bool) NetOption {
 	return func(c *NetConfig) error {
 		c.NoNetPulling = disable
+		return nil
+	}
+}
+
+func WithNoExchangeEdgesMigration(disable bool) NetOption {
+	return func(c *NetConfig) error {
+		c.NoExchangeEdgesMigration = disable
 		return nil
 	}
 }
