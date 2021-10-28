@@ -270,12 +270,11 @@ type iterator struct {
 	nextKeys func() ([]ds.Key, error)
 	txn      ds.Txn
 	query    *Query
-	err      error
 	keyCache []ds.Key
 	iter     query.Results
 }
 
-func newIterator(txn dse.TxnExt, baseKey ds.Key, q *Query) *iterator {
+func newIterator(txn dse.TxnExt, baseKey ds.Key, q *Query) (*iterator, error) {
 	i := &iterator{
 		txn:   txn,
 		query: q,
@@ -306,14 +305,18 @@ func newIterator(txn dse.TxnExt, baseKey ds.Key, q *Query) *iterator {
 	if q.Seek != "" {
 		dsq.SeekPrefix = prefix.Child(ds.NewKey(string(q.Seek))).String()
 	}
-	i.iter, i.err = txn.QueryExtended(dsq)
+	iter, err := txn.QueryExtended(dsq)
+	if err != nil {
+		return nil, err
+	}
+	i.iter = iter
 
 	// Key field or index not specified, pass thru to base 'iterator'
 	if q.Index == "" {
 		i.nextKeys = func() ([]ds.Key, error) {
 			return nil, nil
 		}
-		return i
+		return i, nil
 	}
 
 	// indexed field, get keys from index
@@ -361,7 +364,7 @@ func newIterator(txn dse.TxnExt, baseKey ds.Key, q *Query) *iterator {
 		}
 		return nKeys, nil
 	}
-	return i
+	return i, nil
 }
 
 // NextSync returns the next key value that matches the iterators criteria
@@ -433,9 +436,4 @@ func (i *iterator) NextSync() (MarshaledResult, bool) {
 
 func (i *iterator) Close() {
 	i.iter.Close()
-}
-
-// Error returns the last error on the iterator
-func (i *iterator) Error() error {
-	return i.err
 }
