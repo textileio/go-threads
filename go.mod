@@ -51,8 +51,8 @@ require (
 	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
 	github.com/textileio/go-ds-mongo v0.1.5
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
-	github.com/tidwall/gjson v1.8.1
-	github.com/tidwall/sjson v1.0.4
+	github.com/tidwall/gjson v1.10.2
+	github.com/tidwall/sjson v1.2.3
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0
