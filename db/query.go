@@ -306,7 +306,10 @@ func (t *Txn) Find(q *Query) ([][]byte, error) {
 		return nil, fmt.Errorf("error building internal query: %v", err)
 	}
 	defer txn.Discard()
-	iter := newIterator(txn, t.collection.baseKey(), q)
+	iter, err := newIterator(txn, t.collection.baseKey(), q)
+	if err != nil {
+		return nil, err
+	}
 	defer iter.Close()
 
 	pk, err := t.token.PubKey()

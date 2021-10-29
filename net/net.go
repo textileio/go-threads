@@ -22,13 +22,13 @@ import (
 	pstore "github.com/libp2p/go-libp2p-core/peerstore"
 	gostream "github.com/libp2p/go-libp2p-gostream"
 	ma "github.com/multiformats/go-multiaddr"
+	sym "github.com/textileio/crypto/symmetric"
 	"github.com/textileio/go-threads/broadcast"
 	"github.com/textileio/go-threads/cbor"
 	"github.com/textileio/go-threads/core/app"
 	lstore "github.com/textileio/go-threads/core/logstore"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/crypto/symmetric"
 	pb "github.com/textileio/go-threads/net/pb"
 	"github.com/textileio/go-threads/net/queue"
 	"github.com/textileio/go-threads/net/util"
@@ -109,6 +109,7 @@ type Config struct {
 	NetPullingInitialInterval time.Duration
 	NetPullingInterval        time.Duration
 	NoNetPulling              bool
+	NoExchangeEdgesMigration  bool
 	PubSub                    bool
 	Debug                     bool
 }
@@ -215,6 +216,10 @@ func (n *net) countRecords(ctx context.Context, tid thread.ID, rid cid.Cid) (int
 }
 
 func (n *net) migrateHeadsIfNeeded(ctx context.Context, ls lstore.Logstore) (err error) {
+	if n.conf.NoExchangeEdgesMigration {
+		return nil
+	}
+
 	threadIds, err := ls.Threads()
 	if err != nil {
 		return err

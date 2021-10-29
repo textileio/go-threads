@@ -45,6 +45,7 @@ func main() {
 	netPullingStartAfter := fs.Duration("netPullingStartAfter", time.Second, "Delay after which thread pulling from network peers starts (must be > 0)")
 	netPullingInitialInterval := fs.Duration("netPullingInitialInterval", time.Second, "Initial (first run) interval at which threads are pulled from network peers (must be > 0)")
 	netPullingInterval := fs.Duration("netPullingInterval", time.Second*10, "Interval at which threads are pulled from network peers (must be > 0)")
+	disableExchangeEdgesMigration := fs.Bool("disableExchangeEdgesMigration", false, "Disables automatic thread migration to the exchangeEdges protocol")
 	enableNetPubsub := fs.Bool("enableNetPubsub", false, "Enables thread networking over libp2p pubsub")
 	mongoUri := fs.String("mongoUri", "", "MongoDB URI (if not provided, an embedded Badger datastore will be used)")
 	mongoDatabase := fs.String("mongoDatabase", "", "MongoDB database name (required with mongoUri")
@@ -117,6 +118,7 @@ func main() {
 			*netPullingInterval,
 		),
 		common.WithNoNetPulling(*disableNetPulling),
+		common.WithNoExchangeEdgesMigration(*disableExchangeEdgesMigration),
 		common.WithNetPubSub(*enableNetPubsub),
 		common.WithNetLogstore(common.LogstoreHybrid),
 		common.WithNetDebug(*debug),
