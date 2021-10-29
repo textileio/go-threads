@@ -13,6 +13,7 @@ import (
 	pb "github.com/textileio/go-threads/api/pb"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
+	tu "github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -170,7 +171,7 @@ func (c *Client) NewDB(ctx context.Context, dbID thread.ID, opts ...db.NewManage
 	var logKey []byte
 	if args.LogKey != nil {
 		var err error
-		logKey, err = args.LogKey.Bytes()
+		logKey, err = tu.KeyBytes(args.LogKey)
 		if err != nil {
 			return err
 		}
@@ -203,7 +204,7 @@ func (c *Client) NewDBFromAddr(ctx context.Context, dbAddr ma.Multiaddr, dbKey t
 	var logKey []byte
 	if args.LogKey != nil {
 		var err error
-		logKey, err = args.LogKey.Bytes()
+		logKey, err = tu.KeyBytes(args.LogKey)
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/dgraph-io/badger/options"
 	ipfslite "github.com/hsanjuan/ipfs-lite"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	mbase "github.com/multiformats/go-multibase"
@@ -252,6 +254,16 @@ func ComputeAddrsEdge(as []PeerAddr) uint64 {
 		_, _ = hasher.Write(as[i].Addr.Bytes())
 	}
 	return hasher.Sum64()
+}
+
+func KeyBytes(key crypto.Key) ([]byte, error) {
+	if pk, ok := key.(crypto.PubKey); ok {
+		return crypto.MarshalPublicKey(pk)
+	} else if sk, ok := key.(crypto.PrivKey); ok {
+		return crypto.MarshalPrivateKey(sk)
+	} else {
+		return nil, errors.New("can't marshal; key invalid")
+	}
 }
 
 func StopGRPCServer(server *grpc.Server) {

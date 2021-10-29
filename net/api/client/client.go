@@ -8,18 +8,19 @@ import (
 	"log"
 
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipld-format"
+	format "github.com/ipfs/go-ipld-format"
 	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/textileio/crypto"
+	"github.com/textileio/crypto/symmetric"
 	"github.com/textileio/go-threads/cbor"
 	core "github.com/textileio/go-threads/core/net"
 	"github.com/textileio/go-threads/core/thread"
-	"github.com/textileio/crypto"
-	"github.com/textileio/crypto/symmetric"
 	"github.com/textileio/go-threads/net"
 	pb "github.com/textileio/go-threads/net/api/pb"
 	"github.com/textileio/go-threads/net/util"
+	tu "github.com/textileio/go-threads/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -339,7 +340,7 @@ func getThreadKeys(args *core.NewThreadOptions) (*pb.Keys, error) {
 	}
 	if args.LogKey != nil {
 		var err error
-		keys.LogKey, err = args.LogKey.Bytes()
+		keys.LogKey, err = tu.KeyBytes(args.LogKey)
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +401,7 @@ func threadInfoFromProto(reply *pb.ThreadInfoReply) (info thread.Info, err error
 			PubKey:  pk,
 			PrivKey: sk,
 			Addrs:   addrs,
-			Head:    thread.Head{
+			Head: thread.Head{
 				ID:      head,
 				Counter: counter,
 			},

@@ -19,38 +19,38 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
-	github.com/hsanjuan/ipfs-lite v1.1.21
+	github.com/hsanjuan/ipfs-lite v1.1.23
 	github.com/improbable-eng/grpc-web v0.14.0
 	github.com/ipfs/go-block-format v0.0.3
-	github.com/ipfs/go-blockservice v0.1.4
-	github.com/ipfs/go-cid v0.0.7
-	github.com/ipfs/go-datastore v0.4.5
+	github.com/ipfs/go-blockservice v0.1.7
+	github.com/ipfs/go-cid v0.1.0
+	github.com/ipfs/go-datastore v0.5.0
 	github.com/ipfs/go-ipfs-blockstore v1.0.4
 	github.com/ipfs/go-ipfs-exchange-offline v0.0.1
 	github.com/ipfs/go-ipfs-util v0.0.2
 	github.com/ipfs/go-ipld-cbor v0.0.5
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-log/v2 v2.3.0
-	github.com/ipfs/go-merkledag v0.3.2
-	github.com/libp2p/go-libp2p v0.14.4
+	github.com/ipfs/go-merkledag v0.4.0
+	github.com/libp2p/go-libp2p v0.15.1
 	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.8.6
+	github.com/libp2p/go-libp2p-core v0.9.0
 	github.com/libp2p/go-libp2p-gostream v0.3.1
-	github.com/libp2p/go-libp2p-peerstore v0.2.8
-	github.com/libp2p/go-libp2p-pubsub v0.5.4
-	github.com/multiformats/go-multiaddr v0.3.3
+	github.com/libp2p/go-libp2p-peerstore v0.3.0
+	github.com/libp2p/go-libp2p-pubsub v0.5.5
+	github.com/multiformats/go-multiaddr v0.4.1
 	github.com/multiformats/go-multibase v0.0.3
-	github.com/multiformats/go-multihash v0.0.15
+	github.com/multiformats/go-multihash v0.0.16
 	github.com/multiformats/go-varint v0.0.6
 	github.com/namsral/flag v1.7.4-pre
 	github.com/oklog/ulid/v2 v2.0.2
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/textileio/crypto v0.0.0-20210928200545-9b5a55171e1b
-	github.com/textileio/go-datastore-extensions v1.0.1
-	github.com/textileio/go-ds-badger v0.2.7-0.20201204225019-4ee78c4a40e2
+	github.com/textileio/go-datastore-extensions v1.1.0
+	github.com/textileio/go-ds-badger v0.2.7-0.20211028235339-0e5e9267e2f5
 	github.com/textileio/go-ds-mongo v0.1.5
-	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
+	github.com/textileio/go-libp2p-pubsub-rpc v0.0.6
 	github.com/tidwall/gjson v1.10.2
 	github.com/tidwall/sjson v1.2.3
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
@@ -59,7 +59,7 @@ require (
 	go.uber.org/zap v1.19.0
 	golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/grpc v1.39.0
+	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
 	nhooyr.io/websocket v1.8.7 // indirect
 )

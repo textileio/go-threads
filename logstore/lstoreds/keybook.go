@@ -7,9 +7,9 @@ import (
 	"github.com/ipfs/go-datastore/query"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	sym "github.com/textileio/crypto/symmetric"
 	core "github.com/textileio/go-threads/core/logstore"
 	"github.com/textileio/go-threads/core/thread"
-	sym "github.com/textileio/crypto/symmetric"
 	"github.com/whyrusleeping/base32"
 )
 
@@ -67,7 +67,7 @@ func (kb *dsKeyBook) AddPubKey(t thread.ID, p peer.ID, pk crypto.PubKey) error {
 	if !p.MatchesPublicKey(pk) {
 		return fmt.Errorf("log ID doesn't provided match public key")
 	}
-	val, err := pk.Bytes()
+	val, err := crypto.MarshalPublicKey(pk)
 	if err != nil {
 		return fmt.Errorf("error when getting bytes from public key: %w", err)
 	}
@@ -104,7 +104,7 @@ func (kb *dsKeyBook) AddPrivKey(t thread.ID, p peer.ID, sk crypto.PrivKey) error
 	if !p.MatchesPrivateKey(sk) {
 		return fmt.Errorf("peer ID doesn't match with private key")
 	}
-	skb, err := sk.Bytes()
+	skb, err := crypto.MarshalPrivateKey(sk)
 	if err != nil {
 		return fmt.Errorf("error when getting private key bytes: %w", err)
 	}
