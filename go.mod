@@ -53,6 +53,7 @@ require (
 	github.com/textileio/go-libp2p-pubsub-rpc v0.0.5
 	github.com/tidwall/gjson v1.10.2
 	github.com/tidwall/sjson v1.2.3
+	github.com/tjarratt/babble v0.0.0-20210505082055-cbca2a4833c1
 	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0

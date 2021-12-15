@@ -2,19 +2,69 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
+	"time"
 
+	"github.com/multiformats/go-multiaddr"
 	"github.com/namsral/flag"
 	dbc "github.com/textileio/go-threads/api/client"
 	"github.com/textileio/go-threads/core/thread"
+	"github.com/textileio/go-threads/db"
+	"github.com/textileio/go-threads/syncer/clock"
+	"github.com/textileio/go-threads/util"
+	"github.com/tjarratt/babble"
 	"google.golang.org/grpc"
 )
 
+const dbname = "Syncer"
+
+const collection = "Babble"
+
+const schema = `{
+		"$id": "https://example.com/person.schema.json",
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"title": "` + collection + `",
+		"type": "object",
+		"properties": {
+			"_id": {
+				"type": "string",
+				"description": "The instance's id."
+			},
+			"Words": {
+				"type": "string",
+				"description": "Random words."
+			}
+		}
+	}`
+
+type Babble struct {
+	ID    string `json:"_id"`
+	Words string `json:"words,omitempty"`
+}
+
+type arrayFlags []string
+
+func (i *arrayFlags) String() string {
+	return "my string representation"
+}
+
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+var babbler = babble.NewBabbler()
+
 func main() {
-	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], "SYNCER", 0)
+	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], strings.ToUpper(dbname), 0)
+
+	var joins arrayFlags
+	fs.Var(&joins, "join", "Thread to join with key, e.g., address:key")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
 	}
@@ -24,34 +74,106 @@ func main() {
 		log.Fatal(err)
 	}
 
-	id := thread.NewIDV1(thread.Raw, 32)
-	if err := client.NewDB(context.Background(), id); err != nil {
-		log.Fatal(err)
-	}
-	info, err := client.GetDBInfo(context.Background(), id)
+	threads := make(map[thread.ID]db.Info)
+
+	dbs, err := client.ListDBs(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
+	for _, i := range dbs {
+		if i.Name == dbname {
+			id, err := thread.FromAddr(i.Addrs[0])
+			if err != nil {
+				log.Fatal(err)
+			}
+			threads[id] = i
+		}
+	}
 
-	// t.Run("test new db with missing read key", func(t *testing.T) {
-	// 	if err = client2.NewDBFromAddr(
-	// 		context.Background(),
-	// 		info.Addrs[0],
-	// 		thread.NewServiceKey(info.Key.Service()),
-	// 	); err == nil || !strings.Contains(err.Error(), db.ErrThreadReadKeyRequired.Error()) {
-	// 		t.Fatal("new db from addr without read key should fail")
-	// 	}
-	// })
-	//
-	// t.Run("test new db from address", func(t *testing.T) {
-	// 	if err = client2.NewDBFromAddr(context.Background(), info.Addrs[0], info.Key); err != nil {
-	// 		t.Fatalf("failed to create new db from address: %v", err)
-	// 	}
-	// })
+	if len(threads) == 0 {
+		id := thread.NewIDV1(thread.Raw, 32)
+		opts := []db.NewManagedOption{
+			db.WithNewManagedName("Syncer"),
+			db.WithNewManagedCollections(
+				db.CollectionConfig{
+					Name:   collection,
+					Schema: util.SchemaFromSchemaString(schema),
+				},
+			),
+		}
+		if err := client.NewDB(context.Background(), id, opts...); err != nil {
+			log.Fatal(err)
+		}
+		info, err := client.GetDBInfo(context.Background(), id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		j, err := json.MarshalIndent(info, "", "  ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("created thread:\n")
+		fmt.Printf("%s\n", j)
+		threads[id] = info
+	}
 
-	fmt.Printf("%v\n", info)
+	for _, j := range joins {
+		parts := strings.Split(j, ":")
+		if len(parts) != 2 {
+			log.Fatal("invalid join arg; must be address:key format")
+		}
+		var addrs []multiaddr.Multiaddr
+		a, err := multiaddr.NewMultiaddr(parts[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		addrs = append(addrs, a)
+		id, err := thread.FromAddr(addrs[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		key, err := thread.KeyFromString(parts[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := client.NewDBFromAddr(context.Background(), addrs[0], key); err != nil {
+			log.Fatal(err)
+		}
+		info, err := client.GetDBInfo(context.Background(), id)
+		if err != nil {
+			log.Fatal(err)
+		}
+		j, err := json.MarshalIndent(info, "", "  ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("joined thread:\n")
+		fmt.Printf("%s\n", j)
+		threads[id] = info
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var clocks []*clock.RandomTicker
+	for id := range threads {
+		c := clock.NewRandomTicker(time.Millisecond*100, time.Second*5)
+		clocks = append(clocks, c)
+		go func(id thread.ID) {
+			for range c.C {
+				b := newBabble()
+				ids, err := client.Create(ctx, id, collection, dbc.Instances{b})
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Printf("babbled: %s %s\n", ids[0], b.Words)
+			}
+		}(id)
+	}
 
 	handleInterrupt(func() {
+		cancel()
+		for _, c := range clocks {
+			c.Stop()
+		}
 		if err := client.Close(); err != nil {
 			log.Fatal(err)
 		}
@@ -65,4 +187,10 @@ func handleInterrupt(stop func()) {
 	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 	stop()
 	os.Exit(1)
+}
+
+func newBabble() *Babble {
+	return &Babble{
+		Words: babbler.Babble(),
+	}
 }
