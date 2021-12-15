@@ -104,10 +104,13 @@ func (gc *dsAddrBookGc) purgeStore() {
 		if !record.clean() {
 			continue
 		}
+		if record.ThreadID == nil || record.PeerID == nil {
+			continue
+		}
 
 		id := genCacheKey(record.ThreadID.ID, record.PeerID.ID)
 		if err := record.flush(batch); err != nil {
-			log.Warnf("failed to flush entry modified by GC for peer: &v, err: %v", id, err)
+			log.Warnf("failed to flush entry modified by GC for peer: %v, err: %v", id, err)
 		}
 		gc.ab.cache.Remove(id)
 	}
