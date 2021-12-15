@@ -15,7 +15,6 @@ import (
 	dbc "github.com/textileio/go-threads/api/client"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
-	"github.com/textileio/go-threads/syncer/clock"
 	"github.com/textileio/go-threads/util"
 	"github.com/tjarratt/babble"
 	"google.golang.org/grpc"
@@ -185,11 +184,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	c := clock.NewRandomTicker(time.Millisecond*100, time.Second*3)
+	t := time.NewTicker(time.Millisecond * 200)
 	go func() {
 		for {
 			select {
-			case _, ok := <-c.C:
+			case _, ok := <-t.C:
 				if !ok {
 					return
 				}
@@ -212,7 +211,7 @@ func main() {
 
 	handleInterrupt(func() {
 		cancel()
-		c.Stop()
+		t.Stop()
 		if err := client.Close(); err != nil {
 			log.Fatal(err)
 		}
