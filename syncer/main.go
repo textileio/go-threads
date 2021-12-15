@@ -170,9 +170,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var clocks []*clock.RandomTicker
 	for id := range threads {
-		c := clock.NewRandomTicker(time.Millisecond*100, time.Second*5)
+		c := clock.NewRandomTicker(time.Millisecond*100, time.Second*3)
 		clocks = append(clocks, c)
-		go func(id thread.ID) {
+		go func(id thread.ID, c *clock.RandomTicker) {
 			events, err := client.Listen(ctx, id, []dbc.ListenOption{{
 				Type: dbc.ListenAll,
 			}})
@@ -187,11 +187,11 @@ func main() {
 						return
 					}
 					b := newBabble()
-					ids, err := client.Create(ctx, id, collection, dbc.Instances{b})
+					_, err := client.Create(ctx, id, collection, dbc.Instances{b})
 					if err != nil {
 						log.Fatal(err)
 					}
-					fmt.Printf("babbled: %s %s\n", ids[0], b.Words)
+					// fmt.Printf("babbled: %s %s\n", ids[0], b.Words)
 				case e := <-events:
 					if e.Err != nil {
 						fmt.Printf("got error: %s n", e.Err)
@@ -200,11 +200,11 @@ func main() {
 						if err := json.Unmarshal(e.Action.Instance, &b); err != nil {
 							log.Fatal(err)
 						}
-						fmt.Printf("got babble: %s %s\n", b.ID, b.Words)
+						fmt.Printf("babble: %s %s\n", b.ID, b.Words)
 					}
 				}
 			}
-		}(id)
+		}(id, c)
 	}
 
 	handleInterrupt(func() {
