@@ -86,6 +86,12 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
+			j, err := json.MarshalIndent(threadInfo(i), "", "  ")
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("using thread:\n")
+			fmt.Printf("%s\n", j)
 			threads[id] = i
 		}
 	}
@@ -108,7 +114,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		j, err := json.MarshalIndent(info, "", "  ")
+		j, err := json.MarshalIndent(threadInfo(info), "", "  ")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -143,7 +149,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		j, err := json.MarshalIndent(info, "", "  ")
+		j, err := json.MarshalIndent(threadInfo(info), "", "  ")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -187,6 +193,18 @@ func handleInterrupt(stop func()) {
 	fmt.Println("Gracefully stopping... (press Ctrl+C again to force)")
 	stop()
 	os.Exit(1)
+}
+
+func threadInfo(info db.Info) interface{} {
+	return struct {
+		Name  string
+		Addrs []multiaddr.Multiaddr
+		Key   string
+	}{
+		Name:  info.Name,
+		Addrs: info.Addrs,
+		Key:   info.Key.String(),
+	}
 }
 
 func newBabble() *Babble {
