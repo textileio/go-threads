@@ -142,7 +142,16 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := client.NewDBFromAddr(context.Background(), addrs[0], key); err != nil {
+		opts := []db.NewManagedOption{
+			db.WithNewManagedName("Syncer"),
+			db.WithNewManagedCollections(
+				db.CollectionConfig{
+					Name:   collection,
+					Schema: util.SchemaFromSchemaString(schema),
+				},
+			),
+		}
+		if err := client.NewDBFromAddr(context.Background(), addrs[0], key, opts...); err != nil {
 			log.Fatal(err)
 		}
 		info, err := client.GetDBInfo(context.Background(), id)
@@ -164,13 +173,36 @@ func main() {
 		c := clock.NewRandomTicker(time.Millisecond*100, time.Second*5)
 		clocks = append(clocks, c)
 		go func(id thread.ID) {
-			for range c.C {
-				b := newBabble()
-				ids, err := client.Create(ctx, id, collection, dbc.Instances{b})
-				if err != nil {
-					log.Fatal(err)
+			events, err := client.Listen(ctx, id, []dbc.ListenOption{{
+				Type: dbc.ListenAll,
+			}})
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			for {
+				select {
+				case _, ok := <-c.C:
+					if !ok {
+						return
+					}
+					b := newBabble()
+					ids, err := client.Create(ctx, id, collection, dbc.Instances{b})
+					if err != nil {
+						log.Fatal(err)
+					}
+					fmt.Printf("babbled: %s %s\n", ids[0], b.Words)
+				case e := <-events:
+					if e.Err != nil {
+						fmt.Printf("got error: %s n", e.Err)
+					} else if e.Action.Instance != nil {
+						var b Babble
+						if err := json.Unmarshal(e.Action.Instance, &b); err != nil {
+							log.Fatal(err)
+						}
+						fmt.Printf("got babble: %s %s\n", b.ID, b.Words)
+					}
 				}
-				fmt.Printf("babbled: %s %s\n", ids[0], b.Words)
 			}
 		}(id)
 	}
