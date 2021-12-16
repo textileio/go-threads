@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const dbname = "Syncer"
+const dbname = "synctest"
 
 const collection = "Babble"
 
@@ -93,7 +93,7 @@ func main() {
 		info, err = client.GetDBInfo(context.Background(), id)
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 			opts := []db.NewManagedOption{
-				db.WithNewManagedName("Syncer"),
+				db.WithNewManagedName(dbname),
 				db.WithNewManagedCollections(
 					db.CollectionConfig{
 						Name:   collection,
@@ -153,7 +153,7 @@ func main() {
 		if !id.Defined() {
 			id = thread.NewIDV1(thread.Raw, 32)
 			opts := []db.NewManagedOption{
-				db.WithNewManagedName("Syncer"),
+				db.WithNewManagedName(dbname),
 				db.WithNewManagedCollections(
 					db.CollectionConfig{
 						Name:   collection,
