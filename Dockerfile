@@ -1,5 +1,5 @@
-FROM golang:1.15.5-buster
-MAINTAINER Textile <contact@textile.io>
+FROM golang:1.17.5-buster
+LABEL maintainer="Textile <contact@textile.io>"
 
 # This is (in large part) copied (with love) from
 # https://hub.docker.com/r/ipfs/go-ipfs/dockerfile
