@@ -33,7 +33,7 @@ jobs:
       - name: Compile
         run: |
           export PATH=${PATH}:`go env GOPATH`/bin
-          gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
+          gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64" -output="threadsd-{{.OS}}-{{.Arch}}" ./threadsd
       - name: Collect artifacts
         run: |
           VERSION=${GITHUB_REF##*/}
@@ -43,7 +43,7 @@ jobs:
           cp LICENSE threadsd/
           cp dist/README.md threadsd/
           cp dist/install threadsd/
-          declare -a arr=("darwin-amd64" "windows-amd64.exe" "linux-amd64" "linux-386" "linux-arm")
+          declare -a arr=("darwin-amd64" "darwin-arm64" "windows-amd64.exe" "linux-amd64" "linux-386" "linux-arm")
           for i in "${arr[@]}"
           do
               OSARCH=${i%.*}
