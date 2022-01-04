@@ -94,7 +94,7 @@ import "github.com/textileio/go-threads/api/client"
 
 ## Getting Started
 
-You can think of the [DB client](github.com/textileio/go-threads/api/client) as a gRPC client wrapper around the internal `db` package API, and the [Network client](github.com/textileio/go-threads/net/api/client) as a gRPC client wrapper around the internal `net` package API. This section will only focus on getting started with the gRPC clients, but Golang apps may choose to interact directly with `db` and/or `net`.
+You can think of the [DB client](https://pkg.go.dev/github.com/textileio/go-threads/api/client) as a gRPC client wrapper around the internal `db` package API, and the [Network client](https://pkg.go.dev/github.com/textileio/go-threads/net/api/client) as a gRPC client wrapper around the internal `net` package API. This section will only focus on getting started with the gRPC clients, but Golang apps may choose to interact directly with `db` and/or `net`.
 
 ### Running ThreadDB
 
