@@ -43,6 +43,8 @@ var (
 	errCantCreateExistingInstance  = errors.New("can't create already existing instance")
 
 	baseKey = dsPrefix.ChildString("collection")
+
+	vmTimeout = time.Millisecond * 200
 )
 
 const (
@@ -85,6 +87,9 @@ func newCollection(d *DB, config CollectionConfig) (*Collection, error) {
 		return nil, err
 	}
 	vm := goja.New()
+	time.AfterFunc(vmTimeout, func() {
+		vm.Interrupt("validator timed out")
+	})
 	wv := []byte(config.WriteValidator)
 	rf := []byte(config.ReadFilter)
 	c := &Collection{
