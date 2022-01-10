@@ -139,7 +139,7 @@ func main() {
 	} else {
 		opts = append(opts, common.WithNetBadgerPersistence(*repo))
 	}
-	if announceAddrStr != nil {
+	if announceAddr != nil {
 		opts = append(opts, common.WithAnnounceAddr(announceAddr))
 	}
 	n, err := common.DefaultNetwork(opts...)
