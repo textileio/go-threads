@@ -34,6 +34,7 @@ func main() {
 
 	repo := fs.String("repo", ".threads", "Repo location")
 	hostAddrStr := fs.String("hostAddr", "/ip4/0.0.0.0/tcp/4006", "Libp2p host bind address")
+	announceAddrStr := fs.String("announceAddr", "", "Libp2p announce address") // Should be supplied as multiaddr, /ip4/<your_public_ip>/tcp/4006
 	apiAddrStr := fs.String("apiAddr", "/ip4/127.0.0.1/tcp/6006", "gRPC API bind address")
 	apiProxyAddrStr := fs.String("apiProxyAddr", "/ip4/127.0.0.1/tcp/6007", "gRPC API web proxy bind address")
 	connLowWater := fs.Uint("connLowWater", 100, "Low watermark of libp2p connections that'll be maintained")
@@ -59,6 +60,13 @@ func main() {
 	hostAddr, err := ma.NewMultiaddr(*hostAddrStr)
 	if err != nil {
 		log.Fatal(err)
+	}
+	var announceAddr ma.Multiaddr
+	if *announceAddrStr != "" {
+		announceAddr, err = ma.NewMultiaddr(*announceAddrStr)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	apiAddr, err := ma.NewMultiaddr(*apiAddrStr)
 	if err != nil {
@@ -93,6 +101,9 @@ func main() {
 
 	log.Debugf("repo: %v", *repo)
 	log.Debugf("hostAddr: %v", *hostAddrStr)
+	if announceAddr != nil {
+		log.Debugf("announceAddr: %v", *announceAddrStr)
+	}
 	log.Debugf("apiAddr: %v", *apiAddrStr)
 	log.Debugf("apiProxyAddr: %v", *apiProxyAddrStr)
 	log.Debugf("connLowWater: %v", *connLowWater)
@@ -127,6 +138,9 @@ func main() {
 		opts = append(opts, common.WithNetMongoPersistence(*mongoUri, *mongoDatabase))
 	} else {
 		opts = append(opts, common.WithNetBadgerPersistence(*repo))
+	}
+	if announceAddr != nil {
+		opts = append(opts, common.WithAnnounceAddr(announceAddr))
 	}
 	n, err := common.DefaultNetwork(opts...)
 	if err != nil {
