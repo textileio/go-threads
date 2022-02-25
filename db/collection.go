@@ -44,7 +44,7 @@ var (
 
 	baseKey = dsPrefix.ChildString("collection")
 
-	vmTimeout = time.Millisecond * 200
+	vmTimeout = time.Second * 30
 )
 
 const (
@@ -87,9 +87,6 @@ func newCollection(d *DB, config CollectionConfig) (*Collection, error) {
 		return nil, err
 	}
 	vm := goja.New()
-	time.AfterFunc(vmTimeout, func() {
-		vm.Interrupt("validator timed out")
-	})
 	wv := []byte(config.WriteValidator)
 	rf := []byte(config.ReadFilter)
 	c := &Collection{
@@ -344,6 +341,9 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 			return fmt.Errorf("parsing instance in validate write: %v", err)
 		}
 	}
+	time.AfterFunc(vmTimeout, func() {
+		c.vm.Interrupt("validator timed out")
+	})
 	res, err := c.writeValidator(nil, writer, event, inv)
 	if err != nil {
 		return fmt.Errorf("running write validator func: %v", err)
@@ -377,6 +377,9 @@ func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte
 	if err != nil {
 		return nil, fmt.Errorf("parsing instance in filter read: %v", err)
 	}
+	time.AfterFunc(vmTimeout, func() {
+		c.vm.Interrupt("filter timed out")
+	})
 	res, err := c.readFilter(nil, reader, inv)
 	if err != nil {
 		return nil, fmt.Errorf("running read filter func: %v", err)
