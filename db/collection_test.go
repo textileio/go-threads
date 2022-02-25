@@ -143,6 +143,21 @@ func TestNewCollection(t *testing.T) {
 		if err == nil {
 			t.Fatal("delete should have been invalid")
 		}
+
+		// test vm interupt
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			WriteValidator: `
+				while(true){}
+			`,
+		})
+		checkErr(t, err)
+		dog = Dog{Name: "Fido", Comments: []Comment{}}
+		id, err = c.Create(util.JSONFromInstance(dog))
+		if err == nil {
+			t.Fatal("should get validator timed out error")
+		}
 	})
 	t.Run("WithReadFilter", func(t *testing.T) {
 		t.Parallel()
@@ -166,6 +181,20 @@ func TestNewCollection(t *testing.T) {
 		util.InstanceFromJSON(res, &filtered)
 		if filtered.Name != "Clyde" {
 			t.Fatal("name should have been modified by read filter")
+		}
+
+		// test vm interupt
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			ReadFilter: `
+				while(true){}
+			`,
+		})
+		checkErr(t, err)
+		_, err = c.FindByID(id)
+		if err == nil {
+			t.Fatal("should get filter timed out error")
 		}
 	})
 	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
