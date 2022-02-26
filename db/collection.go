@@ -44,7 +44,7 @@ var (
 
 	baseKey = dsPrefix.ChildString("collection")
 
-	vmTimeout = time.Second * 30
+	vmTimeout = time.Second
 )
 
 const (
@@ -341,13 +341,15 @@ func (c *Collection) validWrite(identity thread.PubKey, e core.Event) error {
 			return fmt.Errorf("parsing instance in validate write: %v", err)
 		}
 	}
-	time.AfterFunc(vmTimeout, func() {
+	c.vm.ClearInterrupt()
+	timer := time.AfterFunc(vmTimeout, func() {
 		c.vm.Interrupt("validator timed out")
 	})
 	res, err := c.writeValidator(nil, writer, event, inv)
 	if err != nil {
 		return fmt.Errorf("running write validator func: %v", err)
 	}
+	timer.Stop()
 	out := res.Export()
 	switch out.(type) {
 	case bool:
@@ -377,13 +379,15 @@ func (c *Collection) filterRead(identity thread.PubKey, instance []byte) ([]byte
 	if err != nil {
 		return nil, fmt.Errorf("parsing instance in filter read: %v", err)
 	}
-	time.AfterFunc(vmTimeout, func() {
+	c.vm.ClearInterrupt()
+	timer := time.AfterFunc(vmTimeout, func() {
 		c.vm.Interrupt("filter timed out")
 	})
 	res, err := c.readFilter(nil, reader, inv)
 	if err != nil {
 		return nil, fmt.Errorf("running read filter func: %v", err)
 	}
+	timer.Stop()
 	out := res.Export()
 	switch out.(type) {
 	case nil:
