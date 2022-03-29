@@ -1575,7 +1575,8 @@ func (n *net) ensureUniqueLog(id thread.ID, key crypto.Key, identity thread.PubK
 		if lidb == nil {
 			// Check if we have an old-style "own" (unindexed) log
 			if identity.Equals(thread.NewLibp2pPubKey(n.getPrivKey().GetPublic())) {
-				if thrd.GetFirstPrivKeyLog().PrivKey != nil {
+				li := thrd.GetFirstPrivKeyLog()
+				if li != nil && li.PrivKey != nil {
 					return lstore.ErrThreadExists
 				}
 			}
