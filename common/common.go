@@ -73,15 +73,24 @@ func DefaultNetwork(opts ...NetOption) (NetBoostrapper, error) {
 		return nil, fin.Cleanup(err)
 	}
 
+	libp2pOptions := []libp2p.Option{
+		libp2p.Peerstore(pstore),
+		libp2p.ConnectionManager(config.ConnManager),
+		libp2p.DisableRelay(),
+	}
+	if config.AnnounceAddr != nil {
+		libp2pOptions = append(libp2pOptions, libp2p.AddrsFactory(func([]ma.Multiaddr) []ma.Multiaddr {
+			return []ma.Multiaddr{config.AnnounceAddr}
+		}))
+	}
+
 	h, d, err := ipfslite.SetupLibp2p(
 		ctx,
 		hostKey,
 		nil,
 		[]ma.Multiaddr{config.HostAddr},
 		litestore,
-		libp2p.Peerstore(pstore),
-		libp2p.ConnectionManager(config.ConnManager),
-		libp2p.DisableRelay(),
+		libp2pOptions...,
 	)
 	if err != nil {
 		return nil, fin.Cleanup(err)
@@ -292,6 +301,7 @@ type NetConfig struct {
 	MongoUri                  string
 	MongoDB                   string
 	HostAddr                  ma.Multiaddr
+	AnnounceAddr              ma.Multiaddr
 	ConnManager               cconnmgr.ConnManager
 	GRPCServerOptions         []grpc.ServerOption
 	GRPCDialOptions           []grpc.DialOption
@@ -384,6 +394,13 @@ func WithNetGRPCDialOptions(opts ...grpc.DialOption) NetOption {
 func WithNetDebug(enabled bool) NetOption {
 	return func(c *NetConfig) error {
 		c.Debug = enabled
+		return nil
+	}
+}
+
+func WithAnnounceAddr(addr ma.Multiaddr) NetOption {
+	return func(c *NetConfig) error {
+		c.AnnounceAddr = addr
 		return nil
 	}
 }

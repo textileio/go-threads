@@ -143,6 +143,36 @@ func TestNewCollection(t *testing.T) {
 		if err == nil {
 			t.Fatal("delete should have been invalid")
 		}
+
+		// test vm interupt
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			WriteValidator: `
+				while(true){}
+			`,
+		})
+		checkErr(t, err)
+		dog = Dog{Name: "Fido", Comments: []Comment{}}
+		id, err = c.Create(util.JSONFromInstance(dog))
+		if err == nil {
+			t.Fatal("should get validator timed out error")
+		}
+
+		// test clear interupt
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			WriteValidator: `
+				return true
+			`,
+		})
+		checkErr(t, err)
+		id, err = c.Create(util.JSONFromInstance(dog))
+		checkErr(t, err)
+		time.Sleep(time.Second) // sleep vm timeout
+		id, err = c.Create(util.JSONFromInstance(dog))
+		checkErr(t, err)
 	})
 	t.Run("WithReadFilter", func(t *testing.T) {
 		t.Parallel()
@@ -167,6 +197,35 @@ func TestNewCollection(t *testing.T) {
 		if filtered.Name != "Clyde" {
 			t.Fatal("name should have been modified by read filter")
 		}
+
+		// test vm interupt
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			ReadFilter: `
+				while(true){}
+			`,
+		})
+		checkErr(t, err)
+		_, err = c.FindByID(id)
+		if err == nil {
+			t.Fatal("should get filter timed out error")
+		}
+
+		// test clear interupt
+		c, err = db.UpdateCollection(CollectionConfig{
+			Name:   "Dog",
+			Schema: util.SchemaFromInstance(&Dog{}, false),
+			ReadFilter: `
+				return instance
+			`,
+		})
+		checkErr(t, err)
+		_, err = c.FindByID(id)
+		checkErr(t, err)
+		time.Sleep(time.Second) // sleep vm timeout
+		_, err = c.FindByID(id)
+		checkErr(t, err)
 	})
 	t.Run("SingleExpandedSchemaStruct", func(t *testing.T) {
 		t.Parallel()
