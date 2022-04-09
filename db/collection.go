@@ -44,7 +44,7 @@ var (
 
 	baseKey = dsPrefix.ChildString("collection")
 
-	vmTimeout = time.Second
+	vmTimeout = time.Minute
 )
 
 const (
